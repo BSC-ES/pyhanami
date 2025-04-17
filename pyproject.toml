@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "pyhanami"
+version = "0.1.0"
+authors = [
+    {name = "Marta Alerany Solé", email = "marta.alerany@bsc.es"},
+    {name = "Kai Keller", email = "kai.keller@bsc.es"},
+    {name = "Leo Arriola i Meikle", email = "leo.arriola@bsc.es"}
+]
+
+description = "pyhanami is a tool designed to evaluate the replicability and projection skill of Earth System Models"
+readme = "README.md"
+license = {file = "LICENSE"}
+keywords = ["Earth System Models", "replicability", "projection skill"]
+classifiers=[
+    "Programming Language :: Python :: 3",
+    # Add line for lincense: "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+requires-python = ">=3.7"
+dependencies = [
+    "numpy",
+    "xarray",
+    "pathlib",
+    "scipy",
+    "matplotlib",
+]
+
+
+[project.urls]
+homepage = "https://earth.bsc.es/gitlab/ces/hanami/pyhanami"
+repository = "https://earth.bsc.es/gitlab/ces/hanami/pyhanami"
+documentation = "https://earth.bsc.es/gitlab/ces/hanami/pyhanami"
