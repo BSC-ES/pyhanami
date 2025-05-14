@@ -1,6 +1,6 @@
-def pdf_replicability(output_path, time_series=False, spatial=False):
+def pdf_replicability(output_path, generated_plots: dict):
     """ Generate a summary report with the results of the replicability test 
-    and the selected plots. """
+    and provided plots. """
     raise NotImplementedError("This function is not implemented yet.")
 
 

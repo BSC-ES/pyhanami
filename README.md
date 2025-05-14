@@ -32,5 +32,5 @@ diags.spatial_plots('output_path')
 # Run test and report
 tester = hnmi.ReplicabilityTest(ref, test)
 tester.matrix_plot('output_path')
-hnmi.pdf_replicability('output_path', time_series=True, spatial=True)
+tester.report('output_path', time_series=True, spatial=True)
 ```

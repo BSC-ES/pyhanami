@@ -1,7 +1,8 @@
-from .diags.datasets import SimulationData
-from .diags.replicability import DataDiagnostics, ReplicabilityTest
-from .diags.report import pdf_replicability
+from .diags.Simulations import SimulationData
+from .diags.Observations import ObservationData
+from .diags.Diagnostics import DataDiagnostics
+from .diags.Replicability import ReplicabilityTest
 
 __all__ = [
-    "SimulationData", "ReplicabilityTest", "DataDiagnostics", "pdf_replicability"
+    "SimulationData", "ObservationData", "DataDiagnostics", "ReplicabilityTest"
 ]
