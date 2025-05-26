@@ -1,0 +1,37 @@
+# Test Plan: replicability metrics (exp_RK_index, ilamb_crms, ilamb_crmse, ilamb_weighted_bias, ilamb_weighted_RMSE)
+
+## Purpose
+Verify that the functions computing metrics for the replicability test correctly compute standarized scores (RK index, centralized RMS, centralized RMSE, weighted bias, and weighted RMSE) from simulated ensembles.
+
+## Inputs to Test
+Normal case
+    - Well-formed xarray Datasets for both simulated and observed data, containing a time, lat, and lon dimension
+    - Simulated dataset averaged over time when necessary
+    - Properly named variable present in both datasets
+Edge cases:
+    - Datasets with:
+        - Zero time steps
+        - Single time step
+        - Missing variable
+        - Different shapes or coordinates
+        - Zero or NaN standard deviation
+        - NaNs in data
+Invalid inputs:
+    - Passing lists, numpy arrays, or other non-xarray inputs
+    - Incorrect variable name type (e.g., `None`, `int`)
+
+## Expected behaviour
+For valid inputs
+    - Return a NumPy array or xarray.Dataset with expected shape and values
+    - Values should be finite and within expected statistical range (e.g., 0–1 for exponential-based metrics)
+For edge cases
+    - Raise appropriate exceptions (`ValueError`, `TypeError`) or handle gracefully
+    - Consistent output shape even for single time steps
+For invalid inputs
+    - Funcion should fail with meaningful error messages
+
+## Status
+- [x] Not Started (placeholder)
+- [ ] In Progress (corresponding .py script in progress)
+- [ ] Ready for Implementation (ready to merge into `develop` branch)
+- [ ] Completed (tested with corresponding functions in `develop` branch)

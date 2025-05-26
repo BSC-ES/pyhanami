@@ -1,0 +1,31 @@
+# Test Plan: cp_effect_size 
+
+## Purpose
+Validate that `cp_effect_size()` correctly computes **Cohen’s d effect size** between two numeric samples using the pooled standard deviation method.
+
+## Inputs to test
+Normal case:
+    - Two arrays of equal length with normally distributed values (e.g., `np.random.normal()`) with different means
+Edge cases:
+    - Arrays of different lengths
+    - Arrays with zero variance (e.g., all values the same)
+    - Arrays with length 1 (minimum valid input)
+    - Arrays with NaNs or Infs
+    - Empty arrays
+Invalid inputs
+    - Inputs that are not numpy arrays
+    - Non-numeric data
+
+## Expected behaviour
+For valid numeric inputs:
+    - Return a float representing Cohen's d, matching manual calculation
+For edge cases:
+    - Raise appropriate exceptions (`ValueError`, `TypeError`) or handle gracefully
+For invalid inputs:
+    - Funcion should fail with meaningful error messages
+
+## Status
+- [x] Not Started (placeholder)
+- [ ] In Progress (corresponding .py script in progress)
+- [ ] Ready for Implementation (ready to merge into `develop` branch)
+- [ ] Completed (tested with corresponding functions in `develop` branch)

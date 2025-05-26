@@ -1,0 +1,37 @@
+# Test Plan: bootstrap_test
+
+## Purpose  
+Validate that `bootstrap_test()` performs a statistical comparison between two score distributions using a bootstrap method and returns a mean statistic, standard deviation, and p-value.
+
+## Inputs to Test
+Normal case:
+    - Two numeric arrays drawn from the same distribution (should not reject null hypothesis)
+    - Two numeric arrays drawn from clearly different distributions (should reject null hypothesis)
+    - Use default statistic (`cp_effect_size`)
+Edge cases:
+    - Arrays of different lengths
+    - Arrays with zero variance (e.g., all values the same)
+    - Arrays with length 1 (minimum valid input)
+    - Arrays with NaNs or Infs
+    - Empty arrays
+Invalid inputs:
+    - Inputs that are not numpy arrays
+    - Non-numeric data
+    - Passing a non-callable object as `bstat`
+
+## Expected Behavior
+For valid numeric inputs:
+    - Return a tuple `(d, sigma, p_value)`:
+        - `d`: Mean of bootstrap distribution
+        - `sigma`: Standard deviation of bootstrap distribution
+        - `p_value`: Two-tailed p-value for significance
+For edge cases:
+    - Raise appropriate exceptions (`ValueError`, `TypeError`) or handle gracefully
+For invalid inputs:
+    - Funcion should fail with meaningful error messages
+
+## Status
+- [x] Not Started (placeholder)
+- [ ] In Progress (corresponding .py script in progress)
+- [ ] Ready for Implementation (ready to merge into `develop` branch)
+- [ ] Completed (tested with corresponding functions in `develop` branch)
