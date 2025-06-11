@@ -1,4 +1,5 @@
 import numpy as np
+import xarray as xr
 from scipy.stats import bootstrap, norm
 
 
@@ -23,6 +24,18 @@ def exp_RK_index(data_sim, data_obs, var_name):
     -------
     RK_index (numpy.ndarray): RK index for each ensemble member.
     """
+
+    # Validate inputs
+    if not isinstance(data_sim, xr.Dataset):
+        raise TypeError("Simulated data must be an xarray.Dataset")
+    if not isinstance(data_obs, xr.Dataset):
+        raise TypeError("Observational data must be an xarray.Dataset")
+    if var_name not in data_sim.data_vars:
+        raise ValueError(f"Variable '{var_name}' not found in the simulated dataset. "
+                        f"Available variables: {list(data_sim.data_vars.keys())}")
+    if var_name not in data_obs.data_vars:
+        raise ValueError(f"Variable '{var_name}' not found in the observational dataset. "
+                        f"Available variables: {list(data_obs.data_vars.keys())}")
 
     # Compute error variance for each grid cell
     obs_mean = data_obs.mean(dim='time')
@@ -53,6 +66,14 @@ def ilamb_crms(data, var_name):
     v (xarray.Dataset): Centralized RMS for each grid cell and ensemble member.
     """
 
+    # Validate inputs
+    if not isinstance(data, xr.Dataset):
+        raise TypeError("The provided dataset must be an xarray.Dataset")
+    if var_name not in data.data_vars:
+        raise ValueError(f"Variable '{var_name}' not found in the provided dataset. "
+                        f"Available variables: {list(data.data_vars.keys())}")
+
+    # Compute centralized RMS
     v = data.load().copy()
     v_ref = v[var_name]
     v_mean = v_ref.mean(dim='time')
@@ -80,6 +101,19 @@ def ilamb_crmse(data_sim, data_obs, var_name):
     vs (xarray.Dataset): Centralized RMSE for each grid cell and ensemble member.
     """
 
+    # Validate inputs
+    if not isinstance(data_sim, xr.Dataset):
+        raise TypeError("Simulated data must be an xarray.Dataset")
+    if not isinstance(data_obs, xr.Dataset):
+        raise TypeError("Observational data must be an xarray.Dataset")
+    if var_name not in data_sim.data_vars:
+        raise ValueError(f"Variable '{var_name}' not found in the simulated dataset. "
+                        f"Available variables: {list(data_sim.data_vars.keys())}")
+    if var_name not in data_obs.data_vars:
+        raise ValueError(f"Variable '{var_name}' not found in the observational dataset. "
+                        f"Available variables: {list(data_obs.data_vars.keys())}")
+
+    # Calculate centralized RMSE
     vs = data_sim.load().copy()
     v_mod = vs[var_name]
     v_mmean = v_mod.mean(dim='time')
@@ -113,6 +147,18 @@ def ilamb_weighted_bias(data_sim, data_obs, var_name):
     S_bias (numpy.ndarray): Bias for each ensemble member.
     """
 
+    # Validate inputs
+    if not isinstance(data_sim, xr.Dataset):
+        raise TypeError("Simulated data must be an xarray.Dataset")
+    if not isinstance(data_obs, xr.Dataset):
+        raise TypeError("Observational data must be an xarray.Dataset")
+    if var_name not in data_sim.data_vars:
+        raise ValueError(f"Variable '{var_name}' not found in the simulated dataset. "
+                        f"Available variables: {list(data_sim.data_vars.keys())}")
+    if var_name not in data_obs.data_vars:
+        raise ValueError(f"Variable '{var_name}' not found in the observational dataset. "
+                        f"Available variables: {list(data_obs.data_vars.keys())}")
+
     # Compute bias for each grid cell
     v_mmean = data_sim
     v_rmean = data_obs.mean(dim='time')
@@ -122,7 +168,6 @@ def ilamb_weighted_bias(data_sim, data_obs, var_name):
     e_bias = bias/cmrs
     s_bias = np.exp(-e_bias)
     
-
     # Weighted mean
     weights = area_weights(data_sim)
     s_weighted = s_bias.weighted(weights)
@@ -146,13 +191,24 @@ def ilamb_weighted_RMSE(data_sim, data_obs, var_name):
     S_rmse (numpy.ndarray): RMSE for each ensemble member.
     """
 
+    # Validate inputs
+    if not isinstance(data_sim, xr.Dataset):
+        raise TypeError("Simulated data must be an xarray.Dataset")
+    if not isinstance(data_obs, xr.Dataset):
+        raise TypeError("Observational data must be an xarray.Dataset")
+    if var_name not in data_sim.data_vars:
+        raise ValueError(f"Variable '{var_name}' not found in the simulated dataset. "
+                        f"Available variables: {list(data_sim.data_vars.keys())}")
+    if var_name not in data_obs.data_vars:
+        raise ValueError(f"Variable '{var_name}' not found in the observational dataset. "
+                        f"Available variables: {list(data_obs.data_vars.keys())}")
+
     # Compute RMSE for each grid cell
     crmse = ilamb_crmse(data_sim, data_obs, var_name)
     crms = ilamb_crms(data_obs, var_name)
 
     e_rmse = crmse/crms
     s_rmse = np.exp(-e_rmse)
-
 
     # Weighted mean
     weights = area_weights(data_sim)
@@ -177,6 +233,16 @@ def cp_effect_size(sample_1, sample_2):
     d (float): Cohen's d effect size
     """
 
+    # Validate inputs
+    try:
+        if not isinstance(sample_1, np.ndarray):
+            sample_1 = np.asarray(sample_1, dtype=float)
+        if not isinstance(sample_2, np.ndarray):
+            sample_2 = np.asarray(sample_2, dtype=float)
+    except (TypeError, ValueError) as e:
+        raise TypeError(f"Inputs must be convertible to numeric arrays: {e}.")
+
+    # Compute Cohen's d effect size
     mean_1 = np.mean(sample_1) 
     mean_2 = np.mean(sample_2) 
 
@@ -207,6 +273,18 @@ def bootstrap_test(score_ref, score_test, bstat=cp_effect_size):
     p_value (float): Outcome of the bootstrap test (True for rejection).
     """
 
+    # Validate inputs
+    try:
+        if not isinstance(score_ref, np.ndarray):
+            score_ref = np.asarray(score_ref, dtype=float)
+        if not isinstance(score_test, np.ndarray):
+            score_test = np.asarray(score_test, dtype=float)
+    except (TypeError, ValueError) as e:
+        raise TypeError(f"Inputs must be convertible to numeric arrays: {e}.")
+    if not callable(bstat):
+        raise TypeError("The statistic 'bstat' must be a callable function.")
+
+    # Perform bootstrap test
     res = bootstrap((score_ref, score_test), bstat, confidence_level=0.95)
     d = np.mean(res.bootstrap_distribution)
     sigma = np.std(res.bootstrap_distribution)
