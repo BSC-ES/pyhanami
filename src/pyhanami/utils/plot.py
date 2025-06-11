@@ -5,7 +5,10 @@ import cartopy.crs as ccrs
 import cartopy.feature as cf
 import matplotlib.pyplot as plt
 
+from pyhanami import config
 from cartopy.util import add_cyclic_point
+from matplotlib.patches import Polygon, Circle
+from matplotlib.colors import LinearSegmentedColormap, ListedColormap, BoundaryNorm
 
 
 def time_series_plot(time_series):
@@ -103,7 +106,6 @@ def spatial_plot(data, title='Spatial plot', cb_label='', cmap=cmocean.cm.therma
     Returns
     -------
     fig (matplotlib.figure.Figure): Generated plot.
-    ax (matplotlib.axes._subplots.AxesSubplot): Plot axis.
     """
 
     # Validate inputs
@@ -148,7 +150,186 @@ def spatial_plot(data, title='Spatial plot', cb_label='', cmap=cmocean.cm.therma
     return fig
 
 
-def matrix_plot(eff_sizes, test_results):
-    """ Generate matrix plot with effect sizes and statistical tests results. """
-    raise NotImplementedError("This function is not implemented yet.")
+def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicability test', variables=None, seasons=None, regions=None):
+    """ 
+    Generate a matrix plot with effect sizes and results of the replicability test for the selected statistical test/s.
+
+    Parameters
+    ----------
+    eff_sizes (np.ndarray): Effect sizes between the scores with shape (n_rows, n_cols, n_indices). 
+    test_results (np.ndarray): Results of the statistical tests with shape (n_rows, n_cols, 4).
+    test (int): Statistical test to use (0: KS-test, 1: T-test, 2: U-test, 3: B-test, 4: All).
+    title (str): Title of the plot.
+    variables (dict): Dictionary with variables to be included in the plot and their descriptions.
+    seasons (list): List of seasons to include in the plot.
+    regions (list): List of regions to include in the plot.
+
+    Returns
+    -------
+    fig (matplotlib.figure.Figure): Generated matrix plot.
+    """
+
+    # Validate inputs
+    if not isinstance(eff_sizes, np.ndarray) or not isinstance(test_results, np.ndarray):
+        raise TypeError("The effect sizes and the test results must be numpy arrays.")
+    if eff_sizes.shape[:2] != test_results.shape[:2]:
+        raise ValueError("Mismatched spatial dimensions between effect sizes and test results.")
+    if test not in range(5):
+        raise ValueError("Invalid test index. Must be: 0 (KS-test), 1 (T-test), 2 (U-test), 3 (B-test), 4 (All).")
+
+    # Prepare parameters
+    if variables is None:
+        variables = config.VARIABLES
+    if seasons is None:
+        seasons = config.SEASONS
+    if regions is None:
+        regions = list(config.REGIONS.keys())
+
+    if test == 4:
+        test_outcome = np.any(test_results, axis=2)
+    else:
+        test_outcome = test_results
+
+    # Define custom colors
+    green = 'tab:green' 
+    red = 'tab:red' 
+
+    limits_colorbar = np.array([0, 0.01, 0.2, 0.5, 0.8, 1.2, 2])
+    blue_colors = LinearSegmentedColormap.from_list('', ['#ffffff', 'yellow'])
+    orange_colors = LinearSegmentedColormap.from_list('', ['#ffffff', 'tab:blue'])
+    cmap_aux = np.append(blue_colors([0, 0.2]),orange_colors(np.linspace(0.2, 1, 4)), axis=0)
+    cmap = ListedColormap(cmap_aux)
+    norm = BoundaryNorm(limits_colorbar, cmap.N)
+
+    # Define the grid
+    n_rows, n_cols, n_indices = eff_sizes.shape
+    fig_size = (22, 16)
+    fig, ax = plt.subplots(figsize=fig_size)
+
+    x_labels = [f'{s1} {s2}' for s1 in seasons for s2 in regions]
+    y_labels = list(variables.keys())
+
+
+    # Loop over each cell in the grid
+    circle_radius = 0.13
+    for i in range(n_rows):
+        for j in range(n_cols):
+            values = eff_sizes[i, j, :]
+
+            # Define the vertices in the cell
+            x, y = j, i
+            corners = np.array([[x, y], [x+1, y], [x+1, y+1], [x, y+1]])
+            center = [(x + x+1)/2, (y + y+1)/2]
+            
+            # Create four triangles
+            triangles = [
+                [corners[3], center, corners[0]],  # Left
+                [corners[0], center, corners[1]],  # Bottom
+                [corners[1], center, corners[2]],  # Right
+                [corners[2], center, corners[3]],  # Top
+                ]
+
+            # Plot each triangle with the corresponding p-value
+            for k, triangle in enumerate(triangles):
+                number = values[k]
+                color = cmap(norm(number)) if ~np.isnan(number) else 'white'
+                polygon = Polygon(triangle, color=color)
+                ax.add_patch(polygon)
+
+                # Add numeric p-value at the center of the triangle
+                centroid = np.mean(triangle, axis=0)
+                ax.text(centroid[0], centroid[1], f"{values[k]:.2f}", 
+                        ha="center", va="center", fontsize=7, color="#283747")
+                
+            # Add inner edges of the triangles
+            for corner in corners:
+                ax.plot([center[0], corner[0]], [center[1], corner[1]], color="black", lw=0.2)
+
+
+            # Check if any triangle value is less than alpha
+            if test_outcome[i, j]==1:
+                circle_color = red
+            elif test_outcome[i, j]==0 and ~np.isnan(number):
+                circle_color = green
+            else:
+                circle_color = 'white'
+
+            # Add circle in the center of the cell
+            circle = Circle(center, radius=circle_radius, facecolor=circle_color, edgecolor="black", lw=0.3, zorder=3)
+            ax.add_patch(circle)
+
+
+    # Add gridlines (cells' borders)
+    for x in range(n_cols + 1):  
+        ax.plot([x, x], [0, n_rows], color='black', linewidth=0.9)
+    for y in range(n_rows + 1): 
+        ax.plot([0, n_cols], [y, y], color='black', linewidth=0.9)
+
+    # Customize axes
+    ax.set_xlim(0, n_cols)
+    ax.set_ylim(0, n_rows)
+    ax.set_aspect('equal')
+
+    # Only ticks at the center of each column/row
+    ax.set_xticks(np.arange(n_cols) + 0.5)
+    ax.set_yticks(np.arange(n_rows) + 0.5)
+    plt.xticks(rotation=35, ha="right")
+    # plt.yticks(rotation=30)
+
+    ax.set_xticklabels(x_labels)
+    ax.set_yticklabels(y_labels)
+    ax.invert_yaxis()
+
+    plt.xlabel('Period')
+    plt.ylabel('Variables')
+    plt.title(title, y=1.01)
+
+
+    # Add colorbar
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    cbar = fig.colorbar(sm, ax=ax, orientation='vertical', fraction=0.046, aspect=50, pad=0.02, ticks=limits_colorbar)
+    cbar.set_label('Effect size')
+
+    # Add label to each segment
+    ranges = ['Very small', 'Small', 'Medium', 'Large', 'Very large', 'Huge']
+    for i, loc in enumerate(limits_colorbar[:-1]):
+        mid_loc = (limits_colorbar[i] + limits_colorbar[i + 1]) / 2
+        cbar.ax.text(0.6, mid_loc, ranges[i], ha='center', va='center', color='black', rotation=90, fontsize=8)
+
+
+    # Add box with Rejection/No rejection legend
+    legend_ax = fig.add_axes([0.501, 0.02, 0.1, 0.01]) # [left, bottom, width, height]
+    legend_ax.axis('off')  
+
+    handles = [
+        plt.Line2D([0], [0], color=green, lw=5, label='No rejection'),
+        plt.Line2D([0], [0], color=red, lw=5, label='Rejection')
+    ]
+    legend_ax.legend(handles=handles, loc='center', ncol=2)
+
+
+    # Add square with legend for scores
+    square_size = 0.055
+    inset_ax = fig.add_axes([0.856, 0.025, square_size*(fig_size[1]/fig_size[0]), square_size])  # [left, bottom, width, height] in figure coordinates
+    inset_ax.set_xlim(0, 1)
+    inset_ax.set_ylim(0, 1)
+    inset_ax.axis("off")
+
+    triangles = [
+        [[0, 0], [0.5, 0.5], [1, 0]],  # Bottom 
+        [[0, 1], [0.5, 0.5], [1, 1]],  # Top 
+        [[0, 0], [0.5, 0.5], [0, 1]],  # Left 
+        [[1, 0], [0.5, 0.5], [1, 1]]   # Right 
+    ]
+    for tri in triangles:
+        polygon = Polygon(tri, edgecolor='black', facecolor='none', linewidth=0.9)
+        inset_ax.add_patch(polygon)
+
+    # Add text to each triangle
+    texts = ["RK08", "Bias", "RMSE", "All"]
+    text_positions = [(0.22, 0.5), (0.5, 0.81), (0.78, 0.5), (0.5, 0.19)]
+    for pos, txt in zip(text_positions, texts):
+        inset_ax.text(pos[0], pos[1], txt, ha="center", va="center", fontsize=9)
+
+    return fig
 

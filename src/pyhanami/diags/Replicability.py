@@ -49,7 +49,7 @@ class ReplicabilityTest:
         test_results = self._apply_tests(scores)
 
         # Plot results
-        matrix = plot.matrix_plot(eff_sizes, test_results)
+        matrix = plot.matrix_plot(eff_sizes, test_results, title=f"Effect size replicability test ({self.ref.name} vs {self.test.name})")
         matrix.savefig(matrix_path)
 
         print(f'Matrix plot saved to {output_path}.')
