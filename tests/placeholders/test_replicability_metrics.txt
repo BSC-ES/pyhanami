@@ -1,4 +1,4 @@
-# Test Plan: replicability metrics (exp_RK_index, ilamb_crms, ilamb_crmse, ilamb_weighted_bias, ilamb_weighted_RMSE)
+# Test Plan: replicability metrics (exp_RK_index, ilamb_crms, ilamb_crmse, ilamb_weighted_bias, ilamb_weighted_RMSE in utils/statistics.py)
 
 ## Purpose
 Verify that the functions computing metrics for the replicability test correctly compute standarized scores (RK index, centralized RMS, centralized RMSE, weighted bias, and weighted RMSE) from simulated ensembles.

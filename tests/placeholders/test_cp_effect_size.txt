@@ -1,4 +1,4 @@
-# Test Plan: cp_effect_size 
+# Test Plan: cp_effect_size (in utils/statistics.py)
 
 ## Purpose
 Validate that `cp_effect_size()` correctly computes Cohen’s d effect size between two numeric samples using the pooled standard deviation method.

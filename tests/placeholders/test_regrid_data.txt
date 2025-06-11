@@ -1,4 +1,4 @@
-# Test Plan: regridding functions (cyclic_wrapper, regrid_data)
+# Test Plan: regridding functions (cyclic_wrapper, regrid_data in utils/data.py)
 
 ## Purpose
 Verify that the function `regrid_data()` accurately performs spatial regridding and handles cyclic points properly with `cyclic_wrapper()`.

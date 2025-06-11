@@ -1,0 +1,40 @@
+# Test Plan: spatial plot functions (spatial_plot, add_colorbar, style_cartopy_axis in utils/plot.py)
+
+## Purpose
+Verify that `spatial_plot()` generates a complete Cartopy-based plot with correct data rendering, optional contours, colorbar, 
+and optional significance hatching properly employing the functions `add_colorbar()` and `style_cartopy_axis()`.
+
+## Inputs to test
+- Normal case:
+    - Array with lat/lon dimensions and standard coordinates
+    - Significance mask with matching shape
+- Edge cases:
+    - Array with very large or very small floating-point values, or with NaN values
+    - Array with already cyclic longitude
+    - Significance mask provided with mismatched shape
+    - No title or no levels provided
+- Invalid inputs:
+    - Passing lists, numpy arrays, or other non-xarray inputs
+    - Missing latitude or longitude coordinates
+    - Malformed significance mask
+
+## Expected behaviour
+- For valid inputs:
+    - Return a Matplotlib `Figure` and `Axes` object
+    - Draw data on map using filled contours
+    - Add optional contour lines if enabled
+    - Add optional significance hatching if mask is provided
+    - Place colorbar below the map with appropriate label and tick marks
+    - Add title if provided
+- For edge cases:
+    - Raise appropriate exceptions (`ValueError`, `TypeError`) or handle gracefully
+    - Not crash when NaN values appear and handle missing data gracefully
+    - Plot is still created with reasonable defaults or no contours even for missint title/levels
+- For invalid inputs:
+    - Funcion should fail with meaningful error messages
+
+## Status
+- [x] Not Started (placeholder)
+- [ ] In Progress (corresponding .py script in progress)
+- [ ] Ready for Implementation (ready to merge into `develop` branch)
+- [ ] Completed (tested with corresponding functions in `develop` branch)

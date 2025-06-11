@@ -1,4 +1,4 @@
-# Test Plan: bootstrap_test
+# Test Plan: bootstrap_test (in utils/statistics.py)
 
 ## Purpose  
 Validate that `bootstrap_test()` performs a statistical comparison between two score distributions using a bootstrap method and returns a mean statistic, standard deviation, and p-value.
