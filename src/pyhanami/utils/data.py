@@ -51,7 +51,7 @@ def cyclic_wrapper(data, dim="lon"):
     return wrapped_data
 
 
-def regrid(source_ds, target_ds, var=None, method='conservative', cyclic_point=False, time_dim='time' ):
+def regrid_data(source_ds, target_ds, var=None, method='conservative', cyclic_point=False, time_dim='time' ):
         """
         Regrid one or all variables from the source dataset to the target dataset.
 
