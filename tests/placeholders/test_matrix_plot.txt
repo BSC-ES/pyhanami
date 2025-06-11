@@ -1,0 +1,38 @@
+# Test Plan: matrix plot (in utils/plot.py)
+
+## Purpose
+Verify that the `matrix_plot()` correctly generates a matrix plot of effect sizes in squared cells divided 
+in four triangles and replicability test results as a circle in the middle of each squared cell. 
+
+## Inputs to test
+- Normal case:
+    - Arrays with matching dimensions of variables and seasons x regions
+    - The replicability test results are given as binary values (0 or 1)
+    - The selected test is available
+- Edge cases:
+    - Arrays with NaN values or empty arrays
+    - Mismatched shapes between `eff_sizes` and `test_results`
+- Invalid inputs:
+    - Inputs that are not numpy arrays
+    - Non-numeric data
+    - Out-of-range or non-integer test values
+
+## Expected behaviour
+- For valid inputs:
+    - Return a Matplotlib `Figure` object
+    - Triangle areas are colored according to effect sizes
+    - Triangle text labels show rounded values correctly
+    - Circle overlay reflects test result correctly (green/red)
+    - Include colorbar, legends, and axis labels
+- For edge cases:
+    - Raise appropriate exceptions (`ValueError`, `TypeError`) or handle gracefully
+    - Not crash when NaN values appear and handle missing data gracefully
+    - Return a minimal or blank figure for empty inputs
+- For invalid inputs:
+    - Funcion should fail with meaningful error messages
+
+## Status
+- [x] Not Started (placeholder)
+- [ ] In Progress (corresponding .py script in progress)
+- [ ] Ready for Implementation (ready to merge into `develop` branch)
+- [ ] Completed (tested with corresponding functions in `develop` branch)

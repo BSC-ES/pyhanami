@@ -20,7 +20,7 @@ and optional significance hatching properly employing the functions `add_colorba
 
 ## Expected behaviour
 - For valid inputs:
-    - Return a Matplotlib `Figure` and `Axes` object
+    - Return a Matplotlib `Figure` object
     - Draw data on map using filled contours
     - Add optional contour lines if enabled
     - Add optional significance hatching if mask is provided
