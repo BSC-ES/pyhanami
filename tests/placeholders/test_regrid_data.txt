@@ -1,0 +1,34 @@
+# Test Plan: regridding functions (cyclic_wrapper, regrid_data)
+
+## Purpose
+Verify that the function `regrid_data()` accurately performs spatial regridding and handles cyclic points properly with `cyclic_wrapper()`.
+
+## Inputs to Test
+Normal case:
+    - 2D array with lat/lon dimensions and standard coordinates
+Edge cases:
+    - 1D array with only a longitude dimension
+    - Array with only one longitude point
+    - Data with already cyclic longitude
+    - Missing longitude coordinate or not named `lon`
+Invalid inputs:
+    - Passing lists, numpy arrays, or other non-xarray inputs
+    - Dimension name that does not exist
+    - Variable that does not exist
+
+## Expected behaviour
+For valid inputs:
+    - Return a xarray.DataArray or xarray.Dataset with expected shape and values
+    - Coordinate values should wrap correctly
+    - All metadata/attributes should be preserved
+For edge cases:
+    - Raise appropriate exceptions (`ValueError`, `TypeError`) or handle gracefully
+    - Work with minimal input (e.g., 1D longitude)
+For invalid inputs:
+    - Funcion should fail with meaningful error messages
+
+## Status
+- [x] Not Started (placeholder)
+- [ ] In Progress (corresponding .py script in progress)
+- [ ] Ready for Implementation (ready to merge into `develop` branch)
+- [ ] Completed (tested with corresponding functions in `develop` branch)
