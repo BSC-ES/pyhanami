@@ -1,6 +1,8 @@
 import numpy as np
 import xarray as xr
+
 from pathlib import Path
+from pyhanami import config
 from pyhanami.utils import plot
 from pyhanami.utils import report
 from pyhanami.diags.Simulations import SimulationData
@@ -14,6 +16,11 @@ class ReplicabilityTest:
         self._compare_ensembles()
         self.obs = ObservationData(ref.data)
 
+        # Load config variables once
+        self.variables = config.VARIABLES
+        self.seasons = config.SEASONS
+        self.regions = list(config.REGIONS.keys())
+
 
     def _compare_ensembles(self):
         """ Check that both provided ensembles are equivalent
@@ -24,11 +31,11 @@ class ReplicabilityTest:
         """ Compute scores for both simulation ensembles."""
         raise NotImplementedError("This function is not implemented yet.")
 
-    def _compute_eff_sizes(scores: xr.Dataset) -> np.ndarray:
+    def _compute_eff_sizes(self, scores: xr.Dataset) -> np.ndarray:
         """ Compute effect sizes for the distributions of scores."""
         raise NotImplementedError("This function is not implemented yet.")
 
-    def _apply_tests(scores: xr.Dataset) -> np.ndarray:
+    def _apply_tests(self, scores: xr.Dataset) -> np.ndarray:
         """ Compare scores with statistical tests. """
         raise NotImplementedError("This function is not implemented yet.")
 
@@ -49,8 +56,8 @@ class ReplicabilityTest:
         test_results = self._apply_tests(scores)
 
         # Plot results
-        matrix = plot.matrix_plot(eff_sizes, test_results, title=f"Effect size replicability test ({self.ref.name} vs {self.test.name})")
-        matrix.savefig(matrix_path)
+        matrix, _ = plot.matrix_plot(eff_sizes, test_results, title=f"Effect size replicability test ({self.ref.name} vs {self.test.name})")
+        matrix.savefig(matrix_path, bbox_inches='tight', dpi=100)
 
         print(f'Matrix plot saved to {output_path}.')
         return

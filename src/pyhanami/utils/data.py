@@ -94,12 +94,12 @@ def regrid_data(source_ds, target_ds, var=None, method='conservative', cyclic_po
         target_ds_t0 = target_ds.isel({time_dim: 0}) if time_dim in target_ds.dims else target_ds
         
         # Build regridder and perform interpolation for all time steps
-        with xe.Regridder(source_ds_t0, target_ds_t0, method) as regridder:
-            regridded_vars = {}
-            for var_name in vars_to_regrid:
-                regridded_var = regridder(source_ds_copy[var_name])
-                regridded_var.attrs = source_ds[var_name].attrs
-                regridded_vars[var_name] = regridded_var
+        regridder = xe.Regridder(source_ds_t0, target_ds_t0, method)
+        regridded_vars = {}
+        for var_name in vars_to_regrid:
+            regridded_var = regridder(source_ds_copy[var_name])
+            regridded_var.attrs = source_ds[var_name].attrs
+            regridded_vars[var_name] = regridded_var
         regridded_ds = xr.Dataset(regridded_vars)
         
         # Preserve both global and coordinate attributes

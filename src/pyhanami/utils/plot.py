@@ -96,7 +96,7 @@ def spatial_plot(data, title='Spatial plot', cb_label='', cmap=cmocean.cm.therma
     cb_label (str): Label to display below the colorbar. 
     cmap (matplotlib colormap): Colormap.
     levels (np.ndarray): Contour levels.
-    significant (np.ndarray): Boolean mask for significance hatching.
+    significant (np.ndarray): Mask for significance hatching.
     vmin, vmax (float): Min. and max. values for the colormap.
     show_contours (bool): Whether to overlay contour lines.
     contour_fontsize (int): Font size for contour labels.
@@ -106,6 +106,7 @@ def spatial_plot(data, title='Spatial plot', cb_label='', cmap=cmocean.cm.therma
     Returns
     -------
     fig (matplotlib.figure.Figure): Generated plot.
+    ax (matplotlib.axes._subplots.AxesSubplot): Plot axis.
     """
 
     # Validate inputs
@@ -147,7 +148,7 @@ def spatial_plot(data, title='Spatial plot', cb_label='', cmap=cmocean.cm.therma
 
     # NOTE: missing special Stereographic projection plot for sea ice concentration
 
-    return fig
+    return fig, ax
 
 
 def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicability test', variables=None, seasons=None, regions=None):
@@ -158,7 +159,7 @@ def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicabili
     ----------
     eff_sizes (np.ndarray): Effect sizes between the scores with shape (n_rows, n_cols, n_indices). 
     test_results (np.ndarray): Results of the statistical tests with shape (n_rows, n_cols, 4).
-    test (int): Statistical test to use (0: KS-test, 1: T-test, 2: U-test, 3: B-test, 4: All).
+    test (int): Statistical test to use, corresponding to last dimension of test_results (0: KS-test, 1: T-test, 2: U-test, 3: B-test, 4: All).
     title (str): Title of the plot.
     variables (dict): Dictionary with variables to be included in the plot and their descriptions.
     seasons (list): List of seasons to include in the plot.
@@ -167,6 +168,7 @@ def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicabili
     Returns
     -------
     fig (matplotlib.figure.Figure): Generated matrix plot.
+    ax (matplotlib.axes._subplots.AxesSubplot): Plot axis.
     """
 
     # Validate inputs
@@ -179,7 +181,7 @@ def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicabili
 
     # Prepare parameters
     if variables is None:
-        variables = config.VARIABLES
+        variables = list(config.VARIABLES.keys())
     if seasons is None:
         seasons = config.SEASONS
     if regions is None:
@@ -207,7 +209,7 @@ def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicabili
     fig, ax = plt.subplots(figsize=fig_size)
 
     x_labels = [f'{s1} {s2}' for s1 in seasons for s2 in regions]
-    y_labels = list(variables.keys())
+    y_labels = variables
 
 
     # Loop over each cell in the grid
@@ -331,5 +333,4 @@ def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicabili
     for pos, txt in zip(text_positions, texts):
         inset_ax.text(pos[0], pos[1], txt, ha="center", va="center", fontsize=9)
 
-    return fig
-
+    return fig, ax

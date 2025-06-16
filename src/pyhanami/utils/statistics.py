@@ -1,5 +1,6 @@
 import numpy as np
 import xarray as xr
+
 from scipy.stats import bootstrap, norm
 
 
@@ -225,12 +226,12 @@ def cp_effect_size(sample_1, sample_2):
 
     Arguments
     ---------
-    sample_1 (numpy.ndarray): Sample.
-    sample_2 (numpy.ndarray): Sample.
+    sample_1 (numpy.ndarray): First sample.
+    sample_2 (numpy.ndarray): Second sample.
 
     Returns
     -------
-    d (float): Cohen's d effect size
+    d (float): Cohen's d effect size.
     """
 
     # Validate inputs
@@ -240,7 +241,7 @@ def cp_effect_size(sample_1, sample_2):
         if not isinstance(sample_2, np.ndarray):
             sample_2 = np.asarray(sample_2, dtype=float)
     except (TypeError, ValueError) as e:
-        raise TypeError(f"Inputs must be convertible to numeric arrays: {e}.")
+        raise TypeError(f"Input samples must be convertible to numeric arrays: {e}.")
 
     # Compute Cohen's d effect size
     mean_1 = np.mean(sample_1) 
@@ -251,6 +252,40 @@ def cp_effect_size(sample_1, sample_2):
     std_pooled = np.sqrt((std_1**2+std_2**2)/2)
 
     d = (mean_1 - mean_2)/std_pooled
+    return d
+
+
+def cp_effect_size_bootstrap(args):
+    """ 
+    Estimate Cohen's d effect size between two samples using `cp_effect_size()`
+    with bootstrapping.
+
+    Parameters
+    ----------
+    args (tuple): List containing:
+        sample_1 (numpy.ndarray): First sample.
+        sample_2 (numpy.ndarray): Second sample.
+
+    Returns
+    -------
+    d (float): Cohen's d effect size.
+    """
+
+    # Validate inputs
+    sample_1, sample_2 = args
+    try:
+        if not isinstance(sample_1, np.ndarray):
+            sample_1 = np.asarray(sample_1, dtype=float)
+        if not isinstance(sample_2, np.ndarray):
+            sample_2 = np.asarray(sample_2, dtype=float)
+    except (TypeError, ValueError) as e:
+        raise TypeError(f"Input samples must be convertible to numeric arrays: {e}.")
+
+    # Estimate Cohen's d effect size
+    rng = np.random.default_rng()   
+    res = bootstrap((sample_1,sample_2), cp_effect_size, confidence_level=0.95, n_resamples=5000, random_state=rng)
+    
+    d = np.mean(res.bootstrap_distribution)
     return d
 
 
@@ -297,3 +332,43 @@ def bootstrap_test(score_ref, score_test, bstat=cp_effect_size):
         p_value = 1.0
 
     return d, sigma, p_value
+
+
+def significant_diff(args):
+    """ 
+    Check whether the difference between two samples is significant according to 
+    the specified statistical test.
+
+    Parameters
+    ----------
+    args (tuple): List containing:
+        sample_1 (numpy.ndarray): First sample.
+        sample_2 (numpy.ndarray): Second sample.
+        alpha (float): Significance level for the test.
+        stat (function): Statistical test to evaluate significant differences.
+
+    Returns
+    -------
+    diff (bool): Output of statistical test.
+    """
+
+    # Validate iputs
+    sample_1, sample_2, alpha, stat = args
+    try:
+        if not isinstance(sample_1, np.ndarray):
+            sample_1 = np.asarray(sample_1, dtype=float)
+        if not isinstance(sample_2, np.ndarray):
+            sample_2 = np.asarray(sample_2, dtype=float)
+    except (TypeError, ValueError) as e:
+        raise TypeError(f"Input samples must be convertible to numeric arrays: {e}.")
+    if not isinstance(alpha, (int, float)):
+        raise TypeError(f"The significance level 'alpha' must be numeric.")
+    if not callable(stat):
+        raise TypeError(f"'stat' must be callable.")
+
+    # Evaluate difference
+    res = stat(sample_1, sample_2)
+    pval = res.pvalue
+
+    diff = 1 if pval<alpha else 0
+    return diff
