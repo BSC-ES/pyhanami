@@ -1,0 +1,39 @@
+
+# Test Plan: significance differences functions (significant_diff in utils/statistics.py and _compute_significant_diff in diags/Diagnostics.py)
+
+## Purpose
+Verify that `significant_diff()` and `_compute_significant_diffs()` correctly detect statistically significant differences between 
+two ensemble datasets at the grid point level. 
+
+## Inputs to test
+- Normal case:
+    - Arrays with lat/lon dimensions and standard coordinates
+    - Valid statistical test function
+- Edge cases:
+    - Arrays with very large or very small floating-point values, or with NaN values
+    - Datasets with only one realization or one time step
+    - All identical values
+    - Alpha = 1.0 or alpha = 0.0
+- Invalid inputs:
+    - Passing lists, numpy arrays, or other non-xarray inputs
+    - Missing latitude or longitude coordinates
+    - Mismatched dimensions between datasets
+    - `stat` is not callable.
+    - Alpha is a negative or not a numeric value
+
+## Expected behaviour
+- For valid inputs
+    - Returns a 2D numpy array (lat, lon) with int values
+- For edge cases
+    - Raise appropriate exceptions (`ValueError`, `TypeError`) or handle gracefully
+    - Not crash when NaN values appear and handle missing data gracefully
+    - Returns all 0s if no significant differences exist
+    - Respects extreme alpha values (1.0 => everything significant, 0.0 => none)
+- For invalid inputs:
+    - Funcion should fail with meaningful error messages
+
+## Status
+- [x] Not Started (placeholder)
+- [ ] In Progress (corresponding .py script in progress)
+- [ ] Ready for Implementation (ready to merge into `develop` branch)
+- [ ] Completed (tested with corresponding functions in `develop` branch)
