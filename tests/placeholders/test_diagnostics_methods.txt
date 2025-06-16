@@ -1,0 +1,38 @@
+# Test Plan: methods DataDiagnostics class (_compute_abs_diff, _compute_eff_size_ens in diags/Diagnostics.py)
+
+## Purpose
+Verify that `_compute_abs_diff()` correctly computes the absolute average difference of a variable between two simulation ensembles, 
+and that `_compute_eff_size_ens()` computes the effect size between ensemble distributions at the grid point level.
+
+## Inputs to test
+- Normal case:
+    - Arrays with lat/lon, realization and time dimensions and standard coordinates
+- Edge cases:
+    - Arrays with very large or very small floating-point values, or with NaN values
+    - Variable containing NaNs or zeros (especially for `siconc`, `sos`, `tos`)
+    - All identical values
+    - Minimal grid (e.g., 1 lat x 1 lon)
+    - Only 1 realization
+- Invalid inputs:
+    - Passing lists, numpy arrays, or other non-xarray inputs
+    - Variable not present in one or both datasets
+    - Missing latitude or longitude coordinates
+    - Mismatched dimensions between datasets
+
+## Expected behaviour
+- For valid inputs:
+    - Returns a 2D DataArray (lat, lon) with the corresponding values
+- For edge cases:
+    - Raise appropriate exceptions (`ValueError`, `TypeError`) or handle gracefully
+    - Not crash when NaN values appear and handle missing data gracefully
+    - Zeros or NaNs in `siconc`, `sos`, `tos` are replaced with small non-zero (1e-6) values to preserve colorbar continuity
+    - Returns all 0s for identical distributions
+    - Minimal grid returns valid single-point output
+- For invalid inputs:
+    - Funcion should fail with meaningful error messages
+
+## Status
+- [x] Not Started (placeholder)
+- [ ] In Progress (corresponding .py script in progress)
+- [ ] Ready for Implementation (ready to merge into `develop` branch)
+- [ ] Completed (tested with corresponding functions in `develop` branch)
