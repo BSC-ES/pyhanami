@@ -131,8 +131,8 @@ def spatial_plot(data, title='Spatial plot', cb_label='', cmap=cmocean.cm.therma
 
     # Significance hatching
     if significant is not None:
-        if significant.shape != data_cyclic.shape:
-            raise ValueError(f"Mask shape {significant.shape} does not match data shape {data_cyclic.values.shape}.")
+        if significant.shape != data.shape:
+            raise ValueError(f"Mask shape {significant.shape} does not match data shape {data.values.shape}.")
         else:
             aux, lon = add_cyclic_point(significant, coord=data.lon.values)
             mask = np.ma.masked_where(aux == 0, data_cyclic.values)  
@@ -300,7 +300,7 @@ def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicabili
 
 
     # Add box with Rejection/No rejection legend
-    legend_ax = fig.add_axes([0.501, 0.02, 0.1, 0.01]) # [left, bottom, width, height]
+    legend_ax = fig.add_axes([0.552, 0.02, 0.1, 0.01]) # [left, bottom, width, height]
     legend_ax.axis('off')  
 
     handles = [
