@@ -1,5 +1,8 @@
 import numpy as np
 
+from pyhanami.utils import statistics
+from scipy.stats import ks_2samp, ttest_ind, mannwhitneyu
+
 # Available variables (name: long_name, units)
 VARIABLES = {
     'hus300': ['Specific humidity at 300hPa', 'kg kg-1'],
@@ -26,5 +29,18 @@ VARIABLES = {
 
 
 # General parameters
+METRICS = np.array([
+        ('RK08', [statistics.exp_RK_index], True),
+        ('Bias', [statistics.ilamb_weighted_bias], True), 
+        ('RMSE', [statistics.ilamb_weighted_RMSE], True)
+    ], dtype=[('name', 'U10'), ('functions', 'O'), ('obs_needed', 'bool')])  
+
+TESTS = {
+        'KS-test': lambda ref, test: ks_2samp(ref, test)[1],
+        'T-test': lambda ref, test: ttest_ind(ref, test, equal_var=False)[1], 
+        'U-test': lambda ref, test: mannwhitneyu(ref, test)[1],
+        'B-test': lambda ref, test: statistics.bootstrap_test(ref, test)[2]
+    }
+
 SEASONS = ['All', 'DJF', 'MAM', 'JJA', 'SON']
 REGIONS = {'Global':slice(90,-90), 'Tropics':slice(30,-30), 'Extratropics':np.r_[slice(-90,-30), slice(30,90)]}

@@ -11,12 +11,13 @@ from pyhanami.utils import plot, statistics
 from pyhanami.diags.Simulations import SimulationData
 
 
-variables = config.VARIABLES
-
 class DataDiagnostics:
     def __init__(self, ref: SimulationData, test: SimulationData):
         self.ref = ref
         self.test = test
+
+        # Load config parameters once
+        self.variables = config.VARIABLES
 
 
     def _compute_time_series(self, varname: str):
@@ -39,8 +40,8 @@ class DataDiagnostics:
 
 
     def _compute_eff_size_ens(self, varname: str) -> xr.DataArray:
-        """ Compute average effect size between the simulation ensembles at 
-        the grid point level. """
+        """ Compute average effect size between the simulation ensembles 
+        in parallel for the given variable at the grid point level. """
     
         # Prepare data
         data_sim_1 = self.ref.data.persist()
@@ -109,7 +110,7 @@ class DataDiagnostics:
 
 
     def time_series_plots(self, varname: str, output_path: str):
-        """ Generate time series plots for the given ensembles. """
+        """ Generate time series plots for the given ensembles and variable. """
 
         # Prepare output folder
         output_path = Path(output_path)
@@ -127,7 +128,7 @@ class DataDiagnostics:
 
     def spatial_plots(self, varname: str, output_path: str, alpha: float = 0.05, stat: Callable = ttest_ind):
         """ Generate absolute difference and effect size plots
-        for the given ensembles. """
+        for the given ensembles and variable. """
 
         # prepare output folder
         output_path = Path(output_path)
@@ -140,8 +141,8 @@ class DataDiagnostics:
         limit = np.max(np.abs(abs_diff.values))
         levels = np.linspace(-limit, limit, 13)
 
-        abs_diff_plot, _ = plot.spatial_plot(abs_diff, title=f'Difference in {variables[varname][0]} ({self.ref.name} - {self.test.name})',
-                                          cb_label=f"difference in {varname} ({variables[varname][1]})", cmap=cmocean.cm.thermal, levels=levels)
+        abs_diff_plot, _ = plot.spatial_plot(abs_diff, title=f'Difference in {self.variables[varname][0]} ({self.ref.name} - {self.test.name})',
+                                          cb_label=f"difference in {varname} ({self.variables[varname][1]})", cmap=cmocean.cm.thermal, levels=levels)
         abs_diff_plot.savefig(abs_diff_path, bbox_inches='tight', dpi=100)
 
         # Compute and plot effect size with significant differences
@@ -149,7 +150,7 @@ class DataDiagnostics:
         significant = self._compute_significant_diff(varname, alpha, stat)
         levels = [-2,-1.2,-0.8,-0.5,-0.2,-0.01,0.01,0.2,0.5,0.8,1.2,2.0]    # Use Cohen's limits for effect size
 
-        eff_size_plot, _ = plot.spatial_plot(eff_size, title=f"Cohen's effect size ($d$) for {variables[varname][0]} ({self.ref.name} - {self.test.name})",
+        eff_size_plot, _ = plot.spatial_plot(eff_size, title=f"Cohen's effect size ($d$) for {self.variables[varname][0]} ({self.ref.name} - {self.test.name})",
                                           cb_label=f"$d$ for {varname} (-)", cmap=cmocean.cm.diff, levels=levels, significant=significant)
         eff_size_plot.savefig(eff_size_path, bbox_inches='tight', dpi=100)
 
