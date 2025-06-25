@@ -1,0 +1,42 @@
+# Test Plan: methods ReplicabilityTest class (_compute_scores_one_var, _compute_scores, _compute_eff_sizes, _apply_tests in Replicability.py)
+
+## Purpose
+Verify that the methods within `ReplicabilityTest()` correctly perform a replicability test (properly computing the corresponding effect sizes
+and statistical tests results).
+
+## Inputs to test
+- Normal case:
+    - Datasets with lat/lon, realization and time dimensions and standard coordinates
+- Edge cases:
+    - Arrays with very large or very small floating-point values, or with NaN values
+    - Variable containing NaNs or zeros (especially for `siconc`, `sos`, `tos`)
+    - All identical values
+    - Minimal grid (e.g., 1 lat x 1 lon)
+    - Only 1 realization
+- Invalid inputs:
+    - Passing lists, numpy arrays, or other non-xarray inputs
+    - Some variable/s not present in one or both datasets
+    - Missing latitude or longitude coordinates
+    - Mismatched dimensions between datasets
+    - Alpha is not between 0 and 1
+
+## Expected behaviour
+- For valid inputs:
+    - `_compute_scores_one_var` returns tuple of var_name and corresponding `xr.Dataset` with expected shape and attributes
+    - `_compute_scores` returns `Dict[str, xr.Dataset]` with the same keys as `self.variables`
+    - `_compute_eff_sizes` returns 3D `np.ndarray` with shape `[n_vars, n_sections, n_metrics]`, filled with float effect sizes
+    - `_apply_tests` returns `np.ndarray` with shape `[n_vars, n_sections, n_tests]` of bools
+- For edge cases:
+    - Not crash when NaN values appear and handle missing data gracefully
+    - Empty variable list returns empty dict or array
+    - Returns all 0s effect sizes for identical distributions
+    - Minimal grid returns valid single-point output
+    - Metrics with no variability handled gracefully in effect size or statistical test steps
+- For invalid inputs:
+    - Funcion should fail with meaningful error messages
+
+## Status
+- [x] Not Started (placeholder)
+- [ ] In Progress (corresponding .py script in progress)
+- [ ] Ready for Implementation (ready to merge into `develop` branch)
+- [ ] Completed (tested with corresponding functions in `develop` branch)
