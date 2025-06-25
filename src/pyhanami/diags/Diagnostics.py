@@ -18,6 +18,7 @@ class DataDiagnostics:
 
         # Load config parameters once
         self.variables = config.VARIABLES
+        self.max_workers_grid = config.MAX_WORKERS_GRID
 
 
     def _compute_time_series(self, varname: str):
@@ -54,7 +55,7 @@ class DataDiagnostics:
         tasks = [(data_sim_flat_1.sel(ngrid=i).values, data_sim_flat_2.sel(ngrid=i).values,) for i in data_sim_flat_1.ngrid]
         effect_size = np.empty(len(tasks))
 
-        with concurrent.futures.ProcessPoolExecutor() as executor:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=self.max_workers_grid) as executor:
             for idx, value in enumerate(executor.map(statistics.cp_effect_size_bootstrap, tasks)):
                 effect_size[idx] = value
 
@@ -101,7 +102,7 @@ class DataDiagnostics:
         tasks = [(d1[:,n], d2[:,n], alpha, stat) for n in range(n_points)]
         significant = np.zeros(n_points)
 
-        with concurrent.futures.ProcessPoolExecutor() as executor:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=self.max_workers_grid) as executor:
             for idx, value in enumerate(executor.map(statistics.significant_diff, tasks)):
                 significant[idx] = value
         significant_reshaped =  significant.reshape((n_lats,n_lons))
@@ -111,6 +112,14 @@ class DataDiagnostics:
 
     def time_series_plots(self, varname: str, output_path: str):
         """ Generate time series plots for the given ensembles and variable. """
+
+        # Validate inputs
+        if varname not in self.ref.data_vars:
+            raise ValueError(f"Variable '{varname}' not found in the simulated dataset {self.ref.name}. "
+                        f"Available variables: {list(self.ref.data_vars.keys())}")
+        if varname not in self.test.data_vars:
+            raise ValueError(f"Variable '{varname}' not found in the simulated dataset {self.test.name}."
+                        f"Available variables: {list(self.test.data_vars.keys())}")
 
         # Prepare output folder
         output_path = Path(output_path)
@@ -130,7 +139,21 @@ class DataDiagnostics:
         """ Generate absolute difference and effect size plots
         for the given ensembles and variable. """
 
-        # prepare output folder
+        # Validate inputs
+        if varname not in self.ref.data_vars:
+            raise ValueError(f"Variable '{varname}' not found in the simulated dataset {self.ref.name}. "
+                        f"Available variables: {list(self.ref.data_vars.keys())}")
+        if varname not in self.test.data_vars:
+            raise ValueError(f"Variable '{varname}' not found in the simulated dataset {self.test.name}."
+                        f"Available variables: {list(self.test.data_vars.keys())}")
+        if not isinstance(alpha, (int, float)):
+            raise TypeError(f"The significance level 'alpha' must be numeric.")
+        if not (0 <= alpha <= 1):
+            raise ValueError(f"'alpha' must be between 0 and 1.")
+        if not callable(stat):
+            raise TypeError(f"'stat' must be callable.")
+
+        # Prepare output folder
         output_path = Path(output_path)
         output_path.mkdir(parents=True, exist_ok=True)
         abs_diff_path = output_path / "abs_diff.png"

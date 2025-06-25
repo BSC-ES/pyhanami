@@ -187,6 +187,7 @@ def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicabili
     if regions is None:
         regions = list(config.REGIONS.keys())
 
+    abs_eff_sizes = np.abs(eff_sizes)
     if test == 4:
         test_outcome = np.any(test_results, axis=2)
     else:
@@ -204,7 +205,7 @@ def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicabili
     norm = BoundaryNorm(limits_colorbar, cmap.N)
 
     # Define the grid
-    n_rows, n_cols, n_indices = eff_sizes.shape
+    n_rows, n_cols, n_indices = abs_eff_sizes.shape
     fig_size = (22, 16)
     fig, ax = plt.subplots(figsize=fig_size)
 
@@ -216,7 +217,7 @@ def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicabili
     circle_radius = 0.13
     for i in range(n_rows):
         for j in range(n_cols):
-            values = eff_sizes[i, j, :]
+            values = abs_eff_sizes[i, j, :]
 
             # Define the vertices in the cell
             x, y = j, i

@@ -363,6 +363,8 @@ def significant_diff(args):
         raise TypeError(f"Input samples must be convertible to numeric arrays: {e}.")
     if not isinstance(alpha, (int, float)):
         raise TypeError(f"The significance level 'alpha' must be numeric.")
+    if not (0 <= alpha <= 1):
+        raise ValueError(f"'alpha' must be between 0 and 1.")
     if not callable(stat):
         raise TypeError(f"'stat' must be callable.")
 

@@ -3,6 +3,7 @@ import numpy as np
 from pyhanami.utils import statistics
 from scipy.stats import ks_2samp, ttest_ind, mannwhitneyu
 
+
 # Available variables (name: long_name, units)
 VARIABLES = {
     'hus300': ['Specific humidity at 300hPa', 'kg kg-1'],
@@ -25,9 +26,6 @@ VARIABLES = {
 }
 
 
-# Paths
-
-
 # General parameters
 METRICS = np.array([
         ('RK08', [statistics.exp_RK_index], True),
@@ -44,3 +42,8 @@ TESTS = {
 
 SEASONS = ['All', 'DJF', 'MAM', 'JJA', 'SON']
 REGIONS = {'Global':slice(90,-90), 'Tropics':slice(30,-30), 'Extratropics':np.r_[slice(-90,-30), slice(30,90)]}
+
+
+# Parallelization parameters
+MAX_WORKERS_VARS = None
+MAX_WORKERS_GRID = None

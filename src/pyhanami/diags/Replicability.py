@@ -1,8 +1,9 @@
 import numpy as np
 import xarray as xr
+import concurrent.futures
 
-from typing import Dict
 from pathlib import Path
+from typing import Dict, Tuple
 from scipy.stats import bootstrap
 
 from pyhanami import config
@@ -20,6 +21,7 @@ class ReplicabilityTest:
 
         # Load config parameters once
         self.variables = config.VARIABLES
+        self.max_workers_vars = config.MAX_WORKERS_VARS
         self.metrics = config.METRICS
         self.tests = config.TESTS
         self.seasons = config.SEASONS
@@ -32,10 +34,10 @@ class ReplicabilityTest:
         raise NotImplementedError("This function is not implemented yet.")
 
 
-    def _compute_scores_variable(self, var_name:str, long_name:str) -> xr.Dataset:
+    def _compute_scores_one_var(self, var_name:str) -> Tuple[str, xr.Dataset]:
         """ Compute scores for the given variable in both simulation ensembles. """
 
-        data_obs = self.obs[var_name].resample(time = '1MS').sum().persist()
+        data_obs = self.obs[[var_name]].resample(time = '1MS').sum().persist()
 
         # Initialize scores dictionary
         length_seasons = len(self.seasons)
@@ -45,7 +47,7 @@ class ReplicabilityTest:
                    for metric in self.metrics}
 
         # Process each dataset
-        datasets = [self.ref[var_name], self.test[var_name]]
+        datasets = [self.ref[[var_name]], self.test[[var_name]]]
         dataset_names = [self.ref.name, self.test.name]
         for dataset_idx, data_sim in enumerate(datasets):
             data_sim = data_sim.persist()
@@ -56,52 +58,30 @@ class ReplicabilityTest:
                 metric_funcs = metric['functions']
                 obs_needed = metric['obs_needed']
 
-
-                # Compute scores with annual climatology
-                if metric_idx < 2:
-                    data_sim_processed = data_sim.mean(dim='time')
-                else:
-                    data_sim_processed = data_sim
-
-                # Global, tropical and extratropical regions
-                for r,region in enumerate(self.regions.values()):
-                    data_sim_region = data_sim_processed.sel(lat=region)
-                    data_obs_region = data_obs.sel(lat=region) if obs_needed else None
-
-                    scores_region = 0
-                    for metric_func in metric_funcs:
-                        if metric_func.__code__.co_argcount == 3:
-                            scores = metric_func(data_sim_region, data_obs_region, var_name)
-                        else:
-                            scores = metric_func(data_sim_region, var_name)
-                        scores_region += scores
-                    scores_dict[metric_label][dataset_idx,0,r,:] = scores_region
-
-
-                # Compute scores with seasonal climatologies
-                if length_seasons > 1:
-                    data_sim_seasons = data_sim_processed.groupby('time.season')
-                    data_obs_seasons = data_obs.groupby('time.season') if obs_needed else None
-
-                    for s,season in enumerate(self.seasons[1:], start=1): 
-                        data_sim_season = data_sim_seasons[season] 
-                        if metric_idx < 2:
+                 # Compute scores with annual and seasonal climatology
+                for season_idx, season in enumerate(self.seasons):
+                    if season_idx == 0:
+                        data_sim_season = data_sim
+                        data_obs_season = data_obs if obs_needed else None
+                    else:
+                        data_sim_season = data_sim.groupby('time.season')[season] 
+                        data_obs_season = data_obs.groupby('time.season')[season] if obs_needed else None
+                    if metric_idx < 2:
                             data_sim_season = data_sim_season.mean(dim='time')
-                        data_obs_season = data_obs_seasons[season] if obs_needed else None
 
-                        # Global, tropical and extratropical regions
-                        for r,region in enumerate(self.regions.values()):
-                            data_sim_region = data_sim_season.sel(lat=region)
-                            data_obs_region = data_obs_season.sel(lat=region) if obs_needed else None
-
-                            scores_region = 0
-                            for metric_func in metric_funcs:
-                                if metric_func.__code__.co_argcount == 3:
-                                    scores = metric_func(data_sim_region, data_obs_region, var_name)
-                                else:
-                                    scores = metric_func(data_sim_region, var_name)
-                                scores_region += scores
-                            scores_dict[metric_label][dataset_idx,s,r,:] = scores_region
+                    # Global, tropical and extratropical regions
+                    for region_idx, region in enumerate(self.regions.values()):
+                        data_sim_region = data_sim_season.sel(lat=region)
+                        data_obs_region = data_obs_season.sel(lat=region) if obs_needed else None
+                    
+                        scores_region = 0
+                        for metric_func in metric_funcs:
+                            if metric_func.__code__.co_argcount == 3:
+                                scores = metric_func(data_sim_region, data_obs_region, var_name)
+                            else:
+                                scores = metric_func(data_sim_region, var_name)
+                            scores_region += scores
+                        scores_dict[metric_label][dataset_idx, season_idx, region_idx,:] = scores_region
 
            
         # Add combined metric
@@ -122,24 +102,28 @@ class ReplicabilityTest:
         
         scores_dataset = xr.Dataset(data_vars=scores_var, coords=coords)
         scores_dataset.attrs['variable'] = var_name
-        scores_dataset.attrs['long_name'] = long_name
+        scores_dataset.attrs['long_name'] = self.variables[var_name][0]
 
-        return scores_dataset
+        print(f'Computed scores for variable {var_name}...', flush=True)
+        return var_name, scores_dataset
     
 
     def _compute_scores(self) -> Dict[str, xr.Dataset]:
-        """ Compute scores for all variables in both simulation ensembles. """
+        """ Compute scores for all variables in both simulation ensembles
+        in parallel. """
 
         scores_all = {}
-        for var_name, long_name in self.variables.items():
-            print(f'Computing scores for variable {var_name}...')
-            scores_var = self._compute_scores_variable(var_name, long_name)
-            scores_all[var_name] = scores_var
+        vars = self.variables.keys()
+        with concurrent.futures.ProcessPoolExecutor(max_workers=self.max_workers_vars) as executor:
+            for results in executor.map(self._compute_scores_one_var, vars):
+                var_name, scores_var = results
+                scores_all[var_name] = scores_var
 
+        print('Computed scores for all variables.\n', flush=True)
         return scores_all
 
 
-    def _compute_eff_sizes(self, scores: Dict[str, xr.Dataset]) -> np.ndarray:
+    def _compute_eff_sizes(self, scores_all: Dict[str, xr.Dataset]) -> np.ndarray:
         """ Compute effect sizes between the pre-computed scores separating 
         by season and region, for all available variables. """
         
@@ -147,17 +131,17 @@ class ReplicabilityTest:
         length_variables = len(self.variables)
         length_sections = len(self.seasons)*len(self.regions)
         length_metrics = len(self.metrics)
-        effect_sizes = np.empty((length_variables, length_sections, length_metrics))
+        effect_sizes = np.empty((length_variables, length_sections, length_metrics+1))
     
         # Loop over all scores sets
         for var_idx, var in enumerate(self.variables):
-            scores_all = scores[var]
+            scores_var = scores_all[var]
 
-            for metric_idx, metric in enumerate(self.metrics):
+            for metric_idx, metric_name in enumerate(np.append(self.metrics['name'], 'Combined')):
                 for season_idx, season in enumerate(self.seasons):
                     for region_idx, region in enumerate(list(self.regions.keys())):
                         section_idx = season_idx*len(self.regions)+region_idx
-                        scores = scores_all[metric['name']].sel(season=season, region=region)
+                        scores = scores_var[metric_name].sel(season=season, region=region)
 
                         scores_ref = scores.sel(dataset=self.ref.name).values
                         scores_test = scores.sel(dataset=self.test.name).values
@@ -166,10 +150,11 @@ class ReplicabilityTest:
                         bootstrap_res = bootstrap((scores_ref, scores_test), statistics.cp_effect_size, confidence_level=0.95, n_resamples=10000)
                         effect_sizes[var_idx, section_idx, metric_idx] = np.mean(bootstrap_res.bootstrap_distribution)
 
+        print('Computed effect sizes between scores distributions for all variables.', flush=True)
         return effect_sizes
 
 
-    def _apply_tests(self, scores: Dict[str, xr.Dataset], alpha: float) -> np.ndarray:
+    def _apply_tests(self, scores_all: Dict[str, xr.Dataset], alpha: float) -> np.ndarray:
         """ Compare scores with statistical tests separating 
         by season and region, for all available variables. """
 
@@ -181,13 +166,13 @@ class ReplicabilityTest:
 
         # Loop over all scores sets
         for var_idx, var in enumerate(self.variables):
-            scores_all = scores[var]
+            scores_var = scores_all[var]
 
-            for metric in self.metrics:
+            for metric_name in np.append(self.metrics['name'], 'Combined'):
                 for season_idx, season in enumerate(self.seasons):
                     for region_idx, region in enumerate(list(self.regions.keys())):
                         section_idx = season_idx*len(self.regions)+region_idx
-                        scores = scores_all[metric['name']].sel(season=season, region=region)
+                        scores = scores_var[metric_name].sel(season=season, region=region)
 
                         scores_ref = scores.sel(dataset=self.ref.name).values
                         scores_test = scores.sel(dataset=self.test.name).values
@@ -197,12 +182,21 @@ class ReplicabilityTest:
                             p_value = self.tests[test_name](scores_ref, scores_test)
                             test_results[var_idx, section_idx, test_idx] |= (p_value <= alpha)
 
+        print('Performed replicability test for all variables.', flush=True)
         return test_results
             
 
     def matrix_plot(self, output_path: str, alpha: float = 0.05):
         """ Perform replicability test comparing the given simulation ensembles
         and generate matrix plot with effect sizes and test results. """
+
+        print(f'Started replicability test with significance level {alpha} to compare ensembles {self.ref.name} and {self.test.name}:\n')
+
+        # Validate inputs
+        if not isinstance(alpha, (int, float)):
+            raise TypeError(f"The significance level 'alpha' must be numeric.")
+        if not (0 <= alpha <= 1):
+            raise ValueError(f"'alpha' must be between 0 and 1.")
 
         # Prepare output folder
         output_path = Path(output_path)
