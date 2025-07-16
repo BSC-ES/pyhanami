@@ -21,9 +21,20 @@ class DataDiagnostics:
         self.max_workers_grid = config.MAX_WORKERS_GRID
 
 
-    def _compute_time_series(self, varname: str):
-        """ Compute time series for the given ensembles. """
-        raise NotImplementedError("This function is not implemented yet.")
+    def _compute_time_series_annual(self, varname: str) -> list[xr.DataArray]:
+        """ Compute time series for the given ensembles and variable. """
+
+        data_sim_1 = self.ref.data[varname]
+        weights_1 = statistics.area_weights(data_sim_1)
+        data_sim_1_weighted = data_sim_1.weighted(weights_1)
+        time_series_sim_1 = data_sim_1_weighted.mean(['lat', 'lon']).coarsen(time=12).mean()
+
+        data_sim_2 = self.test.data[varname]
+        weights_2 = statistics.area_weights(data_sim_2)
+        data_sim_2_weighted = data_sim_2.weighted(weights_2)
+        time_series_sim_2 = data_sim_2_weighted.mean(['lat', 'lon']).coarsen(time=12).mean()
+
+        return [time_series_sim_1, time_series_sim_2]
 
 
     def _compute_abs_diff(self, varname: str) -> xr.DataArray:
@@ -128,7 +139,8 @@ class DataDiagnostics:
 
         # Compute and plot time series
         time_series = self._compute_time_series(varname)
-        time_series_plot = plot.time_series_plot(time_series)
+        time_series_plot = plot.time_series_plot(time_series, title=f'Annual mean time series of {self.variables[varname][0]}',
+                                                 y_label=f'{varname} ({self.variables[varname][1]})', labels=[self.ref.name, self.test.name])
         time_series_plot.savefig(time_series_path, bbox_inches='tight', dpi=100)
 
         print(f'Time series plots saved to {output_path}.')

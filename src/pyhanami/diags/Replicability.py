@@ -3,7 +3,6 @@ import xarray as xr
 import concurrent.futures
 
 from pathlib import Path
-from typing import Dict, Tuple
 from scipy.stats import bootstrap
 
 from pyhanami import config
@@ -34,7 +33,7 @@ class ReplicabilityTest:
         raise NotImplementedError("This function is not implemented yet.")
 
 
-    def _compute_scores_one_var(self, var_name:str) -> Tuple[str, xr.Dataset]:
+    def _compute_scores_one_var(self, var_name:str) -> tuple[str, xr.Dataset]:
         """ Compute scores for the given variable in both simulation ensembles. """
 
         data_obs = self.obs[[var_name]].resample(time = '1MS').sum().persist()
@@ -123,7 +122,7 @@ class ReplicabilityTest:
         return scores_all
 
 
-    def _compute_eff_sizes(self, scores_all: Dict[str, xr.Dataset]) -> np.ndarray:
+    def _compute_eff_sizes(self, scores_all: dict[str, xr.Dataset]) -> np.ndarray:
         """ Compute effect sizes between the pre-computed scores separating 
         by season and region, for all available variables. """
         

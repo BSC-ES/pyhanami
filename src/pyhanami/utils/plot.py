@@ -6,14 +6,109 @@ import cartopy.feature as cf
 import matplotlib.pyplot as plt
 
 from pyhanami import config
+from scipy.stats import bootstrap
 from cartopy.util import add_cyclic_point
 from matplotlib.patches import Polygon, Circle
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap, BoundaryNorm
 
 
-def time_series_plot(time_series):
-    """ Generate time series plot. """
-    raise NotImplementedError("This function is not implemented yet.")
+def time_series_plot(time_series, title='Annual mean time series', y_label='', labels=None, start_year=None, end_year=None):
+    """ 
+    Generate time series plot of one or more ensembles, including the 2.5th, 5th, 75th and 97.5th percentiles.
+
+    Parameters
+    ----------
+    time_series (xarray.DataArray or list of xr.DataArray): Time series data.
+    title (str): Title of the plot.
+    y_label (str): Label for the y-axis.
+    labels (list of str): Labels for each time series.
+    start_year (int): Start year for filtering.
+    end_year (int): End year for filtering.
+
+    Returns
+    -------
+    fig (matplotlib.figure.Figure): Generated plot.
+    ax (matplotlib.axes._subplots.AxesSubplot): Plot axis.
+    """
+
+    # Validate input
+    if isinstance(time_series, xr.DataArray):
+        time_series = [time_series]
+    elif isinstance(time_series, list):
+        if len(time_series) == 0:
+            raise ValueError("The time series cannot be empty.")
+        for i, series in enumerate(time_series):
+            if not isinstance(series, xr.DataArray):
+                raise TypeError(f"Element {i} in time_series must be a xarray.DataArray.")
+            if "time" not in series.dims:
+                raise ValueError(f"Element {i} in time_series is missing 'time' dimension.")
+    else:
+        raise TypeError("The data must be either a xarray.DataArray or a list of xarray.DataArray.")
+
+
+    # Filter each time series to the requested year range
+    filtered_timeseries = []
+    for series in time_series:
+        years = series["time"].dt.year.values
+        mask = np.ones(len(years), dtype=bool) 
+        if start_year is not None:
+            mask &= (years >= start_year)
+        if end_year is not None:
+            mask &= (years <= end_year)
+        series_filtered = series.sel(time=mask)
+        filtered_timeseries.append(series_filtered)
+
+    # Find common years across all filtered time series
+    year_sets = [set(series["time"].dt.year.values) for series in filtered_timeseries]
+    common_years = sorted(set.intersection(*year_sets))
+    if not common_years:
+        raise ValueError("No overlapping years in the selected range across all time series.")
+    final_timeseries = [series.sel(time=series["time"].dt.year.isin(common_years)) for series in filtered_timeseries]
+
+
+    # Create plot
+    fig, ax = plt.subplots(1, figsize=(10, 6), dpi=150)
+    labels = labels or [f'Series {i+1}' for i in range(len(final_timeseries))]
+
+    for series, label in zip(final_timeseries, labels):
+        if 'realization' in series.dims and series.sizes['realization'] > 1:
+            # Plot mean
+            mean_series = series.mean('realization')
+            line, = ax.plot(common_years, mean_series.values, lw=2, ls='-.', label=label)
+            color = line.get_color()
+
+            # Plot individual ensemble members
+            # for i in range(series.sizes['realization']):
+            #     ax.plot(common_years, series.isel(realization=i).values, color=color, alpha=0.2)
+
+            # Compute confidence intervals (bootstrap of mean)
+            q025, q975 = [], []
+            for i in range(len(common_years)):
+                data = series.isel(time=i).values
+                bs_res = bootstrap((data,), np.mean, confidence_level=0.95)
+                q025.append(bs_res.confidence_interval.low)
+                q975.append(bs_res.confidence_interval.high)
+            ax.fill_between(common_years, q025, q975, facecolor=color, alpha=0.6)
+
+            # Plot ensemble spread (5th–95th percentile)
+            quantiles = np.nanquantile(series.values, [0.05, 0.95], axis=0)
+            ax.fill_between(common_years, quantiles[0], quantiles[1], facecolor=color, alpha=0.2)
+
+        else:
+            ax.plot(common_years, series.values, lw=2, ls='-.', label=label)
+
+    # Plot formatting
+    ax.set_xlabel('year', fontsize=14)
+    ax.set_xticks(common_years)
+    ax.set_xticklabels(common_years, rotation=45, ha='right', fontsize=12)
+    ax.set_ylabel(y_label, fontsize=14)
+    ax.set_title(title, fontsize=18)
+    ax.legend(fontsize=16)
+    ax.grid()
+
+    plt.tight_layout()
+
+    return fig, ax
 
 
 def style_cartopy_axis(ax, show_gridlines=True):
