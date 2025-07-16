@@ -1,0 +1,36 @@
+# Test Plan: time series functions (_compute_time_series_annual, time_series_plots diags/Diagnostics.py; time_series_plot in utils/plot.py)
+
+## Purpose
+Verify that `time_series_plots()` correctly computes and generates time series plots of both simulation ensembles using 
+`_compute_time_series_annua` and `time_series_plot`. 
+
+## Inputs to test
+- Normal case:
+    - Arrays with lat/lon, time and realization dimensions
+    - Consistent time coverage and variables names
+- Edge cases:
+    - Different year ranges in each ensemble or non-overlapping
+    - Ensembles with a single member (both ensembles or just one of them)
+    - No title, labels or limit years provided
+- Invalid inputs:
+    - Passing lists, numpy arrays, or other non-xarray inputs
+    - Missing variable or time dimension
+    - start_year > end_year
+
+## Expected behaviour
+- For valid inputs:
+    - Return a Matplotlib `Figure` object
+    - Mean and corresponding percentiles are plotted for each ensemble
+    - Add title if provided
+- For edge cases:
+    - Raise appropriate exceptions (`ValueError`, `TypeError`) or handle gracefully
+    - Not crash when NaN values appear and handle missing data gracefully
+    - Gracefully handles mismatched time ranges and filters to common years
+- For invalid inputs:
+    - Function should fail with meaningful error messages
+
+## Status
+- [x] Not Started (placeholder)
+- [ ] In Progress (corresponding .py script in progress)
+- [ ] Ready for Implementation (ready to merge into `develop` branch)
+- [ ] Completed (tested with corresponding functions in `develop` branch)

@@ -29,7 +29,7 @@ two ensemble datasets at the grid point level.
     - Returns all 0s if no significant differences exist
     - Respects extreme alpha values (1.0 => everything significant, 0.0 => none)
 - For invalid inputs:
-    - Funcion should fail with meaningful error messages
+    - Function should fail with meaningful error messages
 
 ## Status
 - [x] Not Started (placeholder)

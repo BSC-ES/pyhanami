@@ -29,7 +29,7 @@ and that `_compute_eff_size_ens()` computes the effect size between ensemble dis
     - Returns all 0s for identical distributions
     - Minimal grid returns valid single-point output
 - For invalid inputs:
-    - Funcion should fail with meaningful error messages
+    - Function should fail with meaningful error messages
 
 ## Status
 - [x] Not Started (placeholder)

@@ -1,4 +1,4 @@
-# Test Plan: methods ReplicabilityTest class (_compute_scores_one_var, _compute_scores, _compute_eff_sizes, _apply_tests in Replicability.py)
+# Test Plan: methods ReplicabilityTest class (_compute_scores_one_var, _compute_scores, _compute_eff_sizes, _apply_tests in diags/Replicability.py)
 
 ## Purpose
 Verify that the methods within `ReplicabilityTest()` correctly perform a replicability test (properly computing the corresponding effect sizes
@@ -33,7 +33,7 @@ and statistical tests results).
     - Minimal grid returns valid single-point output
     - Metrics with no variability handled gracefully in effect size or statistical test steps
 - For invalid inputs:
-    - Funcion should fail with meaningful error messages
+    - Function should fail with meaningful error messages
 
 ## Status
 - [x] Not Started (placeholder)

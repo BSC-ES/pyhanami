@@ -29,7 +29,7 @@ in four triangles and replicability test results as a circle in the middle of ea
     - Not crash when NaN values appear and handle missing data gracefully
     - Return a minimal or blank figure for empty inputs
 - For invalid inputs:
-    - Funcion should fail with meaningful error messages
+    - Function should fail with meaningful error messages
 
 ## Status
 - [x] Not Started (placeholder)

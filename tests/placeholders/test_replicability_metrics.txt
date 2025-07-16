@@ -29,7 +29,7 @@ For edge cases:
     - Raise appropriate exceptions (`ValueError`, `TypeError`) or handle gracefully
     - Consistent output shape even for single time steps
 For invalid inputs:
-    - Funcion should fail with meaningful error messages
+    - Function should fail with meaningful error messages
 
 ## Status
 - [x] Not Started (placeholder)
