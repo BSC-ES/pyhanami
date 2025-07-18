@@ -26,9 +26,12 @@ requires-python = ">=3.7"
 dependencies = [
     "numpy",
     "xarray",
-    "pathlib",
+    "xesmf",
     "scipy",
     "matplotlib",
+    "cartopy",
+    "cmocean",
+
 ]
 
 

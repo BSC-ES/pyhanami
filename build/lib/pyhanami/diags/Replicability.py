@@ -12,67 +12,6 @@ from pyhanami.diags.Observations import ObservationData
 
 
 class ReplicabilityTest:
-    """
-    Perform replicability test between two climate simulation ensembles.
-
-    This class compares two climate simulation ensembles (reference and test) using 
-    a variety of metrics and statistical tests to assess whether both climates are
-    statistically significantly different. The test is conducted over multiple 
-    variables, regions, seasons, and ensemble members. It also supports plotting 
-    results and generating summary reports.
-    
-    Parameters
-    ----------
-    ref : SimulationData
-        Reference ensemble containing simulation data and metadata.
-    test : SimulationData
-        Test ensemble containing simulation data and metadata.
-
-    Attributes
-    ----------
-    ref : SimulationData
-        Instance containing the reference ensemble and metadata.
-    test : SimulationData
-        Instance containing the test ensemble and metadata.
-    obs : ObservationData
-        Instance containing observational data for comparison.
-    variables : dict
-        Configuration dictionary mapping variable names to display metadata.
-    max_workers_grid : int
-        Number of parallel workers used for variable-wise computations.
-    metrics : list of dict
-        List of metrics with names and corresponding functions to compute scores.
-    tests : dict
-        Dictionary of statistical tests for comparing score distributions.
-    seasons : list of str
-        List of seasons to compute scores over.
-    regions : dict
-        Dictionary mapping region names to latitude bounds.
-
-    Methods
-    -------
-    _compare_ensembles()
-        (Not implemented) Intended to validate compatibility between the reference and test ensembles.
-
-    _compute_scores_one_var(var_name)
-        Computes scores employing several metrics for a sgiven variable across both ensembles.
-
-    _compute_scores()
-        Computes scores for all variables in parallel.
-
-    _compute_eff_sizes(scores_all)
-        Computes effect sizes (Cohen's d) between ensembles for each variable, region, and season.
-
-    _apply_tests(scores_all, alpha)
-        Applies several statistical tests between ensemble score distributions.
-
-    matrix_plot(output_path, alpha=0.05)
-        Runs the full replicability test and generates a matrix plot of the results.
-
-    report(output_path, time_series=False, spatial=False)
-        Generates a report summarizing the replicability test results and optionally includes plots.
-    """
-
     def __init__(self, ref: SimulationData, test: SimulationData):
         self.ref = ref
         self.test = test
@@ -94,18 +33,8 @@ class ReplicabilityTest:
         raise NotImplementedError("This function is not implemented yet.")
 
 
-    def _compute_scores_one_var(self, var_name):
-        """ 
-        Compute scores for the given variable in both simulation ensembles. 
-        
-        Parameters
-        ----------
-        var_name (str): Climate variable name.
-
-        Returns
-        -------
-        tuple[str, xr.Dataset]: Variable name and dataset containing computed scores.
-        """
+    def _compute_scores_one_var(self, var_name:str) -> tuple[str, xr.Dataset]:
+        """ Compute scores for the given variable in both simulation ensembles. """
 
         data_obs = self.obs[[var_name]].resample(time = '1MS').sum().persist()
 
@@ -174,18 +103,13 @@ class ReplicabilityTest:
         scores_dataset.attrs['variable'] = var_name
         scores_dataset.attrs['long_name'] = self.variables[var_name][0]
 
-        print(f"Computed scores for variable '{var_name}'...", flush=True)
+        print(f'Computed scores for variable {var_name}...', flush=True)
         return var_name, scores_dataset
     
 
-    def _compute_scores(self):
-        """ 
-        Compute scores for all variables in both simulation ensembles in parallel. 
-
-        Returns
-        -------
-        dict[str, xr.Dataset]: Dictionary of scores datasets for each variable.
-        """
+    def _compute_scores(self) -> Dict[str, xr.Dataset]:
+        """ Compute scores for all variables in both simulation ensembles
+        in parallel. """
 
         scores_all = {}
         vars = self.variables.keys()
@@ -198,19 +122,9 @@ class ReplicabilityTest:
         return scores_all
 
 
-    def _compute_eff_sizes(self, scores_all):
-        """ 
-        Compute effect size (Cohen's d) between the pre-computed scores separating 
-        by season and region, for all available variables. 
-        
-        Parameters
-        ----------
-        scores_all (dict[str, xr.Dataset]): Dictionary of scores datasets for each variable.
-
-        Returns
-        -------
-        effect_sizes (np.ndarray): Array of effect sizes with shape (variables, sections, metrics).
-        """
+    def _compute_eff_sizes(self, scores_all: dict[str, xr.Dataset]) -> np.ndarray:
+        """ Compute effect sizes between the pre-computed scores separating 
+        by season and region, for all available variables. """
         
         # Initialize array
         length_variables = len(self.variables)
@@ -239,20 +153,9 @@ class ReplicabilityTest:
         return effect_sizes
 
 
-    def _apply_tests(self, scores_all, alpha):
-        """ 
-        Compare scores with statistical tests separating by season
-        and region, for all available variables. 
-        
-        Parameters
-        ----------
-        scores_all (dict[str, xr.Dataset]): Dictionary of scores datasets for each variable.
-        alpha (float): Significance level for the statistical tests.
-
-        Returns
-        -------
-        test_results (np.ndarray): Array of test results with shape (variables, sections, tests).
-        """
+    def _apply_tests(self, scores_all: Dict[str, xr.Dataset], alpha: float) -> np.ndarray:
+        """ Compare scores with statistical tests separating 
+        by season and region, for all available variables. """
 
         # Initialize array
         length_variables = len(self.variables)
@@ -282,16 +185,9 @@ class ReplicabilityTest:
         return test_results
             
 
-    def matrix_plot(self, output_path, alpha=0.05):
-        """ 
-        Perform replicability test comparing the given simulation ensembles
-        and generate matrix plot with effect sizes and test results. 
-        
-        Parameters
-        ---------- 
-        output_path (str): Path to save the matrix plot.
-        alpha (float): Significance level for the statistical tests.
-        """
+    def matrix_plot(self, output_path: str, alpha: float = 0.05):
+        """ Perform replicability test comparing the given simulation ensembles
+        and generate matrix plot with effect sizes and test results. """
 
         print(f'Started replicability test with significance level {alpha} to compare ensembles {self.ref.name} and {self.test.name}:\n')
 
@@ -301,14 +197,10 @@ class ReplicabilityTest:
         if not (0 <= alpha <= 1):
             raise ValueError(f"'alpha' must be between 0 and 1.")
 
-        # Prepare output path
+        # Prepare output folder
         output_path = Path(output_path)
-        if not output_path.suffix:
-            output_path.mkdir(parents=True, exist_ok=True)
-            matrix_path = output_path / "matrix.png"
-        else:
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            matrix_path = output_path
+        output_path.mkdir(parents=True, exist_ok=True)
+        matrix_path = output_path / "matrix.png"
 
         # Run replicability test
         scores = self._compute_scores()
@@ -319,22 +211,13 @@ class ReplicabilityTest:
         matrix, _ = plot.matrix_plot(eff_sizes, test_results, title=f"Effect size replicability test ({self.ref.name} vs {self.test.name})")
         matrix.savefig(matrix_path, bbox_inches='tight', dpi=100)
 
-        print(f"Matrix plot saved to '{matrix_path}'.", flush=True)
+        print(f'Matrix plot saved to {output_path}.')
         return
     
     
-    def report(self, output_path, time_series=False, spatial=False):
-        """ 
-        Generate a summary report with the results of the replicability test 
-        and the selected plots. 
-        
-        Parameters
-        ----------
-        output_path (str): Path to save the report.
-        time_series (bool): Whether to include time series plots in the report.
-        spatial (bool): Whether to include spatial plots in the report.
-        """
-
+    def report(self, output_path:str, time_series=False, spatial=False):
+        """ Generate a summary report with the results of the replicability test 
+        and the selected plots. """
         generated_plots = {'time_series': False, 'spatial': False, 'matrix': False}
 
         # Check if the selected plots have already been generated

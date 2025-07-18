@@ -26,8 +26,8 @@ test = hnmi.SimulationData('interface_path_test', name='test')
 
 # Create plots
 diags = hnmi.DataDiagnostics(ref, test)
-diags.time_series_plots('output_path')
-diags.spatial_plots('output_path')
+diags.time_series_plots('var_name', 'output_path')
+diags.spatial_plots('var_name', 'output_path')
 
 # Run test and report
 tester = hnmi.ReplicabilityTest(ref, test)

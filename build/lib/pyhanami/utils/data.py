@@ -38,7 +38,7 @@ def prepare_data(data_path, **xr_kwargs):
 
 
 def check_data(data):
-    """ Check provided data (available variables, units, coordinates names, ...). """
+    """ Check provided data (available variables, units, ...). """
     raise NotImplementedError("This function is not implemented yet.")
 
 
