@@ -3,12 +3,12 @@
 pyhanami is a tool designed to evaluate the replicability and scientific skill of Earth System Models (ESMs).
 
 
-## Replicability
+### Replicability
 
 An ESM is replicable if performing the same experiment (with the same model and forcing) using different computing environments or compilers leads to _identical_ results representing the same climate. In practice, bit-for-bit replicability is not feasible due to the chaotic nature of this type of models. However, we can aim to achieve statistically indistinguishable results. pyhanami provides a replicability test to assess whether this indistinguishability holds between two given ensembles of simulated data, following the methodology presented in ([[Preprint] K. Keller et al., 2025](https://egusphere.copernicus.org/preprints/2025/egusphere-2025-1367/)).
 
 
-## Scientific skill
+### Scientific skill
 
 Scientific model skill refers to the ability of an ESM to accurately represent and predict various aspects of the climate system, including its capacity to forecast future climate changes or to capture complex patterns and relationships within the system. (This functionality is not implemented yet)
 
