@@ -27,6 +27,8 @@ class ReplicabilityTest:
         Reference ensemble containing simulation data and metadata.
     test : SimulationData
         Test ensemble containing simulation data and metadata.
+    obs_path : str
+        Path to the observations database.
 
     Attributes
     ----------
@@ -73,14 +75,14 @@ class ReplicabilityTest:
         Generates a report summarizing the replicability test results and optionally includes plots.
     """
 
-    def __init__(self, ref: SimulationData, test: SimulationData):
+    def __init__(self, ref: SimulationData, test: SimulationData, obs_path: str):
         self.ref = ref
         self.test = test
-        self._compare_ensembles()
-        self.obs = ObservationData(ref.data)
+        #self._compare_ensembles()
+        self.obs = ObservationData(obs_path, ref.data)
 
         # Load config parameters once
-        self.variables = config.VARIABLES
+        self.variables = {var: info for var, info in config.VARIABLES.items() if var in ref.data.data_vars}
         self.max_workers_vars = config.MAX_WORKERS_VARS
         self.metrics = config.METRICS
         self.tests = config.TESTS
@@ -107,20 +109,21 @@ class ReplicabilityTest:
         tuple[str, xr.Dataset]: Variable name and dataset containing computed scores.
         """
 
-        data_obs = self.obs[[var_name]].resample(time = '1MS').sum().persist()
+        data_obs = self.obs.data[[var_name]].resample(time = '1MS').sum().persist()
 
         # Initialize scores dictionary
         length_seasons = len(self.seasons)
         length_regions = len(self.regions)
-        length_realizations = self.ref[var_name].sizes['realization']
+        length_realizations = self.ref.data[var_name].sizes['realization']
         scores_dict = {metric['name']: np.zeros((2, length_seasons, length_regions, length_realizations))
                    for metric in self.metrics}
 
         # Process each dataset
-        datasets = [self.ref[[var_name]], self.test[[var_name]]]
+        datasets = [self.ref.data[[var_name]], self.test.data[[var_name]]]
         dataset_names = [self.ref.name, self.test.name]
         for dataset_idx, data_sim in enumerate(datasets):
             data_sim = data_sim.persist()
+            lat = data_sim['lat']
 
             # Process each metric
             for metric_idx, metric in enumerate(self.metrics):
@@ -128,7 +131,7 @@ class ReplicabilityTest:
                 metric_funcs = metric['functions']
                 obs_needed = metric['obs_needed']
 
-                 # Compute scores with annual and seasonal climatology
+                # Compute scores with annual and seasonal climatology
                 for season_idx, season in enumerate(self.seasons):
                     if season_idx == 0:
                         data_sim_season = data_sim
@@ -141,8 +144,9 @@ class ReplicabilityTest:
 
                     # Global, tropical and extratropical regions
                     for region_idx, region in enumerate(self.regions.values()):
-                        data_sim_region = data_sim_season.sel(lat=region)
-                        data_obs_region = data_obs_season.sel(lat=region) if obs_needed else None
+                        mask = region(lat)
+                        data_sim_region = data_sim_season.where(mask, drop=True)
+                        data_obs_region = data_obs_season.where(mask, drop=True) if obs_needed else None
                     
                         scores_region = 0
                         for metric_func in metric_funcs:
@@ -152,6 +156,7 @@ class ReplicabilityTest:
                                 scores = metric_func(data_sim_region, var_name)
                             scores_region += scores
                         scores_dict[metric_label][dataset_idx, season_idx, region_idx,:] = scores_region
+                        del mask
 
            
         # Add combined metric
@@ -174,8 +179,8 @@ class ReplicabilityTest:
         scores_dataset.attrs['variable'] = var_name
         scores_dataset.attrs['long_name'] = self.variables[var_name][0]
 
-        print(f"Computed scores for variable '{var_name}'...", flush=True)
-        return var_name, scores_dataset
+        print(f"\tComputed scores for variable '{var_name}'...", flush=True)
+        return scores_dataset
     
 
     def _compute_scores(self):
@@ -188,13 +193,14 @@ class ReplicabilityTest:
         """
 
         scores_all = {}
-        vars = self.variables.keys()
-        with concurrent.futures.ProcessPoolExecutor(max_workers=self.max_workers_vars) as executor:
-            for results in executor.map(self._compute_scores_one_var, vars):
-                var_name, scores_var = results
-                scores_all[var_name] = scores_var
+        vars = list(self.variables.keys())
+        # for var in vars:
+        #     scores_all[var] = self._compute_scores_one_var(var)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers_vars) as executor:
+            for idx, value in enumerate(executor.map(self._compute_scores_one_var, vars)):
+                scores_all[vars[idx]] = value
 
-        print('Computed scores for all variables.\n', flush=True)
+        print('Computed scores for all variables...', flush=True)
         return scores_all
 
 
@@ -235,7 +241,7 @@ class ReplicabilityTest:
                         bootstrap_res = bootstrap((scores_ref, scores_test), statistics.cp_effect_size, confidence_level=0.95, n_resamples=10000)
                         effect_sizes[var_idx, section_idx, metric_idx] = np.mean(bootstrap_res.bootstrap_distribution)
 
-        print('Computed effect sizes between scores distributions for all variables.', flush=True)
+        print('Computed effect sizes between scores distributions for all variables...', flush=True)
         return effect_sizes
 
 
@@ -278,7 +284,7 @@ class ReplicabilityTest:
                             p_value = self.tests[test_name](scores_ref, scores_test)
                             test_results[var_idx, section_idx, test_idx] |= (p_value <= alpha)
 
-        print('Performed replicability test for all variables.', flush=True)
+        print('Performed replicability test for all variables...', flush=True)
         return test_results
             
 
@@ -293,7 +299,7 @@ class ReplicabilityTest:
         alpha (float): Significance level for the statistical tests.
         """
 
-        print(f'Started replicability test with significance level {alpha} to compare ensembles {self.ref.name} and {self.test.name}:\n')
+        print(f'Started replicability test with significance level {alpha} to compare ensembles {self.ref.name} and {self.test.name}:', flush=True)
 
         # Validate inputs
         if not isinstance(alpha, (int, float)):
@@ -305,7 +311,7 @@ class ReplicabilityTest:
         output_path = Path(output_path)
         if not output_path.suffix:
             output_path.mkdir(parents=True, exist_ok=True)
-            matrix_path = output_path / "matrix.png"
+            matrix_path = output_path / f"matrix_{self.ref.name}-{self.test.name}.png"
         else:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             matrix_path = output_path
@@ -314,9 +320,9 @@ class ReplicabilityTest:
         scores = self._compute_scores()
         eff_sizes = self._compute_eff_sizes(scores)
         test_results = self._apply_tests(scores, alpha)
-
+        
         # Plot results
-        matrix, _ = plot.matrix_plot(eff_sizes, test_results, title=f"Effect size replicability test ({self.ref.name} vs {self.test.name})")
+        matrix, _ = plot.matrix_plot(eff_sizes, test_results, title=f"Effect size replicability test ({self.ref.name} vs {self.test.name})", variables=self.variables)
         matrix.savefig(matrix_path, bbox_inches='tight', dpi=100)
 
         print(f"Matrix plot saved to '{matrix_path}'.", flush=True)

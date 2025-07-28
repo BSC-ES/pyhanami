@@ -118,8 +118,12 @@ def regrid_data(source_ds, target_ds, var=None, method='conservative', cyclic_po
         # Select first timestep (we are only performing spatial regridding) and handle cyclic longitudes if needed
         if cyclic_point:
             source_ds_copy = source_ds_copy.map(cyclic_wrapper, keep_attrs=True)
-        source_ds_t0 = source_ds_copy.isel({time_dim: 0}) if time_dim in source_ds_copy.dims else source_ds_copy
-        target_ds_t0 = target_ds.isel({time_dim: 0}) if time_dim in target_ds.dims else target_ds
+        source_ds_t0 = source_ds_copy.isel({time_dim: 0}, drop=True) if time_dim in source_ds_copy.dims else source_ds_copy
+        target_ds_t0 = target_ds.isel({time_dim: 0}, drop=True) if time_dim in target_ds.dims else target_ds
+
+        # Drop time coordinate to avoid conflicts during regridding
+        source_ds_t0 = source_ds_t0.drop_vars(time_dim, errors='ignore')
+        target_ds_t0 = target_ds_t0.drop_vars(time_dim, errors='ignore')
         
         # Build regridder and perform interpolation for all time steps
         regridder = xe.Regridder(source_ds_t0, target_ds_t0, method)

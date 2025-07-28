@@ -236,7 +236,7 @@ class DataDiagnostics:
         output_path = Path(output_path)
         if not output_path.suffix:
             output_path.mkdir(parents=True, exist_ok=True)
-            time_series_path = output_path / "time_series.png"
+            time_series_path = output_path / f"time_series_{varname}_{self.ref.name}-{self.test.name}.png"
         else:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             time_series_path = output_path
@@ -282,8 +282,8 @@ class DataDiagnostics:
         output_path = Path(output_path)
         if not output_path.suffix:
             output_path.mkdir(parents=True, exist_ok=True)
-            abs_diff_path = output_path / "abs_diff.png"
-            eff_size_path = output_path / "eff_size.png"
+            abs_diff_path = output_path / f"abs_diff_{varname}_{self.ref.name}-{self.test.name}.png"
+            eff_size_path = output_path / f"eff_size_{varname}_{self.ref.name}-{self.test.name}.png"
         else:
             raise ValueError("Output path must be a directory, not a file path, as two output files will be created.")
 

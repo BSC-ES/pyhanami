@@ -41,7 +41,11 @@ TESTS = {
     }
 
 SEASONS = ['All', 'DJF', 'MAM', 'JJA', 'SON']
-REGIONS = {'Global':slice(90,-90), 'Tropics':slice(30,-30), 'Extratropics':np.r_[slice(-90,-30), slice(30,90)]}
+REGIONS = {
+        'Global': lambda lat: (lat >= -90) & (lat <= 90),
+        'Tropics': lambda lat: (lat >= -30) & (lat <= 30),
+        'Extratropics': lambda lat: (lat < -30) | (lat > 30)
+    }
 
 
 # Parallelization parameters

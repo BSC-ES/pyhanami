@@ -19,7 +19,7 @@ Key features include:
 
 - **Easy input handling:** load climate simulation ensembles from a netcdf file (in future releases, also from an intake catalogue) using the `SimulationData` class. 
 - **Diagnostics plotting:** generate visualizations comparing two previously loaded simulation ensembles for selected variables using the `DataDiagnostics` class. 
-These include time series plots (with the `time_series_plots` method) and spatial plots (with the `spatial_plots` method). The latter generates two plots, one for the absolute difference and another for the effect size (Cohen's d) between both ensembles.
+These include time series plots (with the `time_series_plots` method) and spatial plots (with the `spatial_plots` method). The latter generates two plots, one for the absolute difference and another for the effect size (Cohen's _d)_ between both ensembles.
 - **Replicability testing:** perform a replicability test checking the statistical indistinguishability between two previously loaded simulation ensembles using the `ReplicabilityTest` class.
 
 Future releases will include:
@@ -33,8 +33,8 @@ Future releases will include:
 import pyhanami as hnmi
 
 # Retrieve data from a netcdf file
-ref = hnmi.SimulationData('path_ref', name='ref')
-test = hnmi.SimulationData('path_test', name='test')
+ref = hnmi.SimulationData('source_ref', name='ref')
+test = hnmi.SimulationData('source_test', name='test')
 
 # Create plots
 diags = hnmi.DataDiagnostics(ref, test)
@@ -42,6 +42,10 @@ diags.time_series_plots('var_name', 'output_path')
 diags.spatial_plots('var_name', 'output_path')
 
 # Run replicability test
-tester = hnmi.ReplicabilityTest(ref, test)
+tester = hnmi.ReplicabilityTest(ref, test, 'observations_path')
 tester.matrix_plot('output_path')
 ```
+
+#### Input parameters
+- `source_ref` and `source_test` should be either paths to NetCDF files or `xarray.Dataset` objects.
+- `observations_path` should be a path to a directory containing observation datasets, stored in files following the naming pattern `data_obs*_{varname}`.nc`.

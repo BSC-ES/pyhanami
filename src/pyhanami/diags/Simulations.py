@@ -13,15 +13,15 @@ class SimulationData:
 
     Parameters
     ----------
-    data_path : str
-        Path to the dataset file or catalogue interface.
+    data_source : Union[str, Path, xr.Dataset]
+        Path to a dataset file or catalogue interface, or an already loaded xarray.Dataset object.
     name : str
         Name of the simulation instance.
 
     Attributes
     ----------
-    data_path : Path
-        Path to the dataset file or catalogue interface.
+    data_path : Path or None
+        Path to the dataset file or catalogue interface if provided; None if dataset was passed directly.
     name : str
         Name of the simulation instance.
     data : xarray.Dataset
@@ -36,10 +36,16 @@ class SimulationData:
         Validates that the dataset has required dimensions and variables.
     """
 
-    def __init__(self, data_path: str, name: str = 'sim'):
-        self.data_path = Path(data_path)
+    def __init__(self, data_source: str, name: str = 'sim'):
+        if isinstance(data_source, (str, Path)):
+            self.data_path = Path(data_source)
+            self.data = self._prepare_data()
+        elif isinstance(data_source, xr.Dataset):
+            self.data_path = None
+            self.data = data_source
+        else:
+            raise TypeError("'data_source' must be a path string, Path object, or an xarray.Dataset")
         self.name = name
-        self.data = self._prepare_data()
         #self.check_data()   
 
 

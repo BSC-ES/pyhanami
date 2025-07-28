@@ -1,5 +1,6 @@
 import xarray as xr
 
+from pathlib import Path
 from pyhanami.utils import data
 
 
@@ -13,11 +14,15 @@ class ObservationData:
 
     Parameters
     ----------
+    data_path : str
+        Path to an observations database.
     sim : SimulationData
         Ensemble containing simulation data and metadata.
 
     Attributes
     ----------
+    data_path : Path
+        Path to the observations database.
     name : str
         Name of the observations instance.
     data : xr.Dataset
@@ -31,15 +36,16 @@ class ObservationData:
         Retrieves observational data and regrids it to match the input simulation.
     """
 
-    def __init__(self, sim: xr.Dataset):
+    def __init__(self, data_path: str, sim: xr.Dataset):
+        self.data_path = Path(data_path)
         self.name = 'obs'
         self.data = self.load_and_process(sim)
 
 
     def _retrieve_obs(self, sim):
         """ 
-        Retrieve observations from database for the variables
-        and period available in the given simulation ensemble. 
+        Retrieve observations from database for the variables and period
+        available in the given simulation ensemble. 
         
         Parameters
         ----------
@@ -49,7 +55,30 @@ class ObservationData:
         -------
         obs (xr.Dataset): Dataset containing observational data for the variables in sim.
         """
-        raise NotImplementedError("This function is not implemented yet.")
+
+        # Validate input
+        if not self.data_path.exists():
+            raise FileNotFoundError(f"Observational data path {self.data_path} not found.")
+
+        # Load observational data
+        data_obs_vars = []
+        for var in sim.data_vars:
+            var_path = next(self.data_path.glob(f"data_obs*_{var}.nc"))
+            print(var_path, flush=True)
+            data_obs_aux = xr.open_dataset(var_path)
+
+            # Align the time range with the simulations
+            if "time" not in data_obs_aux.coords or "time" not in sim.coords:
+                raise ValueError(f"'time' coordinate missing in either simulations or observations for variable {var}.")
+            
+            try:
+                data_obs_sel = data_obs_aux.sel(time=sim.time)
+            except KeyError:
+                raise KeyError(f"Observations missing for some time points in variable {var}.")
+            data_obs_vars.append(data_obs_sel)
+        
+        data_obs = xr.merge(data_obs_vars)
+        return data_obs
 
 
     def load_and_process(self, sim):
@@ -65,6 +94,12 @@ class ObservationData:
         -------
         data_new_grid (xr.Dataset): Regridded observational dataset matching the input simulation.
         """
+
+        # Validate input
+        if not isinstance(sim, xr.Dataset):
+            raise TypeError("Input simulation must be an xarray.Dataset.")
+        if not sim.data_vars:
+            raise ValueError("Input simulation must contain at least one climate variable.")
 
         data_old_grid = self._retrieve_obs(sim)
         data_new_grid = data.regrid_data(data_old_grid, sim)
