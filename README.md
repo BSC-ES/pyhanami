@@ -17,7 +17,7 @@ Scientific model skill refers to the ability of an ESM to accurately represent a
 
 Key features include:
 
-- **Easy input handling:** load climate simulation ensembles from a netcdf file (in future releases, also from an intake catalogue) using the `SimulationData` class. 
+- **Easy input handling:** load climate simulation ensembles from a NetCDF file or an `xarray.Dataset` object (in future releases, also from an intake catalogue) using the `SimulationData` class. 
 - **Diagnostics plotting:** generate visualizations comparing two previously loaded simulation ensembles for selected variables using the `DataDiagnostics` class. 
 These include time series plots (with the `time_series_plots` method) and spatial plots (with the `spatial_plots` method). The latter generates two plots, one for the absolute difference and another for the effect size (Cohen's _d)_ between both ensembles.
 - **Replicability testing:** perform a replicability test checking the statistical indistinguishability between two previously loaded simulation ensembles using the `ReplicabilityTest` class.
@@ -29,10 +29,18 @@ Future releases will include:
 
 
 ## Example: Performing a replicability test
+#### Input parameters
+- `source_ref` and `source_test`: paths to NetCDF files or `xarray.Dataset` objects.
+- `var_name`: name of climate variable to evaluate. It must be listed in `src/pyhanami/config.py`.
+- `output_path`: path to save the corresponding plots. It can be either a directory or a full file path including the file name.
+- `obs_path`: path to a directory containing observation datasets, stored in files following the naming pattern `data_obs*_{var_name}`.nc`.
+
+
+#### Full example workflow
 ```python
 import pyhanami as hnmi
 
-# Retrieve data from a netcdf file
+# Retrieve data
 ref = hnmi.SimulationData('source_ref', name='ref')
 test = hnmi.SimulationData('source_test', name='test')
 
@@ -42,10 +50,6 @@ diags.time_series_plots('var_name', 'output_path')
 diags.spatial_plots('var_name', 'output_path')
 
 # Run replicability test
-tester = hnmi.ReplicabilityTest(ref, test, 'observations_path')
+tester = hnmi.ReplicabilityTest(ref, test, 'obs_path')
 tester.matrix_plot('output_path')
 ```
-
-#### Input parameters
-- `source_ref` and `source_test` should be either paths to NetCDF files or `xarray.Dataset` objects.
-- `observations_path` should be a path to a directory containing observation datasets, stored in files following the naming pattern `data_obs*_{varname}`.nc`.

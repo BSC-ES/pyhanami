@@ -16,11 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 
-## [0.1.0] - 2025-07-24
+## [0.1.0] - 2025-07-28
 
 ### Added
 - Initial release of the package.
 - Core features:
-    - Support loading and manipulating climate simulation ensembles in .netcdf format.
+    - Support loading and manipulating climate simulation ensembles in .netcdf format and as xarray.Dataset objects.
     - Visualization diagnostics: generate time series, absolute difference and effect size plots.
     - Replicability test: perform test and visualize results together with effect size.
