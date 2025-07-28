@@ -28,6 +28,15 @@ Future releases will include:
 - **Automated report generation:** produce reports including plots and summary statistics.
 
 
+## Installation
+The package can be installed from the source using `pip`:
+```bash
+git clone https://earth.bsc.es/gitlab/ces/hanami/pyhanami.git
+cd pyhanami
+pip install .
+```
+
+
 ## Example: Performing a replicability test
 #### Input parameters
 - `source_ref` and `source_test`: paths to NetCDF files or `xarray.Dataset` objects.

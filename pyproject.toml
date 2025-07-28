@@ -8,8 +8,7 @@ name = "pyhanami"
 version = "0.1.0"
 authors = [
     {name = "Marta Alerany Solé", email = "marta.alerany@bsc.es"},
-    {name = "Kai Keller", email = "kai.keller@bsc.es"},
-    {name = "Leo Arriola i Meikle", email = "leo.arriola@bsc.es"}
+    {name = "Kai Keller", email = "kai.keller@bsc.es"}
 ]
 
 description = "pyhanami is a tool designed to evaluate the replicability and projection skill of Earth System Models"
@@ -17,21 +16,26 @@ readme = "README.md"
 license = {file = "LICENSE"}
 keywords = ["Earth System Models", "replicability", "projection skill"]
 classifiers=[
-    "Programming Language :: Python :: 3",
-    # Add line for lincense: "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: English",
+    "Operating System :: Unix",
+    "Operating System :: Microsoft",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3.7",
+    "License :: GNU GPLv3",
+    "Topics :: Scientific/Engineering :: Climate Science"
 ]
 
 requires-python = ">=3.7"
 dependencies = [
-    "numpy",
-    "xarray",
-    "xesmf",
-    "scipy",
-    "matplotlib",
     "cartopy",
     "cmocean",
-
+    "matplotlib",
+    "numpy",
+    "scipy",
+    "xarray",
+    "xesmf",
 ]
 
 
