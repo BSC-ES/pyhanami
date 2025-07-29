@@ -1,9 +1,14 @@
+import warnings
+warnings.simplefilter("always")
+
 import numpy as np
 import xarray as xr
 import concurrent.futures
+import matplotlib.pyplot as plt
 
 from pathlib import Path
 from scipy.stats import bootstrap
+from collections.abc import Iterable
 
 from pyhanami import config
 from pyhanami.utils import plot, report, statistics
@@ -15,27 +20,22 @@ class ReplicabilityTest:
     """
     Perform replicability test between two climate simulation ensembles.
 
-    This class compares two climate simulation ensembles (reference and test) using 
-    a variety of metrics and statistical tests to assess whether both climates are
-    statistically significantly different. The test is conducted over multiple 
-    variables, regions, seasons, and ensemble members. It also supports plotting 
-    results and generating summary reports.
+    This class compares two climate simulation ensembles using a variety of metrics and
+    statistical tests to assess whether both climates are statistically significantly 
+    different. The test is conducted over multiple variables, regions, seasons, and 
+    ensemble members. It also supports plotting results and generating summary reports.
     
     Parameters
     ----------
-    ref : SimulationData
-        Reference ensemble containing simulation data and metadata.
-    test : SimulationData
-        Test ensemble containing simulation data and metadata.
+    datasets : Iterable[SimulationData]
+        List of at least two ensembles containing simulation data and metadata.
     obs_path : str
         Path to the observations database.
 
     Attributes
     ----------
-    ref : SimulationData
-        Instance containing the reference ensemble and metadata.
-    test : SimulationData
-        Instance containing the test ensemble and metadata.
+    datasets : list[SimulationData]
+        List of at least two ensembles containing simulation data and metadata.
     obs : ObservationData
         Instance containing observational data for comparison.
     variables : dict
@@ -75,14 +75,18 @@ class ReplicabilityTest:
         Generates a report summarizing the replicability test results and optionally includes plots.
     """
 
-    def __init__(self, ref: SimulationData, test: SimulationData, obs_path: str):
-        self.ref = ref
-        self.test = test
+    def __init__(self, datasets: Iterable[SimulationData], obs_path: str):
+        if not isinstance(datasets, Iterable)  or len(datasets) < 2 \
+            or not all(isinstance(ds, SimulationData) for ds in datasets):
+            raise TypeError("Input must be an iterable with at least two SimulationData objects.")
+        else:
+            self.datasets = list(datasets)
+
         #self._compare_ensembles()
-        self.obs = ObservationData(obs_path, ref.data)
+        self.obs = ObservationData(obs_path, self.datasets[0].data)
 
         # Load config parameters once
-        self.variables = {var: info for var, info in config.VARIABLES.items() if var in ref.data.data_vars}
+        self.variables = {var: info for var, info in config.VARIABLES.items() if var in datasets[0].data.data_vars}
         self.max_workers_vars = config.MAX_WORKERS_VARS
         self.metrics = config.METRICS
         self.tests = config.TESTS
@@ -96,12 +100,13 @@ class ReplicabilityTest:
         raise NotImplementedError("This function is not implemented yet.")
 
 
-    def _compute_scores_one_var(self, var_name):
+    def _compute_scores_one_var(self, data_names, var_name):
         """ 
         Compute scores for the given variable in both simulation ensembles. 
         
         Parameters
         ----------
+        data_names (list[str]): List of two simulation ensemble names to compute the scores for.
         var_name (str): Climate variable name.
 
         Returns
@@ -109,18 +114,17 @@ class ReplicabilityTest:
         tuple[str, xr.Dataset]: Variable name and dataset containing computed scores.
         """
 
+        datasets = [ds.data[[var_name]].persist() for ds in self.datasets if ds.name in data_names]
         data_obs = self.obs.data[[var_name]].resample(time = '1MS').sum().persist()
 
         # Initialize scores dictionary
         length_seasons = len(self.seasons)
         length_regions = len(self.regions)
-        length_realizations = self.ref.data[var_name].sizes['realization']
+        length_realizations = datasets[0].sizes['realization']
         scores_dict = {metric['name']: np.zeros((2, length_seasons, length_regions, length_realizations))
                    for metric in self.metrics}
 
         # Process each dataset
-        datasets = [self.ref.data[[var_name]], self.test.data[[var_name]]]
-        dataset_names = [self.ref.name, self.test.name]
         for dataset_idx, data_sim in enumerate(datasets):
             data_sim = data_sim.persist()
             lat = data_sim['lat']
@@ -165,7 +169,7 @@ class ReplicabilityTest:
 
         # Create xarray.Dataset with scores for all metrics
         coords = {
-            'dataset': dataset_names,
+            'dataset': data_names,
             'season': self.seasons,
             'region': list(self.regions.keys()),
             'realization': np.arange(length_realizations)
@@ -183,10 +187,14 @@ class ReplicabilityTest:
         return scores_dataset
     
 
-    def _compute_scores(self):
+    def _compute_scores(self, data_names):
         """ 
         Compute scores for all variables in both simulation ensembles in parallel. 
 
+        Parameters
+        ----------
+        data_names (list[str]): List of two simulation ensemble names to compare.
+        
         Returns
         -------
         dict[str, xr.Dataset]: Dictionary of scores datasets for each variable.
@@ -194,17 +202,18 @@ class ReplicabilityTest:
 
         scores_all = {}
         vars = list(self.variables.keys())
-        # for var in vars:
-        #     scores_all[var] = self._compute_scores_one_var(var)
+        tasks = [(data_names, var) for var in vars]
+        # for task in tasks:
+        #     scores_all[task[0][1]] = self._compute_scores_one_var(task[0], task[1])
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers_vars) as executor:
-            for idx, value in enumerate(executor.map(self._compute_scores_one_var, vars)):
-                scores_all[vars[idx]] = value
+            for idx, value in enumerate(executor.map(self._compute_scores_one_var, tasks)):
+                scores_all[tasks[idx][1]] = value
 
         print('Computed scores for all variables...', flush=True)
         return scores_all
 
 
-    def _compute_eff_sizes(self, scores_all):
+    def _compute_eff_sizes(self, scores_all, data_names):
         """ 
         Compute effect size (Cohen's d) between the pre-computed scores separating 
         by season and region, for all available variables. 
@@ -212,6 +221,7 @@ class ReplicabilityTest:
         Parameters
         ----------
         scores_all (dict[str, xr.Dataset]): Dictionary of scores datasets for each variable.
+        data_names (list[str]): List of two simulation ensemble names to compare.
 
         Returns
         -------
@@ -234,8 +244,8 @@ class ReplicabilityTest:
                         section_idx = season_idx*len(self.regions)+region_idx
                         scores = scores_var[metric_name].sel(season=season, region=region)
 
-                        scores_ref = scores.sel(dataset=self.ref.name).values
-                        scores_test = scores.sel(dataset=self.test.name).values
+                        scores_ref = scores.sel(dataset=data_names[0]).values
+                        scores_test = scores.sel(dataset=data_names[1]).values
 
                         # Compute effect size with bootstrapping
                         bootstrap_res = bootstrap((scores_ref, scores_test), statistics.cp_effect_size, confidence_level=0.95, n_resamples=10000)
@@ -245,7 +255,7 @@ class ReplicabilityTest:
         return effect_sizes
 
 
-    def _apply_tests(self, scores_all, alpha):
+    def _apply_tests(self, scores_all, data_names, alpha):
         """ 
         Compare scores with statistical tests separating by season
         and region, for all available variables. 
@@ -253,6 +263,7 @@ class ReplicabilityTest:
         Parameters
         ----------
         scores_all (dict[str, xr.Dataset]): Dictionary of scores datasets for each variable.
+        data_names (list[str]): List of two simulation ensemble names to compare.
         alpha (float): Significance level for the statistical tests.
 
         Returns
@@ -276,8 +287,8 @@ class ReplicabilityTest:
                         section_idx = season_idx*len(self.regions)+region_idx
                         scores = scores_var[metric_name].sel(season=season, region=region)
 
-                        scores_ref = scores.sel(dataset=self.ref.name).values
-                        scores_test = scores.sel(dataset=self.test.name).values
+                        scores_ref = scores.sel(dataset=data_names[0]).values
+                        scores_test = scores.sel(dataset=data_names[1]).values
 
                         # Apply statistical tests
                         for test_idx, test_name in enumerate(self.tests):
@@ -288,44 +299,83 @@ class ReplicabilityTest:
         return test_results
             
 
-    def matrix_plot(self, output_path, alpha=0.05):
+    def add_datasets(self, datasets):
+        """ 
+        Add new datasets to the ReplicabilityTest object.
+
+        Parameters
+        ----------
+        datasets (SimulationData or Iterable[SimulationData]): Ensemble or list of ensembles containing simulation 
+                                                                data and metadata to add.
+        """
+
+        # Validate input
+        if isinstance(datasets, SimulationData):
+            datasets = [datasets]
+        elif not isinstance(datasets, Iterable) or isinstance(datasets, (str, bytes)) \
+            or not all(isinstance(ds, SimulationData) for ds in datasets):
+            raise TypeError("Input must be a SimulationData object or an iterable of SimulationData objects.")
+        
+        # Check for duplicate datasets
+        for dataset in datasets:
+            if not any(ds.name == dataset.name for ds in self.datasets):
+                self.datasets.append(dataset)
+            else:
+                warnings.warn(f"Dataset with name '{dataset.name}' already exists in the ReplicabilityTest object. Skipping addition.")
+
+        return
+
+
+    def matrix_plot(self, data_names=None, output_path=None, alpha=0.05):
         """ 
         Perform replicability test comparing the given simulation ensembles
         and generate matrix plot with effect sizes and test results. 
         
         Parameters
         ---------- 
+        data_names (list[str]): List of names of two simulation ensembles to compare. If None, the first two datasets
+                                 in the replicability object are used.
         output_path (str): Path to save the matrix plot.
         alpha (float): Significance level for the statistical tests.
         """
 
-        print(f'Started replicability test with significance level {alpha} to compare ensembles {self.ref.name} and {self.test.name}:', flush=True)
+        print(f'Started replicability test with significance level {alpha} to compare ensembles {data_names[0]} and {data_names[1]}:', flush=True)
 
         # Validate inputs
+        if data_names is None:
+            data_names = [self.datasets[0].name, self.datasets[1].name]
+        elif not isinstance(data_names, list) or len(data_names) != 2 \
+            or not all(isinstance(name, str) for name in data_names):
+            raise ValueError("'data_names' must be a list of two strings representing dataset names.")
+
         if not isinstance(alpha, (int, float)):
             raise TypeError(f"The significance level 'alpha' must be numeric.")
         if not (0 <= alpha <= 1):
             raise ValueError(f"'alpha' must be between 0 and 1.")
 
-        # Prepare output path
-        output_path = Path(output_path)
-        if not output_path.suffix:
-            output_path.mkdir(parents=True, exist_ok=True)
-            matrix_path = output_path / f"matrix_{self.ref.name}-{self.test.name}.png"
-        else:
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            matrix_path = output_path
-
         # Run replicability test
-        scores = self._compute_scores()
-        eff_sizes = self._compute_eff_sizes(scores)
-        test_results = self._apply_tests(scores, alpha)
+        scores = self._compute_scores(data_names)
+        eff_sizes = self._compute_eff_sizes(scores, data_names)
+        test_results = self._apply_tests(scores, data_names, alpha)
         
-        # Plot results
-        matrix, _ = plot.matrix_plot(eff_sizes, test_results, title=f"Effect size replicability test ({self.ref.name} vs {self.test.name})", variables=self.variables)
-        matrix.savefig(matrix_path, bbox_inches='tight', dpi=100)
+        # Plot results and save to path if given
+        matrix, _ = plot.matrix_plot(eff_sizes, test_results, title=f"Effect size replicability test ({data_names[0]} vs {data_names[1]})", variables=self.variables)
 
-        print(f"Matrix plot saved to '{matrix_path}'.", flush=True)
+        if output_path is None:
+            plt.show()
+            print("Matrix plot created and displayed.", flush=True)
+        else:
+            output_path = Path(output_path)
+            if not output_path.suffix:
+                output_path.mkdir(parents=True, exist_ok=True)
+                data_names_str = "-".join(data_names)
+                matrix_path = output_path / f"matrix_{data_names_str}.png"
+            else:
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                matrix_path = output_path
+            matrix.savefig(matrix_path, bbox_inches='tight', dpi=100)
+            print(f"Matrix plot created and saved to '{matrix_path}'.", flush=True)
+
         return
     
     

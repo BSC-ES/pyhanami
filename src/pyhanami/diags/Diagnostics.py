@@ -19,11 +19,11 @@ from pyhanami.diags.Simulations import SimulationData
 
 class DataDiagnostics:
     """
-    Perform diagnostic comparisons between two climate simulation ensembles.
+    Perform diagnostic comparisons between climate simulation ensembles.
 
     This class provides functionality for computing and visualizing differences in climate variables
-    between a reference and a test simulation ensembles. It includes methods for computing annual 
-    time series, absolute differences, effect sizes and significance differences at grid point level.
+    between simulation ensembles. It includes methods for computing annual time series, absolute
+    differences, effect sizes and significance differences at grid point level.
     
     Parameters
     ----------
@@ -152,7 +152,7 @@ class DataDiagnostics:
         data_sim_flat_2 = data_sim_2[varname].mean('time').stack(ngrid = ['lat','lon']).load()
 
         #  Compute effect sizes in parallel
-        tasks = [(data_sim_flat_1.sel(ngrid=i).values, data_sim_flat_2.sel(ngrid=i).values,) for i in data_sim_flat_1.ngrid]
+        tasks = [(data_sim_flat_1.sel(ngrid=i).values, data_sim_flat_2.sel(ngrid=i).values) for i in data_sim_flat_1.ngrid]
         effect_size = np.empty(len(tasks))
 
         with concurrent.futures.ProcessPoolExecutor(max_workers=self.max_workers_grid) as executor:
@@ -227,7 +227,7 @@ class DataDiagnostics:
 
     def add_datasets(self, datasets):
         """ 
-        Add new datasets to the diagnostics object.
+        Add new datasets to the DataDiagnostics object.
 
         Parameters
         ----------
@@ -247,7 +247,7 @@ class DataDiagnostics:
             if not any(ds.name == dataset.name for ds in self.datasets):
                 self.datasets.append(dataset)
             else:
-                warnings.warn(f"Dataset with name '{dataset.name}' already exists in the diagnostics object. Skipping addition.")
+                warnings.warn(f"Dataset with name '{dataset.name}' already exists in the DataDiagnostics object. Skipping addition.")
 
         return
     
@@ -293,13 +293,13 @@ class DataDiagnostics:
         
         # Save plot to path if given
         if output_path is None:
-            time_series_plot.show()
+            plt.show()
             print("Time series plot created and displayed.", flush=True)
         else:
             output_path = Path(output_path)
             if not output_path.suffix:
                 output_path.mkdir(parents=True, exist_ok=True)
-                data_names_str = "-".join(ds.name for ds in data_plot)
+                data_names_str = "-".join(data_names)
                 time_series_path = output_path / f"time_series_{varname}_{data_names_str}.png"
             else:
                 output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -356,7 +356,7 @@ class DataDiagnostics:
                 raise ValueError("Output path must be a directory, not a file path, as two output files will be created.")
             
             output_path.mkdir(parents=True, exist_ok=True)
-            data_names_str = "-".join(ds.name for ds in self.datasets)
+            data_names_str = "-".join(data_names)
             abs_diff_path = output_path / f"abs_diff_{varname}_{data_names_str}.png"
             eff_size_path = output_path / f"eff_size_{varname}_{data_names_str}.png"
 
