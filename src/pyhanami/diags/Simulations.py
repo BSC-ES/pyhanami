@@ -39,12 +39,15 @@ class SimulationData:
     def __init__(self, data_source: str, name: str = 'sim'):
         if isinstance(data_source, (str, Path)):
             self.data_path = Path(data_source)
+            if not self.data_path.exists():
+                raise FileNotFoundError(f"Data path {self.data_path} not found.")
             self.data = self._prepare_data()
         elif isinstance(data_source, xr.Dataset):
             self.data_path = None
             self.data = data_source
         else:
             raise TypeError("'data_source' must be a path string, Path object, or an xarray.Dataset")
+        
         self.name = name
         #self.check_data()   
 
@@ -57,9 +60,6 @@ class SimulationData:
         -------
         data_sim (xr.Dataset): Loaded simulation data.
         """
-
-        if not self.data_path.exists():
-            raise FileNotFoundError(f"Data path {self.data_path} not found.")
 
         data_sim = data.prepare_data(self.data_path)
         return data_sim
