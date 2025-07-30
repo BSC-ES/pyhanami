@@ -28,14 +28,14 @@ class ReplicabilityTest:
     Parameters
     ----------
     datasets : Iterable[SimulationData]
-        List of at least two ensembles containing simulation data and metadata.
+        Ensemble or list of ensembles containing simulation data and metadata.
     obs_path : str
         Path to the observations database.
 
     Attributes
     ----------
     datasets : list[SimulationData]
-        List of at least two ensembles containing simulation data and metadata.
+        List of ensembles containing simulation data and metadata.
     obs : ObservationData
         Instance containing observational data for comparison.
     variables : dict
@@ -75,18 +75,27 @@ class ReplicabilityTest:
         Generates a report summarizing the replicability test results and optionally includes plots.
     """
 
-    def __init__(self, datasets: Iterable[SimulationData], obs_path: str):
-        if not isinstance(datasets, Iterable)  or len(datasets) < 2 \
-            or not all(isinstance(ds, SimulationData) for ds in datasets):
-            raise TypeError("Input must be an iterable with at least two SimulationData objects.")
+    def __init__(self, datasets: Iterable[SimulationData] = None, obs_path: str = None):
+        self.obs_path = obs_path
+        if datasets is None:
+            self.datasets = []
+            self.obs = None
+            self.variables = None
         else:
-            self.datasets = list(datasets)
+            if isinstance(datasets, SimulationData):
+                datasets = [datasets]
+            elif isinstance(datasets, Iterable) and not isinstance(datasets, (str, bytes)) \
+                and all(isinstance(ds, SimulationData) for ds in datasets):
+                datasets = list(datasets)
+            else:
+                raise TypeError("Input must be a SimulationData object or an iterable of SimulationData objects.")
 
-        #self._compare_ensembles()
-        self.obs = ObservationData(obs_path, self.datasets[0].data)
+            self.datasets = datasets
+            self._compare_ensembles()
+            self.obs = ObservationData(self.obs_path, self.datasets[0].data)
+            self.variables = {var: info for var, info in config.VARIABLES.items() if var in datasets[0].data.data_vars}
 
         # Load config parameters once
-        self.variables = {var: info for var, info in config.VARIABLES.items() if var in datasets[0].data.data_vars}
         self.max_workers_vars = config.MAX_WORKERS_VARS
         self.metrics = config.METRICS
         self.tests = config.TESTS
@@ -95,27 +104,51 @@ class ReplicabilityTest:
 
 
     def _compare_ensembles(self):
-        """ Check that both provided ensembles are equivalent
-        (same variables, periods, ...). """
-        raise NotImplementedError("This function is not implemented yet.")
+        """ Check that all provided ensembles are equivalent, i.e. same 
+        variables and lat-lon coordinates. """
+
+        if len(self.datasets) < 2:
+            return
+
+        ref = self.datasets[0]
+        ref_vars = set(ref.data.data_vars)
+        ref_lat = ref.data.coords['lat']
+        ref_lon = ref.data.coords['lon']
+
+        for dataset in self.datasets[1:]:
+            dataset_vars = set(dataset.data.data_vars)
+            if ref_vars != dataset_vars:
+                raise ValueError(f"Ensembles '{ref.name}' and '{dataset.name}' have different variables.")
+
+            dataset_lat = dataset.data.coords['lat']
+            if not np.array_equal(ref_lat, dataset_lat):
+                raise ValueError(f"Ensembles '{ref.name}' and '{dataset.name}' have different latitude coordinates.")
+            
+            dataset_lon = dataset.data.coords['lon']
+            if not np.array_equal(ref_lon, dataset_lon):
+                raise ValueError(f"Ensembles '{ref.name}' and '{dataset.name}' have different longitude coordinates.")
+        
+        return
 
 
-    def _compute_scores_one_var(self, data_names, var_name):
+    def _compute_scores_one_var(self, args):
         """ 
         Compute scores for the given variable in both simulation ensembles. 
         
         Parameters
         ----------
-        data_names (list[str]): List of two simulation ensemble names to compute the scores for.
-        var_name (str): Climate variable name.
+        args (tuple): List containing:
+            data_plot (list[SimulationData]): List of two simulation ensembles to compare.
+            var_name (str): Climate variable name.
 
         Returns
         -------
         tuple[str, xr.Dataset]: Variable name and dataset containing computed scores.
         """
 
-        datasets = [ds.data[[var_name]].persist() for ds in self.datasets if ds.name in data_names]
-        data_obs = self.obs.data[[var_name]].resample(time = '1MS').sum().persist()
+        data_plot, var_name = args
+        datasets = [data_plot[0].data[[var_name]], data_plot[1].data[[var_name]]]
+        data_obs = self.obs.data[[var_name]].resample(time = '1MS').sum()
 
         # Initialize scores dictionary
         length_seasons = len(self.seasons)
@@ -169,7 +202,7 @@ class ReplicabilityTest:
 
         # Create xarray.Dataset with scores for all metrics
         coords = {
-            'dataset': data_names,
+            'dataset': [data_plot[0].name, data_plot[1].name],
             'season': self.seasons,
             'region': list(self.regions.keys()),
             'realization': np.arange(length_realizations)
@@ -187,13 +220,13 @@ class ReplicabilityTest:
         return scores_dataset
     
 
-    def _compute_scores(self, data_names):
+    def _compute_scores(self, data_plot):
         """ 
         Compute scores for all variables in both simulation ensembles in parallel. 
 
         Parameters
         ----------
-        data_names (list[str]): List of two simulation ensemble names to compare.
+        data_plot (list[SimulationData]): List of two simulation ensembles to compare.
         
         Returns
         -------
@@ -202,7 +235,7 @@ class ReplicabilityTest:
 
         scores_all = {}
         vars = list(self.variables.keys())
-        tasks = [(data_names, var) for var in vars]
+        tasks = [(data_plot, var) for var in vars]
         # for task in tasks:
         #     scores_all[task[0][1]] = self._compute_scores_one_var(task[0], task[1])
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers_vars) as executor:
@@ -317,11 +350,20 @@ class ReplicabilityTest:
             raise TypeError("Input must be a SimulationData object or an iterable of SimulationData objects.")
         
         # Check for duplicate datasets
+        added = False
         for dataset in datasets:
             if not any(ds.name == dataset.name for ds in self.datasets):
                 self.datasets.append(dataset)
+                added = True
             else:
                 warnings.warn(f"Dataset with name '{dataset.name}' already exists in the ReplicabilityTest object. Skipping addition.")
+        if added:
+            self._compare_ensembles()
+
+        # Add observation data and variables if not already present
+        if self.obs is None:
+            self.obs = ObservationData(self.obs_path, self.datasets[0].data)
+            self.variables = {var: info for var, info in config.VARIABLES.items() if var in self.datasets[0].data.data_vars}
 
         return
 
@@ -339,14 +381,22 @@ class ReplicabilityTest:
         alpha (float): Significance level for the statistical tests.
         """
 
-        print(f'Started replicability test with significance level {alpha} to compare ensembles {data_names[0]} and {data_names[1]}:', flush=True)
-
         # Validate inputs
         if data_names is None:
+            if len(self.datasets) < 2:
+                raise ValueError("At least two datasets are required for the replicability test.")
+            data_plot = [self.datasets[0], self.datasets[1]]
             data_names = [self.datasets[0].name, self.datasets[1].name]
-        elif not isinstance(data_names, list) or len(data_names) != 2 \
-            or not all(isinstance(name, str) for name in data_names):
-            raise ValueError("'data_names' must be a list of two strings representing dataset names.")
+        elif isinstance(data_names, list) and len(data_names) == 2 \
+            and all(isinstance(name, str) for name in data_names):
+            existing_names = [ds.name for ds in self.datasets]
+            missing_names = [name for name in data_names if name not in existing_names]
+            if missing_names:
+                raise ValueError(f"The following dataset names were not found in the ReplicabilityTest object: {missing_names}.")
+            
+            data_plot = [ds for ds in self.datasets if ds.name in data_names]
+        else:
+            raise TypeError("'data_names' must be a list of two strings representing dataset names.")
 
         if not isinstance(alpha, (int, float)):
             raise TypeError(f"The significance level 'alpha' must be numeric.")
@@ -354,7 +404,8 @@ class ReplicabilityTest:
             raise ValueError(f"'alpha' must be between 0 and 1.")
 
         # Run replicability test
-        scores = self._compute_scores(data_names)
+        print(f'Started replicability test with significance level {alpha} to compare ensembles {data_names[0]} and {data_names[1]}:', flush=True)
+        scores = self._compute_scores(data_plot)
         eff_sizes = self._compute_eff_sizes(scores, data_names)
         test_results = self._apply_tests(scores, data_names, alpha)
         

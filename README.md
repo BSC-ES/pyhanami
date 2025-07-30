@@ -21,9 +21,9 @@ Key features include:
 - **Diagnostics plotting:** generate visualizations comparing two previously loaded simulation ensembles for selected variables using the `DataDiagnostics` class. 
 These include time series plots (with the `time_series_plots` method) and spatial plots (with the `spatial_plots` method). The latter generates two plots, one for the absolute difference and another for the effect size (Cohen's _d)_ between both ensembles.
 - **Replicability testing:** perform a replicability test checking the statistical indistinguishability between two previously loaded simulation ensembles using the `ReplicabilityTest` class.
+- **Flexible data management:** add and compare datasets in the `DataDiagnostics` and `ReplicabilityTest` classes even after initialization. 
 
 Future releases will include:
-- **Flexible data management:** add and compare datasets at a later stage. 
 - **Scientific skill evaluation:** compute metrics evaluating several climate phenomena.
 - **Automated report generation:** produce reports including plots and summary statistics.
 
@@ -53,12 +53,18 @@ import pyhanami as hnmi
 ref = hnmi.SimulationData('source_ref', name='ref')
 test = hnmi.SimulationData('source_test', name='test')
 
-# Create plots
-diags = hnmi.DataDiagnostics(ref, test)
-diags.time_series_plots('var_name', 'output_path')
-diags.spatial_plots('var_name', 'output_path')
+# Diagnostics: create and display time series plot for one dataset
+diags = hnmi.DataDiagnostics()
+diags.add_datasets(ref)
+diags.time_series_plots('var_name', 'ref')
 
-# Run replicability test
-tester = hnmi.ReplicabilityTest(ref, test, 'obs_path')
-tester.matrix_plot('output_path')
+# Diagnostics: compare multiple datasets and save plots
+diags.add_datasets(test)
+diags.time_series_plots('var_name', ['ref','test'], 'output_path')
+diags.spatial_plots('var_name', ['ref','test'], 'output_path')
+
+# Replicability test
+tester = hnmi.ReplicabilityTest(obs_path='obs_path')
+tester.add_datasets([ref, test])
+tester.matrix_plot(['ref', 'test'], 'output_path')
 ```

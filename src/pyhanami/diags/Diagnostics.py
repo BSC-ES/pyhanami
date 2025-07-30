@@ -5,6 +5,7 @@ warnings.simplefilter("always")
 import numpy as np
 import xarray as xr
 import concurrent.futures
+import multiprocessing as mp
 import matplotlib.pyplot as plt
 
 from tqdm import tqdm
@@ -89,7 +90,7 @@ class DataDiagnostics:
         -------
         time_series (list[xr.DataArray]): List of annual mean time series.
         """
-
+        
         time_series = []
         for data_sim in [ds.data for ds in data_plot]:
             data_var = data_sim[varname]
@@ -99,7 +100,7 @@ class DataDiagnostics:
             data_area_mean = data_weighted.mean(['lat', 'lon'])
             data_time_mean = data_area_mean.resample(time='1YE').mean()
             time_series.append(data_time_mean)
-
+        
         return time_series
 
 
@@ -117,11 +118,14 @@ class DataDiagnostics:
         -------
         data_diff (xr.DataArray): Absolute difference between the two ensembles.
         """
+        
+        data_sim_1 = data_plot[0].data
+        data_sim_2 = data_plot[1].data
 
-        data_sim_1 = data_plot[0].data[varname].mean(['realization','time'])
-        data_sim_2 = data_plot[1].data[varname].mean(['realization','time'])
+        data_sim_mean_1 = data_sim_1[varname].mean(['realization','time'])
+        data_sim_mean_2 = data_sim_2[varname].mean(['realization','time'])
 
-        data_diff = data_sim_1 - data_sim_2
+        data_diff = data_sim_mean_1 - data_sim_mean_2
         if varname in ['siconc', 'sos', 'tos']:
             data_diff = xr.where((np.isnan(data_diff)) | (data_diff==0), 10**-6, data_diff)    # Values which are exactly 0 are painted in white, not with the corresponding colorbar color for 0
 
@@ -143,19 +147,19 @@ class DataDiagnostics:
         -------
         data_effect_size (xr.DataArray): Effect size between the two ensembles.
         """
-    
-        # Prepare data
-        data_sim_1 = data_plot[0].data.persist()
-        data_sim_2 = data_plot[1].data.persist()
 
-        data_sim_flat_1 = data_sim_1[varname].mean('time').stack(ngrid = ['lat','lon']).load()
-        data_sim_flat_2 = data_sim_2[varname].mean('time').stack(ngrid = ['lat','lon']).load()
+        # Prepare data
+        data_sim_1 = data_plot[0].data
+        data_sim_2 = data_plot[1].data
+
+        data_sim_flat_1 = data_sim_1[varname].mean('time').stack(ngrid = ['lat','lon'])
+        data_sim_flat_2 = data_sim_2[varname].mean('time').stack(ngrid = ['lat','lon'])
 
         #  Compute effect sizes in parallel
         tasks = [(data_sim_flat_1.sel(ngrid=i).values, data_sim_flat_2.sel(ngrid=i).values) for i in data_sim_flat_1.ngrid]
         effect_size = np.empty(len(tasks))
 
-        with concurrent.futures.ProcessPoolExecutor(max_workers=self.max_workers_grid) as executor:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=self.max_workers_grid, mp_context=mp.get_context("spawn")) as executor:
             for idx, value in enumerate(tqdm(executor.map(statistics.cp_effect_size_bootstrap, tasks), total=len(tasks), desc=f"Computing effect sizes for variable '{varname}'")):
                 effect_size[idx] = value
 
@@ -192,9 +196,9 @@ class DataDiagnostics:
         -------
         significant (np.ndarray): Boolean array indicating significant differences between the two ensembles.
         """
-
-        data_sim_1 = data_plot[0].data.persist()
-        data_sim_2 = data_plot[1].data.persist()
+        
+        data_sim_1 = data_plot[0].data
+        data_sim_2 = data_plot[1].data
 
         # Prepare data
         n_lats = data_sim_1.sizes['lat']
@@ -202,11 +206,11 @@ class DataDiagnostics:
         n_points =  n_lats*n_lons
         n_realizations = data_sim_1.sizes['realization']
 
-        data_mean_1 = data_sim_1.mean('time').compute()
+        data_mean_1 = data_sim_1.mean('time')
         data_mean_var_1 = data_mean_1[varname].data
         data_mean_flat_1 = data_mean_var_1.reshape((n_realizations,n_points))
 
-        data_mean_2 = data_sim_2.mean('time').compute()
+        data_mean_2 = data_sim_2.mean('time')
         data_mean_var_2 = data_mean_2[varname].data
         data_mean_flat_2 = data_mean_var_2.reshape((n_realizations,n_points))
 
@@ -216,11 +220,11 @@ class DataDiagnostics:
         tasks = [(d1[:,n], d2[:,n], alpha, stat) for n in range(n_points)]
         significant = np.zeros(n_points)
 
-        with concurrent.futures.ProcessPoolExecutor(max_workers=self.max_workers_grid) as executor:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=self.max_workers_grid, mp_context=mp.get_context("spawn")) as executor:
             for idx, value in enumerate(executor.map(statistics.significant_diff, tasks)):
                 significant[idx] = value
         significant_reshaped =  significant.reshape((n_lats,n_lons))
-
+        
         print(f"Computed significant difference for variable '{varname}' between '{data_plot[0].name}' and '{data_plot[1].name}'.", flush=True)
         return significant_reshaped
 
@@ -267,15 +271,16 @@ class DataDiagnostics:
         # Validate inputs
         if data_names is None:
             data_plot = self.datasets
+            data_names = [ds.name for ds in data_plot]
         elif isinstance(data_names, str):
             data_plot = [ds for ds in self.datasets if ds.name == data_names]
             if not data_plot:
-                raise ValueError(f"Dataset with name '{data_names}' not found in the diagnostics object.")
+                raise ValueError(f"Dataset with name '{data_names}' not found in the DataDiagnostics object.")
         elif isinstance(data_names, list) and all(isinstance(name, str) for name in data_names):
             existing_names = [ds.name for ds in self.datasets]
             missing_names = [name for name in data_names if name not in existing_names]
             if missing_names:
-                raise ValueError(f"The following dataset names were not found in the diagnostics object: {missing_names}.")
+                raise ValueError(f"The following dataset names were not found in the DataDiagnostics object: {missing_names}.")
             
             data_plot = [ds for ds in self.datasets if ds.name in data_names]
         else:
@@ -289,7 +294,7 @@ class DataDiagnostics:
         # Compute and plot time series
         time_series = self._compute_time_series_annual(varname, data_plot)
         time_series_plot, _ = plot.time_series_plot(time_series, title=f'Annual mean time series of {self.variables[varname][0]}',
-                                                 y_label=f'{varname} ({self.variables[varname][1]})', labels=[ds.name for ds in data_plot])
+                                                 y_label=f'{varname} ({self.variables[varname][1]})', labels=data_names)
         
         # Save plot to path if given
         if output_path is None:
@@ -329,13 +334,19 @@ class DataDiagnostics:
         # Validate inputs
         if data_names is None:
             if len(self.datasets) < 2:
-                raise ValueError("At least two datasets are required for spatial plots. Please provide 'data_names' or add more datasets.")
+                raise ValueError("At least two datasets are required for spatial plots. Please add more datasets.")
             data_plot = [self.datasets[0], self.datasets[1]]
-        elif not isinstance(data_names, list) or len(data_names) != 2 \
-            or not all(isinstance(name, str) for name in data_names):
-            raise TypeError("'data_names' must be a list of two strings representing dataset names.")
-        else:
+            data_names = [ds.name for ds in data_plot]
+        elif isinstance(data_names, list) and len(data_names) == 2 \
+            and all(isinstance(name, str) for name in data_names):
+            existing_names = [ds.name for ds in self.datasets]
+            missing_names = [name for name in data_names if name not in existing_names]
+            if missing_names:
+                raise ValueError(f"The following dataset names were not found in the DataDiagnostics object: {missing_names}.")
+            
             data_plot = [ds for ds in self.datasets if ds.name in data_names]
+        else:
+            raise TypeError("'data_names' must be a list of two strings representing dataset names.")
 
         for dataset in data_plot:
             if varname not in dataset.data.data_vars:
