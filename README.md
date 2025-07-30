@@ -54,8 +54,7 @@ ref = hnmi.SimulationData('source_ref', name='ref')
 test = hnmi.SimulationData('source_test', name='test')
 
 # Diagnostics: create and display time series plot for one dataset
-diags = hnmi.DataDiagnostics()
-diags.add_datasets(ref)
+diags = hnmi.DataDiagnostics(ref)
 diags.time_series_plots('var_name', 'ref')
 
 # Diagnostics: compare multiple datasets and save plots
@@ -64,7 +63,7 @@ diags.time_series_plots('var_name', ['ref','test'], 'output_path')
 diags.spatial_plots('var_name', ['ref','test'], 'output_path')
 
 # Replicability test
-tester = hnmi.ReplicabilityTest(obs_path='obs_path')
-tester.add_datasets([ref, test])
+tester = hnmi.ReplicabilityTest(ref, 'obs_path')
+tester.add_datasets(test)
 tester.matrix_plot(['ref', 'test'], 'output_path')
 ```
