@@ -37,7 +37,13 @@ class ObservationData:
     """
 
     def __init__(self, data_path: str, sim: xr.Dataset):
-        self.data_path = Path(data_path)
+        if isinstance(data_path, (str, Path)):
+            self.data_path = Path(data_path)
+        else:
+            raise TypeError("'data_path' must be a string or Path object.")
+        if not self.data_path.exists():
+            raise FileNotFoundError(f"Observational data path {self.data_path} not found.")
+        
         self.name = 'obs'
         self.data = self.load_and_process(sim)
 
@@ -55,10 +61,6 @@ class ObservationData:
         -------
         obs (xr.Dataset): Dataset containing observational data for the variables in sim.
         """
-
-        # Validate input
-        if not self.data_path.exists():
-            raise FileNotFoundError(f"Observational data path {self.data_path} not found.")
 
         # Load observational data
         data_obs_vars = []
