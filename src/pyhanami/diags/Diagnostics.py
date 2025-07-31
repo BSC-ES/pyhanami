@@ -98,7 +98,7 @@ class DataDiagnostics:
             data_weighted = data_var.weighted(weights)
 
             data_area_mean = data_weighted.mean(['lat', 'lon'])
-            data_time_mean = data_area_mean.resample(time='1YE').mean()
+            data_time_mean = data_area_mean.resample(time='1YE').mean().load()
             time_series.append(data_time_mean)
         
         return time_series
@@ -119,13 +119,13 @@ class DataDiagnostics:
         data_diff (xr.DataArray): Absolute difference between the two ensembles.
         """
         
-        data_sim_1 = data_plot[0].data
-        data_sim_2 = data_plot[1].data
-
+        data_sim_1 = data_plot[0].data.persist()
+        data_sim_2 = data_plot[1].data.persist()
+        
         data_sim_mean_1 = data_sim_1[varname].mean(['realization','time'])
         data_sim_mean_2 = data_sim_2[varname].mean(['realization','time'])
 
-        data_diff = data_sim_mean_1 - data_sim_mean_2
+        data_diff = (data_sim_mean_1 - data_sim_mean_2).load()
         if varname in ['siconc', 'sos', 'tos']:
             data_diff = xr.where((np.isnan(data_diff)) | (data_diff==0), 10**-6, data_diff)    # Values which are exactly 0 are painted in white, not with the corresponding colorbar color for 0
 
@@ -147,14 +147,14 @@ class DataDiagnostics:
         -------
         data_effect_size (xr.DataArray): Effect size between the two ensembles.
         """
-
+        
         # Prepare data
-        data_sim_1 = data_plot[0].data
-        data_sim_2 = data_plot[1].data
-
-        data_sim_flat_1 = data_sim_1[varname].mean('time').stack(ngrid = ['lat','lon'])
-        data_sim_flat_2 = data_sim_2[varname].mean('time').stack(ngrid = ['lat','lon'])
-
+        data_sim_1 = data_plot[0].data.persist()
+        data_sim_2 = data_plot[1].data.persist()
+        
+        data_sim_flat_1 = data_sim_1[varname].mean('time').stack(ngrid = ['lat','lon']).load()
+        data_sim_flat_2 = data_sim_2[varname].mean('time').stack(ngrid = ['lat','lon']).load()
+        
         #  Compute effect sizes in parallel
         tasks = [(data_sim_flat_1.sel(ngrid=i).values, data_sim_flat_2.sel(ngrid=i).values) for i in data_sim_flat_1.ngrid]
         effect_size = np.empty(len(tasks))
@@ -197,23 +197,23 @@ class DataDiagnostics:
         significant (np.ndarray): Boolean array indicating significant differences between the two ensembles.
         """
         
-        data_sim_1 = data_plot[0].data
-        data_sim_2 = data_plot[1].data
-
+        data_sim_1 = data_plot[0].data.persist()
+        data_sim_2 = data_plot[1].data.persist()
+        
         # Prepare data
         n_lats = data_sim_1.sizes['lat']
         n_lons = data_sim_1.sizes['lon']
         n_points =  n_lats*n_lons
         n_realizations = data_sim_1.sizes['realization']
-
+        
         data_mean_1 = data_sim_1.mean('time')
         data_mean_var_1 = data_mean_1[varname].data
-        data_mean_flat_1 = data_mean_var_1.reshape((n_realizations,n_points))
+        data_mean_flat_1 = data_mean_var_1.compute().reshape((n_realizations,n_points))
 
         data_mean_2 = data_sim_2.mean('time')
         data_mean_var_2 = data_mean_2[varname].data
-        data_mean_flat_2 = data_mean_var_2.reshape((n_realizations,n_points))
-
+        data_mean_flat_2 = data_mean_var_2.compute().reshape((n_realizations,n_points))
+        
         d1, d2 = (data_mean_flat_1, data_mean_flat_2)
 
         # Compute significant differences in parallel
@@ -267,7 +267,7 @@ class DataDiagnostics:
         data_names (str or list[str]): Name or list of names of simulation ensembles to plot.
         output_path (str): Path to save the time series plot.  
         """
-
+        
         # Validate inputs
         if data_names is None:
             data_plot = self.datasets
@@ -312,7 +312,7 @@ class DataDiagnostics:
             
             time_series_plot.savefig(time_series_path, bbox_inches='tight', dpi=100)
             print(f"Time series plot created and saved to '{time_series_path}'.", flush=True)
-
+            
         return
 
 
@@ -330,7 +330,7 @@ class DataDiagnostics:
         alpha (float): Significance level for the statistical test.
         stat (Callable): Statistical test function to use for significance testing.
         """
-
+        
         # Validate inputs
         if data_names is None:
             if len(self.datasets) < 2:
@@ -376,10 +376,10 @@ class DataDiagnostics:
         abs_diff = self._compute_abs_diff(varname, data_plot)
         limit = np.max(np.abs(abs_diff.values))
         levels = np.linspace(-limit, limit, 13)
-
+        
         abs_diff_plot, _ = plot.spatial_plot(abs_diff, title=f'Difference in {self.variables[varname][0]} ({data_plot[0].name} - {data_plot[1].name})',
                                           cb_label=f"difference in {varname} ({self.variables[varname][1]})", cmap=cmocean.cm.thermal, levels=levels)
-
+        
         if output_path is None:
             plt.show()
             print("Absolute difference plot created and displayed.", flush=True)
@@ -402,5 +402,5 @@ class DataDiagnostics:
         else:
             eff_size_plot.savefig(eff_size_path, bbox_inches='tight', dpi=100)
             print(f"Effect size plot created and saved to '{eff_size_path}'.\n", flush=True)
-
+            
         return

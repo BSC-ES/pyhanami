@@ -67,7 +67,7 @@ class ObservationData:
         for var in sim.data_vars:
             var_path = next(self.data_path.glob(f"data_obs*_{var}.nc"))
             print(var_path, flush=True)
-            data_obs_aux = xr.open_dataset(var_path)
+            data_obs_aux = xr.open_dataset(var_path, chunks="auto")
 
             # Align the time range with the simulations
             if "time" not in data_obs_aux.coords or "time" not in sim.coords:

@@ -91,6 +91,7 @@ def time_series_plot(time_series, title='Annual mean time series', y_label='', l
             ax.fill_between(common_years, q025, q975, facecolor=color, alpha=0.6)
 
             # Plot ensemble spread (5th–95th percentile)
+            series = series.chunk({"realization": -1})
             quantiles = series.quantile([0.05, 0.95], dim='realization', skipna=True)
             ax.fill_between(common_years, quantiles[0], quantiles[1], facecolor=color, alpha=0.2)
 

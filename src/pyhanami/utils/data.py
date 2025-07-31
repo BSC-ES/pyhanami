@@ -30,7 +30,7 @@ def prepare_data(data_path, **xr_kwargs):
 
     # Handle netCDF files
     if data_path.suffix in ['.nc', '.nc4', '.netcdf']:
-        data = xr.open_dataset(data_path, **xr_kwargs)
+        data = xr.open_dataset(data_path, chunks="auto", **xr_kwargs)
     else:
         raise NotImplementedError("This function is not implemented for intake catalogues yet.")
 

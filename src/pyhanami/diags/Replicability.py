@@ -147,8 +147,8 @@ class ReplicabilityTest:
         """
 
         data_plot, var_name = args
-        datasets = [data_plot[0].data[[var_name]], data_plot[1].data[[var_name]]]
-        data_obs = self.obs.data[[var_name]].resample(time = '1MS').sum()
+        datasets = [data_plot[0].data[[var_name]].persist(), data_plot[1].data[[var_name]].persist()]
+        data_obs = self.obs.data[[var_name]].resample(time = '1MS').sum().persist()
 
         # Initialize scores dictionary
         length_seasons = len(self.seasons)
@@ -159,7 +159,6 @@ class ReplicabilityTest:
 
         # Process each dataset
         for dataset_idx, data_sim in enumerate(datasets):
-            data_sim = data_sim.persist()
             lat = data_sim['lat']
 
             # Process each metric
@@ -195,7 +194,7 @@ class ReplicabilityTest:
                         scores_dict[metric_label][dataset_idx, season_idx, region_idx,:] = scores_region
                         del mask
 
-           
+
         # Add combined metric
         combined_scores = np.mean(np.stack([scores_dict[metric['name']] for metric in self.metrics], axis=0), axis=0)
         scores_dict['Combined'] = combined_scores
@@ -277,8 +276,8 @@ class ReplicabilityTest:
                         section_idx = season_idx*len(self.regions)+region_idx
                         scores = scores_var[metric_name].sel(season=season, region=region)
 
-                        scores_ref = scores.sel(dataset=data_names[0]).values
-                        scores_test = scores.sel(dataset=data_names[1]).values
+                        scores_ref = scores.sel(dataset=data_names[0]).compute().values
+                        scores_test = scores.sel(dataset=data_names[1]).compute().values
 
                         # Compute effect size with bootstrapping
                         bootstrap_res = bootstrap((scores_ref, scores_test), statistics.cp_effect_size, confidence_level=0.95, n_resamples=10000)
@@ -320,8 +319,8 @@ class ReplicabilityTest:
                         section_idx = season_idx*len(self.regions)+region_idx
                         scores = scores_var[metric_name].sel(season=season, region=region)
 
-                        scores_ref = scores.sel(dataset=data_names[0]).values
-                        scores_test = scores.sel(dataset=data_names[1]).values
+                        scores_ref = scores.sel(dataset=data_names[0]).compute().values
+                        scores_test = scores.sel(dataset=data_names[1]).compute().values
 
                         # Apply statistical tests
                         for test_idx, test_name in enumerate(self.tests):
@@ -380,7 +379,7 @@ class ReplicabilityTest:
         output_path (str): Path to save the matrix plot.
         alpha (float): Significance level for the statistical tests.
         """
-
+        
         # Validate inputs
         if data_names is None:
             if len(self.datasets) < 2:
@@ -404,7 +403,7 @@ class ReplicabilityTest:
             raise ValueError(f"'alpha' must be between 0 and 1.")
 
         # Run replicability test
-        print(f'Started replicability test with significance level {alpha} to compare ensembles {data_names[0]} and {data_names[1]}:', flush=True)
+        print(f"Started replicability test with significance level {alpha} to compare ensembles '{data_names[0]}' and '{data_names[1]}':", flush=True)
         scores = self._compute_scores(data_plot)
         eff_sizes = self._compute_eff_sizes(scores, data_names)
         test_results = self._apply_tests(scores, data_names, alpha)
