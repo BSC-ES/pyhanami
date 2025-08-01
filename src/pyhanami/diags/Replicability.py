@@ -150,6 +150,14 @@ class ReplicabilityTest:
         datasets = [data_plot[0].data[[var_name]].persist(), data_plot[1].data[[var_name]].persist()]
         data_obs = self.obs.data[[var_name]].resample(time = '1MS').sum().persist()
 
+        # Validate inputs
+        if not datasets[0].time.equals(datasets[1].time):
+            raise ValueError(
+                f"Time coordinates of the two datasets do not match:\n"
+                f"  {data_plot[0].name} has time from {datasets[0].time.min().item()} to {datasets[0].time.max().item()}\n"
+                f"  {data_plot[1].name} has time from {datasets[1].time.min().item()} to {datasets[1].time.max().item()}"
+            )
+
         # Initialize scores dictionary
         length_seasons = len(self.seasons)
         length_regions = len(self.regions)

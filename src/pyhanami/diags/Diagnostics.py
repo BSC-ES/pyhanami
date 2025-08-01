@@ -98,7 +98,7 @@ class DataDiagnostics:
             data_weighted = data_var.weighted(weights)
 
             data_area_mean = data_weighted.mean(['lat', 'lon'])
-            data_time_mean = data_area_mean.resample(time='1YE').mean().load()
+            data_time_mean = data_area_mean.resample(time='1YE').mean().compute()
             time_series.append(data_time_mean)
         
         return time_series
@@ -107,7 +107,7 @@ class DataDiagnostics:
     def _compute_abs_diff(self, varname, data_plot):
         """ 
         Compute absolute average difference between the simulation ensembles 
-        for the given variable at the grid point level. 
+        for the given variable and time range at the grid point level. 
         
         Parameters
         ----------
@@ -119,13 +119,21 @@ class DataDiagnostics:
         data_diff (xr.DataArray): Absolute difference between the two ensembles.
         """
         
+        # Validate inputs
         data_sim_1 = data_plot[0].data.persist()
         data_sim_2 = data_plot[1].data.persist()
-        
+        if not data_sim_1.time.equals(data_sim_2.time):
+            raise ValueError(
+                f"Time coordinates of the two datasets do not match:\n"
+                f"  {data_plot[0].name} has time from {data_sim_1.time.min().item()} to {data_sim_1.time.max().item()}\n"
+                f"  {data_plot[1].name} has time from {data_sim_2.time.min().item()} to {data_sim_2.time.max().item()}"
+            )
+
+        # Compute mean absolute difference
         data_sim_mean_1 = data_sim_1[varname].mean(['realization','time'])
         data_sim_mean_2 = data_sim_2[varname].mean(['realization','time'])
 
-        data_diff = (data_sim_mean_1 - data_sim_mean_2).load()
+        data_diff = (data_sim_mean_1 - data_sim_mean_2).compute()
         if varname in ['siconc', 'sos', 'tos']:
             data_diff = xr.where((np.isnan(data_diff)) | (data_diff==0), 10**-6, data_diff)    # Values which are exactly 0 are painted in white, not with the corresponding colorbar color for 0
 
@@ -148,12 +156,19 @@ class DataDiagnostics:
         data_effect_size (xr.DataArray): Effect size between the two ensembles.
         """
         
-        # Prepare data
+        # Validate input
         data_sim_1 = data_plot[0].data.persist()
         data_sim_2 = data_plot[1].data.persist()
+        if not data_sim_1.time.equals(data_sim_2.time):
+            raise ValueError(
+                f"Time coordinates of the two datasets do not match:\n"
+                f"  {data_plot[0].name} has time from {data_sim_1.time.min().item()} to {data_sim_1.time.max().item()}\n"
+                f"  {data_plot[1].name} has time from {data_sim_2.time.min().item()} to {data_sim_2.time.max().item()}"
+            )
         
-        data_sim_flat_1 = data_sim_1[varname].mean('time').stack(ngrid = ['lat','lon']).load()
-        data_sim_flat_2 = data_sim_2[varname].mean('time').stack(ngrid = ['lat','lon']).load()
+        # Prepare data
+        data_sim_flat_1 = data_sim_1[varname].mean('time').stack(ngrid = ['lat','lon']).compute()
+        data_sim_flat_2 = data_sim_2[varname].mean('time').stack(ngrid = ['lat','lon']).compute()
         
         #  Compute effect sizes in parallel
         tasks = [(data_sim_flat_1.sel(ngrid=i).values, data_sim_flat_2.sel(ngrid=i).values) for i in data_sim_flat_1.ngrid]
@@ -197,8 +212,15 @@ class DataDiagnostics:
         significant (np.ndarray): Boolean array indicating significant differences between the two ensembles.
         """
         
+        # Validate input
         data_sim_1 = data_plot[0].data.persist()
         data_sim_2 = data_plot[1].data.persist()
+        if not data_sim_1.time.equals(data_sim_2.time):
+            raise ValueError(
+                f"Time coordinates of the two datasets do not match:\n"
+                f"  {data_plot[0].name} has time from {data_sim_1.time.min().item()} to {data_sim_1.time.max().item()}\n"
+                f"  {data_plot[1].name} has time from {data_sim_2.time.min().item()} to {data_sim_2.time.max().item()}"
+            )
         
         # Prepare data
         n_lats = data_sim_1.sizes['lat']
