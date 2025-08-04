@@ -78,15 +78,14 @@ class DataDiagnostics:
         self.max_workers_grid = config.MAX_WORKERS_GRID
 
 
-    def _compute_time_series_annual(self, varname, data_plot, data_obs=None):
+    def _compute_time_series_annual(self, varname, data_plot):
         """ 
         Compute time series for the given simulation ensembles and variable. 
         
         Parameters
         ----------
         varname (str): Climate variable name.
-        data_plot (list[SimulationData]): List of simulation ensembles to compute time series for.
-        data_obs (ObservationData): Optional observational data to include in the time series.
+        data_plot (list[SimulationData and/or ObservationData]): List of ensembles to compute time series for.
         
         Returns
         -------
@@ -94,23 +93,14 @@ class DataDiagnostics:
         """
         
         time_series = []
-        for data_sim in [ds.data for ds in data_plot]:
-            data_var = data_sim[varname]
+        for dataset in [ds.data for ds in data_plot]:
+            data_var = dataset[varname]
             weights = statistics.area_weights(data_var)
             data_weighted = data_var.weighted(weights)
 
             data_area_mean = data_weighted.mean(['lat', 'lon'])
             data_time_mean = data_area_mean.resample(time='1YE').mean().compute()
             time_series.append(data_time_mean)
-        
-        if data_obs is not None:
-            data_obs_var = data_obs.data[varname]
-            weights = statistics.area_weights(data_obs_var)
-            data_obs_weighted = data_obs_var.weighted(weights)
-
-            data_obs_area_mean = data_obs_weighted.mean(['lat', 'lon'])
-            data_obs_time_mean = data_obs_area_mean.resample(time='1YE').mean().compute()
-            time_series.append(data_obs_time_mean)
         
         return time_series
 
@@ -325,12 +315,14 @@ class DataDiagnostics:
             if varname not in dataset.data.data_vars:
                 raise ValueError(f"Variable '{varname}' not found in the simulated dataset '{dataset.name}'. "
                             f"Available variables: {list(dataset.data.data_vars.keys())}")
-            
-        data_obs = ObservationData(obs_path, data_plot[0].data[[varname]]) if obs else None
-        labels = data_names + [data_obs.name] if data_obs else data_names
+        
+        if obs:
+            data_obs = ObservationData(obs_path, data_plot[0].data[[varname]])
+            data_plot.append(data_obs)
+        labels = data_names + [data_obs.name] if obs else data_names
 
         # Compute and plot time series
-        time_series = self._compute_time_series_annual(varname, data_plot, data_obs=data_obs)
+        time_series = self._compute_time_series_annual(varname, data_plot)
         time_series_plot, _ = plot.time_series_plot(time_series, title=f'Annual mean time series of {self.variables[varname][0]}',
                                                  y_label=f'{varname} ({self.variables[varname][1]})', labels=labels)
         
