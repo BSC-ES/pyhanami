@@ -16,8 +16,8 @@ class ObservationData:
     ----------
     data_path : str
         Path to an observations database.
-    sim : SimulationData
-        Ensemble containing simulation data and metadata.
+    sim : xr.Dataset
+        Input simulation dataset.
 
     Attributes
     ----------
