@@ -53,6 +53,7 @@ def check_data(data):
     if not isinstance(data, xr.Dataset):    
         raise TypeError("Input must be an xarray.Dataset.")
 
+
     # Check time and realization coordinates
     if 'time' not in data.coords:
         raise ValueError("The dataset must contain a 'time' coordinate.")
@@ -123,6 +124,7 @@ def cyclic_wrapper(data, dim="lon"):
     if dim not in data.dims:
         raise ValueError(f"Dimension '{dim}' not found in data dimensions: {list(data.dims)}.")
 
+
     # Apply cartopy's cyclic point function
     axis = data.get_axis_num(dim)
     wrap_data, wrap_coord = add_cyclic_point(data.values, coord=data[dim].values, axis=axis)
@@ -173,6 +175,13 @@ def regrid_data(source_ds, target_ds, var=None, method='conservative', cyclic_po
                 raise ValueError(f"Variable '{var}' not found in source dataset.")
             vars_to_regrid = [var]
 
+        if not isinstance(method, str):
+            raise TypeError("Regridding method must be a string.")
+        if not isinstance(cyclic_point, bool):
+            raise TypeError("'cyclic_point' must be a boolean.")  
+        if not isinstance(time_dim, str):
+            raise TypeError("'time_dim' must be a string representing the time dimension name.")
+        
 
         source_ds_copy = source_ds.copy()
 

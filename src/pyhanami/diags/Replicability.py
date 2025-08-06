@@ -110,11 +110,13 @@ class ReplicabilityTest:
         if len(self.datasets) < 2:
             return
 
+        # Get reference variables and coordinates
         ref = self.datasets[0]
         ref_vars = set(ref.data.data_vars)
         ref_lat = ref.data.coords['lat']
         ref_lon = ref.data.coords['lon']
 
+        # Compare with all other datasets
         for dataset in self.datasets[1:]:
             dataset_vars = set(dataset.data.data_vars)
             if ref_vars != dataset_vars:
@@ -138,25 +140,38 @@ class ReplicabilityTest:
         Parameters
         ----------
         args (tuple): List containing:
-            data_plot (list[SimulationData]): List of two simulation ensembles to compare.
             var_name (str): Climate variable name.
+            data_plot (list[SimulationData]): List of two simulation ensembles to compare.
 
         Returns
         -------
         tuple[str, xr.Dataset]: Variable name and dataset containing computed scores.
         """
 
-        data_plot, var_name = args
+        # Validate inputs
+        var_name, data_plot = args
+        
+        if not isinstance(data_plot, list) or len(data_plot) == 0 \
+            or not all(isinstance(ds, SimulationData) for ds in data_plot):
+            raise TypeError("'data_plot' must be a non-empty list of SimulationData instances.")
+
+        for dataset in data_plot:
+            if var_name not in dataset.data.data_vars:
+                raise ValueError(f"Variable '{var_name}' not found in the simulated dataset '{dataset.name}'. "
+                            f"Available variables: {list(dataset.data.data_vars.keys())}")
+            
+
+        # Prepare datasets and check matching time coordinates
         datasets = [data_plot[0].data[[var_name]].persist(), data_plot[1].data[[var_name]].persist()]
         data_obs = self.obs.data[[var_name]].resample(time = '1MS').sum().persist()
 
-        # Validate inputs
         if not datasets[0].time.equals(datasets[1].time):
             raise ValueError(
                 f"Time coordinates of the two datasets do not match:\n"
                 f"  {data_plot[0].name} has time from {datasets[0].time.min().item()} to {datasets[0].time.max().item()}\n"
                 f"  {data_plot[1].name} has time from {datasets[1].time.min().item()} to {datasets[1].time.max().item()}"
             )
+
 
         # Initialize scores dictionary
         length_seasons = len(self.seasons)
@@ -240,6 +255,12 @@ class ReplicabilityTest:
         dict[str, xr.Dataset]: Dictionary of scores datasets for each variable.
         """
 
+        # Validate inputs
+        if not isinstance(data_plot, list) or len(data_plot) == 0 \
+            or not all(isinstance(ds, SimulationData) for ds in data_plot):
+            raise TypeError("'data_plot' must be a non-empty list of SimulationData instances.")
+
+        # Compute scores for each variable in parallel
         scores_all = {}
         vars = list(self.variables.keys())
         tasks = [(data_plot, var) for var in vars]
@@ -267,6 +288,22 @@ class ReplicabilityTest:
         -------
         effect_sizes (np.ndarray): Array of effect sizes with shape (variables, sections, metrics).
         """
+
+        # Validate inputs
+        if not isinstance(scores_all, dict) \
+            or not all( isinstance(key, str) and isinstance(value, xr.Dataset) for key, value in scores_all.items()):
+            raise TypeError("'scores_all' must be a dictionary with variable names as keys and xarray.Dataset as values.")
+        
+        if not isinstance(data_names, list) or len(data_names) != 2 \
+            or not all(isinstance(name, str) for name in data_names):
+            raise TypeError("'data_names' must be a list of two strings representing simulation dataset names.")
+        
+        for var_name, scores in scores_all.items():
+            for name in data_names:
+                if name not in scores.coords['dataset'].values:
+                    raise ValueError(f"Dataset '{name}' not found in scores for variable '{var_name}'. "
+                                     f"Available datasets: {scores.coords['dataset'].values}")
+
         
         # Initialize array
         length_variables = len(self.variables)
@@ -295,7 +332,7 @@ class ReplicabilityTest:
         return effect_sizes
 
 
-    def _apply_tests(self, scores_all, data_names, alpha):
+    def _apply_tests(self, scores_all, data_names, alpha=0.05):
         """ 
         Compare scores with statistical tests separating by season
         and region, for all available variables. 
@@ -311,6 +348,27 @@ class ReplicabilityTest:
         test_results (np.ndarray): Array of test results with shape (variables, sections, tests).
         """
 
+        # Validate inputs
+        if not isinstance(scores_all, dict) \
+            or not all( isinstance(key, str) and isinstance(value, xr.Dataset) for key, value in scores_all.items()):
+            raise TypeError("'scores_all' must be a dictionary with variable names as keys and xarray.Dataset as values.")
+        
+        if not isinstance(data_names, list) or len(data_names) != 2 \
+            or not all(isinstance(name, str) for name in data_names):
+            raise TypeError("'data_names' must be a list of two strings representing simulation dataset names.")
+        
+        for var_name, scores in scores_all.items():
+            for name in data_names:
+                if name not in scores.coords['dataset'].values:
+                    raise ValueError(f"Dataset '{name}' not found in scores for variable '{var_name}'. "
+                                     f"Available datasets: {scores.coords['dataset'].values}")
+
+        if not isinstance(alpha, (int, float)):
+            raise TypeError(f"The significance level 'alpha' must be numeric.")
+        if not (0 <= alpha <= 1):
+            raise ValueError(f"'alpha' must be between 0 and 1.")
+        
+        
         # Initialize array
         length_variables = len(self.variables)
         length_sections = len(self.seasons)*len(self.regions)
@@ -403,7 +461,7 @@ class ReplicabilityTest:
             
             data_plot = [ds for ds in self.datasets if ds.name in data_names]
         else:
-            raise TypeError("'data_names' must be a list of two strings representing dataset names.")
+            raise TypeError("'data_names' must be a list of two strings representing simulation dataset names.")
 
         if not isinstance(alpha, (int, float)):
             raise TypeError(f"The significance level 'alpha' must be numeric.")

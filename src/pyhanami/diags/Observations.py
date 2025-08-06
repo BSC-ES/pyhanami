@@ -36,7 +36,7 @@ class ObservationData:
         Retrieves observational data and regrids it to match the input simulation.
     """
 
-    def __init__(self, data_path: str, sim: xr.Dataset):
+    def __init__(self, data_path: str, sim: xr.Dataset, name: str = 'obs'):
         if isinstance(data_path, (str, Path)):
             self.data_path = Path(data_path)
         else:
@@ -44,8 +44,16 @@ class ObservationData:
         if not self.data_path.exists():
             raise FileNotFoundError(f"Observational data path {self.data_path} not found.")
         
-        self.name = 'obs'
+        if not isinstance(sim, xr.Dataset):
+            raise TypeError("Input simulation must be an xarray.Dataset.")
+        if not sim.data_vars:
+            raise ValueError("Input simulation must contain at least one climate variable.")
         self.data = self.load_and_process(sim)
+
+        if isinstance(name, str):
+            self.name = name
+        else:
+            raise TypeError("'name' must be a string.")
 
 
     def _retrieve_obs(self, sim):
@@ -61,6 +69,13 @@ class ObservationData:
         -------
         obs (xr.Dataset): Dataset containing observational data for the variables in sim.
         """
+
+        # Validate input
+        if not isinstance(sim, xr.Dataset):
+            raise TypeError("Input simulation must be an xarray.Dataset.")
+        if not sim.data_vars:
+            raise ValueError("Input simulation must contain at least one climate variable.")
+        
 
         # Load observational data
         data_obs_vars = []

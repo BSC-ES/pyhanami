@@ -42,22 +42,22 @@ class DataDiagnostics:
 
     Methods
     -------
-    _compute_time_series_annual(varname)
+    _compute_time_series_annual(var_name)
         Computes annual spatial mean time series for the specified variable from both ensembles.
 
-    _compute_abs_diff(varname)
+    _compute_abs_diff(var_name)
         Computes the absolute difference between the ensembles at the grid point level.
 
-    _compute_eff_size_ens(varname)
+    _compute_eff_size_ens(var_name)
         Computes the effect size (Cohen's d) between the ensembles in parallel at the grid point level.
 
-    _compute_significant_diff(varname, alpha, stat)
+    _compute_significant_diff(var_name, alpha, stat)
         Computes statistically significant differences between the ensembles in parallel at the grid point level.
 
-    time_series_plots(varname, output_path)
+    time_series_plots(var_name, output_path)
         Generates and saves a plot of the annual time series for the specified variable.
 
-    spatial_plots(varname, output_path, alpha=0.05, stat=ttest_ind)
+    spatial_plots(var_name, output_path, alpha=0.05, stat=ttest_ind)
         Generates and saves spatial plots of the absolute difference, the effect size and the significance difference for the specified variable.
     """
 
@@ -77,23 +77,35 @@ class DataDiagnostics:
         self.max_workers_grid = config.MAX_WORKERS_GRID
 
 
-    def _compute_time_series_annual(self, varname, data_plot):
+    def _compute_time_series_annual(self, var_name, data_plot):
         """ 
         Compute time series for the given simulation ensembles and variable. 
         
         Parameters
         ----------
-        varname (str): Climate variable name.
+        var_name (str): Climate variable name.
         data_plot (list[SimulationData]): List of simulation ensembles to compute time series for.
         
         Returns
         -------
         time_series (list[xr.DataArray]): List of annual mean time series.
         """
+
+        # Validate inputs
+        if not isinstance(data_plot, list) or len(data_plot) == 0 \
+            or not all(isinstance(ds, SimulationData) for ds in data_plot):
+            raise TypeError("'data_plot' must be a non-empty list of SimulationData instances.")
         
+        for dataset in data_plot:
+            if var_name not in dataset.data.data_vars:
+                raise ValueError(f"Variable '{var_name}' not found in the simulated dataset '{dataset.name}'. "
+                            f"Available variables: {list(dataset.data.data_vars.keys())}")
+            
+
+        # Compute annual mean time series for each dataset
         time_series = []
         for data_sim in [ds.data for ds in data_plot]:
-            data_var = data_sim[varname]
+            data_var = data_sim[var_name]
             weights = statistics.area_weights(data_var)
             data_weighted = data_var.weighted(weights)
 
@@ -104,14 +116,14 @@ class DataDiagnostics:
         return time_series
 
 
-    def _compute_abs_diff(self, varname, data_plot):
+    def _compute_abs_diff(self, var_name, data_plot):
         """ 
         Compute absolute average difference between the simulation ensembles 
         for the given variable and time range at the grid point level. 
         
         Parameters
         ----------
-        varname (str): Climate variable name.
+        var_name (str): Climate variable name.
         data_plot (list[SimulationData]): List of two simulation ensembles to compute the absolute difference for.
 
         Returns
@@ -120,6 +132,15 @@ class DataDiagnostics:
         """
         
         # Validate inputs
+        if not isinstance(data_plot, list) or len(data_plot) == 0 \
+            or not all(isinstance(ds, SimulationData) for ds in data_plot):
+            raise TypeError("'data_plot' must be a non-empty list of SimulationData instances.")
+        
+        for dataset in data_plot:
+            if var_name not in dataset.data.data_vars:
+                raise ValueError(f"Variable '{var_name}' not found in the simulated dataset '{dataset.name}'. "
+                            f"Available variables: {list(dataset.data.data_vars.keys())}")
+            
         data_sim_1 = data_plot[0].data.persist()
         data_sim_2 = data_plot[1].data.persist()
         if not data_sim_1.time.equals(data_sim_2.time):
@@ -129,26 +150,27 @@ class DataDiagnostics:
                 f"  {data_plot[1].name} has time from {data_sim_2.time.min().item()} to {data_sim_2.time.max().item()}"
             )
 
+
         # Compute mean absolute difference
-        data_sim_mean_1 = data_sim_1[varname].mean(['realization','time'])
-        data_sim_mean_2 = data_sim_2[varname].mean(['realization','time'])
+        data_sim_mean_1 = data_sim_1[var_name].mean(['realization','time'])
+        data_sim_mean_2 = data_sim_2[var_name].mean(['realization','time'])
 
         data_diff = (data_sim_mean_1 - data_sim_mean_2).compute()
-        if varname in ['siconc', 'sos', 'tos']:
+        if var_name in ['siconc', 'sos', 'tos']:
             data_diff = xr.where((np.isnan(data_diff)) | (data_diff==0), 10**-6, data_diff)    # Values which are exactly 0 are painted in white, not with the corresponding colorbar color for 0
 
-        print(f"Computed absolute difference for variable '{varname}' between '{data_plot[0].name}' and '{data_plot[1].name}'.", flush=True)
+        print(f"Computed absolute difference for variable '{var_name}' between '{data_plot[0].name}' and '{data_plot[1].name}'.", flush=True)
         return data_diff
 
 
-    def _compute_eff_size_ens(self, varname, data_plot):
+    def _compute_eff_size_ens(self, var_name, data_plot):
         """ 
         Compute average effect size (Cohen's d) between the simulation ensembles 
         in parallel for the given variable at the grid point level. 
         
         Parameters
         ----------
-        varname (str): Climate variable name.
+        var_name (str): Climate variable name.
         data_plot (list[SimulationData]): List of two simulation ensembles to compute the absolute difference for.
 
         Returns
@@ -156,7 +178,16 @@ class DataDiagnostics:
         data_effect_size (xr.DataArray): Effect size between the two ensembles.
         """
         
-        # Validate input
+        # Validate inputs
+        if not isinstance(data_plot, list) or len(data_plot) == 0 \
+            or not all(isinstance(ds, SimulationData) for ds in data_plot):
+            raise TypeError("'data_plot' must be a non-empty list of SimulationData instances.")
+        
+        for dataset in data_plot:
+            if var_name not in dataset.data.data_vars:
+                raise ValueError(f"Variable '{var_name}' not found in the simulated dataset '{dataset.name}'. "
+                            f"Available variables: {list(dataset.data.data_vars.keys())}")
+            
         data_sim_1 = data_plot[0].data.persist()
         data_sim_2 = data_plot[1].data.persist()
         if not data_sim_1.time.equals(data_sim_2.time):
@@ -166,16 +197,17 @@ class DataDiagnostics:
                 f"  {data_plot[1].name} has time from {data_sim_2.time.min().item()} to {data_sim_2.time.max().item()}"
             )
         
+
         # Prepare data
-        data_sim_flat_1 = data_sim_1[varname].mean('time').stack(ngrid = ['lat','lon']).compute()
-        data_sim_flat_2 = data_sim_2[varname].mean('time').stack(ngrid = ['lat','lon']).compute()
+        data_sim_flat_1 = data_sim_1[var_name].mean('time').stack(ngrid = ['lat','lon']).compute()
+        data_sim_flat_2 = data_sim_2[var_name].mean('time').stack(ngrid = ['lat','lon']).compute()
         
         #  Compute effect sizes in parallel
         tasks = [(data_sim_flat_1.sel(ngrid=i).values, data_sim_flat_2.sel(ngrid=i).values) for i in data_sim_flat_1.ngrid]
         effect_size = np.empty(len(tasks))
 
         with concurrent.futures.ProcessPoolExecutor(max_workers=self.max_workers_grid, mp_context=mp.get_context("spawn")) as executor:
-            for idx, value in enumerate(tqdm(executor.map(statistics.cp_effect_size_bootstrap, tasks), total=len(tasks), desc=f"Computing effect sizes for variable '{varname}'")):
+            for idx, value in enumerate(tqdm(executor.map(statistics.cp_effect_size_bootstrap, tasks), total=len(tasks), desc=f"Computing effect sizes for variable '{var_name}'")):
                 effect_size[idx] = value
 
         # Convert to xarray.DataArray
@@ -188,21 +220,21 @@ class DataDiagnostics:
                 "lat": data_sim_1["lat"],
                 "lon": data_sim_1["lon"]
             },
-            name=varname
+            name=var_name
         )
 
-        print(f"Computed effect size for variable '{varname}' between '{data_plot[0].name}' and '{data_plot[1].name}'.", flush=True)
+        print(f"Computed effect size for variable '{var_name}' between '{data_plot[0].name}' and '{data_plot[1].name}'.", flush=True)
         return data_effect_size
 
 
-    def _compute_significant_diff(self, varname, data_plot, alpha, stat):
+    def _compute_significant_diff(self, var_name, data_plot, alpha=0.05, stat=ttest_ind):
         """ 
         Compute significant difference between the simulation ensembles
         in parallel for the given variable at the grid point level. 
         
         Parameters
         ----------
-        varname (str): Climate variable name.
+        var_name (str): Climate variable name.
         data_plot (list[SimulationData]): List of two simulation ensembles to compute the absolute difference for.
         alpha (float): Significance level for the statistical test.
         stat (Callable): Statistical test function to use.
@@ -213,6 +245,21 @@ class DataDiagnostics:
         """
         
         # Validate input
+        if not isinstance(data_plot, list) or len(data_plot) == 0 \
+            or not all(isinstance(ds, SimulationData) for ds in data_plot):
+            raise TypeError("'data_plot' must be a non-empty list of SimulationData instances.")
+        
+        for dataset in data_plot:
+            if var_name not in dataset.data.data_vars:
+                raise ValueError(f"Variable '{var_name}' not found in the simulated dataset '{dataset.name}'. "
+                            f"Available variables: {list(dataset.data.data_vars.keys())}")
+        if not isinstance(alpha, (int, float)):
+            raise TypeError(f"The significance level 'alpha' must be numeric.")
+        if not (0 <= alpha <= 1):
+            raise ValueError(f"'alpha' must be between 0 and 1.")
+        if not callable(stat):
+            raise TypeError(f"'stat' must be callable.")         
+
         data_sim_1 = data_plot[0].data.persist()
         data_sim_2 = data_plot[1].data.persist()
         if not data_sim_1.time.equals(data_sim_2.time):
@@ -229,11 +276,11 @@ class DataDiagnostics:
         n_realizations = data_sim_1.sizes['realization']
         
         data_mean_1 = data_sim_1.mean('time')
-        data_mean_var_1 = data_mean_1[varname].data
+        data_mean_var_1 = data_mean_1[var_name].data
         data_mean_flat_1 = data_mean_var_1.compute().reshape((n_realizations,n_points))
 
         data_mean_2 = data_sim_2.mean('time')
-        data_mean_var_2 = data_mean_2[varname].data
+        data_mean_var_2 = data_mean_2[var_name].data
         data_mean_flat_2 = data_mean_var_2.compute().reshape((n_realizations,n_points))
         
         d1, d2 = (data_mean_flat_1, data_mean_flat_2)
@@ -247,7 +294,7 @@ class DataDiagnostics:
                 significant[idx] = value
         significant_reshaped =  significant.reshape((n_lats,n_lons))
         
-        print(f"Computed significant difference for variable '{varname}' between '{data_plot[0].name}' and '{data_plot[1].name}'.", flush=True)
+        print(f"Computed significant difference for variable '{var_name}' between '{data_plot[0].name}' and '{data_plot[1].name}'.", flush=True)
         return significant_reshaped
 
 
@@ -278,14 +325,14 @@ class DataDiagnostics:
         return
     
     
-    def time_series_plots(self, varname, data_names=None, output_path=None):
+    def time_series_plots(self, var_name, data_names=None, output_path=None):
         """ 
         Generate time series plot for the given ensembles and variable. When no ensembles
         are specified, all datasets in the diagnostics object are used.
         
         Parameters
         ----------
-        varname (str): Climate variable name.
+        var_name (str): Climate variable name.
         data_names (str or list[str]): Name or list of names of simulation ensembles to plot.
         output_path (str): Path to save the time series plot.  
         """
@@ -309,14 +356,15 @@ class DataDiagnostics:
             raise TypeError("'data_names' must be a string or a list of strings representing dataset names.")
 
         for dataset in data_plot:
-            if varname not in dataset.data.data_vars:
-                raise ValueError(f"Variable '{varname}' not found in the simulated dataset '{dataset.name}'. "
+            if var_name not in dataset.data.data_vars:
+                raise ValueError(f"Variable '{var_name}' not found in the simulated dataset '{dataset.name}'. "
                             f"Available variables: {list(dataset.data.data_vars.keys())}")
 
+
         # Compute and plot time series
-        time_series = self._compute_time_series_annual(varname, data_plot)
-        time_series_plot, _ = plot.time_series_plot(time_series, title=f'Annual mean time series of {self.variables[varname][0]}',
-                                                 y_label=f'{varname} ({self.variables[varname][1]})', labels=data_names)
+        time_series = self._compute_time_series_annual(var_name, data_plot)
+        time_series_plot, _ = plot.time_series_plot(time_series, title=f'Annual mean time series of {self.variables[var_name][0]}',
+                                                 y_label=f'{var_name} ({self.variables[var_name][1]})', labels=data_names)
         
         # Save plot to path if given
         if output_path is None:
@@ -327,7 +375,7 @@ class DataDiagnostics:
             if not output_path.suffix:
                 output_path.mkdir(parents=True, exist_ok=True)
                 data_names_str = "-".join(data_names)
-                time_series_path = output_path / f"time_series_{varname}_{data_names_str}.png"
+                time_series_path = output_path / f"time_series_{var_name}_{data_names_str}.png"
             else:
                 output_path.parent.mkdir(parents=True, exist_ok=True)
                 time_series_path = output_path
@@ -338,14 +386,14 @@ class DataDiagnostics:
         return
 
 
-    def spatial_plots(self, varname, data_names=None, output_path=None, alpha=0.05, stat=ttest_ind):
+    def spatial_plots(self, var_name, data_names=None, output_path=None, alpha=0.05, stat=ttest_ind):
         """ 
         Generate absolute difference and effect size plots for the given
         ensembles and variable. 
         
         Parameters
         ----------
-        varname (str): Climate variable name.
+        var_name (str): Climate variable name.
         data_names (list[str]): List of names of two simulation ensembles to compare. If None, the first two datasets
                                  in the diagnostics object are used.
         output_path (str): Path to save the spatial plots.
@@ -371,8 +419,8 @@ class DataDiagnostics:
             raise TypeError("'data_names' must be a list of two strings representing dataset names.")
 
         for dataset in data_plot:
-            if varname not in dataset.data.data_vars:
-                raise ValueError(f"Variable '{varname}' not found in the simulated dataset {dataset.name}. "
+            if var_name not in dataset.data.data_vars:
+                raise ValueError(f"Variable '{var_name}' not found in the simulated dataset {dataset.name}. "
                                  f"Available variables: {list(dataset.data.data_vars.keys())}")
         if not isinstance(alpha, (int, float)):
             raise TypeError(f"The significance level 'alpha' must be numeric.")
@@ -390,17 +438,17 @@ class DataDiagnostics:
             
             output_path.mkdir(parents=True, exist_ok=True)
             data_names_str = "-".join(data_names)
-            abs_diff_path = output_path / f"abs_diff_{varname}_{data_names_str}.png"
-            eff_size_path = output_path / f"eff_size_{varname}_{data_names_str}.png"
+            abs_diff_path = output_path / f"abs_diff_{var_name}_{data_names_str}.png"
+            eff_size_path = output_path / f"eff_size_{var_name}_{data_names_str}.png"
 
 
         # Compute and plot absolute difference
-        abs_diff = self._compute_abs_diff(varname, data_plot)
+        abs_diff = self._compute_abs_diff(var_name, data_plot)
         limit = np.max(np.abs(abs_diff.values))
         levels = np.linspace(-limit, limit, 13)
         
-        abs_diff_plot, _ = plot.spatial_plot(abs_diff, title=f'Difference in {self.variables[varname][0]} ({data_plot[0].name} - {data_plot[1].name})',
-                                          cb_label=f"difference in {varname} ({self.variables[varname][1]})", cmap=cmocean.cm.thermal, levels=levels)
+        abs_diff_plot, _ = plot.spatial_plot(abs_diff, title=f'Difference in {self.variables[var_name][0]} ({data_plot[0].name} - {data_plot[1].name})',
+                                          cb_label=f"difference in {var_name} ({self.variables[var_name][1]})", cmap=cmocean.cm.thermal, levels=levels)
         
         if output_path is None:
             plt.show()
@@ -411,12 +459,12 @@ class DataDiagnostics:
 
 
         # Compute and plot effect size with significant differences
-        eff_size = self._compute_eff_size_ens(varname, data_plot)
-        significant = self._compute_significant_diff(varname, data_plot, alpha, stat)
+        eff_size = self._compute_eff_size_ens(var_name, data_plot)
+        significant = self._compute_significant_diff(var_name, data_plot, alpha, stat)
         levels = [-2,-1.2,-0.8,-0.5,-0.2,-0.01,0.01,0.2,0.5,0.8,1.2,2.0]    # Use Cohen's limits for effect size
 
-        eff_size_plot, _ = plot.spatial_plot(eff_size, title=f"Cohen's effect size ($d$) for {self.variables[varname][0]} ({data_plot[0].name} - {data_plot[1].name})",
-                                          cb_label=f"$d$ for {varname} (-)", cmap=cmocean.cm.diff, levels=levels, significant=significant)
+        eff_size_plot, _ = plot.spatial_plot(eff_size, title=f"Cohen's effect size ($d$) for {self.variables[var_name][0]} ({data_plot[0].name} - {data_plot[1].name})",
+                                          cb_label=f"$d$ for {var_name} (-)", cmap=cmocean.cm.diff, levels=levels, significant=significant)
 
         if output_path is None:
             plt.show()

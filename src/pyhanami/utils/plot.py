@@ -44,6 +44,17 @@ def time_series_plot(time_series, title='Annual mean time series', y_label='', l
                 raise ValueError(f"Element {i} in time_series is missing 'time' dimension.")
     else:
         raise TypeError("The data must be either a xarray.DataArray or a list of xarray.DataArray.")
+    
+    if not isinstance(title, str) or not isinstance(y_label, str):
+        raise TypeError("Both 'title' and 'y_label' must be strings.")
+    if labels is not None:
+        if not isinstance(labels, list) or len(labels) != len(time_series) \
+            or not all(isinstance(label, str) for label in labels):
+            raise ValueError("If provided, 'labels' must be a list of strings with the same length as time_series.")
+    if start_year is not None and not isinstance(start_year, int):
+        raise TypeError("'start_year' must be an integer or None.")
+    if end_year is not None and not isinstance(end_year, int):
+        raise TypeError("'end_year' must be an integer or None.")
 
 
     # Filter each time series to the requested year range
