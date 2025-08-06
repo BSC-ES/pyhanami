@@ -33,6 +33,7 @@ dependencies = [
     "cmocean",
     "matplotlib",
     "numpy",
+    "pint",
     "scipy",
     "xarray",
     "xesmf",
