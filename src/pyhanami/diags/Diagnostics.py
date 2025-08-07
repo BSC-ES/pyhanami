@@ -279,7 +279,7 @@ class DataDiagnostics:
         return
     
     
-    def time_series_plots(self, varname, data_names=None, output_path=None, obs=False, obs_path=None):
+    def time_series_plots(self, varname, data_names=None, output_path=None, obs=False, obs_path=None, obs_name=None):
         """ 
         Generate time series plot for the given ensembles and variable. When no ensembles
         are specified, all datasets in the diagnostics object are used.
@@ -317,7 +317,9 @@ class DataDiagnostics:
                             f"Available variables: {list(dataset.data.data_vars.keys())}")
         
         if obs:
-            data_obs = ObservationData(obs_path, data_plot[0].data[[varname]])
+            if obs_path is None or obs_name is None:
+                raise NotImplementedError('Automatic selection of observations is not implemented yet. Please provide a path and a name for the observations database.')
+            data_obs = ObservationData(obs_path, data_plot[0].data[[varname]], obs_name)
             data_plot.append(data_obs)
         labels = data_names + [data_obs.name] if obs else data_names
 
@@ -334,7 +336,7 @@ class DataDiagnostics:
             output_path = Path(output_path)
             if not output_path.suffix:
                 output_path.mkdir(parents=True, exist_ok=True)
-                data_names_str = "-".join(data_names)
+                data_names_str = "-".join(labels)
                 time_series_path = output_path / f"time_series_{varname}_{data_names_str}.png"
             else:
                 output_path.parent.mkdir(parents=True, exist_ok=True)
