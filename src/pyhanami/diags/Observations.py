@@ -16,8 +16,8 @@ class ObservationData:
     ----------
     data_path : str
         Path to an observations database.
-    sim : SimulationData
-        Ensemble containing simulation data and metadata.
+    sim : xr.Dataset
+        Input simulation dataset.
 
     Attributes
     ----------
@@ -36,7 +36,7 @@ class ObservationData:
         Retrieves observational data and regrids it to match the input simulation.
     """
 
-    def __init__(self, data_path: str, sim: xr.Dataset):
+    def __init__(self, data_path: str, sim: xr.Dataset, name: str = 'obs'):
         if isinstance(data_path, (str, Path)):
             self.data_path = Path(data_path)
         else:
@@ -44,7 +44,7 @@ class ObservationData:
         if not self.data_path.exists():
             raise FileNotFoundError(f"Observational data path {self.data_path} not found.")
         
-        self.name = 'obs'
+        self.name = name
         self.data = self.load_and_process(sim)
 
 

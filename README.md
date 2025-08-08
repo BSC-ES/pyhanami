@@ -53,9 +53,9 @@ import pyhanami as hnmi
 ref = hnmi.SimulationData('source_ref', name='ref')
 test = hnmi.SimulationData('source_test', name='test')
 
-# Diagnostics: create and display time series plot for one dataset
+# Diagnostics: create and display time series plot for one dataset together with observations
 diags = hnmi.DataDiagnostics(ref)
-diags.time_series_plots('var_name', 'ref')
+diags.time_series_plots('var_name', 'ref', obs=True)
 
 # Diagnostics: compare multiple datasets and save plots
 diags.add_datasets(test)

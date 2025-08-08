@@ -16,6 +16,7 @@ from collections.abc import Iterable
 from pyhanami import config
 from pyhanami.utils import plot, statistics
 from pyhanami.diags.Simulations import SimulationData
+from pyhanami.diags.Observations import ObservationData
 
 
 class DataDiagnostics:
@@ -84,7 +85,7 @@ class DataDiagnostics:
         Parameters
         ----------
         varname (str): Climate variable name.
-        data_plot (list[SimulationData]): List of simulation ensembles to compute time series for.
+        data_plot (list[SimulationData and/or ObservationData]): List of ensembles to compute time series for.
         
         Returns
         -------
@@ -92,8 +93,8 @@ class DataDiagnostics:
         """
         
         time_series = []
-        for data_sim in [ds.data for ds in data_plot]:
-            data_var = data_sim[varname]
+        for dataset in [ds.data for ds in data_plot]:
+            data_var = dataset[varname]
             weights = statistics.area_weights(data_var)
             data_weighted = data_var.weighted(weights)
 
@@ -278,7 +279,7 @@ class DataDiagnostics:
         return
     
     
-    def time_series_plots(self, varname, data_names=None, output_path=None):
+    def time_series_plots(self, varname, data_names=None, output_path=None, obs=False, obs_paths=None, obs_names=None):
         """ 
         Generate time series plot for the given ensembles and variable. When no ensembles
         are specified, all datasets in the diagnostics object are used.
@@ -288,6 +289,9 @@ class DataDiagnostics:
         varname (str): Climate variable name.
         data_names (str or list[str]): Name or list of names of simulation ensembles to plot.
         output_path (str): Path to save the time series plot.  
+        obs (bool): If True, also plot observational data if available.
+        obs_paths (str or list[str]): Path to the observations database/s.
+        obs_names (str or list[str]): Name of the observational dataset/s.
         """
         
         # Validate inputs
@@ -298,6 +302,7 @@ class DataDiagnostics:
             data_plot = [ds for ds in self.datasets if ds.name == data_names]
             if not data_plot:
                 raise ValueError(f"Dataset with name '{data_names}' not found in the DataDiagnostics object.")
+            data_names = [data_names]
         elif isinstance(data_names, list) and all(isinstance(name, str) for name in data_names):
             existing_names = [ds.name for ds in self.datasets]
             missing_names = [name for name in data_names if name not in existing_names]
@@ -312,7 +317,29 @@ class DataDiagnostics:
             if varname not in dataset.data.data_vars:
                 raise ValueError(f"Variable '{varname}' not found in the simulated dataset '{dataset.name}'. "
                             f"Available variables: {list(dataset.data.data_vars.keys())}")
+        
+        if obs:
+            if obs_paths is None or obs_names is None:
+                raise NotImplementedError('Automatic selection of observations is not implemented yet. Please provide at least one path and one name for the observations database.')
+            
+            if isinstance(obs_paths, str):
+                if not isinstance(obs_names, str):
+                    raise TypeError("'obs_names' must be a string if 'obs_paths' is a string.")
+                obs_paths = [obs_paths]
+                obs_names = [obs_names]
+            elif isinstance(obs_names, str):
+                raise TypeError("'obs_paths' must be a string if 'obs_names' is a string.")
+            if len(obs_paths) != len(obs_names):
+                raise ValueError("'obs_paths' and 'obs_names' must have the same length.")
 
+            data_obs = [
+                ObservationData(path, data_plot[0].data[[varname]], name)
+                for path, name in zip(obs_paths, obs_names)
+            ]
+            data_plot.extend(data_obs)
+            data_names.extend(obs_names)
+
+            
         # Compute and plot time series
         time_series = self._compute_time_series_annual(varname, data_plot)
         time_series_plot, _ = plot.time_series_plot(time_series, title=f'Annual mean time series of {self.variables[varname][0]}',

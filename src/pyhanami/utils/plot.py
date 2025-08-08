@@ -21,7 +21,7 @@ def time_series_plot(time_series, title='Annual mean time series', y_label='', l
     time_series (xarray.DataArray or list of xr.DataArray): Time series data.
     title (str): Title of the plot.
     y_label (str): Label for the y-axis.
-    labels (list of str): Labels for each time series.
+    labels (list[str]): Labels for each time series.
     start_year (int): Start year for filtering.
     end_year (int): End year for filtering.
 
@@ -105,7 +105,7 @@ def time_series_plot(time_series, title='Annual mean time series', y_label='', l
     ax.set_xticklabels(common_years, rotation=45, ha='right')
     ax.tick_params(axis='both', labelsize=12)
     ax.set_title(title, fontsize=18)
-    ax.legend(fontsize=16)
+    ax.legend(fontsize=14)
     ax.grid()
 
     plt.tight_layout()
