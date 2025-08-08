@@ -105,7 +105,7 @@ def time_series_plot(time_series, title='Annual mean time series', y_label='', l
     ax.set_xticklabels(common_years, rotation=45, ha='right')
     ax.tick_params(axis='both', labelsize=12)
     ax.set_title(title, fontsize=18)
-    ax.legend(fontsize=16)
+    ax.legend(fontsize=14)
     ax.grid()
 
     plt.tight_layout()
