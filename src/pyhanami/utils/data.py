@@ -101,7 +101,7 @@ def check_data(data):
 
 
     print("Data check passed: all variables and coordinates are valid.", flush=True)
-    raise NotImplementedError("This function is not implemented yet.")
+    return
 
 
 def cyclic_wrapper(data, dim="lon"):

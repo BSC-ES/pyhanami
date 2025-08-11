@@ -223,6 +223,9 @@ def spatial_plot(data, title='Spatial plot', cb_label='', cmap=cmocean.cm.therma
     if 'lat' not in data.coords or 'lon' not in data.coords:
         raise ValueError("Could not identify latitude and longitude coordinates.")
     
+    if not isinstance(title, str) or not isinstance(cb_label, str):
+        raise TypeError("Both 'title' and 'cb_label' must be strings.")
+    
     # Add cyclic point
     aux, lon = add_cyclic_point(data, coord=data.lon.values)
     data_cyclic = xr.DataArray(data=aux, dims=['lat', 'lon'], coords={'lat': data.lat.values, 'lon': lon}, name=data.name, attrs=data.attrs)
@@ -259,7 +262,8 @@ def spatial_plot(data, title='Spatial plot', cb_label='', cmap=cmocean.cm.therma
     return fig, ax
 
 
-def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicability test', variables=None, seasons=None, regions=None):
+def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicability test', variables=None, 
+                seasons=None, regions=None):
     """ 
     Generate a matrix plot with effect sizes and results of the replicability test for the selected statistical test/s.
 
@@ -286,6 +290,8 @@ def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicabili
         raise ValueError("Mismatched spatial dimensions between effect sizes and test results.")
     if test not in range(5):
         raise ValueError("Invalid test index. Must be: 0 (KS-test), 1 (T-test), 2 (U-test), 3 (B-test), 4 (All).")
+    if not isinstance(title, str):
+        raise TypeError("'title' must be a string.")
 
     # Prepare parameters
     if variables is None:
