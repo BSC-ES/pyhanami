@@ -1,7 +1,10 @@
+import pint
+import numpy as np
 import xesmf as xe
 import xarray as xr
 
 from pathlib import Path
+from pyhanami import config
 from cartopy.util import add_cyclic_point
 
 
@@ -38,8 +41,67 @@ def prepare_data(data_path, **xr_kwargs):
 
 
 def check_data(data):
-    """ Check provided data (available variables, units, coordinates names, ...). """
-    raise NotImplementedError("This function is not implemented yet.")
+    """ 
+    Check provided data (available variables, units, coordinates names, ...). 
+
+    Parameters
+    ----------
+    data (xr.Dataset): Input dataset to check.
+    """
+
+    # Validate input
+    if not isinstance(data, xr.Dataset):    
+        raise TypeError("Input must be an xarray.Dataset.")
+
+
+    # Check time and realization coordinates
+    if 'time' not in data.coords:
+        raise ValueError("The dataset must contain a 'time' coordinate.")
+    if 'realization' not in data.coords:
+        raise ValueError("The dataset must contain a 'realization' coordinate.")
+
+    # Check lat-lon coordinates
+    if 'lat' not in data.coords or 'lon' not in data.coords:
+        raise ValueError("The dataset must contain 'lat' and 'lon' coordinates.")
+
+    lat = data['lat'].values
+    lon = data['lon'].values
+    if not (lat.ndim == 1 and lon.ndim == 1):
+        raise ValueError("'lat' and 'lon' coordinates must be 1D arrays.")
+
+    if not (np.all(np.diff(lat) > 0) or np.all(np.diff(lat) < 0)):
+        raise ValueError("'lat' coordinate must be strictly increasing or decreasing.")
+    if not (np.all(np.diff(lon) > 0) or np.all(np.diff(lon) < 0)):
+        raise ValueError("'lon' coordinate must be strictly increasing or decreasing.")
+    
+
+    # Check each variable and its units
+    variables = config.VARIABLES
+    ureg = pint.UnitRegistry()
+    for var in data.data_vars:
+        if var not in variables:
+            raise ValueError(f"Variable '{var}' not found in  'config.VARIABLES'.")
+        
+        expected_long_name, expected_units = variables[var]
+        var_attrs = data[var].attrs
+
+        if 'long_name' not in var_attrs or var_attrs['long_name'] != expected_long_name:
+            data[var].attrs['long_name'] = expected_long_name
+        
+        if 'units' not in var_attrs:
+                raise ValueError(f"Variable '{var}' is missing a 'units' attribute.")
+        try:
+            quantity = ureg.Quantity(data[var].values, var_attrs['units'])
+            converted_values = quantity.to(expected_units).magnitude
+            data[var].values = converted_values
+            data[var].attrs['units'] = expected_units
+        except Exception as e:
+            raise ValueError(f"Variable '{var}' has incorrect or incompatible units: '{var_attrs['units']}' "
+                             f"(expected '{expected_units}'). Error: {e}")
+
+
+    print("Data check passed: all variables and coordinates are valid.", flush=True)
+    return
 
 
 def cyclic_wrapper(data, dim="lon"):
@@ -61,6 +123,7 @@ def cyclic_wrapper(data, dim="lon"):
         raise TypeError("Input must be an xarray.DataArray.")
     if dim not in data.dims:
         raise ValueError(f"Dimension '{dim}' not found in data dimensions: {list(data.dims)}.")
+
 
     # Apply cartopy's cyclic point function
     axis = data.get_axis_num(dim)
@@ -112,6 +175,13 @@ def regrid_data(source_ds, target_ds, var=None, method='conservative', cyclic_po
                 raise ValueError(f"Variable '{var}' not found in source dataset.")
             vars_to_regrid = [var]
 
+        if not isinstance(method, str):
+            raise TypeError("Regridding method must be a string.")
+        if not isinstance(cyclic_point, bool):
+            raise TypeError("'cyclic_point' must be a boolean.")  
+        if not isinstance(time_dim, str):
+            raise TypeError("'time_dim' must be a string representing the time dimension name.")
+        
 
         source_ds_copy = source_ds.copy()
 

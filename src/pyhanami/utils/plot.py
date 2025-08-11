@@ -44,6 +44,17 @@ def time_series_plot(time_series, title='Annual mean time series', y_label='', l
                 raise ValueError(f"Element {i} in time_series is missing 'time' dimension.")
     else:
         raise TypeError("The data must be either a xarray.DataArray or a list of xarray.DataArray.")
+    
+    if not isinstance(title, str) or not isinstance(y_label, str):
+        raise TypeError("Both 'title' and 'y_label' must be strings.")
+    if labels is not None:
+        if not isinstance(labels, list) or len(labels) != len(time_series) \
+            or not all(isinstance(label, str) for label in labels):
+            raise ValueError("If provided, 'labels' must be a list of strings with the same length as time_series.")
+    if start_year is not None and not isinstance(start_year, int):
+        raise TypeError("'start_year' must be an integer or None.")
+    if end_year is not None and not isinstance(end_year, int):
+        raise TypeError("'end_year' must be an integer or None.")
 
 
     # Filter each time series to the requested year range
@@ -212,6 +223,9 @@ def spatial_plot(data, title='Spatial plot', cb_label='', cmap=cmocean.cm.therma
     if 'lat' not in data.coords or 'lon' not in data.coords:
         raise ValueError("Could not identify latitude and longitude coordinates.")
     
+    if not isinstance(title, str) or not isinstance(cb_label, str):
+        raise TypeError("Both 'title' and 'cb_label' must be strings.")
+    
     # Add cyclic point
     aux, lon = add_cyclic_point(data, coord=data.lon.values)
     data_cyclic = xr.DataArray(data=aux, dims=['lat', 'lon'], coords={'lat': data.lat.values, 'lon': lon}, name=data.name, attrs=data.attrs)
@@ -248,7 +262,8 @@ def spatial_plot(data, title='Spatial plot', cb_label='', cmap=cmocean.cm.therma
     return fig, ax
 
 
-def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicability test', variables=None, seasons=None, regions=None):
+def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicability test', variables=None, 
+                seasons=None, regions=None):
     """ 
     Generate a matrix plot with effect sizes and results of the replicability test for the selected statistical test/s.
 
@@ -275,6 +290,8 @@ def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicabili
         raise ValueError("Mismatched spatial dimensions between effect sizes and test results.")
     if test not in range(5):
         raise ValueError("Invalid test index. Must be: 0 (KS-test), 1 (T-test), 2 (U-test), 3 (B-test), 4 (All).")
+    if not isinstance(title, str):
+        raise TypeError("'title' must be a string.")
 
     # Prepare parameters
     if variables is None:

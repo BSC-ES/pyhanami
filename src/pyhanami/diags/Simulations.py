@@ -48,8 +48,12 @@ class SimulationData:
         else:
             raise TypeError("'data_source' must be a path string, Path object, or an xarray.Dataset")
         
-        self.name = name
-        #self.check_data()   
+        if isinstance(name, str):
+            self.name = name
+        else:
+            raise TypeError("'name' must be a string.")
+        
+        self.check_data()
 
 
     def _prepare_data(self):
