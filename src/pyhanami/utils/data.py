@@ -54,28 +54,22 @@ def check_data(data):
         raise TypeError("Input must be an xarray.Dataset.")
 
 
-    # Check time and realization coordinates
-    if 'time' not in data.coords:
-        raise ValueError("The dataset must contain a 'time' coordinate.")
-    if 'realization' not in data.coords:
-        raise ValueError("The dataset must contain a 'realization' coordinate.")
-
-    # Check lat-lon coordinates
-    if 'lat' not in data.coords or 'lon' not in data.coords:
-        raise ValueError("The dataset must contain 'lat' and 'lon' coordinates.")
-
-    lat = data['lat'].values
-    lon = data['lon'].values
-    if not (lat.ndim == 1 and lon.ndim == 1):
-        raise ValueError("'lat' and 'lon' coordinates must be 1D arrays.")
-
-    if not (np.all(np.diff(lat) > 0) or np.all(np.diff(lat) < 0)):
-        raise ValueError("'lat' coordinate must be strictly increasing or decreasing.")
-    if not (np.all(np.diff(lon) > 0) or np.all(np.diff(lon) < 0)):
-        raise ValueError("'lon' coordinate must be strictly increasing or decreasing.")
+    # Check coordinates
+    required_coords = ['time', 'realization', 'lat', 'lon']
+    missing_coords = [c for c in required_coords if c not in data.coords]
+    if missing_coords:
+        raise ValueError(f"The dataset is missing the following coordinates: {', '.join(missing_coords)}.")
+    
+    for coord in ['lat', 'lon']:
+        coord_values = data[coord].values
+        if coord_values.ndim != 1:
+            raise ValueError(f"'{coord}' coordinate must be a 1D array.")
+        coord_diffs = np.diff(coord_values)
+        if not (np.all(coord_diffs > 0) or np.all(coord_diffs < 0)):
+            raise ValueError(f"'{coord}' coordinate must be strictly increasing or decreasing.")
     
 
-    # Check each variable and its units
+    # Check each variable and its units    
     variables = config.VARIABLES
     ureg = pint.UnitRegistry()
     for var in data.data_vars:
@@ -98,7 +92,6 @@ def check_data(data):
         except Exception as e:
             raise ValueError(f"Variable '{var}' has incorrect or incompatible units: '{var_attrs['units']}' "
                              f"(expected '{expected_units}'). Error: {e}")
-
 
     print("Data check passed: all variables and coordinates are valid.", flush=True)
     return
