@@ -1,4 +1,4 @@
-import pint
+# import pint
 import numpy as np
 import xesmf as xe
 import xarray as xr
@@ -56,25 +56,29 @@ def check_data(data):
 
     # Check coordinates
     required_coords = ['time', 'realization', 'lat', 'lon']
-    missing_coords = [c for c in required_coords if c not in data.coords]
+    missing_coords = [f"'{c}'" for c in required_coords if c not in data.coords]
     if missing_coords:
-        raise ValueError(f"The dataset is missing the following coordinates: {', '.join(missing_coords)}.")
+        raise ValueError(f"The dataset is missing the following coordinates: {', '.join(missing_coords)}. "
+                         f"Please, ensure these coordinates are included before proceeding.")
     
     for coord in ['lat', 'lon']:
         coord_values = data[coord].values
         if coord_values.ndim != 1:
-            raise ValueError(f"'{coord}' coordinate must be a 1D array.")
+            raise ValueError(f"'{coord}' coordinate must be a 1D array. " 
+                             f"Please, correct the provided dataset before proceeding.")
         coord_diffs = np.diff(coord_values)
         if not (np.all(coord_diffs > 0) or np.all(coord_diffs < 0)):
-            raise ValueError(f"'{coord}' coordinate must be strictly increasing or decreasing.")
+            raise ValueError(f"'{coord}' coordinate must be strictly increasing or decreasing. " 
+                             f"Please, correct the provided dataset before proceeding.")
     
 
     # Check each variable and its units    
     variables = config.VARIABLES
-    ureg = pint.UnitRegistry()
+    # ureg = pint.UnitRegistry()
     for var in data.data_vars:
         if var not in variables:
-            raise ValueError(f"Variable '{var}' not found in  'config.VARIABLES'.")
+            raise ValueError(f"Variable '{var}' not found in  'config.VARIABLES'. " 
+                             f"Please, ensure all requested variables are included before proceeding.")
         
         expected_long_name, expected_units = variables[var]
         var_attrs = data[var].attrs
@@ -82,16 +86,23 @@ def check_data(data):
         if 'long_name' not in var_attrs or var_attrs['long_name'] != expected_long_name:
             data[var].attrs['long_name'] = expected_long_name
         
+        # Check units and only accept if they are the same as the expected_units (also same format)
         if 'units' not in var_attrs:
-                raise ValueError(f"Variable '{var}' is missing a 'units' attribute.")
-        try:
-            quantity = ureg.Quantity(data[var].values, var_attrs['units'])
-            converted_values = quantity.to(expected_units).magnitude
-            data[var].values = converted_values
-            data[var].attrs['units'] = expected_units
-        except Exception as e:
-            raise ValueError(f"Variable '{var}' has incorrect or incompatible units: '{var_attrs['units']}' "
-                             f"(expected '{expected_units}'). Error: {e}")
+                raise ValueError(f"Variable '{var}' is missing a 'units' attribute. "
+                                 f"Please, correct the provided dataset before proceeding.")
+        elif var_attrs['units'] != expected_units:
+            raise ValueError(f"Variable '{var}' has incorrect or incompatible units: '{var_attrs['units']}' (expected '{expected_units}'). "
+                             f"Please, correct the provided dataset before proceeding.")
+
+        # Check units and convert them to the expected_units if possible
+        # try:
+        #     quantity = ureg.Quantity(data[var].values, var_attrs['units'])
+        #     converted_values = quantity.to(expected_units).magnitude
+        #     data[var].values = converted_values
+        #     data[var].attrs['units'] = expected_units
+        # except Exception as e:
+        #     raise ValueError(f"Variable '{var}' has incorrect or incompatible units: '{var_attrs['units']}' "
+        #                      f"(expected '{expected_units}'). Error: {e}")
 
     print("Data check passed: all variables and coordinates are valid.", flush=True)
     return
