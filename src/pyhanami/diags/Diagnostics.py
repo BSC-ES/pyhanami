@@ -84,7 +84,7 @@ class DataDiagnostics:
         
         Parameters
         ----------
-        varname (str): Climate variable name.
+        var_name (str): Climate variable name.
         data_plot (list[SimulationData and/or ObservationData]): List of ensembles to compute time series for.
         
         Returns
@@ -94,7 +94,7 @@ class DataDiagnostics:
 
         # Validate inputs
         if not isinstance(data_plot, list) or len(data_plot) == 0 \
-            or not all(isinstance(ds, SimulationData) for ds in data_plot):
+            or not all(isinstance(ds, SimulationData) or isinstance(ds, ObservationData) for ds in data_plot):
             raise TypeError("'data_plot' must be a non-empty list of SimulationData instances.")
         
         for dataset in data_plot:
@@ -106,7 +106,7 @@ class DataDiagnostics:
         # Compute annual mean time series for each dataset
         time_series = []
         for dataset in [ds.data for ds in data_plot]:
-            data_var = dataset[varname]
+            data_var = dataset[var_name]
             weights = statistics.area_weights(data_var)
             data_weighted = data_var.weighted(weights)
 
@@ -326,7 +326,7 @@ class DataDiagnostics:
         return
     
     
-    def time_series_plots(self, varname, data_names=None, output_path=None, obs=False, obs_paths=None, obs_names=None):
+    def time_series_plots(self, var_name, data_names=None, output_path=None, obs=False, obs_paths=None, obs_names=None):
         """ 
         Generate time series plot for the given ensembles and variable. When no ensembles
         are specified, all datasets in the diagnostics object are used.
@@ -380,7 +380,7 @@ class DataDiagnostics:
                 raise ValueError("'obs_paths' and 'obs_names' must have the same length.")
 
             data_obs = [
-                ObservationData(path, data_plot[0].data[[varname]], name)
+                ObservationData(path, data_plot[0].data[[var_name]], name)
                 for path, name in zip(obs_paths, obs_names)
             ]
             data_plot.extend(data_obs)
