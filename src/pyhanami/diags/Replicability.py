@@ -263,12 +263,12 @@ class ReplicabilityTest:
         # Compute scores for each variable in parallel
         scores_all = {}
         vars = list(self.variables.keys())
-        tasks = [(data_plot, var) for var in vars]
+        tasks = [(var, data_plot) for var in vars]
         # for task in tasks:
         #     scores_all[task[0][1]] = self._compute_scores_one_var(task[0], task[1])
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers_vars) as executor:
             for idx, value in enumerate(executor.map(self._compute_scores_one_var, tasks)):
-                scores_all[tasks[idx][1]] = value
+                scores_all[tasks[idx][0]] = value
 
         print('Computed scores for all variables...', flush=True)
         return scores_all
@@ -459,7 +459,7 @@ class ReplicabilityTest:
             if missing_names:
                 raise ValueError(f"The following dataset names were not found in the ReplicabilityTest object: {missing_names}.")
             
-            data_plot = [ds for ds in self.datasets if ds.name in data_names]
+            data_plot = [next(ds for ds in self.datasets if ds.name == name) for name in data_names]
         else:
             raise TypeError("'data_names' must be a list of two strings representing simulation dataset names.")
 

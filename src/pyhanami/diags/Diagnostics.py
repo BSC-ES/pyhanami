@@ -356,7 +356,7 @@ class DataDiagnostics:
             if missing_names:
                 raise ValueError(f"The following dataset names were not found in the DataDiagnostics object: {missing_names}.")
             
-            data_plot = [ds for ds in self.datasets if ds.name in data_names]
+            data_plot = [next(ds for ds in self.datasets if ds.name == name) for name in data_names]
         else:
             raise TypeError("'data_names' must be a string or a list of strings representing dataset names.")
 
@@ -440,7 +440,7 @@ class DataDiagnostics:
             if missing_names:
                 raise ValueError(f"The following dataset names were not found in the DataDiagnostics object: {missing_names}.")
             
-            data_plot = [ds for ds in self.datasets if ds.name in data_names]
+            data_plot = [next(ds for ds in self.datasets if ds.name == name) for name in data_names]
         else:
             raise TypeError("'data_names' must be a list of two strings representing dataset names.")
 
