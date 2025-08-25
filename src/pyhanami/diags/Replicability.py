@@ -36,6 +36,8 @@ class ReplicabilityTest:
     ----------
     datasets : list[SimulationData]
         List of ensembles containing simulation data and metadata.
+    obs_path : str
+        Path to the observations database.
     obs : ObservationData
         Instance containing observational data for comparison.
     variables : dict
@@ -68,6 +70,9 @@ class ReplicabilityTest:
     _apply_tests(scores_all, alpha)
         Applies several statistical tests between ensemble score distributions.
 
+    add_datasets(datasets)
+        Add new datasets to the ReplicabilityTest object.
+
     matrix_plot(output_path, alpha=0.05)
         Runs the full replicability test and generates a matrix plot of the results.
 
@@ -83,14 +88,13 @@ class ReplicabilityTest:
             self.variables = None
         else:
             if isinstance(datasets, SimulationData):
-                datasets = [datasets]
+                self.datasets = [datasets]
             elif isinstance(datasets, Iterable) and not isinstance(datasets, (str, bytes)) \
                 and all(isinstance(ds, SimulationData) for ds in datasets):
-                datasets = list(datasets)
+                self.datasets = list(datasets)
             else:
                 raise TypeError("Input must be a SimulationData object or an iterable of SimulationData objects.")
 
-            self.datasets = datasets
             self._compare_ensembles()
             self.obs = ObservationData(self.obs_path, self.datasets[0].data)
             self.variables = {var: info for var, info in config.VARIABLES.items() if var in datasets[0].data.data_vars}
@@ -263,12 +267,12 @@ class ReplicabilityTest:
         # Compute scores for each variable in parallel
         scores_all = {}
         vars = list(self.variables.keys())
-        tasks = [(data_plot, var) for var in vars]
+        tasks = [(var, data_plot) for var in vars]
         # for task in tasks:
         #     scores_all[task[0][1]] = self._compute_scores_one_var(task[0], task[1])
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers_vars) as executor:
             for idx, value in enumerate(executor.map(self._compute_scores_one_var, tasks)):
-                scores_all[tasks[idx][1]] = value
+                scores_all[tasks[idx][0]] = value
 
         print('Computed scores for all variables...', flush=True)
         return scores_all
@@ -459,7 +463,7 @@ class ReplicabilityTest:
             if missing_names:
                 raise ValueError(f"The following dataset names were not found in the ReplicabilityTest object: {missing_names}.")
             
-            data_plot = [ds for ds in self.datasets if ds.name in data_names]
+            data_plot = [next(ds for ds in self.datasets if ds.name == name) for name in data_names]
         else:
             raise TypeError("'data_names' must be a list of two strings representing simulation dataset names.")
 

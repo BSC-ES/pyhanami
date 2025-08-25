@@ -55,6 +55,9 @@ class DataDiagnostics:
     _compute_significant_diff(var_name, alpha, stat)
         Computes statistically significant differences between the ensembles in parallel at the grid point level.
 
+    add_datasets(datasets)
+        dd new datasets to the ReplicabilityTest object.
+    
     time_series_plots(var_name, output_path)
         Generates and saves a plot of the annual time series for the specified variable.
 
@@ -84,7 +87,7 @@ class DataDiagnostics:
         
         Parameters
         ----------
-        varname (str): Climate variable name.
+        var_name (str): Climate variable name.
         data_plot (list[SimulationData and/or ObservationData]): List of ensembles to compute time series for.
         
         Returns
@@ -94,7 +97,7 @@ class DataDiagnostics:
 
         # Validate inputs
         if not isinstance(data_plot, list) or len(data_plot) == 0 \
-            or not all(isinstance(ds, SimulationData) for ds in data_plot):
+            or not all(isinstance(ds, SimulationData) or isinstance(ds, ObservationData) for ds in data_plot):
             raise TypeError("'data_plot' must be a non-empty list of SimulationData instances.")
         
         for dataset in data_plot:
@@ -106,7 +109,7 @@ class DataDiagnostics:
         # Compute annual mean time series for each dataset
         time_series = []
         for dataset in [ds.data for ds in data_plot]:
-            data_var = dataset[varname]
+            data_var = dataset[var_name]
             weights = statistics.area_weights(data_var)
             data_weighted = data_var.weighted(weights)
 
@@ -326,7 +329,7 @@ class DataDiagnostics:
         return
     
     
-    def time_series_plots(self, varname, data_names=None, output_path=None, obs=False, obs_paths=None, obs_names=None):
+    def time_series_plots(self, var_name, data_names=None, output_path=None, obs=False, obs_paths=None, obs_names=None):
         """ 
         Generate time series plot for the given ensembles and variable. When no ensembles
         are specified, all datasets in the diagnostics object are used.
@@ -356,7 +359,7 @@ class DataDiagnostics:
             if missing_names:
                 raise ValueError(f"The following dataset names were not found in the DataDiagnostics object: {missing_names}.")
             
-            data_plot = [ds for ds in self.datasets if ds.name in data_names]
+            data_plot = [next(ds for ds in self.datasets if ds.name == name) for name in data_names]
         else:
             raise TypeError("'data_names' must be a string or a list of strings representing dataset names.")
 
@@ -380,7 +383,7 @@ class DataDiagnostics:
                 raise ValueError("'obs_paths' and 'obs_names' must have the same length.")
 
             data_obs = [
-                ObservationData(path, data_plot[0].data[[varname]], name)
+                ObservationData(path, data_plot[0].data[[var_name]], name)
                 for path, name in zip(obs_paths, obs_names)
             ]
             data_plot.extend(data_obs)
@@ -440,7 +443,7 @@ class DataDiagnostics:
             if missing_names:
                 raise ValueError(f"The following dataset names were not found in the DataDiagnostics object: {missing_names}.")
             
-            data_plot = [ds for ds in self.datasets if ds.name in data_names]
+            data_plot = [next(ds for ds in self.datasets if ds.name == name) for name in data_names]
         else:
             raise TypeError("'data_names' must be a list of two strings representing dataset names.")
 
@@ -478,7 +481,7 @@ class DataDiagnostics:
         
         if output_path is None:
             plt.show()
-            print("Absolute difference plot created and displayed.", flush=True)
+            print("Absolute difference plot created and displayed.\n", flush=True)
         else:
             abs_diff_plot.savefig(abs_diff_path, bbox_inches='tight', dpi=100)
             print(f"Absolute difference plot created and saved to '{abs_diff_path}'.\n", flush=True)

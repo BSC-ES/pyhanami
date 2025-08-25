@@ -4,6 +4,7 @@ import xarray as xr
 import cartopy.crs as ccrs
 import cartopy.feature as cf
 import matplotlib.pyplot as plt
+import cartopy.mpl.ticker as cticker
 
 from pyhanami import config
 from scipy.stats import bootstrap
@@ -148,6 +149,8 @@ def style_cartopy_axis(ax, show_gridlines=True):
         gl = ax.gridlines(draw_labels=True, crs=ccrs.PlateCarree(), linewidth=0.6, color='black', alpha=0.8, linestyle='-.')
         gl.xlabel_style = {"size": 15}
         gl.ylabel_style = {"size": 15}
+
+    return
 
 
 def add_colorbar(fig, mappable, ax_l, ax_r, ax_b, label='', fontsize=15, levels=None, dist=0.07, width=0.02, **colorbar_kwargs):
@@ -449,3 +452,166 @@ def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicabili
         inset_ax.text(pos[0], pos[1], txt, ha="center", va="center", fontsize=9)
 
     return fig, ax
+
+
+def eeofs_plot(eeof, clon=0, title='ISO convection patterns', cmap='RdBu_r', levels=13, vmin=None, vmax=None):
+    """ 
+    Generate plot of Empirical Orthogonal Functions (EOFs) for each ISO mode (MJO and BSISO)
+    during boreal winter and boreal summer separately.
+
+    Parameters
+    ----------
+    eeof (xarray.Dataset): EEOFs data.
+    clon (int): Central longitude for the spatial maps.
+    title (str): Title of the plot.
+    cmap (matplotlib colormap): Colormap.
+    levels (np.ndarray): Contour levels.
+    vmin, vmax (float): Min. and max. values for the colormap.
+
+    Returns
+    -------
+    fig (matplotlib.figure.Figure): Generated plot.
+    ax (matplotlib.axes._subplots.AxesSubplot): Plot axis.
+    """
+
+    # Validate input
+    if not isinstance(eeof, xr.Dataset):
+        raise TypeError("The EOFss data must be xarray.Datasets.")    
+    if not isinstance(clon, (int, float)) or not (0 <= clon <= 360):
+        raise TypeError("The central longitude 'clon' must be a numeric value between 0º and 360º.")
+    if not isinstance(title, str):
+        raise TypeError("'title' must be a string.")
+    
+    lags = eeof.lag.values
+    modes = eeof.mode.values
+
+    # Compute scaling factor to convert EOFs to physical units
+    eigen = eeof['eigval']
+    sigma = 1.0
+    scale = np.sqrt(eigen) * sigma
+
+
+    # Prepare tick for axes        
+    lon_ticks = np.arange(-180, 181, 60)
+    lat_ticks = [-20, 0, 20]
+
+
+    # Create plot
+    fig, axs = plt.subplots(len(lags), len(modes), figsize=(10, 4), dpi=150,
+                            subplot_kw={'projection': ccrs.PlateCarree(central_longitude=clon)}, 
+                            constrained_layout=False)
+    fig.subplots_adjust(wspace=0, hspace=0, top=0.88)
+
+    for j, lag in enumerate(lags):
+        eeof_lag = eeof['eeof'].sel(lag=lag)
+        eeof_phys = eeof_lag * scale
+
+        for l, mode in enumerate(modes):
+            ax = axs[j, l]
+            style_cartopy_axis(ax, show_gridlines=False)
+
+            eeof_aux = eeof_phys.sel(mode=mode)
+            cb = eeof_aux.plot.contourf(ax=ax, transform=ccrs.PlateCarree(), cmap=cmap, levels=levels,
+                                       vmin=vmin, vmax=vmax, add_colorbar=False)
+            ax.text(
+                0.97, 0.9, f"lag = {lag} days",
+                transform=ax.transAxes, 
+                ha="right", va="top", 
+                fontsize=6,
+                bbox=dict(facecolor="white", edgecolor="black", boxstyle="square,pad=0.4", alpha=0.8)
+            )
+
+    
+            # Add titles and axes labels
+            if j == 0:
+                ax.set_title(f"EEOF{mode} ({100*eeof['var_frac'].sel(mode=mode).values :.2f}%)", fontsize=12)
+            else:
+                ax.set_title("")
+            if j == len(lags)-1:
+                ax.set_xlabel("longitude", fontsize=8)
+                if l == 0:
+                    ax.set_xticks(lon_ticks, crs=ccrs.PlateCarree(central_longitude=clon))
+                elif l == len(modes)-1:
+                    ax.set_xticks(lon_ticks[1:], crs=ccrs.PlateCarree(central_longitude=clon))
+                else:
+                    ax.set_xticks(lon_ticks[1:-1], crs=ccrs.PlateCarree(central_longitude=clon))
+                ax.xaxis.set_major_formatter(cticker.LongitudeFormatter())
+            else:
+                ax.set_xlabel("")
+            if l == 0:
+                ax.set_ylabel("latitude", fontsize=8)
+                ax.set_yticks(lat_ticks, crs=ccrs.PlateCarree())
+                ax.yaxis.set_major_formatter(cticker.LatitudeFormatter())
+            else:
+                ax.set_ylabel("")
+            ax.tick_params(axis='both', labelsize=6)
+
+    # Add shared colorbar        
+    cbar = fig.colorbar(cb, ax=axs, orientation="horizontal", shrink=0.5, pad=0.15, aspect=40)
+    cbar.ax.tick_params(labelsize=8)
+    cbar.set_label('')
+
+    fig.suptitle(title, fontsize=14)
+
+    return fig, axs
+
+
+def pcs_plot(pcs, title='Bimodal ISO indices', normalized=True):
+    """ 
+    Generate plot of the Bimodal ISO indices, i.e. the Principal Components (PCs) for each ISO mode (MJO and BSISO).
+
+    Parameters
+    ----------
+    pcs (xarray.Dataset): PCs data.
+    title (str): Title of the plot.
+    normalized (bool): Wether to plot raw or normalized (by the corresponding eigenvalues) PCs.
+
+    Returns
+    -------
+    fig (matplotlib.figure.Figure): Generated plot.
+    ax (matplotlib.axes._subplots.AxesSubplot): Plot axis.
+    """
+
+    # Validate input
+    if not isinstance(pcs, xr.Dataset):
+        raise TypeError("The PCs data must be an xarray.Dataset.")
+    if normalized:
+        pcs_MJO = pcs['PC_MJO_std']
+        pcs_BSISO = pcs['PC_BSISO_std']
+    else:
+        pcs_MJO = pcs['PC_MJO_raw']
+        pcs_BSISO = pcs['PC_BSISO_raw']
+    modes = pcs_MJO.mode.values
+    
+    if not isinstance(title, str):
+        raise TypeError("'title' must be a string.")
+    
+    # Prepare time labels
+    time = pcs_MJO.time.values
+    start = np.datetime64(time.min(), "M")
+    end = np.datetime64(time.max(), "M")
+
+    months = np.arange(start, end + np.timedelta64(2, "M"), np.timedelta64(1, "M"))
+    tick_labels = [str(m)[:7] for m in months]
+
+    # Create plot
+    fig, axs = plt.subplots(2,1, figsize=(10, 6), sharex=True, dpi=150)
+    for i, (data, label) in enumerate(zip([pcs_MJO, pcs_BSISO], ['MJO','BSISO'])):
+        for j in modes:
+            axs[i].plot(data.time, data.sel(mode=j), lw=1.2, ls='-', label=f'{label} PC{j}')
+        
+        # Plot formatting
+        axs[i].set_xticks(months)
+        axs[i].tick_params(axis='both', labelsize=8)
+        axs[i].set_ylim(-3, 3)
+        axs[i].set_ylabel(f'Normalized PC', fontsize=10)
+        axs[i].set_title(label, fontsize=12)
+        axs[i].legend(fontsize=8, loc='upper right')
+        axs[i].grid()
+
+    axs[1].set_xticklabels(tick_labels, rotation=45, ha='right')
+    axs[1].set_xlabel('time', fontsize=10)
+    fig.suptitle(title, fontsize=14)
+    plt.tight_layout()
+
+    return fig, axs

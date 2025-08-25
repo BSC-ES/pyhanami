@@ -53,7 +53,7 @@ class SimulationData:
         else:
             raise TypeError("'name' must be a string.")
         
-        self.check_data()
+        #self.check_data()
 
 
     def _prepare_data(self):

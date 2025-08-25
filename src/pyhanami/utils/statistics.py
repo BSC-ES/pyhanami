@@ -226,8 +226,8 @@ def cp_effect_size(sample_1, sample_2):
 
     Arguments
     ---------
-    sample_1 (numpy.ndarray): First sample.
-    sample_2 (numpy.ndarray): Second sample.
+    sample_1 (np.ndarray): First sample.
+    sample_2 (np.ndarray): Second sample.
 
     Returns
     -------
@@ -263,8 +263,8 @@ def cp_effect_size_bootstrap(args):
     Parameters
     ----------
     args (tuple): List containing:
-        sample_1 (numpy.ndarray): First sample.
-        sample_2 (numpy.ndarray): Second sample.
+        sample_1 (np.ndarray): First sample.
+        sample_2 (np.ndarray): Second sample.
 
     Returns
     -------
@@ -297,8 +297,8 @@ def bootstrap_test(score_ref, score_test, bstat=cp_effect_size):
 
     Arguments
     ---------
-    score_ref (numpy.ndarray): Reference sample.
-    score_test (numpy.ndarray): Test sample.
+    score_ref (np.ndarray): Reference sample.
+    score_test (np.ndarray): Test sample.
     bstat (callable): Statistic to be used by the bootstrap method.
 
     Returns
@@ -342,8 +342,8 @@ def significant_diff(args):
     Parameters
     ----------
     args (tuple): List containing:
-        sample_1 (numpy.ndarray): First sample.
-        sample_2 (numpy.ndarray): Second sample.
+        sample_1 (np.ndarray): First sample.
+        sample_2 (np.ndarray): Second sample.
         alpha (float): Significance level for the test.
         stat (function): Statistical test to evaluate significant differences.
 
