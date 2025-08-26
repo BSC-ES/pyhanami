@@ -454,7 +454,7 @@ def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicabili
     return fig, ax
 
 
-def eeofs_plot(eeof, clon=0, title='ISO convection patterns', cmap='RdBu_r', levels=13, vmin=None, vmax=None):
+def eeofs_plot(eeof, clon=0, title='ISO convection patterns', cb_label='scaled EEOF', cmap='RdBu_r', levels=13, vmin=None, vmax=None):
     """ 
     Generate plot of Empirical Orthogonal Functions (EOFs) for each ISO mode (MJO and BSISO)
     during boreal winter and boreal summer separately.
@@ -464,6 +464,7 @@ def eeofs_plot(eeof, clon=0, title='ISO convection patterns', cmap='RdBu_r', lev
     eeof (xarray.Dataset): EEOFs data.
     clon (int): Central longitude for the spatial maps.
     title (str): Title of the plot.
+    cb_label (str): Label to display below the colorbar. 
     cmap (matplotlib colormap): Colormap.
     levels (np.ndarray): Contour levels.
     vmin, vmax (float): Min. and max. values for the colormap.
@@ -485,7 +486,7 @@ def eeofs_plot(eeof, clon=0, title='ISO convection patterns', cmap='RdBu_r', lev
     lags = eeof.lag.values
     modes = eeof.mode.values
 
-    # Compute scaling factor to convert EOFs to physical units
+    # Compute scaling factor to convert EEOFs to physical units
     eigen = eeof['eigval']
     sigma = 1.0
     scale = np.sqrt(eigen) * sigma
@@ -549,7 +550,7 @@ def eeofs_plot(eeof, clon=0, title='ISO convection patterns', cmap='RdBu_r', lev
     # Add shared colorbar        
     cbar = fig.colorbar(cb, ax=axs, orientation="horizontal", shrink=0.5, pad=0.15, aspect=40)
     cbar.ax.tick_params(labelsize=8)
-    cbar.set_label('')
+    cbar.set_label(cb_label)
 
     fig.suptitle(title, fontsize=14)
 

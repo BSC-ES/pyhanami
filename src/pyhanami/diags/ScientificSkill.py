@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from collections.abc import Iterable
 
+from pyhanami import config
 from pyhanami.utils import iso_metrics, plot
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
@@ -35,6 +36,8 @@ class ScientificEvaluation:
         Path to the observations database.
     obs : ObservationData
         Instance containing observational data for comparison.
+    variables : dict
+        Configuration dictionary mapping variable names to display metadata.
 
     Methods
     -------
@@ -68,7 +71,10 @@ class ScientificEvaluation:
             else:
                 raise TypeError("Input must be a SimulationData object or an iterable of SimulationData objects.")
 
-            #self.obs = ObservationData(self.obs_path, self.datasets[0].data)
+            self.obs = ObservationData(self.obs_path, self.datasets[0].data)
+
+        # Load config parameters once
+        self.variables = config.VARIABLES
 
         return
 
@@ -360,7 +366,8 @@ class ScientificEvaluation:
         eeof_summer = self._perform_EEOF_analysis(olr_data, year_init_eeof, year_end_eeof, 'boreal_summer', lags, n_modes)
 
         if plot_eeofs:
-            eeofw_plot, _ = plot.eeofs_plot(eeof_winter, clon=clon, title=f'Boreal winter ISO convective pattern {data_name} (DJFMA {year_init_eeof}-{year_end_eeof})')            
+            eeofw_plot, _ = plot.eeofs_plot(eeof_winter, clon=clon, title=f'Boreal winter ISO convective pattern {data_name} (DJFMA {year_init_eeof}-{year_end_eeof})', 
+                                            cb_label=f'scaled EEOF ({self.variables['olr'][1]})')            
             if output_path is None:
                 plt.show()
                 print("Boreal winter EEOFs plot created and displayed.", flush=True)
@@ -371,7 +378,8 @@ class ScientificEvaluation:
                 eeofw_plot.savefig(eeofw_path.with_suffix('.png'), bbox_inches='tight', dpi=150)
                 print(f"Boreal winter EEOFs plot created and saved to '{eeofw_path}.", flush=True)
 
-            eeofs_plot, _ = plot.eeofs_plot(eeof_summer, clon=clon, title=f'Boreal summer ISO convective pattern {data_name} (JJASO {year_init_eeof}-{year_end_eeof})')       
+            eeofs_plot, _ = plot.eeofs_plot(eeof_summer, clon=clon, title=f'Boreal summer ISO convective pattern {data_name} (JJASO {year_init_eeof}-{year_end_eeof})',
+                                            cb_label=f'scaled EEOF ({self.variables['olr'][1]})')       
             if output_path is None:
                 plt.show()
                 print("Boreal summer EEOFs plot created and displayed.\n", flush=True)

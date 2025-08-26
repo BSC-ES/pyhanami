@@ -9,6 +9,7 @@ VARIABLES = {
     'hus300': ['Specific humidity at 300hPa', 'kg kg**-1'],
     'hus850': ['Specific humidity at 850hPa', 'kg kg**-1'],
     'net_sfc': ['Net surface heat flux', 'W m**-2'],
+    'olr': ['TOA outgoing longwave radiation', 'W m**-2'],
     'pr': ['Total precipitation rate', 'kg m**-2 s**-1'],
     'psl': ['Sea level pressure', 'Pa'],
     'ta200': ['Air temperature at 200hPa', 'K'],
