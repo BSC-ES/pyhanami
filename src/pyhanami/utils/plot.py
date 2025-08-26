@@ -501,7 +501,7 @@ def eeofs_plot(eeof, clon=0, title='ISO convection patterns', cb_label='scaled E
     fig, axs = plt.subplots(len(lags), len(modes), figsize=(10, 4), dpi=150,
                             subplot_kw={'projection': ccrs.PlateCarree(central_longitude=clon)}, 
                             constrained_layout=False)
-    fig.subplots_adjust(wspace=0, hspace=0, top=0.88)
+    fig.subplots_adjust(wspace=0, hspace=0, top=0.86)
 
     for j, lag in enumerate(lags):
         eeof_lag = eeof['eeof'].sel(lag=lag)
@@ -548,9 +548,9 @@ def eeofs_plot(eeof, clon=0, title='ISO convection patterns', cb_label='scaled E
             ax.tick_params(axis='both', labelsize=6)
 
     # Add shared colorbar        
-    cbar = fig.colorbar(cb, ax=axs, orientation="horizontal", shrink=0.5, pad=0.15, aspect=40)
+    cbar = fig.colorbar(cb, ax=axs, orientation="horizontal", shrink=0.5, pad=0.17, aspect=40)
     cbar.ax.tick_params(labelsize=8)
-    cbar.set_label(cb_label)
+    cbar.set_label(cb_label, fontsize=9)
 
     fig.suptitle(title, fontsize=14)
 
@@ -597,9 +597,10 @@ def pcs_plot(pcs, title='Bimodal ISO indices', normalized=True):
 
     # Create plot
     fig, axs = plt.subplots(2,1, figsize=(10, 6), sharex=True, dpi=150)
+    colors = [['tab:blue', 'tab:red', 'tab:brown', 'tab:pink'], ['tab:green', 'tab:orange',' tab:purple', 'tab:gray']]
     for i, (data, label) in enumerate(zip([pcs_MJO, pcs_BSISO], ['MJO','BSISO'])):
         for j in modes:
-            axs[i].plot(data.time, data.sel(mode=j), lw=1.2, ls='-', label=f'{label} PC{j}')
+            axs[i].plot(data.time, data.sel(mode=j), lw=1.2, ls='-', label=f'{label} PC{j}', color=colors[i][j-1])
         
         # Plot formatting
         axs[i].set_xticks(months)

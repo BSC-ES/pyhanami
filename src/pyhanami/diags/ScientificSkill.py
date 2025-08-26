@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 from pathlib import Path
 from collections.abc import Iterable
+from matplotlib.colors import LinearSegmentedColormap
 
 from pyhanami import config
 from pyhanami.utils import iso_metrics, plot
@@ -367,7 +368,7 @@ class ScientificEvaluation:
 
         if plot_eeofs:
             eeofw_plot, _ = plot.eeofs_plot(eeof_winter, clon=clon, title=f'Boreal winter ISO convective pattern {data_name} (DJFMA {year_init_eeof}-{year_end_eeof})', 
-                                            cb_label=f'scaled EEOF ({self.variables['olr'][1]})')            
+                                            cb_label=f'scaled EEOF ({self.variables[var_name][1]})', cmap=LinearSegmentedColormap.from_list("BlueRed", ['tab:blue', 'white', 'tab:red']))            
             if output_path is None:
                 plt.show()
                 print("Boreal winter EEOFs plot created and displayed.", flush=True)
@@ -376,10 +377,10 @@ class ScientificEvaluation:
 
                 # eeof_winter.to_netcdf(eeofw_path.with_suffix('.nc'))
                 eeofw_plot.savefig(eeofw_path.with_suffix('.png'), bbox_inches='tight', dpi=150)
-                print(f"Boreal winter EEOFs plot created and saved to '{eeofw_path}.", flush=True)
+                print(f"Boreal winter EEOFs plot created and saved to '{eeofw_path}'.", flush=True)
 
             eeofs_plot, _ = plot.eeofs_plot(eeof_summer, clon=clon, title=f'Boreal summer ISO convective pattern {data_name} (JJASO {year_init_eeof}-{year_end_eeof})',
-                                            cb_label=f'scaled EEOF ({self.variables['olr'][1]})')       
+                                            cb_label=f'scaled EEOF ({self.variables[var_name][1]})', cmap=LinearSegmentedColormap.from_list("GreenOrange", ['tab:green', 'white', 'tab:orange']))       
             if output_path is None:
                 plt.show()
                 print("Boreal summer EEOFs plot created and displayed.\n", flush=True)
@@ -388,7 +389,7 @@ class ScientificEvaluation:
                 
                 # eeof_winter.to_netcdf(eeofw_path.with_suffix('.nc'))
                 eeofs_plot.savefig(eeofs_path.with_suffix('.png'), bbox_inches='tight', dpi=150)
-                print(f"Boreal summer EEOFs plot created and saved to '{eeofs_path}.\n", flush=True)
+                print(f"Boreal summer EEOFs plot created and saved to '{eeofs_path}'.\n", flush=True)
         
 
         # Compute and plot PCs
