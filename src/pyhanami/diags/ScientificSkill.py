@@ -35,8 +35,6 @@ class ScientificEvaluation:
         List of ensembles containing simulation data and metadata.
     obs_path : str
         Path to the observations database.
-    obs : ObservationData
-        Instance containing observational data for comparison.
     variables : dict
         Configuration dictionary mapping variable names to display metadata.
 
@@ -62,7 +60,6 @@ class ScientificEvaluation:
         self.obs_path = obs_path
         if datasets is None:
             self.datasets = []
-            self.obs = None
         else:
             if isinstance(datasets, SimulationData):
                 self.datasets = [datasets]
@@ -71,8 +68,6 @@ class ScientificEvaluation:
                 self.datasets = list(datasets)
             else:
                 raise TypeError("Input must be a SimulationData object or an iterable of SimulationData objects.")
-
-            self.obs = ObservationData(self.obs_path, self.datasets[0].data)
 
         # Load config parameters once
         self.variables = config.VARIABLES
@@ -294,14 +289,11 @@ class ScientificEvaluation:
             else:
                 warnings.warn(f"Dataset with name '{dataset.name}' already exists in the ScientificEvaluation object. Skipping addition.")
 
-        # Add observation data if not already present
-        if self.obs is None:
-            self.obs = ObservationData(self.obs_path, self.datasets[0].data)
-
         return
     
     
-    def bimodal_ISO(self, data_name=None, year_init_eeof=None, year_end_eeof=None, years_pc=None, output_path=None, plot_eeofs=True, clon=0, 
+    def bimodal_ISO(self, data_name=None, year_init_eeof=None, year_end_eeof=None, years_pc=None, output_path=None, 
+                    plot_eeofs=True, clon=0, plot_pcs=True, 
                     lat_range=(-30,30), lags=[-10, -5, 0], n_modes=2, window=141, low_freq=1/90, high_freq=1/25):
         """
         Compute bimodal ISO indices following (K. Kikuchi, 2020) and plot results for the selected years.
@@ -312,8 +304,9 @@ class ScientificEvaluation:
         year_init_eeof, year_end_eeof (int): Initial and end years to perform the EEOF analysis.
         years_pc (int or list[int]): Years to compute the indices for.
         output_path (str): Path to save plots.
-        plot_eeofs (bool): If True, alos spatially plot EEOFs.
+        plot_eeofs (bool): If True, also spatially plot EEOFs.
         clon (int): Central longitude for the spatial EEOFs maps.
+        plot_pcs (bool): If True, also plot the PCs.
         lat_range (tuple): Geographic latitude bounds.
         lags (list[int]): Lag values to consider.
         n_modes (int): Number of EEOFs modes to compute.
@@ -392,21 +385,23 @@ class ScientificEvaluation:
                 print(f"Boreal summer EEOFs plot created and saved to '{eeofs_path}'.\n", flush=True)
         
 
-        # Compute and plot PCs
+        # Compute PCs and plot if requested
         pcs = self._compute_PCs(olr_data, [eeof_winter, eeof_summer])
         for year in years_pc:
             pcs_year = pcs.sel(time=slice(f'{year}-01-01', f'{year}-12-31'))
-            pcs_plot, _ = plot.pcs_plot(pcs_year, title=f'Bimodal ISO indices {data_name} ({year})')
-            
-            if output_path is None:
-                plt.show()
-                print(f"PCs for year {year} plot created and displayed.", flush=True)
-            else:
-                pcs_path = output_path / f"pcs_{data_name}_{year}"
 
-                # pcs_year.to_netcdf(pcs_path.with_suffix('.nc'))
-                pcs_plot.savefig(pcs_path.with_suffix('.png'), bbox_inches='tight', dpi=150)
-                print(f"PCs plot for year {year} created and saved to '{pcs_path}'.", flush=True)
+            if plot_pcs:
+                pcs_plot, _ = plot.pcs_plot(pcs_year, title=f'Bimodal ISO indices {data_name} ({year})')
+                
+                if output_path is None:
+                    plt.show()
+                    print(f"PCs for year {year} plot created and displayed.", flush=True)
+                else:
+                    pcs_path = output_path / f"pcs_{data_name}_{year}"
+
+                    # pcs_year.to_netcdf(pcs_path.with_suffix('.nc'))
+                    pcs_plot.savefig(pcs_path.with_suffix('.png'), bbox_inches='tight', dpi=150)
+                    print(f"PCs plot for year {year} created and saved to '{pcs_path}'.", flush=True)
 
         return
         
