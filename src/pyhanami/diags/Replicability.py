@@ -464,6 +464,8 @@ class ReplicabilityTest:
                 raise ValueError(f"The following dataset names were not found in the ReplicabilityTest object: {missing_names}.")
             
             data_plot = [next(ds for ds in self.datasets if ds.name == name) for name in data_names]
+            if 'realization' not in data_plot[0].data.coords or 'realization' not in data_plot[1].data.coords:
+                raise ValueError(f"All selected datasets must contain a 'realization' coordinate for ensemble computations.")
         else:
             raise TypeError("'data_names' must be a list of two strings representing simulation dataset names.")
 

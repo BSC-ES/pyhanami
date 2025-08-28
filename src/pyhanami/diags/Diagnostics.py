@@ -156,8 +156,12 @@ class DataDiagnostics:
 
 
         # Compute mean absolute difference
-        data_sim_mean_1 = data_sim_1[var_name].mean(['realization','time'])
-        data_sim_mean_2 = data_sim_2[var_name].mean(['realization','time'])
+        data_sim_mean_1 = data_sim_1[var_name].mean(['time'])
+        data_sim_mean_2 = data_sim_2[var_name].mean(['time'])
+        if 'realization' in data_sim_1.coords:
+            data_sim_mean_1 = data_sim_mean_1.mean(['realization'])
+        elif 'realization' in data_sim_2.coords:
+            data_sim_mean_2 = data_sim_mean_2.mean(['realization'])
 
         data_diff = (data_sim_mean_1 - data_sim_mean_2).compute()
         if var_name in ['siconc', 'sos', 'tos']:
@@ -191,6 +195,8 @@ class DataDiagnostics:
             if var_name not in dataset.data.data_vars:
                 raise ValueError(f"Variable '{var_name}' not found in the simulated dataset '{dataset.name}'. "
                             f"Available variables: {list(dataset.data.data_vars.keys())}")
+            if 'realization' not in dataset.data.coords:
+                raise ValueError(f"Dataset '{dataset.name}' must contain a 'realization' coordinate for ensemble computations.")
             
         data_sim_1 = data_plot[0].data.persist()
         data_sim_2 = data_plot[1].data.persist()
@@ -257,6 +263,8 @@ class DataDiagnostics:
             if var_name not in dataset.data.data_vars:
                 raise ValueError(f"Variable '{var_name}' not found in the simulated dataset '{dataset.name}'. "
                             f"Available variables: {list(dataset.data.data_vars.keys())}")
+            if 'realization' not in dataset.data.coords:
+                raise ValueError(f"Dataset '{dataset.name}' must contain a 'realization' coordinate for ensemble computations.")
         if not isinstance(alpha, (int, float)):
             raise TypeError(f"The significance level 'alpha' must be numeric.")
         if not (0 <= alpha <= 1):
@@ -451,6 +459,8 @@ class DataDiagnostics:
             if var_name not in dataset.data.data_vars:
                 raise ValueError(f"Variable '{var_name}' not found in the simulated dataset {dataset.name}. "
                                  f"Available variables: {list(dataset.data.data_vars.keys())}")
+            if 'realization' not in dataset.data.coords:
+                raise ValueError(f"Dataset '{dataset.name}' must contain a 'realization' coordinate for ensemble computations.")
         if not isinstance(alpha, (int, float)):
             raise TypeError(f"The significance level 'alpha' must be numeric.")
         if not (0 <= alpha <= 1):
