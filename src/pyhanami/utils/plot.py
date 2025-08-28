@@ -597,6 +597,7 @@ def pcs_plot(pcs, title='Bimodal ISO indices', normalized=True):
 
     # Create plot
     fig, axs = plt.subplots(2,1, figsize=(10, 6), sharex=True, dpi=150)
+    axs[0].get_shared_y_axes().joined(axs[0], axs[1])
     colors = [['tab:blue', 'tab:red', 'tab:brown', 'tab:pink'], ['tab:green', 'tab:orange',' tab:purple', 'tab:gray']]
     for i, (data, label) in enumerate(zip([pcs_MJO, pcs_BSISO], ['MJO','BSISO'])):
         for j in modes:
@@ -605,7 +606,6 @@ def pcs_plot(pcs, title='Bimodal ISO indices', normalized=True):
         # Plot formatting
         axs[i].set_xticks(months)
         axs[i].tick_params(axis='both', labelsize=8)
-        axs[i].set_ylim(-3, 3)
         axs[i].set_ylabel(f'Normalized PC', fontsize=10)
         axs[i].set_title(label, fontsize=12)
         axs[i].legend(fontsize=8, loc='upper right')
