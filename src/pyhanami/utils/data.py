@@ -40,6 +40,40 @@ def prepare_data(data_path, **xr_kwargs):
     return data
 
 
+def normalize_units(unit_str):
+    """ 
+    Normalize format of units to be compatible with pint.UnitRegistry. 
+
+    Parameters
+    ----------
+    unit_str (str): Input units.
+
+    Returns
+    -------
+    new_units (str): Units with corrected format (e.g. from 'm s-1' to 'm s**-1').
+    """
+
+    # Validate input
+    if not isinstance(unit_str, str):    
+        raise TypeError("Input must be a string.")
+
+
+    # Look for incompatible exponent format and correct it
+    parts = unit_str.split()
+    new_parts = []
+    for part in parts:
+        new_part = []
+        for i, c in enumerate(part):
+            if ((c == '-' and part[i-1] not in {'^', '*'}) or (c.isdigit() and part[i-1] not in {'-', '^', '*'})):
+                new_part.append(f'**{c}')
+            else:
+                new_part.append(c)
+        new_parts.append(''.join(new_part))
+
+    new_units = ' '.join(new_parts)
+    return new_units
+
+
 def check_data(data):
     """ 
     Check provided data (available variables, units, coordinates names, ...). 
@@ -55,7 +89,7 @@ def check_data(data):
 
 
     # Check coordinates
-    required_coords = ['time', 'realization', 'lat', 'lon']
+    required_coords = ['time', 'lat', 'lon']
     missing_coords = [c for c in required_coords if c not in data.coords]
     if missing_coords:
         raise ValueError(f"The dataset is missing the following coordinates: {', '.join(missing_coords)}.")
@@ -67,32 +101,35 @@ def check_data(data):
         coord_diffs = np.diff(coord_values)
         if not (np.all(coord_diffs > 0) or np.all(coord_diffs < 0)):
             raise ValueError(f"'{coord}' coordinate must be strictly increasing or decreasing.")
-    
+
 
     # Check each variable and its units    
     variables = config.VARIABLES
     ureg = pint.UnitRegistry()
-    for var in data.data_vars:
+    for var, da in data.data_vars.items():
         if var not in variables:
-            raise ValueError(f"Variable '{var}' not found in  'config.VARIABLES'.")
+            raise ValueError(f"Variable '{var}' not found in 'config.VARIABLES'.")
         
         expected_long_name, expected_units = variables[var]
-        var_attrs = data[var].attrs
+        var_attrs = da.attrs
 
         if 'long_name' not in var_attrs or var_attrs['long_name'] != expected_long_name:
-            data[var].attrs['long_name'] = expected_long_name
-        
+            var_attrs['long_name'] = expected_long_name
+
         if 'units' not in var_attrs:
                 raise ValueError(f"Variable '{var}' is missing a 'units' attribute.")
+        
         try:
-            quantity = ureg.Quantity(data[var].values, var_attrs['units'])
-            converted_values = quantity.to(expected_units).magnitude
-            data[var].values = converted_values
-            data[var].attrs['units'] = expected_units
+            var_unit = ureg.Unit(normalize_units(var_attrs['units']))
+            expected_unit = ureg.Unit(expected_units)
         except Exception as e:
-            raise ValueError(f"Variable '{var}' has incorrect or incompatible units: '{var_attrs['units']}' "
-                             f"(expected '{expected_units}'). Error: {e}")
-
+            raise ValueError(f"Variable '{var}' has unrecognized units: '{var_attrs['units']}'. Error: {e}")
+        if var_unit != expected_unit:
+            raise ValueError(f"Variable '{var}' has incorrect units: '{var_attrs['units']}' "
+                             f"(expected '{expected_units}').")
+        else:
+            var_attrs['units'] = expected_units
+            
     print("Data check passed: all variables and coordinates are valid.", flush=True)
     return
 
