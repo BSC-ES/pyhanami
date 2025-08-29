@@ -299,7 +299,7 @@ def bootstrap_test(score_ref, score_test, bstat=cp_effect_size):
     ---------
     score_ref (numpy.ndarray): Reference sample.
     score_test (numpy.ndarray): Test sample.
-    bstat (callable): Statistic to be used by the bootstrap method.
+    bstat (callable): Statistic to be used by the bootstrap method (default: statistics.cp_effect_size).
 
     Returns
     -------

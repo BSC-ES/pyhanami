@@ -86,7 +86,7 @@ class DataDiagnostics:
         ----------
         var_name (str): Climate variable name.
         data_plot (list[SimulationData and/or ObservationData]): List of ensembles to compute time series for.
-        time_freq (str): Resampling frequency for averaging.
+        time_freq (str): Resampling frequency for averaging (default: '1YS').
         
         Returns
         -------
@@ -238,8 +238,8 @@ class DataDiagnostics:
         ----------
         var_name (str): Climate variable name.
         data_plot (list[SimulationData]): List of two simulation ensembles to compute the absolute difference for.
-        alpha (float): Significance level for the statistical test.
-        stat (Callable): Statistical test function to use.
+        alpha (float): Significance level for the statistical test (default: 0.05).
+        stat (Callable): Statistical test function to use (default: ttest_ind).
 
         Returns
         -------
@@ -338,10 +338,10 @@ class DataDiagnostics:
         var_name (str): Climate variable name.
         data_names (str or list[str]): Name or list of names of simulation ensembles to plot.
         output_path (str): Path to save the time series plot.  
-        obs (bool): If True, also plot observational data if available.
+        obs (bool): If True, also plot observational data if available (default: False).
         obs_paths (str or list[str]): Path to the observations database/s.
         obs_names (str or list[str]): Name of the observational dataset/s.
-        time_freq (str): Resampling frequency.
+        time_freq (str): Resampling frequency (default: 'annual').
         start_year, end_year (int): Years to plot.
         """
         
@@ -439,8 +439,8 @@ class DataDiagnostics:
         data_names (list[str]): List of names of two simulation ensembles to compare. If None, the first two datasets
                                  in the diagnostics object are used.
         output_path (str): Path to save the spatial plots.
-        alpha (float): Significance level for the statistical test.
-        stat (Callable): Statistical test function to use for significance testing.
+        alpha (float): Significance level for the statistical test (default: 0.05).
+        stat (Callable): Statistical test function to use for significance testing (default: ttest_ind).
         """
         
         # Validate inputs

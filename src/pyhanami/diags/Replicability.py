@@ -341,7 +341,7 @@ class ReplicabilityTest:
         ----------
         scores_all (dict[str, xr.Dataset]): Dictionary of scores datasets for each variable.
         data_names (list[str]): List of two simulation ensemble names to compare.
-        alpha (float): Significance level for the statistical tests.
+        alpha (float): Significance level for the statistical tests (default: 0.05).
 
         Returns
         -------
@@ -443,7 +443,7 @@ class ReplicabilityTest:
         data_names (list[str]): List of names of two simulation ensembles to compare. If None, the first two datasets
                                  in the replicability object are used.
         output_path (str): Path to save the matrix plot.
-        alpha (float): Significance level for the statistical tests.
+        alpha (float): Significance level for the statistical tests (default: 0.05).
         """
         
         # Validate inputs
@@ -503,8 +503,8 @@ class ReplicabilityTest:
         Parameters
         ----------
         output_path (str): Path to save the report.
-        time_series (bool): Whether to include time series plots in the report.
-        spatial (bool): Whether to include spatial plots in the report.
+        time_series (bool): Whether to include time series plots in the report (default: False).
+        spatial (bool): Whether to include spatial plots in the report (default: False).
         """
 
         generated_plots = {'time_series': False, 'spatial': False, 'matrix': False}

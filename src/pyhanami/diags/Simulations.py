@@ -16,7 +16,7 @@ class SimulationData:
     data_source : Union[str, Path, xr.Dataset]
         Path to a dataset file or catalogue interface, or an already loaded xarray.Dataset object.
     name : str
-        Name of the simulation instance.
+        Name of the simulation instance (default: 'sim').
 
     Attributes
     ----------

@@ -124,7 +124,7 @@ def cyclic_wrapper(data, dim="lon"):
     Parameters
     ----------
     data (xarray.DataArray): Input data array.
-    dim (str): Dimension along which to add the cyclic point.
+    dim (str): Dimension along which to add the cyclic point (default: "lon").
 
     Returns
     -------
@@ -164,9 +164,9 @@ def regrid_data(source_ds, target_ds, var=None, method='conservative', cyclic_po
         source_ds (xarray.Dataset): Source dataset.
         target_ds (xarray.Dataset): Target dataset.
         var (str): Variable to regrid.
-        method (str): Regridding method.
-        cyclic_point (bool): Whether to handle cyclic points.
-        time_dim (str): Name of the time dimension.
+        method (str): Regridding method (default: 'conservative').
+        cyclic_point (bool): Whether to handle cyclic points (default: False).
+        time_dim (str): Name of the time dimension (default: 'time').
 
         Returns
         -------

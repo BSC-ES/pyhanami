@@ -22,6 +22,8 @@ class ObservationData:
         Path to an observations database.
     sim : xr.Dataset
         Input simulation dataset.
+    name : str
+        Name of the observations instance (default: 'obs').
 
     Attributes
     ----------

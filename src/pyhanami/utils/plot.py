@@ -19,10 +19,10 @@ def time_series_plot(time_series, title='Mean time series', y_label='', labels=N
     Parameters
     ----------
     time_series (xarray.DataArray or list of xr.DataArray): Time series data.
-    title (str): Title of the plot.
-    y_label (str): Label for the y-axis.
+    title (str): Title of the plot (default: 'Mean time series').
+    y_label (str): Label for the y-axis (default: '').
     labels (list[str]): Labels for each time series.
-    time_freq (str): Time frequency.
+    time_freq (str): Time frequency (default: 'annual').
     start_year, end_year (int): Years for filtering.
 
     Returns
@@ -148,7 +148,7 @@ def style_cartopy_axis(ax, show_gridlines=True):
     Parameters
     ----------
     ax (cartopy.mpl.geoaxes.GeoAxesSubplot):  Axis with a Cartopy geographic projection.
-    show_gridlines (bool): Whether to add gridlines with latitude and longitude labels.
+    show_gridlines (bool): Whether to add gridlines with latitude and longitude labels (default: True).
 
     Returns
     -------
@@ -176,11 +176,11 @@ def add_colorbar(fig, mappable, ax_l, ax_r, ax_b, label='', fontsize=15, levels=
     fig (matplotlib.figure.Figure): Figure to add the colorbar to.
     mappable (matplotlib artist): Object for colorbar.
     ax_l, ax_r, ax_b (matplotlib.axes.Axes): Leftmost, rightmost, and bottom axes used to determine the bounds.
-    label (str): Colorbar label.
-    fontsize (int): Font size for label and tick labels.
+    label (str): Colorbar label (default: '').
+    fontsize (int): Font size for label and tick labels (default: 15).
     levels (np.ndarray): Contour levels for the colorbar ticks.
-    dist (float): Vertical distance below ax_b for placing the colorbar.
-    width (float): Thickness of the colorbar axis.
+    dist (float): Vertical distance below ax_b for placing the colorbar (default: 0.07).
+    width (float): Thickness of the colorbar axis (default: 0.02).
     **colorbar_kwargs: Additional arguments passed to fig.colorbar().
 
     Returns
@@ -217,15 +217,15 @@ def spatial_plot(data, title='Spatial plot', cb_label='', cmap=cmocean.cm.therma
     Parameters
     ----------
     data (xarray.DataArray): 2D dataset to plot with dimensions (lat, lon).
-    title (str): Title of the plot.
-    cb_label (str): Label to display below the colorbar. 
-    cmap (matplotlib colormap): Colormap.
+    title (str): Title of the plot (default: 'Spatial plot').
+    cb_label (str): Label to display below the colorbar (default: ''). 
+    cmap (matplotlib colormap): Colormap (default: cmocean.cm.thermal).
     levels (np.ndarray): Contour levels.
     significant (np.ndarray): Mask for significance hatching.
     vmin, vmax (float): Min. and max. values for the colormap.
-    show_contours (bool): Whether to overlay contour lines.
-    contour_fontsize (int): Font size for contour labels.
-    gridlines (bool): Whether to show gridlines.
+    show_contours (bool): Whether to overlay contour lines (default: True).
+    contour_fontsize (int): Font size for contour labels (default: 12).
+    gridlines (bool): Whether to show gridlines (default: True).
     **plot_kwargs: Additional arguments passed to contourf.
 
     Returns
@@ -288,8 +288,8 @@ def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicabili
     ----------
     eff_sizes (np.ndarray): Effect sizes between the scores with shape (n_rows, n_cols, n_indices). 
     test_results (np.ndarray): Results of the statistical tests with shape (n_rows, n_cols, 4).
-    test (int): Statistical test to use, corresponding to last dimension of test_results (0: KS-test, 1: T-test, 2: U-test, 3: B-test, 4: All).
-    title (str): Title of the plot.
+    test (int): Statistical test to use, corresponding to last dimension of test_results (0: KS-test, 1: T-test, 2: U-test, 3: B-test, 4: All) (default: 4).
+    title (str): Title of the plot (default: 'Effect sizes replicability test').
     variables (dict): Dictionary with variables to be included in the plot and their descriptions.
     seasons (list): List of seasons to include in the plot.
     regions (list): List of regions to include in the plot.
