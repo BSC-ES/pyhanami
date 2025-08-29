@@ -43,7 +43,7 @@ pip install .
 - `var_name`: name of climate variable to evaluate. It must be listed in `src/pyhanami/config.py`.
 - `output_path`: path to save the corresponding plots. It can be either a directory or a full file path including the file name.
 - `obs_path`: path to a directory containing observation datasets, stored in files following the naming pattern `data_obs*_{var_name}`.nc`.
-- year_init, year_end: range of years for the time series plots.
+- `year_init`, `year_end`: range of years for the time series plots.
 
 
 #### Full example workflow
