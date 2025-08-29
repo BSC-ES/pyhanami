@@ -12,7 +12,7 @@ from matplotlib.patches import Polygon, Circle
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap, BoundaryNorm
 
 
-def time_series_plot(time_series, title='Annual mean time series', y_label='', labels=None, start_year=None, end_year=None):
+def time_series_plot(time_series, title='Mean time series', y_label='', labels=None, time_freq='annual', start_year=None, end_year=None):
     """ 
     Generate time series plot of one or more ensembles, including the 2.5th, 5th, 75th and 97.5th percentiles.
 
@@ -22,8 +22,8 @@ def time_series_plot(time_series, title='Annual mean time series', y_label='', l
     title (str): Title of the plot.
     y_label (str): Label for the y-axis.
     labels (list[str]): Labels for each time series.
-    start_year (int): Start year for filtering.
-    end_year (int): End year for filtering.
+    time_freq (str): Time frequency.
+    start_year, end_year (int): Years for filtering.
 
     Returns
     -------
@@ -51,41 +51,39 @@ def time_series_plot(time_series, title='Annual mean time series', y_label='', l
         if not isinstance(labels, list) or len(labels) != len(time_series) \
             or not all(isinstance(label, str) for label in labels):
             raise ValueError("If provided, 'labels' must be a list of strings with the same length as time_series.")
-    if start_year is not None and not isinstance(start_year, int):
-        raise TypeError("'start_year' must be an integer or None.")
-    if end_year is not None and not isinstance(end_year, int):
-        raise TypeError("'end_year' must be an integer or None.")
 
+    if start_year is None or end_year is None:
+        raise TypeError("'start_year' and 'end_year' must be non-empty.")
+   
 
-    # Filter each time series to the requested year range
+    # Filter each time series to the requested dates range
     filtered_timeseries = []
     for series in time_series:
-        years = series["time"].dt.year.values
-        mask = np.ones(len(years), dtype=bool) 
-        if start_year is not None:
-            mask &= (years >= start_year)
-        if end_year is not None:
-            mask &= (years <= end_year)
-        series_filtered = series.sel(time=mask)
-        filtered_timeseries.append(series_filtered)
+        series_filtered = series.sel(time=slice(str(start_year), str(end_year)))
+        if series_filtered is not None:
+            filtered_timeseries.append(series_filtered)
+        else:
+            raise ValueError(f"No data available in the selected range {start_year}-{end_year} for some datasets.")
 
-    # Find common years across all filtered time series
-    year_sets = [set(series["time"].dt.year.values) for series in filtered_timeseries]
-    common_years = sorted(set.intersection(*year_sets))
-    if not common_years:
-        raise ValueError("No overlapping years in the selected range across all time series.")
-    final_timeseries = [series.sel(time=series["time"].dt.year.isin(common_years)) for series in filtered_timeseries]
+    # Find common dates across all filtered time series
+    # date_sets = [set(series["time"].dt.date.values) for series in filtered_timeseries]
+    # common_dates = sorted(set.intersection(*date_sets))
+    # if not common_dates:
+    #     raise ValueError("No overlapping dates in the selected range across all time series.")
+    # final_timeseries = [series.sel(time=series["time"].dt.date.isin(common_dates)) for series in filtered_timeseries]
 
 
     # Create plot
     fig, ax = plt.subplots(1, figsize=(10, 6), dpi=150)
-    labels = labels or [f'Series {i+1}' for i in range(len(final_timeseries))]
+    labels = labels or [f'Series {i+1}' for i in range(len(filtered_timeseries))]
 
-    for series, label in zip(final_timeseries, labels):
+    for series, label in zip(filtered_timeseries, labels):
+        dates = series['time'].values
+
         if 'realization' in series.dims and series.sizes['realization'] > 1:
             # Plot mean
             mean_series = series.mean('realization')
-            line, = ax.plot(common_years, mean_series.values, lw=2, ls='-.', label=label)
+            line, = ax.plot(dates, mean_series.values, lw=2, ls='-.', label=label)
             color = line.get_color()
 
             # Plot individual ensemble members
@@ -94,26 +92,45 @@ def time_series_plot(time_series, title='Annual mean time series', y_label='', l
 
             # Compute confidence intervals (bootstrap of mean)
             q025, q975 = [], []
-            for i in range(len(common_years)):
+            for i in range(len(dates)):
                 data = series.isel(time=i).values
                 bs_res = bootstrap((data,), np.mean, confidence_level=0.95)
                 q025.append(bs_res.confidence_interval.low)
                 q975.append(bs_res.confidence_interval.high)
-            ax.fill_between(common_years, q025, q975, facecolor=color, alpha=0.6)
+            ax.fill_between(dates, q025, q975, facecolor=color, alpha=0.6)
 
             # Plot ensemble spread (5th–95th percentile)
             series = series.chunk({"realization": -1})
             quantiles = series.quantile([0.05, 0.95], dim='realization', skipna=True)
-            ax.fill_between(common_years, quantiles[0], quantiles[1], facecolor=color, alpha=0.2)
+            ax.fill_between(dates, quantiles[0], quantiles[1], facecolor=color, alpha=0.2)
 
         else:
-            ax.plot(common_years, series.values, lw=2, ls='-.', label=label)
+            ax.plot(dates, series.values, lw=2, ls='-.', label=label)
+
+
+    # Set x-ticks and labels
+    if time_freq == 'annual':
+        unit = 'Y'
+        step = 1
+    elif time_freq == 'monthly':
+        unit = 'M'
+        step = 2
+    elif time_freq == 'daily':
+        unit = 'D'
+        step = 2
+    else:
+        raise ValueError("Invalid 'time_freq'. Must be 'annual', 'monthly' or 'daily'.")
+    
+    x_ticks = [np.datetime64(str(year), unit) for year in np.arange(start_year, end_year+step, 1)]
+    x_labels= [str(date) for date in x_ticks]
+    
+    ax.set_xticks(x_ticks)
+    ax.set_xticklabels(x_labels, rotation=45, ha='right')
 
     # Plot formatting
-    ax.set_xlabel('year', fontsize=14)
+    ax.set_xlabel('time', fontsize=14)
     ax.set_ylabel(y_label, fontsize=14)
-    ax.set_xticks(common_years)
-    ax.set_xticklabels(common_years, rotation=45, ha='right')
+
     ax.tick_params(axis='both', labelsize=12)
     ax.set_title(title, fontsize=18)
     ax.legend(fontsize=14)

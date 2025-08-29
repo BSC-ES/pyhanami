@@ -78,18 +78,19 @@ class DataDiagnostics:
         self.max_workers_grid = config.MAX_WORKERS_GRID
 
 
-    def _compute_time_series_annual(self, var_name, data_plot):
+    def _compute_time_series(self, var_name, data_plot, time_freq='1YS'):
         """ 
-        Compute time series for the given simulation ensembles and variable. 
+        Compute time series for the given simulation ensembles and variable with the selected time frequency. 
         
         Parameters
         ----------
         var_name (str): Climate variable name.
         data_plot (list[SimulationData and/or ObservationData]): List of ensembles to compute time series for.
+        time_freq (str): Resampling frequency for averaging.
         
         Returns
         -------
-        time_series (list[xr.DataArray]): List of annual mean time series.
+        time_series (list[xr.DataArray]): List of mean time series.
         """
 
         # Validate inputs
@@ -103,7 +104,7 @@ class DataDiagnostics:
                             f"Available variables: {list(dataset.data.data_vars.keys())}")
             
 
-        # Compute annual mean time series for each dataset
+        # Compute mean time series for each dataset
         time_series = []
         for dataset in [ds.data for ds in data_plot]:
             data_var = dataset[var_name]
@@ -111,7 +112,7 @@ class DataDiagnostics:
             data_weighted = data_var.weighted(weights)
 
             data_area_mean = data_weighted.mean(['lat', 'lon'])
-            data_time_mean = data_area_mean.resample(time='1YE').mean().compute()
+            data_time_mean = data_area_mean.resample(time=time_freq).mean().compute()
             time_series.append(data_time_mean)
         
         return time_series
@@ -326,7 +327,8 @@ class DataDiagnostics:
         return
     
     
-    def time_series_plots(self, var_name, data_names=None, output_path=None, obs=False, obs_paths=None, obs_names=None):
+    def time_series_plots(self, var_name, data_names=None, output_path=None, obs=False, obs_paths=None, obs_names=None, 
+                          time_freq='annual', start_year=None, end_year=None):
         """ 
         Generate time series plot for the given ensembles and variable. When no ensembles
         are specified, all datasets in the diagnostics object are used.
@@ -339,6 +341,8 @@ class DataDiagnostics:
         obs (bool): If True, also plot observational data if available.
         obs_paths (str or list[str]): Path to the observations database/s.
         obs_names (str or list[str]): Name of the observational dataset/s.
+        time_freq (str): Resampling frequency.
+        start_year, end_year (int): Years to plot.
         """
         
         # Validate inputs
@@ -386,28 +390,40 @@ class DataDiagnostics:
             data_plot.extend(data_obs)
             data_names.extend(obs_names)
 
+        if start_year is None or end_year is None:
+            raise TypeError("'start_year' and 'end_year' must be non-empty.")
+
+        if time_freq == 'annual':
+            time_freq_unit = '1YS'
+        elif time_freq == 'monthly':
+            time_freq_unit = '1MS'
+        elif time_freq == 'daily':
+            time_freq_unit = '1D'
+        else:
+            raise ValueError("Incorrect time frequency, supported values are 'annual', 'monthly' and 'daily'")
             
         # Compute and plot time series
-        time_series = self._compute_time_series_annual(var_name, data_plot)
-        time_series_plot, _ = plot.time_series_plot(time_series, title=f'Annual mean time series of {self.variables[var_name][0]}',
-                                                 y_label=f'{var_name} ({self.variables[var_name][1]})', labels=data_names)
+        time_series = self._compute_time_series(var_name, data_plot, time_freq_unit)
+        time_series_plot, _ = plot.time_series_plot(time_series, title=f'{time_freq.capitalize()} mean time series of {self.variables[var_name][0]}',
+                                                 y_label=f'{var_name} ({self.variables[var_name][1]})', labels=data_names, 
+                                                 time_freq=time_freq, start_year=start_year, end_year=end_year)
         
         # Save plot to path if given
         if output_path is None:
             plt.show()
-            print("Time series plot created and displayed.", flush=True)
+            print(f"{time_freq.capitalize()} mean time series plot created and displayed.", flush=True)
         else:
             output_path = Path(output_path)
             if not output_path.suffix:
                 output_path.mkdir(parents=True, exist_ok=True)
                 data_names_str = "-".join(data_names)
-                time_series_path = output_path / f"time_series_{var_name}_{data_names_str}.png"
+                time_series_path = output_path / f"{time_freq}_time_series_{var_name}_{data_names_str}_{start_year}-{end_year}.png"
             else:
                 output_path.parent.mkdir(parents=True, exist_ok=True)
                 time_series_path = output_path
             
-            time_series_plot.savefig(time_series_path, bbox_inches='tight', dpi=100)
-            print(f"Time series plot created and saved to '{time_series_path}'.", flush=True)
+            time_series_plot.savefig(time_series_path, bbox_inches='tight', dpi=150)
+            print(f"{time_freq.capitalize()} mean time series plot created and saved to '{time_series_path}'.", flush=True)
             
         return
 
@@ -480,7 +496,7 @@ class DataDiagnostics:
             plt.show()
             print("Absolute difference plot created and displayed.", flush=True)
         else:
-            abs_diff_plot.savefig(abs_diff_path, bbox_inches='tight', dpi=100)
+            abs_diff_plot.savefig(abs_diff_path, bbox_inches='tight', dpi=150)
             print(f"Absolute difference plot created and saved to '{abs_diff_path}'.\n", flush=True)
 
 
@@ -496,7 +512,7 @@ class DataDiagnostics:
             plt.show()
             print("Effect size plot created and displayed.", flush=True)
         else:
-            eff_size_plot.savefig(eff_size_path, bbox_inches='tight', dpi=100)
+            eff_size_plot.savefig(eff_size_path, bbox_inches='tight', dpi=150)
             print(f"Effect size plot created and saved to '{eff_size_path}'.\n", flush=True)
             
         return
