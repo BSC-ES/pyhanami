@@ -1,3 +1,7 @@
+import warnings
+warnings.simplefilter("always")
+
+import numpy as np
 import xarray as xr
 
 from pathlib import Path
@@ -81,12 +85,18 @@ class ObservationData:
         data_obs_vars = []
         for var in sim.data_vars:
             var_path = next(self.data_path.glob(f"data_obs*_{var}.nc"))
-            print(var_path, flush=True)
             data_obs_aux = xr.open_dataset(var_path, chunks="auto")
 
             # Align the time range with the simulations
             if "time" not in data_obs_aux.coords or "time" not in sim.coords:
                 raise ValueError(f"'time' coordinate missing in either simulations or observations for variable {var}.")
+            
+            time_type = type(data_obs_aux['time'].values[0])
+            if not np.issubdtype(time_type, np.datetime64):
+                datetimeindex = data_obs_aux.indexes['time'].to_datetimeindex('ns')
+                data_obs_aux['time'] = datetimeindex
+                warnings.warn(f"Observations data 'time' coordinate was not in 'np.datetime64' format but '{time_type}' instead." +
+                            f" It has been converted automatically but better to provide it in the correct format from the beginning.")
             
             try:
                 data_obs_sel = data_obs_aux.sel(time=sim.time)

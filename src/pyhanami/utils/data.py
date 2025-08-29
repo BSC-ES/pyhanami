@@ -1,4 +1,6 @@
-# import pint
+import warnings
+warnings.simplefilter("always")
+
 import numpy as np
 import xesmf as xe
 import xarray as xr
@@ -60,6 +62,13 @@ def check_data(data):
     if missing_coords:
         raise ValueError(f"The dataset is missing the following coordinates: {', '.join(missing_coords)}. "
                          f"Please, ensure these coordinates are included before proceeding.")
+    
+    time_type = type(data['time'].values[0])
+    if not np.issubdtype(time_type, np.datetime64):
+        datetimeindex = data.indexes['time'].to_datetimeindex(time_unit='ns')
+        data['time'] = datetimeindex
+        warnings.warn(f"Data 'time' coordinate was not in 'np.datetime64' format but '{time_type}' instead." +
+                      f" It has been converted automatically, but better to provide it in the correct format from the beginning.")
     
     for coord in ['lat', 'lon']:
         coord_values = data[coord].values
