@@ -43,6 +43,7 @@ pip install .
 - `var_name`: name of climate variable to evaluate. It must be listed in `src/pyhanami/config.py`.
 - `output_path`: path to save the corresponding plots. It can be either a directory or a full file path including the file name.
 - `obs_path`: path to a directory containing observation datasets, stored in files following the naming pattern `data_obs*_{var_name}`.nc`.
+- year_init, year_end: range of years for the time series plots.
 
 
 #### Full example workflow
@@ -53,13 +54,13 @@ import pyhanami as hnmi
 ref = hnmi.SimulationData('source_ref', name='ref')
 test = hnmi.SimulationData('source_test', name='test')
 
-# Diagnostics: create and display time series plot for one dataset together with observations
+# Diagnostics: create and display annual mean time series plot for one dataset together with observations
 diags = hnmi.DataDiagnostics(ref)
-diags.time_series_plots('var_name', 'ref', obs=True)
+diags.time_series_plots('var_name', 'ref', obs=True, start_year=year_init, end_year=year_end)
 
 # Diagnostics: compare multiple datasets and save plots
 diags.add_datasets(test)
-diags.time_series_plots('var_name', ['ref','test'], 'output_path')
+diags.time_series_plots('var_name', ['ref','test'], 'output_path', start_year=year_init, end_year=year_end)
 diags.spatial_plots('var_name', ['ref','test'], 'output_path')
 
 # Replicability test
