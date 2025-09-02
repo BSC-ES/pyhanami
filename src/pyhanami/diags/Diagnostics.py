@@ -348,8 +348,8 @@ class DataDiagnostics:
         data_names (str or list[str]): Name or list of names of simulation ensembles to plot.
         output_path (str): Path to save the time series plot.  
         obs (bool): If True, also plot observational data if available.
-        obs_paths (str or list[str]): Path to the observations database/s.
-        obs_names (str or list[str]): Name of the observational dataset/s.
+        obs_paths (str or list[str]): Path/s to the observations database/s.
+        obs_names (str or list[str]): Name/s of the observational dataset/s.
         """
         
         # Validate inputs
