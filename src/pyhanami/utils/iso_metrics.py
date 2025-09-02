@@ -96,7 +96,7 @@ def apply_lanczos_bandpass(data, window=141, low_freq=1/90, high_freq=1/25):
     return filtered_data
 
 
-def extract_season_blocks(data, year_init, year_end, season, cutoff_points=90):
+def extract_season_blocks(data, start_year, end_year, season, cutoff_points=90):
     """
     Extract time blocks for the given season for each year, dismissing blocks with less
     than the specified number of points.
@@ -104,8 +104,8 @@ def extract_season_blocks(data, year_init, year_end, season, cutoff_points=90):
     Parameters
     ----------
     data (xarray.DataArray): Input data.
-    year_init (int): Start year for filtering.
-    year_end (int): End year for filtering.
+    start_year (int): Start year for filtering.
+    end_year (int): End year for filtering.
     season (str): Season to filter.
     cutoff_points (int): Minimum number of points necessary to keep a block.
 
@@ -118,12 +118,12 @@ def extract_season_blocks(data, year_init, year_end, season, cutoff_points=90):
     if not isinstance(data, xr.DataArray):
         raise TypeError("'data' must be an xarray.DataArray.")
     years = data.time.dt.year
-    if (year_init not in years) or (year_end not in years):
-        raise ValueError("Invalid 'year_init' and/or 'year_end', years not found in the provided dataset.")
+    if (start_year not in years) or (end_year not in years):
+        raise ValueError("Invalid 'start_year' and/or 'end_year', years not found in the provided dataset.")
     
     # Compute blocks
     blocks = []
-    for year in range(year_init, year_end+1):
+    for year in range(start_year, end_year+1):
         # Generate season labels for the corresponding years
         if season == "boreal_winter":
             start = np.datetime64(f"{year}-12-01")
