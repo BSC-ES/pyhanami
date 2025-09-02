@@ -46,8 +46,6 @@ def time_series_plot(time_series, title='Annual mean time series', y_label='', l
     else:
         raise TypeError("The data must be either a xarray.DataArray or a list of xarray.DataArray.")
     
-    if not isinstance(title, str) or not isinstance(y_label, str):
-        raise TypeError("Both 'title' and 'y_label' must be strings.")
     if labels is not None:
         if not isinstance(labels, list) or len(labels) != len(time_series) \
             or not all(isinstance(label, str) for label in labels):
@@ -226,8 +224,6 @@ def spatial_plot(data, title='Spatial plot', cb_label='', cmap=cmocean.cm.therma
     if 'lat' not in data.coords or 'lon' not in data.coords:
         raise ValueError("Could not identify latitude and longitude coordinates.")
     
-    if not isinstance(title, str) or not isinstance(cb_label, str):
-        raise TypeError("Both 'title' and 'cb_label' must be strings.")
     
     # Add cyclic point
     aux, lon = add_cyclic_point(data, coord=data.lon.values)
@@ -293,8 +289,6 @@ def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicabili
         raise ValueError("Mismatched spatial dimensions between effect sizes and test results.")
     if test not in range(5):
         raise ValueError("Invalid test index. Must be: 0 (KS-test), 1 (T-test), 2 (U-test), 3 (B-test), 4 (All).")
-    if not isinstance(title, str):
-        raise TypeError("'title' must be a string.")
 
     # Prepare parameters
     if variables is None:
@@ -480,8 +474,6 @@ def eeofs_plot(eeof, clon=0, title='ISO convection patterns', cb_label='scaled E
         raise TypeError("The EOFss data must be xarray.Datasets.")    
     if not isinstance(clon, (int, float)) or not (0 <= clon <= 360):
         raise TypeError("The central longitude 'clon' must be a numeric value between 0º and 360º.")
-    if not isinstance(title, str):
-        raise TypeError("'title' must be a string.")
     
     lags = eeof.lag.values
     modes = eeof.mode.values
@@ -579,13 +571,14 @@ def pcs_plot(pcs, title='Bimodal ISO indices', normalized=True):
     if normalized:
         pcs_MJO = pcs['PC_MJO_std']
         pcs_BSISO = pcs['PC_BSISO_std']
+        amp_MJO = pcs['amp_MJO_std']
+        amp_BSISO = pcs['amp_BSISO_std']
     else:
         pcs_MJO = pcs['PC_MJO_raw']
         pcs_BSISO = pcs['PC_BSISO_raw']
+        amp_MJO = pcs['amp_MJO_raw']
+        amp_BSISO = pcs['amp_BSISO_raw']
     modes = pcs_MJO.mode.values
-    
-    if not isinstance(title, str):
-        raise TypeError("'title' must be a string.")
     
     # Prepare time labels
     time = pcs_MJO.time.values
@@ -596,24 +589,122 @@ def pcs_plot(pcs, title='Bimodal ISO indices', normalized=True):
     tick_labels = [str(m)[:7] for m in months]
 
     # Create plot
-    fig, axs = plt.subplots(2,1, figsize=(10, 6), sharex=True, dpi=150)
-    axs[0].get_shared_y_axes().joined(axs[0], axs[1])
-    colors = [['tab:blue', 'tab:red', 'tab:brown', 'tab:pink'], ['tab:green', 'tab:orange',' tab:purple', 'tab:gray']]
-    for i, (data, label) in enumerate(zip([pcs_MJO, pcs_BSISO], ['MJO','BSISO'])):
+    fig, axs = plt.subplots(3,1, figsize=(12, 8), sharex=True, dpi=150)
+    colors = [['tab:blue', 'tab:red', 'tab:brown', 'tab:pink'], ['tab:orange', 'tab:green',' tab:purple', 'tab:gray']]
+    labels = ['MJO','BSISO']
+    y_lim = 4
+    
+    # Plot PCs
+    for i, data in enumerate([pcs_MJO, pcs_BSISO]):
         for j in modes:
-            axs[i].plot(data.time, data.sel(mode=j), lw=1.2, ls='-', label=f'{label} PC{j}', color=colors[i][j-1])
+            axs[i].plot(data.time, data.sel(mode=j), lw=1.2, ls='-', label=f'{labels[i]} PC{j}', color=colors[i][j-1])
         
         # Plot formatting
         axs[i].set_xticks(months)
         axs[i].tick_params(axis='both', labelsize=8)
+        axs[i].set_ylim(-y_lim, y_lim)
         axs[i].set_ylabel(f'Normalized PC', fontsize=10)
-        axs[i].set_title(label, fontsize=12)
+        axs[i].set_title(labels[i], fontsize=12)
         axs[i].legend(fontsize=8, loc='upper right')
         axs[i].grid()
 
-    axs[1].set_xticklabels(tick_labels, rotation=45, ha='right')
-    axs[1].set_xlabel('time', fontsize=10)
+    # Plot amplitudes
+    for i, data in enumerate([amp_MJO, amp_BSISO]):
+        axs[2].plot(data.time, data, lw=1.2, ls='-', label=f'{labels[i]}', color=colors[i][0])
+        axs[2].fill_between(data.time, data, where=data>=0, color=colors[i][0], alpha=0.3)
+
+    axs[2].set_xticks(months)
+    axs[2].tick_params(axis='both', labelsize=8)
+    axs[2].set_ylim(0, y_lim)
+    axs[2].set_ylabel(f'|Normalized PCs|', fontsize=10)
+    axs[2].set_title('Amplitude', fontsize=12)
+    axs[2].legend(fontsize=8, loc='upper right')
+    axs[2].grid()
+
+    axs[2].set_xticklabels(tick_labels, rotation=45, ha='right')
+    axs[2].set_xlabel('time', fontsize=10)
     fig.suptitle(title, fontsize=14)
     plt.tight_layout()
 
     return fig, axs
+
+
+def freq_ISO_plot(freq_ISO_sim, freq_ISO_obs=None, title='Mean monthly frequency of ISO events', sim_label='simulations', obs_label='observations'):
+    """ 
+    Generate plot of the mean monthly frequency of occurrence of ISO events (distinguishing between MJO and BSISO).
+
+    Parameters
+    ----------
+    freq_ISO_sim (xarray.Dataset): Mean monthly frequency of occurrence data for simulated data.
+    freq_ISO_obs (xarray.Dataset): Mean monthly frequency of occurrence data for observations.
+    title (str): Title of the plot.
+    sim_label, obs_label (str): Labels for simulated and observed data.
+
+    Returns
+    -------
+    fig (matplotlib.figure.Figure): Generated plot.
+    ax (matplotlib.axes._subplots.AxesSubplot): Plot axis.
+    """
+
+    # Validate input
+    if not isinstance(freq_ISO_sim, xr.Dataset) or (freq_ISO_obs is not None and not isinstance(freq_ISO_obs, (xr.Dataset))):
+        raise TypeError("The frequency of occurrence data must be xarray.Datasets.")
+    
+
+    # Create plot
+    fig, ax = plt.subplots(figsize=(7,5), dpi=150)
+
+    x = np.arange(1,13)
+    ax.axhline(0, color='black', lw=0.8)
+    
+    if freq_ISO_obs is not None:
+        ax.bar(x, freq_ISO_sim['freq_MJO'], color='tab:blue', label=f'MJO {sim_label}', align='left')
+        ax.bar(x, -freq_ISO_sim['freq_BSISO'], color='tab:orange', label=f'BSISO {sim_label}', align='left')
+
+        ax.bar(x, freq_ISO_obs['freq_MJO'], color='tab:blue', label=f'MJO {obs_label}', align='right', alpha=0.6)
+        ax.bar(x, freq_ISO_obs['freq_BSISO'], color='tab:orange', label=f'BSISO {obs_label}', align='right', alpha=0.6)
+        
+        # MJO legend (upper right)
+        mjo_handles = [
+            plt.Rectangle((0,0),1,1, color='tab:blue', alpha=1.0, label=f'MJO {sim_label}'),
+            plt.Rectangle((0,0),1,1, color='tab:blue', alpha=0.6, label=f'MJO {obs_label}')
+        ]
+        legend_mjo = ax.legend(handles=mjo_handles, loc='upper right', fontsize=8)
+        ax.add_artist(legend_mjo)
+
+        # BSISO legend (lower right)
+        bsiso_handles = [
+            plt.Rectangle((0,0),1,1, color='tab:orange', alpha=1.0, label=f'BSISO {sim_label}'),
+            plt.Rectangle((0,0),1,1, color='tab:orange', alpha=0.6, label=f'BSISO {obs_label}')
+        ]
+        legend_bsiso = ax.legend(handles=bsiso_handles, loc='lower right', fontsize=8)
+        ax.add_artist(legend_bsiso)
+    else:
+        ax.bar(x, freq_ISO_sim['freq_MJO'], color='tab:blue', label=f'MJO {sim_label}', align='center')
+        ax.bar(x, -freq_ISO_sim['freq_BSISO'], color='tab:orange', label=f'BSISO {sim_label}', align='center') 
+
+        # MJO legend (upper right)
+        mjo_handles = [plt.Rectangle((0,0),1,1, color='tab:blue', label=f'MJO {sim_label}')]
+        legend_mjo = ax.legend(handles=mjo_handles, loc='upper right', fontsize=8)
+        ax.add_artist(legend_mjo)
+
+        # BSISO legend (lower right)
+        bsiso_handles = [plt.Rectangle((0,0),1,1, color='tab:orange', label=f'BSISO {sim_label}')]
+        legend_bsiso = ax.legend(handles=bsiso_handles, loc='lower right', fontsize=8)
+        ax.add_artist(legend_bsiso)
+
+
+    # Plot formatting
+    ax.set_xticks(x)
+    ax.set_xticklabels(['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'])
+    ax.set_xlabel('month', fontsize=10)
+
+    y_ticks = np.linspace(-1, 1, 11)
+    ax.set_yticks(y_ticks)
+    ax.set_yticklabels([f'{abs(y):.1f}' for y in y_ticks])
+    ax.set_ylabel('frequency of occurrence', fontsize=10)
+    
+    ax.set_title(title, fontsize=12)
+    plt.tight_layout()
+
+    return fig, ax
