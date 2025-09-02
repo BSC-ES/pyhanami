@@ -1,3 +1,4 @@
+import numpy as np
 import xarray as xr
 
 from pathlib import Path
@@ -86,10 +87,11 @@ class ObservationData:
 
             # Align the time range with the simulations
             if "time" not in data_obs_aux.coords or "time" not in sim.coords:
-                raise ValueError(f"'time' coordinate missing in either simulations or observations for variable {var}.")
+                raise ValueError(f"'time' coordinate missing in either simulations or observations for variable '{var}'.")
+            data_obs_time = data.normalize_time_format(data_obs_aux)
             
             try:
-                data_obs_sel = data_obs_aux.sel(time=sim.time)
+                data_obs_sel = data_obs_time.sel(time=sim.time)
             except KeyError:
                 raise KeyError(f"Observations missing for some time points in variable {var}.")
             data_obs_vars.append(data_obs_sel)
