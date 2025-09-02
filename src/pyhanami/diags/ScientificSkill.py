@@ -26,15 +26,11 @@ class ScientificEvaluation:
     ----------
     datasets : SimulationData or Iterable[SimulationData]
         Ensemble or list of ensembles containing simulation data and metadata.
-    obs_path : str
-        Path to the observations database.
 
     Attributes
     ----------
     datasets : list[SimulationData]
         List of ensembles containing simulation data and metadata.
-    obs_path : str
-        Path to the observations database.
     variables : dict
         Configuration dictionary mapping variable names to display metadata.
 
@@ -49,15 +45,20 @@ class ScientificEvaluation:
     _compute_PCs(olr_data, eeofs, year):
         Computes Principal Components (PCs) of OLR data using previously computed EEOFs for each ISO mode (MJO and BSISO).
 
+    _compute_freq_ISO(events):
+        Computes the mean monthly frequency of ocurrence of ISO events (distinguishing between MJO and BSISO).
+
+    _compute_TSS(freq_ISO, freq_obs):
+        Computes the Taylor Skill Score (TSS) comparing simulated and observed mean monthly frequency of ocurrence of ISO events.
+
     add_datasets(datasets)
         Adds new datasets to the ScientificEvaluation object.
 
-    bimodal_ISO(data_name, year_init_eeof, year_end_eeof, years_pc, output_path, plot_eeofs, clon, lat_range, lags, n_modes, window, low_freq, high_freq):
+    bimodal_ISO(data_name,  obs_path, obs_name, year_init, year_end, years_pc, output_path, plot_eeofs, clon, plot_pcs, lat_range, lags, n_modes, window, low_freq, high_freq):
         Computes bimodal ISO indices following (K. Kikuchi, 2020) and plot results for the selected years.
     """
 
-    def __init__(self, datasets: Iterable[SimulationData] = None, obs_path: str = None):        
-        self.obs_path = obs_path
+    def __init__(self, datasets: Iterable[SimulationData] = None):        
         if datasets is None:
             self.datasets = []
         else:
@@ -265,6 +266,75 @@ class ScientificEvaluation:
         return pcs_data
     
 
+    def _compute_freq_ISO(self, events):
+        """
+        Compute the mean monthly frequency of ocurrence of ISO events (distinguishing between MJO and BSISO).
+
+        Parameters
+        ----------
+        events (xr.DataArray): Input labelled events data.
+
+        Returns
+        -------
+        freq_ISO (xr.Dataset): Mean monthly frequency of ocurrence.
+        """
+
+        # Validate input
+        if not isinstance(events, xr.DataArray):
+            raise TypeError("'events' must be an xarray.DataArray.")
+        
+        # Compute monthly frequency
+        n_mjo = (events == 1)
+        n_bsiso = (events == 2)
+
+        freq_mjo = n_mjo.groupby("time.month").mean().compute()
+        freq_bsiso = n_bsiso.groupby("time.month").mean().compute()
+
+        freq_ISO = xr.Dataset({
+            "freq_MJO": freq_mjo,
+            "freq_BSISO": freq_bsiso
+        })
+
+        print(f"Computed mean monthly frequency of ISO events.", flush=True)
+        return freq_ISO
+    
+
+    def _compute_TSS(self, freq_ISO, freq_obs):
+        """
+        Compute the Taylor Skill Score (TSS) comparing simulated and observed 
+        mean monthly frequency of ocurrence of ISO events.
+        
+        Parameters
+        ----------
+        freq_ISO (xr.Dataset): Simulated mean monthly frequency of ocurrence.
+        freq_obs (xr.Dataset): Observed mean monthly frequency of ocurrence.
+
+        Returns
+        -------
+        corr (float): Temporal correlation coefficient.
+        sigma (float): Ratio of the standard deviations (model/obs) of the frequency.
+        tss (float): Taylor Skill Score.
+        """
+
+        # Validate input
+        if not isinstance(freq_ISO, xr.Dataset) or not isinstance(freq_obs, xr.Dataset):
+            raise TypeError("Simulated and observed frequencies must be xarray.Datasets.")
+        
+        # Compute frequencies
+        freq_diff_sim = freq_ISO['freq_BSISO'] - freq_ISO['freq_MJO']
+        freq_diff_obs = freq_obs['freq_BSISO'] - freq_obs['freq_MJO']
+
+
+        # Compute statistics (Note: corr_0 is the maximum correlation attainable by the model, here assumed to be 1)
+        corr_0 = 1
+        corr = xr.corr(freq_diff_sim, freq_diff_obs, dim='month')
+        sigma = freq_diff_sim.std(dim='month') / freq_diff_obs.std(dim='month')
+
+        tss = (4 * (1+corr)**4) / ((sigma + (1/sigma))**2 * (1+corr_0)**2)
+
+        return corr, sigma, tss
+
+
     def add_datasets(self, datasets):
         """ 
         Add new datasets to the ScientificEvaluation object.
@@ -292,8 +362,8 @@ class ScientificEvaluation:
         return
     
     
-    def bimodal_ISO(self, data_name=None, year_init_eeof=None, year_end_eeof=None, years_pc=None, output_path=None, 
-                    plot_eeofs=True, clon=0, plot_pcs=True, 
+    def bimodal_ISO(self, data_name=None,  obs_path=None, obs_name=None, year_init=None, year_end=None, 
+                    years_pc=None, output_path=None, plot_eeofs=True, clon=0, plot_pcs=True, 
                     lat_range=(-30,30), lags=[-10, -5, 0], n_modes=2, window=141, low_freq=1/90, high_freq=1/25):
         """
         Compute bimodal ISO indices following (K. Kikuchi, 2020) and plot results for the selected years.
@@ -301,7 +371,9 @@ class ScientificEvaluation:
         Parameters
         ----------
         data_name (str): Name of simulation ensemble to use.
-        year_init_eeof, year_end_eeof (int): Initial and end years to perform the EEOF analysis.
+        obs_path (str or list[str]): Path to the observations database.
+        obs_name (str or list[str]): Name of the observational dataset.
+        year_init, year_end (int): Initial and end years to compute the TSS for.
         years_pc (int or list[int]): Years to compute the indices for.
         output_path (str): Path to save plots.
         plot_eeofs (bool): If True, also spatially plot EEOFs.
@@ -329,6 +401,16 @@ class ScientificEvaluation:
         else:
             raise TypeError("'data_name' must be a string representing a dataset name.")
         
+        # Prepare output path if given
+        if output_path is not None:
+            output_path = Path(output_path)
+            if output_path.suffix != '':  
+                raise ValueError("Output path must be a directory, not a file path, as multiple files may be created.")
+            
+            output_path.mkdir(parents=True, exist_ok=True)
+        
+
+        # Prepare simulated and observed OLR data
         var_name = "olr"
         if var_name not in data_plot.data.data_vars:
             raise ValueError(f"Variable '{var_name}' not found in the simulated dataset '{data_name}'. "
@@ -337,48 +419,46 @@ class ScientificEvaluation:
         olr_data = self._apply_Lanczos_bandpass_filter(olr_data_unfiltered, window, low_freq, high_freq)
 
         olr_years = olr_data.time.dt.year
-        if year_init_eeof is None:
-            year_init_eeof = int(olr_years.min())
-        if year_end_eeof is None:
-            year_end_eeof = int(olr_years.max())
+        if year_init is None:
+            year_init = int(olr_years.min())
+        if year_end is None:
+            year_end = int(olr_years.max())
+        # olr_data = olr_data.sel(time=slice(str(year_init), str(year_end+1)))
+
         if isinstance(years_pc, int):
             years_pc = [years_pc]
         if not any(year in olr_years.values for year in years_pc):
             raise ValueError(f"Some years are missing in the selected dataset {data_name}.")
         
-        # Prepare output path if given
-        if output_path is not None:
-            output_path = Path(output_path)
-            if output_path.suffix != '':  
-                raise ValueError("Output path must be a directory, not a file path, as multiple files may be created.")
-            
-            output_path.mkdir(parents=True, exist_ok=True)
+        # data_obs = ObservationData(obs_path, olr_data.to_dataset(), name=obs_name)
+        # olr_obs_unfiltered = data_obs.data[var_name].sortby("lat").sel(lat=slice(*lat_range)).compute()
+        # olr_obs = self._apply_Lanczos_bandpass_filter(olr_obs_unfiltered, window, low_freq, high_freq)
 
 
         # Conduct EEOF analysis and plot if requested
-        eeof_winter = self._perform_EEOF_analysis(olr_data, year_init_eeof, year_end_eeof, 'boreal_winter', lags, n_modes)
-        eeof_summer = self._perform_EEOF_analysis(olr_data, year_init_eeof, year_end_eeof, 'boreal_summer', lags, n_modes)
+        eeof_winter = self._perform_EEOF_analysis(olr_data, year_init, year_end, 'boreal_winter', lags, n_modes)
+        eeof_summer = self._perform_EEOF_analysis(olr_data, year_init, year_end, 'boreal_summer', lags, n_modes)
 
         if plot_eeofs:
-            eeofw_plot, _ = plot.eeofs_plot(eeof_winter, clon=clon, title=f'Boreal winter ISO convective pattern {data_name} (DJFMA {year_init_eeof}-{year_end_eeof})', 
+            eeofw_plot, _ = plot.eeofs_plot(eeof_winter, clon=clon, title=f'Boreal winter ISO convective pattern {data_name} (DJFMA {year_init}-{year_end})', 
                                             cb_label=f'scaled EEOF ({self.variables[var_name][1]})', cmap=LinearSegmentedColormap.from_list("BlueRed", ['tab:blue', 'white', 'tab:red']))            
             if output_path is None:
                 plt.show()
                 print("Boreal winter EEOFs plot created and displayed.", flush=True)
             else:
-                eeofw_path = output_path / f"eeof_boreal_winter_{data_name}_{year_init_eeof}-{year_end_eeof}"
+                eeofw_path = output_path / f"eeof_boreal_winter_{data_name}_{year_init}-{year_end}"
 
                 # eeof_winter.to_netcdf(eeofw_path.with_suffix('.nc'))
                 eeofw_plot.savefig(eeofw_path.with_suffix('.png'), bbox_inches='tight', dpi=150)
                 print(f"Boreal winter EEOFs plot created and saved to '{eeofw_path}'.", flush=True)
 
-            eeofs_plot, _ = plot.eeofs_plot(eeof_summer, clon=clon, title=f'Boreal summer ISO convective pattern {data_name} (JJASO {year_init_eeof}-{year_end_eeof})',
+            eeofs_plot, _ = plot.eeofs_plot(eeof_summer, clon=clon, title=f'Boreal summer ISO convective pattern {data_name} (JJASO {year_init}-{year_end})',
                                             cb_label=f'scaled EEOF ({self.variables[var_name][1]})', cmap=LinearSegmentedColormap.from_list("GreenOrange", ['tab:green', 'white', 'tab:orange']))       
             if output_path is None:
                 plt.show()
                 print("Boreal summer EEOFs plot created and displayed.\n", flush=True)
             else:
-                eeofs_path = output_path / f"eeof_boreal_summer_{data_name}_{year_init_eeof}-{year_end_eeof}"
+                eeofs_path = output_path / f"eeof_boreal_summer_{data_name}_{year_init}-{year_end}"
                 
                 # eeof_winter.to_netcdf(eeofw_path.with_suffix('.nc'))
                 eeofs_plot.savefig(eeofs_path.with_suffix('.png'), bbox_inches='tight', dpi=150)
@@ -386,22 +466,42 @@ class ScientificEvaluation:
         
 
         # Compute PCs and plot if requested
-        pcs = self._compute_PCs(olr_data, [eeof_winter, eeof_summer])
+        # pcs_obs = self._compute_PCs(olr_obs, [eeof_winter, eeof_summer])
+        pcs_sim = self._compute_PCs(olr_data, [eeof_winter, eeof_summer])
         for year in years_pc:
-            pcs_year = pcs.sel(time=slice(f'{year}-01-01', f'{year}-12-31'))
+            pcs_year = pcs_sim.sel(time=slice(f'{year}-01-01', f'{year}-12-31'))
 
             if plot_pcs:
                 pcs_plot, _ = plot.pcs_plot(pcs_year, title=f'Bimodal ISO indices {data_name} ({year})')
                 
                 if output_path is None:
                     plt.show()
-                    print(f"PCs for year {year} plot created and displayed.", flush=True)
+                    print(f"PCs for year {year} plot created and displayed.\n", flush=True)
                 else:
-                    pcs_path = output_path / f"pcs_{data_name}_{year}"
+                    pcs_path = output_path / f"pcs_{data_name}_{year}_projected_{year_init}-{year_end}"
 
                     # pcs_year.to_netcdf(pcs_path.with_suffix('.nc'))
                     pcs_plot.savefig(pcs_path.with_suffix('.png'), bbox_inches='tight', dpi=150)
-                    print(f"PCs plot for year {year} created and saved to '{pcs_path}'.", flush=True)
+                    print(f"PCs plot for year {year} created and saved to '{pcs_path}'.\n", flush=True)
+
+        
+        # Compute and plot monthly frequency of ocurrence of ISO events
+        # events_obs = pcs_obs['label']
+        events_sim = pcs_sim['label']
+
+        # freq_ISO_obs = self._compute_freq_ISO(events_obs)
+        freq_ISO_sim = self._compute_freq_ISO(events_sim)
+        freq_plot, _ = plot.freq_ISO_plot(freq_ISO_sim, title=f'Mean monthly frequency of ISO events ({year_init}-{year_end})',
+                                          sim_label=data_name, obs_label=obs_name)
+
+        if output_path is None:
+            plt.show()
+            print(f"Mean monthly frequency of ISO events plot created and displayed.", flush=True)
+        else:
+            freq_path = output_path / f"freq_ISO_{data_name}_{year_init}-{year_end}"
+
+            # freq_ISO.to_netcdf(freq_path.with_suffix('.nc'))
+            freq_plot.savefig(freq_path.with_suffix('.png'), bbox_inches='tight', dpi=150)
+            print(f"Mean monthly frequency of ISO events plot created and saved to '{freq_path}'.", flush=True)
 
         return
-        
