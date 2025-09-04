@@ -19,15 +19,21 @@ class ObservationData:
         Path to an observations database.
     sim : xr.Dataset
         Input simulation dataset.
+    name : str
+        Name of the observations instance.
+    regrid_method : str
+        Regridding method.
 
     Attributes
     ----------
     data_path : Path
         Path to the observations database.
-    name : str
-        Name of the observations instance.
     data : xr.Dataset
         Processed observational data, regridded to match the input simulation.
+    name : str
+        Name of the observations instance.
+    regrid_method : str
+        Regridding method.
 
     Methods
     -------
@@ -37,7 +43,7 @@ class ObservationData:
         Retrieves observational data and regrids it to match the input simulation.
     """
 
-    def __init__(self, data_path: str, sim: xr.Dataset, name: str = 'obs'):
+    def __init__(self, data_path: str, sim: xr.Dataset, name: str = 'obs', regrid_method: str = 'conservative'):
         if isinstance(data_path, (str, Path)):
             self.data_path = Path(data_path)
         else:
@@ -49,12 +55,17 @@ class ObservationData:
             raise TypeError("Input simulation must be an xarray.Dataset.")
         if not sim.data_vars:
             raise ValueError("Input simulation must contain at least one climate variable.")
-        self.data = self.load_and_process(sim)
 
         if isinstance(name, str):
             self.name = name
         else:
             raise TypeError("'name' must be a string.")
+        if isinstance(regrid_method, str):
+            self.regrid_method = regrid_method
+        else:
+            raise TypeError("'regrid_method' must be a string.")
+        
+        self.data = self.load_and_process(sim)
 
 
     def _retrieve_obs(self, sim):
@@ -82,14 +93,13 @@ class ObservationData:
         data_obs_vars = []
         for var in sim.data_vars:
             var_path = next(self.data_path.glob(f"data_obs*_{var}.nc"))
-            print(var_path, flush=True)
             data_obs_aux = xr.open_dataset(var_path, chunks="auto")
 
             # Align the time range with the simulations
             if "time" not in data_obs_aux.coords or "time" not in sim.coords:
                 raise ValueError(f"'time' coordinate missing in either simulations or observations for variable '{var}'.")
             data_obs_time = data.normalize_time_format(data_obs_aux)
-            
+
             try:
                 data_obs_sel = data_obs_time.sel(time=sim.time)
             except KeyError:
@@ -121,6 +131,6 @@ class ObservationData:
             raise ValueError("Input simulation must contain at least one climate variable.")
 
         data_old_grid = self._retrieve_obs(sim)
-        data_new_grid = data.regrid_data(data_old_grid, sim)
+        data_new_grid = data.regrid_data(data_old_grid, sim, method=self.regrid_method)
 
         return data_new_grid 
