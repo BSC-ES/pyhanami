@@ -156,7 +156,7 @@ Compute **bimodal ISO indices** performing an EEOF analysis between `year_init` 
 # Initialize ScientificEvaluation class with a SimulationData object
 sciskill = hnmi.ScientificEvaluation(sim_1)
 
-# Compute bimodal ISO indices performing the EEOF analysis on simulated data
+# Compute and plot bimodal ISO indices performing the EEOF analysis on simulated data
 sciskill.bimodal_ISO(
     'name_sim_1', 
     'output_path', 
@@ -164,8 +164,11 @@ sciskill.bimodal_ISO(
     end_year_eeof=year_end, 
     years_pc=years
 )
+```
 
-# Compute bimodal ISO indices and TSS performing the EEOF analysis on observational data
+Same but using observations to compute the EEOFs. In this case, the mean monthly frequency (seasonality) of ISO events is compared between simulations and observations, and plotted together with the TSS statistics:
+```python
+# Compute and plot bimodal ISO indices and TSS performing the EEOF analysis on observational data
 sciskill.bimodal_ISO(
     'name_sim_1', 
     'output_path', 
