@@ -56,7 +56,7 @@ pip install .
 
 ## Usage
 
-### **Load simulation data** 
+### **1. Load simulation data** 
 
 ```python
 import pyhanami as hnmi
@@ -68,7 +68,7 @@ sim_2 = hnmi.SimulationData('source_sim_2', name='name_sim_2')
 Note that `source_sim_1` and `source_sim_2` must be paths to NetCDF files or `xarray.Dataset` objects.
 
 
-### Time series plots
+### **2. Time series plots**
 
 Generate **time series plots** between `year_init` and `year_end` for a given climate variable `var_name`:
 
@@ -113,7 +113,7 @@ diags.time_series_plots(
 This `time_series_plots` method plots annual mean time series by default, but it also supports monthly and daily mean time series by passing the argument `time_freq='monthly'` and `time_freq='daily'`, respectively. 
 
 
-### Spatial plots
+### **3. Spatial plots**
 
 Generate **spatial plots** comparing two simulation datasets:
 
@@ -131,7 +131,7 @@ diags.spatial_plots(
 ```
 
 
-### Replicability test
+### **4. Replicability test**
 
 Perform and plot results of a **replicability test** comparing two simulation datasets:
 
@@ -149,14 +149,15 @@ tester.matrix_plot(
 This `matrix_plot` method uses all variables from the simulation datasets that are listed in `src/pyhanami/config.py` to perform the replicability test.
 
 
-### Tropical IntraSeasonal Oscillation (ISO) evaluation
+### **5. Tropical IntraSeasonal Oscillation (ISO) evaluation**
 
-Compute **bimodal ISO indices** performing an EEOF analysis between `year_init` and `year_end` and plotting the indices (first two PCs) for `years` (which can be just one year or a list of years):
+Perform an EEOF analysis between `year_init` and `year_end`, and use the resulting EEOFs to compute the **bimodal ISO indices** (first two PCs) for the entire period covered by the provided dataset. Then, plot these indices for `years` (which can be just one year or a list of years). Finally, use the indices to calculate and plot the mean monthly frequency of ISO events for the full dataset period:
+
 ```python
 # Initialize ScientificEvaluation class with a SimulationData object
 sciskill = hnmi.ScientificEvaluation(sim_1)
 
-# Compute and plot bimodal ISO indices performing the EEOF analysis on simulated data
+# Compute and plot bimodal ISO indices performing an EEOF analysis on simulated data
 sciskill.bimodal_ISO(
     'name_sim_1', 
     'output_path', 
@@ -166,10 +167,11 @@ sciskill.bimodal_ISO(
 )
 ```
 
-Same but using observations to compute the EEOFs. In this case, the mean monthly frequency (seasonality) of ISO events is compared between simulations and observations, and plotted together with the TSS statistics:
+Perform the same analysis but using observational data to compute the EEOFs, and then calculate the bimodal ISO indices for both simulations and observations. In this case, the mean monthly frequency (seasonality) of ISO events is compared between simulations and observations, and plotted together with the **TSS statistics**:
+
 ```python
-# Compute and plot bimodal ISO indices and TSS performing the EEOF analysis on observational data
-sciskill.bimodal_ISO(
+# Compute and plot bimodal ISO indices and TSS statistics performing an EEOF analysis on observational data
+corr, std_dev, tss = sciskill.bimodal_ISO(
     'name_sim_1', 
     'output_path', 
     start_year_eeof=year_init, 
@@ -181,7 +183,7 @@ sciskill.bimodal_ISO(
 )
 ```
 
-The `bimodal_ISO` method spatially plots the first two EEOFs for MJO and BSISO by default; this can be turned off by passing the argument `plot_eeofs=False`. Besides, the central longitude for the spatial EEOF plots is set to 0º by default; this can be modified with the argument `clon`. Finally, if `years_pc` is not passed as an argument, no PCs are plotted. 
+The `bimodal_ISO` method spatially plots the first two EEOFs for MJO and BSISO by default; this can be turned off by passing the argument `plot_eeofs=False`. Besides, the central longitude for the spatial EEOF plots is set to 0º by default; this can be modified with the argument `clon`. Finally, if `years_pc` is not passed as an argument, no PCs are plotted, but they are still computed for all the years present in the dataset. 
 
 
 #### General considerations:  

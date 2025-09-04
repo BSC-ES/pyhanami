@@ -116,6 +116,13 @@ class ScientificEvaluation:
         window_size (int): Length of the filter kernel.
         low_freq (float): Lower cutoff frequency.
         high_freq (float): Upper cutoff frequency.
+
+        Returns
+        -------
+        if `obs=True`:
+            corr (float): Temporal correlation coefficient of the ISO seasonality.
+            sigma (float): Ratio of the standard deviations (model/obs) of the ISO seasonality.
+            tss (float): Taylor Skill Score of the ISO seasonality.
         """
 
         # Validate input
@@ -168,6 +175,7 @@ class ScientificEvaluation:
             olr_obs_unfiltered = data_obs.data[var_name].sortby("lat").sel(lat=slice(*lat_range)).compute()
             olr_obs = iso_metrics.apply_lanczos_bandpass_filter(olr_obs_unfiltered, window, low_freq, high_freq)
 
+
         # Conduct EEOF analysis and plot if requested
         if obs:
             name = obs_name
@@ -204,7 +212,7 @@ class ScientificEvaluation:
                 # eeof_winter.to_netcdf(eeofw_path.with_suffix('.nc'))
                 eeofs_plot.savefig(eeofs_path.with_suffix('.png'), bbox_inches='tight', dpi=150)
                 print(f"BSISO EEOFs plot created and saved to '{eeofs_path.with_suffix('.png')}'.", flush=True)
-        print('\n', flush=True)
+        print('EEOF analysis completed.\n', flush=True)
         
 
         # Compute PCs and plot if requested
@@ -219,14 +227,14 @@ class ScientificEvaluation:
                 
                 if output_path is None:
                     plt.show()
-                    print(f"PCs (bimodal ISO indices) for year {year} plot created and displayed.\n", flush=True)
+                    print(f"PCs (bimodal ISO indices) for year {year} plot created and displayed.", flush=True)
                 else:
                     pcs_path = output_path / f"pcs_{data_name}_{year}_projected_{start_year_eeof}-{end_year_eeof}"
 
                     # pcs_year.to_netcdf(pcs_path.with_suffix('.nc'))
                     pcs_plot.savefig(pcs_path.with_suffix('.png'), bbox_inches='tight', dpi=150)
                     print(f"PCs (bimodal ISO indices) plot for year {year} created and saved to '{pcs_path.with_suffix('.png')}'.", flush=True)
-        print('\n', flush=True)
+        print('PCs computation completed.\n', flush=True)
 
         
         # Compute and plot monthly frequency of ocurrence of ISO events
@@ -255,5 +263,11 @@ class ScientificEvaluation:
             # freq_ISO_sim.to_netcdf(freq_path.with_suffix('.nc'))
             freq_plot.savefig(freq_path.with_suffix('.png'), bbox_inches='tight', dpi=150)
             print(f"Mean monthly frequency of ISO events plot created and saved to '{freq_path.with_suffix('.png')}'.", flush=True)
+        print('Mean monthly frequency computation completed.\n', flush=True)
 
-        return
+        if obs:
+            print(f"Computed Taylor Skill Score (TSS) between simulations and observations:\n" + 
+            f"\tTemporal correlation (R): {corr:.2f}, Ratio standard deviations ($\\sigma$): {sigma:.2f}, TSS: {tss:.2f}\n", flush=True)
+            return corr, sigma, tss
+        else:
+            return 

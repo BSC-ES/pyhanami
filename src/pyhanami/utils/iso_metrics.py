@@ -353,7 +353,7 @@ def perform_EEOF_analysis(olr_data, start_year, end_year, season, lags=[-10, -5,
 
     })
 
-    print(f"Computed EEOFs for {season} between years {start_year} and {end_year}.", flush=True)
+    # print(f"Computed EEOFs for {season} between years {start_year} and {end_year}.", flush=True)
     return eeof_analysis_data
 
 
@@ -466,7 +466,7 @@ def compute_PCs(olr_data, eeofs):
         "label"    :    label_data,
     })
 
-    print(f"Computed PCs.", flush=True)
+    # print(f"Computed PCs.", flush=True)
     return pcs_data
 
 
@@ -499,7 +499,7 @@ def compute_freq_ISO(events):
         "freq_BSISO": freq_bsiso
     })
 
-    print(f"Computed mean monthly frequency of ISO events.", flush=True)
+    # print(f"Computed mean monthly frequency of ISO events.", flush=True)
     return freq_ISO
 
 
@@ -536,6 +536,6 @@ def compute_TSS(freq_ISO, freq_obs):
 
     tss = (4 * (1+corr)**4) / ((sigma + (1/sigma))**2 * (1+corr_0)**2)
 
-    print(f"Computed Taylor Skill Score (TSS) between simulations and observations:\n" + 
-            f"\tTemporal correlation (R): {corr:.2f}, Ratio standard deviations ($\\sigma$): {sigma:.2f}, TSS: {tss:.2f}\n", flush=True)
+    # print(f"Computed Taylor Skill Score (TSS) between simulations and observations:\n" + 
+    #         f"\tTemporal correlation (R): {corr:.2f}, Ratio standard deviations ($\\sigma$): {sigma:.2f}, TSS: {tss:.2f}\n", flush=True)
     return corr, sigma, tss
