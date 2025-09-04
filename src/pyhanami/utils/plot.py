@@ -629,14 +629,20 @@ def pcs_plot(pcs, title='Bimodal ISO indices', normalized=True):
     return fig, axs
 
 
-def freq_ISO_plot(freq_ISO_sim, freq_ISO_obs=None, title='Mean monthly frequency of ISO events', sim_label='simulations', obs_label='observations'):
+def freq_ISO_plot(freq_ISO_sim, freq_ISO_obs=None, corr=None, sigma=None, tss=None, title='Mean monthly frequency of ISO events', 
+                  sim_label='simulations', obs_label='observations'):
     """ 
-    Generate plot of the mean monthly frequency of occurrence of ISO events (distinguishing between MJO and BSISO).
+    Generate plot of the mean monthly frequency of occurrence of ISO events (ISO seasonality) 
+    distinguishing between MJO and BSISO. If observations are provided, also include Taylor 
+    Skill Score (TSS) statistics below the plot.
 
     Parameters
     ----------
     freq_ISO_sim (xarray.Dataset): Mean monthly frequency of occurrence data for simulated data.
     freq_ISO_obs (xarray.Dataset): Mean monthly frequency of occurrence data for observations.
+    corr (float): Temporal correlation coefficient of the seasonality.
+    sigma (float): Ratio of the standard deviations (model/obs) of the seasonality.
+    tss (float): Taylor Skill Score of the seasonality.
     title (str): Title of the plot.
     sim_label, obs_label (str): Labels for simulated and observed data.
 
@@ -652,34 +658,14 @@ def freq_ISO_plot(freq_ISO_sim, freq_ISO_obs=None, title='Mean monthly frequency
     
 
     # Create plot
-    fig, ax = plt.subplots(figsize=(7,5), dpi=150)
+    fig, ax = plt.subplots(figsize=(6,5), dpi=150)
+    plt.tight_layout()
 
+    bar_width = 0.4
     x = np.arange(1,13)
     ax.axhline(0, color='black', lw=0.8)
     
-    if freq_ISO_obs is not None:
-        ax.bar(x, freq_ISO_sim['freq_MJO'], color='tab:blue', label=f'MJO {sim_label}', align='left')
-        ax.bar(x, -freq_ISO_sim['freq_BSISO'], color='tab:orange', label=f'BSISO {sim_label}', align='left')
-
-        ax.bar(x, freq_ISO_obs['freq_MJO'], color='tab:blue', label=f'MJO {obs_label}', align='right', alpha=0.6)
-        ax.bar(x, freq_ISO_obs['freq_BSISO'], color='tab:orange', label=f'BSISO {obs_label}', align='right', alpha=0.6)
-        
-        # MJO legend (upper right)
-        mjo_handles = [
-            plt.Rectangle((0,0),1,1, color='tab:blue', alpha=1.0, label=f'MJO {sim_label}'),
-            plt.Rectangle((0,0),1,1, color='tab:blue', alpha=0.6, label=f'MJO {obs_label}')
-        ]
-        legend_mjo = ax.legend(handles=mjo_handles, loc='upper right', fontsize=8)
-        ax.add_artist(legend_mjo)
-
-        # BSISO legend (lower right)
-        bsiso_handles = [
-            plt.Rectangle((0,0),1,1, color='tab:orange', alpha=1.0, label=f'BSISO {sim_label}'),
-            plt.Rectangle((0,0),1,1, color='tab:orange', alpha=0.6, label=f'BSISO {obs_label}')
-        ]
-        legend_bsiso = ax.legend(handles=bsiso_handles, loc='lower right', fontsize=8)
-        ax.add_artist(legend_bsiso)
-    else:
+    if freq_ISO_obs is None:
         ax.bar(x, freq_ISO_sim['freq_MJO'], color='tab:blue', label=f'MJO {sim_label}', align='center')
         ax.bar(x, -freq_ISO_sim['freq_BSISO'], color='tab:orange', label=f'BSISO {sim_label}', align='center') 
 
@@ -692,6 +678,39 @@ def freq_ISO_plot(freq_ISO_sim, freq_ISO_obs=None, title='Mean monthly frequency
         bsiso_handles = [plt.Rectangle((0,0),1,1, color='tab:orange', label=f'BSISO {sim_label}')]
         legend_bsiso = ax.legend(handles=bsiso_handles, loc='lower right', fontsize=8)
         ax.add_artist(legend_bsiso)
+    else:
+        # MJO
+        ax.bar(x, freq_ISO_sim['freq_MJO'], color='tab:blue', label=f'MJO {sim_label}', width=-bar_width, align='edge')
+        ax.bar(x, freq_ISO_obs['freq_MJO'], color='white', edgecolor='tab:blue', hatch='////', linewidth=0.8, label=f'MJO {obs_label}', width=bar_width, align='edge')
+
+        # BSISO
+        ax.bar(x, -freq_ISO_sim['freq_BSISO'], color='tab:orange', label=f'BSISO {sim_label}', width=-bar_width, align='edge')
+        ax.bar(x, -freq_ISO_obs['freq_BSISO'], color='white', edgecolor='tab:orange', hatch='////', linewidth=0.5, label=f'BSISO {obs_label}', width=bar_width, align='edge')
+        
+        # MJO legend (upper right)
+        mjo_handles = [
+            plt.Rectangle((0,0),1,1, color='tab:blue', label=f'MJO {sim_label}'),
+            plt.Rectangle((0,0),1,1, facecolor="white", edgecolor='tab:blue', hatch='////', label=f'MJO {obs_label}')
+        ]
+        legend_mjo = ax.legend(handles=mjo_handles, loc='upper right', fontsize=8)
+        ax.add_artist(legend_mjo)
+
+        # BSISO legend (lower right)
+        bsiso_handles = [
+            plt.Rectangle((0,0),1,1, color='tab:orange', label=f'BSISO {sim_label}'),
+            plt.Rectangle((0,0),1,1, facecolor='white', edgecolor='tab:orange', hatch='////', label=f'BSISO {obs_label}')
+        ]
+        legend_bsiso = ax.legend(handles=bsiso_handles, loc='lower right', fontsize=8)
+        ax.add_artist(legend_bsiso)
+
+        # Add Taylor Skill Score (TSS) statistics
+        stats_text = (
+            f"Statistics: R={f'{corr:.2f}' if corr is not None else 'N/A'}, "
+            f"$\\sigma$={f'{sigma:.2f}' if sigma is not None else 'N/A'}, "
+            f"TSS={f'{tss:.2f}'if tss is not None else 'N/A'}"
+        )
+        fig.text(0.5, 0.02, stats_text, ha='center', va='bottom', fontsize=10, bbox=dict(facecolor='white', edgecolor='black'))
+        fig.subplots_adjust(top=0.78, bottom=0.16)
 
 
     # Plot formatting
@@ -705,6 +724,5 @@ def freq_ISO_plot(freq_ISO_sim, freq_ISO_obs=None, title='Mean monthly frequency
     ax.set_ylabel('frequency of occurrence', fontsize=10)
     
     ax.set_title(title, fontsize=12)
-    plt.tight_layout()
 
     return fig, ax
