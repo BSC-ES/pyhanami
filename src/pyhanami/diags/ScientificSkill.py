@@ -12,6 +12,8 @@ from pyhanami.utils import iso_metrics, plot
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
 
+import time
+
 
 class ScientificEvaluation:
     """
@@ -91,7 +93,7 @@ class ScientificEvaluation:
     
     
     def bimodal_ISO(self, data_name=None, output_path=None, start_year_eeof=None, end_year_eeof=None, plot_eeofs=True,
-                    years_pc=None, obs=False, obs_path=None, obs_name=None, clon=0, lat_range=(-30,30), 
+                    years_pc=None, obs=False, obs_path=None, obs_name=None, clon=0, lat_range=(-30, 30), 
                     lags=[-10, -5, 0], n_modes=2, window=141, low_freq=1/90, high_freq=1/25):
         """
         Compute bimodal ISO indices following (K. Kikuchi, 2020) and plot results for the selected years.  
@@ -104,18 +106,18 @@ class ScientificEvaluation:
         data_name (str): Name of simulation ensemble to use.
         output_path (str): Path to save plots.
         start_year_eeof, end_year_eeof (int): Initial and end years to compute the TSS for.
-        plot_eeofs (bool): If True, also spatially plot EEOFs.
+        plot_eeofs (bool): If True, also spatially plot EEOFs  (default: True).
         years_pc (int or list[int]): Years to compute the indices for.
-        obs (bool): If True, also plot observational data if available.
+        obs (bool): If True, also plot observational data if available (default: False).
         obs_path (str or list[str]): Path to the observations database.
         obs_name (str or list[str]): Name of the observational dataset.
-        clon (int): Central longitude for the spatial EEOFs maps.
-        lat_range (tuple): Geographic latitude bounds.
-        lags (list[int]): Lag values to consider.
-        n_modes (int): Number of EEOFs modes to compute.
-        window_size (int): Length of the filter kernel.
-        low_freq (float): Lower cutoff frequency.
-        high_freq (float): Upper cutoff frequency.
+        clon (int): Central longitude for the spatial EEOFs maps (default: 0).
+        lat_range (tuple): Geographic latitude bounds (default: (-30, 30)).
+        lags (list[int]): Lag values to consider (default: [-10, -5, 0]).
+        n_modes (int): Number of EEOFs modes to compute (default: 2).
+        window_size (int): Length of the filter kernel (default: 141).
+        low_freq (float): Lower cutoff frequency (default: 1/90).
+        high_freq (float): Upper cutoff frequency (default: 1/25).
 
         Returns
         -------

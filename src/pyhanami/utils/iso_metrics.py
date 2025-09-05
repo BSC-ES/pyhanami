@@ -1,6 +1,7 @@
 import numpy as np
 import xarray as xr
 
+from functools import cache
 from eofs.standard import Eof
 
 
@@ -9,6 +10,7 @@ def math_sinc(x):
     return np.sinc(x/np.pi)
 
 
+@cache
 def lanczos_kernel(window_size, low_freq, high_freq):
     """
     Create bandpass filter kernel using Lanczos window.
@@ -25,20 +27,22 @@ def lanczos_kernel(window_size, low_freq, high_freq):
     """
 
     # Generate symmetric time vector
-    assert window_size%2 == 1
-    n = window_size//2
+    if window_size % 2 == 0:
+        raise ValueError("window_size must be odd")
+    
+    n = window_size // 2
     t = np.arange(-n, n+1, dtype=float)
 
     # Compute low and high pass filter kernels
-    h_low = 2*low_freq*math_sinc(2*np.pi*low_freq*t)
-    h_high = 2*high_freq*math_sinc(2*np.pi*high_freq*t)
+    h_low = 2 * low_freq * math_sinc(2*np.pi*low_freq*t)
+    h_high = 2 * high_freq * math_sinc(2*np.pi*high_freq*t)
 
     # Compute Lanczos window to smooth the kernel
     lanczos = math_sinc(t*np.pi/n)
 
     # Combine to compute Lanczos kernel
-    h = (h_high-h_low)*lanczos
-    h[t == 0] = 2*(high_freq-low_freq)
+    h = (h_high - h_low) * lanczos
+    h[t==0] = 2 * (high_freq - low_freq)
 
     return h
 
@@ -50,9 +54,9 @@ def lanczos_bandpass(data, window=141, low_freq=1/90, high_freq=1/25):
     Parameters
     ----------
     data (np.ndarray): 1D input signal to be filtered.
-    window_size (int): Length of the filter kernel.
-    low_freq (float): Lower cutoff frequency.
-    high_freq (float): Upper cutoff frequency.
+    window_size (int): Length of the filter kernel (default: 141).
+    low_freq (float): Lower cutoff frequency (default: 1/90).
+    high_freq (float): Upper cutoff frequency (default: 1/25).
 
     Returns
     -------
@@ -72,26 +76,25 @@ def apply_lanczos_bandpass(data, window=141, low_freq=1/90, high_freq=1/25):
     Parameters
     ----------
     data (xarray.DataArray): Input data to be filtered.
-    window_size (int): Length of the filter kernel.
-    low_freq (float): Lower cutoff frequency.
-    high_freq (float): Upper cutoff frequency.
+    window_size (int): Length of the filter kernel (default: 141).
+    low_freq (float): Lower cutoff frequency (default: 1/90).
+    high_freq (float): Upper cutoff frequency (default: 1/25).
 
     Returns
     -------
     filtered_data (xarray.DataArray): Filtered data.
     """
     
-    def _filter_func(x):
-        return lanczos_bandpass(x, window, low_freq, high_freq)
-    
     filtered_data = xr.apply_ufunc(
-        _filter_func,
+        lanczos_bandpass,
         data,
         input_core_dims=[["time"]],
         output_core_dims=[["time"]],
+        kwargs={"window": window, "low_freq": low_freq, "high_freq": high_freq},
         vectorize=True,
         dask="parallelized",
         output_dtypes=[data.dtype],
+        keep_attrs=True
     )
     return filtered_data
 
@@ -104,9 +107,9 @@ def apply_lanczos_bandpass_filter(raw_olr_data, window=141, low_freq=1/90, high_
     Parameters
     ----------
     raw_olr_data (xr.DataArray): Input unfiltered OLR data.
-    window_size (int): Length of the filter kernel.
-    low_freq (float): Lower cutoff frequency.
-    high_freq (float): Upper cutoff frequency.
+    window_size (int): Length of the filter kernel (default: 141).
+    low_freq (float): Lower cutoff frequency (default: 1/90).
+    high_freq (float): Upper cutoff frequency (default: 1/25).
 
     Returns
     -------
@@ -123,7 +126,8 @@ def apply_lanczos_bandpass_filter(raw_olr_data, window=141, low_freq=1/90, high_
 
     # Filter data
     filtered_olr_data = apply_lanczos_bandpass(raw_olr_data, window, low_freq, high_freq)
-    filtered_olr_data.name = "olr"
+    if filtered_olr_data.name != "olr":
+        filtered_olr_data.name = "olr"
 
     return filtered_olr_data
 
@@ -139,7 +143,7 @@ def extract_season_blocks(data, start_year, end_year, season, cutoff_points=90):
     start_year (int): Start year for filtering.
     end_year (int): End year for filtering.
     season (str): Season to filter.
-    cutoff_points (int): Minimum number of points necessary to keep a block.
+    cutoff_points (int): Minimum number of points necessary to keep a block (default: 90).
 
     Returns
     -------
@@ -254,7 +258,7 @@ def compute_EEOFs(data, weights, n_modes=2):
     ----------
     data (np.ndarray): Input data.
     weights (np.ndarray): Area weights with same shape as data.
-    n_modes (int): Number of EEOFs to compute.
+    n_modes (int): Number of EEOFs to compute (default: 2).
 
     Returns
     -------
@@ -282,8 +286,8 @@ def perform_EEOF_analysis(olr_data, start_year, end_year, season, lags=[-10, -5,
     start_year (int): Start year for filtering.
     end_year (int): End year for filtering.
     season (str): Season to filter ('boreal winter' or 'boreal summer').
-    lags (list[int]): Lag values to consider.
-    n_modes (int): Number of EEOFs modes to compute.
+    lags (list[int]): Lag values to consider (default: [-10, -5, 0]).
+    n_modes (int): Number of EEOFs modes to compute (default: 2).
 
     Returns
     -------
