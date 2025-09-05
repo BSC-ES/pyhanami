@@ -8,7 +8,8 @@ name = "pyhanami"
 version = "0.1.0"
 authors = [
     {name = "Marta Alerany Solé", email = "marta.alerany@bsc.es"},
-    {name = "Kai Keller", email = "kai.keller@bsc.es"}
+    {name = "Kai Keller", email = "kai.keller@bsc.es"},
+    {name = "Masuo Nakano", email = "masuo@jamstec.go.jp"}
 ]
 
 description = "pyhanami is a tool designed to evaluate the replicability and projection skill of Earth System Models"

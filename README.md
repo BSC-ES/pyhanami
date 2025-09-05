@@ -19,6 +19,8 @@ Currently, evaluation of the following phenomena is available within _pyhanami_:
 - **Tropical Cyclones (TCs):** warm-core, cyclonic storms characterized by heavy precipitation and strong winds that begin over tropical oceans.
 -->
 
+
+
 ## Features
 
 Key features include:
@@ -42,6 +44,7 @@ Available scientific skill metrics:
 Future releases will include:
 - **Additional scientific skill evaluation:** compute additional metrics evaluating several climate phenomena, such as TCs and precipitation.
 - **Automated report generation:** produce reports including plots and statistics summary.
+
 
 
 ## Installation
@@ -151,7 +154,9 @@ This `matrix_plot` method uses all variables from the simulation datasets that a
 
 ### **5. Tropical IntraSeasonal Oscillation (ISO) evaluation**
 
-Perform an EEOF analysis between `year_init` and `year_end`, and use the resulting EEOFs to compute the **bimodal ISO indices** (first two PCs) for the entire period covered by the provided dataset. Then, plot these indices for `years` (which can be just one year or a list of years). Finally, use the indices to calculate and plot the mean monthly frequency of ISO events for the full dataset period:
+The computation of the **bimodal ISO indices** requires daily TOA outgoing longwave radiation (`olr`) data, preferably covering a period of 10 years or more (ideally, at least 30 years).
+
+Perform an EEOF analysis between `year_init` and `year_end`, and use the resulting EEOFs to compute the bimodal ISO indices (first two PCs) for the entire period covered by the provided dataset. Then, plot these indices for `years` (which can be just one year or a list of years). Finally, use the indices to calculate and plot the mean monthly frequency of ISO events for the full dataset period:
 
 ```python
 # Initialize ScientificEvaluation class with a SimulationData object
@@ -191,3 +196,31 @@ The `bimodal_ISO` method spatially plots the first two EEOFs for MJO and BSISO b
 - `output_path` can be either a directory or a full file path including the file name. If `output_path` is not provided, the plots are displayed interactively.  
 - `obs_path` must be a path to a directory containing observation datasets, with files named following the pattern `data_obs*_{var_name}.nc`, where `var_name` matches the corresponding variable name in `src/pyhanami/config.py`.  
 - The `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes can all be initialized without providing any `SimulationData` objects; datasets can be added later with the `add_datasets` method.
+
+
+
+## License:
+
+This package is under GPLv3.
+
+
+
+## Support
+
+Create an issue or contact the authors below.
+
+
+
+## Authors and acknowledgements
+
+Main developers of _pyhanami_ at BSC:
+- Marta Alerany Solé: [marta.alerany@bsc.es](marta.alerany@bsc.es)
+- Kai Keller: [kai.keller@bsc.es](kai.keller@bsc.es)
+
+Significant contributors at JAMSTEC:
+- Masuo Nakano: [masuo@jamstec.go.jp](masuo@jamstec.go.jp)
+
+Thanks to researchers at JAMSTEC:
+- Chihiro Kodama: [kodamac@jamstec.go.jp](kodamac@jamstec.go.jp)
+- Tomoe Nasuno: [nasuno@jamstec.go.jp](nasuno@jamstec.go.jp)
+- JAMSTEC - Research Center for Environmental Modeling and Application (CEMA)
