@@ -226,8 +226,8 @@ def cp_effect_size(sample_1, sample_2):
 
     Arguments
     ---------
-    sample_1 (numpy.ndarray): First sample.
-    sample_2 (numpy.ndarray): Second sample.
+    sample_1 (np.ndarray): First sample.
+    sample_2 (np.ndarray): Second sample.
 
     Returns
     -------
@@ -263,8 +263,8 @@ def cp_effect_size_bootstrap(args):
     Parameters
     ----------
     args (tuple): List containing:
-        sample_1 (numpy.ndarray): First sample.
-        sample_2 (numpy.ndarray): Second sample.
+        sample_1 (np.ndarray): First sample.
+        sample_2 (np.ndarray): Second sample.
 
     Returns
     -------
@@ -342,8 +342,8 @@ def significant_diff(args):
     Parameters
     ----------
     args (tuple): List containing:
-        sample_1 (numpy.ndarray): First sample.
-        sample_2 (numpy.ndarray): Second sample.
+        sample_1 (np.ndarray): First sample.
+        sample_2 (np.ndarray): Second sample.
         alpha (float): Significance level for the test.
         stat (function): Statistical test to evaluate significant differences.
 

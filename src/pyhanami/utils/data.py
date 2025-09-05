@@ -42,6 +42,81 @@ def prepare_data(data_path, **xr_kwargs):
     return data
 
 
+def normalize_units(unit_str):
+    """ 
+    Normalize format of units to be compatible with pint.UnitRegistry. 
+
+    Parameters
+    ----------
+    unit_str (str): Input units.
+
+    Returns
+    -------
+    new_units (str): Units with corrected format (e.g. from 'm s-1' to 'm s**-1').
+    """
+
+    # Validate input
+    if not isinstance(unit_str, str):    
+        raise TypeError("Input must be a string.")
+
+
+    # Look for incompatible exponent format and correct it
+    parts = unit_str.split()
+    new_parts = []
+    for part in parts:
+        new_part = []
+        for i, c in enumerate(part):
+            if ((c == '-' and part[i-1] not in {'^', '*'}) or (c.isdigit() and part[i-1] not in {'-', '^', '*'})):
+                new_part.append(f'**{c}')
+            else:
+                new_part.append(c)
+        new_parts.append(''.join(new_part))
+
+    new_units = ' '.join(new_parts)
+    return new_units
+
+
+def normalize_time_format(data):
+    """ 
+    Check datetime format of the provided data and convert to 'np.datetime64[ns]' if needed. 
+
+    Parameters
+    ----------
+    data (xr.Dataset): Input dataset to check.
+
+    Returns
+    -------
+    data (xr.Dataset): Checked dataset.
+    """
+
+    time = data['time']
+    time_type = type(time.values[0])
+
+    # Check calendar type
+    if not np.issubdtype(time_type, np.datetime64):
+        datetimeindex = data.indexes['time'].to_datetimeindex('ns')
+        data = data.assign_coords(time=datetimeindex.values)
+        warnings.warn(f"Data 'time' coordinate was not in 'np.datetime64' format but '{time_type}' instead." +
+                    f" It has been converted automatically but better to provide it in the correct format from the beginning.")
+    else:
+        # Check if the data frequency is daily or coarser
+        idxs = data.indexes['time'].values
+        diffs = np.diff(idxs).astype('timedelta64[m]')
+        daily_or_coarser = np.all((diffs.astype(int) % (24*60)) == 0)
+
+        if daily_or_coarser: 
+            # Change 'hh:mm:ss' to midnight if needed           
+            idxs_floor = idxs.astype('datetime64[D]').astype('datetime64[ns]')
+            already_midnight = np.all(idxs == idxs_floor)
+
+            if not already_midnight:
+                data = data.assign_coords(time=idxs_floor)
+                warnings.warn(f"Data 'time' coordinate was not in 'YYYY-MM-DDT00:00:00' format (hours were not set to midnight)." +
+                    f" It has been changed automatically but better to provide it in the correct format from the beginning.")
+
+    return data
+
+
 def check_data(data):
     """ 
     Check provided data (available variables, units, coordinates names, ...). 
@@ -57,8 +132,8 @@ def check_data(data):
 
 
     # Check coordinates
-    required_coords = ['time', 'realization', 'lat', 'lon']
-    missing_coords = [f"'{c}'" for c in required_coords if c not in data.coords]
+    required_coords = ['time', 'lat', 'lon']
+    missing_coords = [c for c in required_coords if c not in data.coords]
     if missing_coords:
         raise ValueError(f"The dataset is missing the following coordinates: {', '.join(missing_coords)}. "
                          f"Please, ensure these coordinates are included before proceeding.")
@@ -70,6 +145,8 @@ def check_data(data):
         warnings.warn(f"Data 'time' coordinate was not in 'np.datetime64' format but '{time_type}' instead." +
                       f" It has been converted automatically, but better to provide it in the correct format from the beginning.")
     
+    data = normalize_time_format(data)
+
     for coord in ['lat', 'lon']:
         coord_values = data[coord].values
         if coord_values.ndim != 1:
@@ -90,7 +167,7 @@ def check_data(data):
                              f"Please, ensure all requested variables are included before proceeding.")
         
         expected_long_name, expected_units = variables[var]
-        var_attrs = data[var].attrs
+        var_attrs = da.attrs
 
         if 'long_name' not in var_attrs or var_attrs['long_name'] != expected_long_name:
             data[var].attrs['long_name'] = expected_long_name
