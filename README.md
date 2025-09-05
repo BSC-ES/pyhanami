@@ -56,16 +56,6 @@ pip install .
 ```
 
 
-<<<<<<< HEAD
-## Example: Performing a replicability test
-#### Input parameters
-- `source_ref` and `source_test`: paths to NetCDF files or `xarray.Dataset` objects.
-- `var_name`: name of climate variable to evaluate. It must be listed in `src/pyhanami/config.py`.
-- `output_path`: path to save the corresponding plots. It can be either a directory or a full file path including the file name.
-- `obs_path`: path to a directory containing observation datasets, stored in files following the naming pattern `data_obs*_{var_name}`.nc`.
-- `year_init`, `year_end`: range of years for the time series plots.
-=======
->>>>>>> bimodal_ISO_indices
 
 ## Usage
 
@@ -78,19 +68,8 @@ sim_1 = hnmi.SimulationData('source_sim_1', name='name_sim_1')
 sim_2 = hnmi.SimulationData('source_sim_2', name='name_sim_2')
 ```
 
-<<<<<<< HEAD
-# Diagnostics: create and display annual mean time series plot for one dataset together with observations
-diags = hnmi.DataDiagnostics(ref)
-diags.time_series_plots('var_name', 'ref', obs=True, start_year=year_init, end_year=year_end)
-
-# Diagnostics: compare multiple datasets and save plots
-diags.add_datasets(test)
-diags.time_series_plots('var_name', ['ref','test'], 'output_path', start_year=year_init, end_year=year_end)
-diags.spatial_plots('var_name', ['ref','test'], 'output_path')
-=======
 Note that `source_sim_1` and `source_sim_2` must be paths to NetCDF files or `xarray.Dataset` objects.
 
->>>>>>> bimodal_ISO_indices
 
 ### **2. Time series plots**
 
