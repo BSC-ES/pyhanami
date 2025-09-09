@@ -1,5 +1,5 @@
 **/__pycache__/
 **.egg-info
 **/build/
-**/AUTHORS
-**/generate_authors.sh
+AUTHORS
+generate_authors.sh
