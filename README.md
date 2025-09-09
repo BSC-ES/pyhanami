@@ -156,7 +156,7 @@ This `matrix_plot` method uses all variables from the simulation datasets that a
 
 The computation of the **bimodal ISO indices** requires daily TOA outgoing longwave radiation (`olr`) data, preferably covering a period of 10 years or more (ideally, at least 30 years).
 
-Perform an EEOF analysis between `year_init` and `year_end`, and use the resulting EEOFs to compute the bimodal ISO indices (first two PCs) for the entire period covered by the provided dataset. Then, plot these indices for `years` (which can be just one year or a list of years). Finally, use the indices to calculate and plot the mean monthly frequency of ISO events for the full dataset period:
+Perform an EEOF analysis between `year_init` and `year_end`, and use the resulting EEOFs to compute the bimodal ISO indices (first two PCs) for the entire period covered by the provided dataset. Then, plot these indices for `years` (which can be just one year or a list of years). Finally, use the indices to calculate and plot the mean monthly frequency (seasonality) of ISO events for the full dataset period:
 
 ```python
 # Initialize ScientificEvaluation class with a SimulationData object
@@ -188,7 +188,7 @@ corr, std_dev, tss = sciskill.bimodal_ISO(
 )
 ```
 
-The `bimodal_ISO` method spatially plots the first two EEOFs for MJO and BSISO by default; this can be turned off by passing the argument `plot_eeofs=False`. Besides, the central longitude for the spatial EEOF plots is set to 0º by default; this can be modified with the argument `clon`. Finally, if `years_pc` is not passed as an argument, no PCs are plotted, but they are still computed for all the years present in the dataset. 
+By default, the `bimodal_ISO` method does not spatially plot the first two EEOFs for MJO and BSISO; to enable this, pass the argument `plot_eeofs=True`. Besides, the central longitude for the spatial EEOF plots is set to 0º by default; this can be modified with the argument `clon`. Finally, if `years_pc` is not passed as an argument, no PCs are plotted, but they are still computed for all the years present in the dataset. 
 
 
 #### General considerations:  
@@ -219,6 +219,9 @@ Main developers of _pyhanami_ at BSC:
 
 Significant contributors at JAMSTEC:
 - Masuo Nakano: [masuo@jamstec.go.jp](masuo@jamstec.go.jp)
+
+Thanks to researchers at BSC:
+- Bernardo Maraldi: [bernardo.maraldi@bsc.es](bernardo.maraldi@bsc.es)
 
 Thanks to researchers at JAMSTEC:
 - Chihiro Kodama: [kodamac@jamstec.go.jp](kodamac@jamstec.go.jp)
