@@ -123,7 +123,7 @@ class DataDiagnostics:
 
     def _compute_abs_diff(self, var_name, data_plot):
         """ 
-        Compute absolute average difference between the simulation ensembles 
+        Compute absolute average difference between two simulation ensembles 
         for the given variable and time range at the grid point level. 
         
         Parameters
@@ -137,9 +137,9 @@ class DataDiagnostics:
         """
         
         # Validate inputs
-        if not isinstance(data_plot, list) or len(data_plot) == 0 \
+        if not isinstance(data_plot, list) or len(data_plot) != 2 \
             or not all(isinstance(ds, SimulationData) for ds in data_plot):
-            raise TypeError("'data_plot' must be a non-empty list of SimulationData instances.")
+            raise TypeError("'data_plot' must be a non-empty list with two SimulationData instances.")
         
         for dataset in data_plot:
             if var_name not in dataset.data.data_vars:
@@ -161,8 +161,11 @@ class DataDiagnostics:
         data_sim_mean_2 = data_sim_2[var_name].mean(['time'])
         if 'realization' in data_sim_1.coords:
             data_sim_mean_1 = data_sim_mean_1.mean(['realization'])
-        elif 'realization' in data_sim_2.coords:
+        if 'realization' in data_sim_2.coords:
             data_sim_mean_2 = data_sim_mean_2.mean(['realization'])
+        
+        if data_sim_mean_1.shape != data_sim_mean_2.shape:
+            raise ValueError(f"Averaged data shapes of the two datasets do not match ({data_sim_mean_1.shape} vs {data_sim_mean_2.shape}).")
 
         data_diff = (data_sim_mean_1 - data_sim_mean_2).compute()
         if var_name in ['siconc', 'sos', 'tos']:
@@ -174,7 +177,7 @@ class DataDiagnostics:
 
     def _compute_eff_size_ens(self, var_name, data_plot):
         """ 
-        Compute average effect size (Cohen's d) between the simulation ensembles 
+        Compute average effect size (Cohen's d) between two simulation ensembles 
         in parallel for the given variable at the grid point level. 
         
         Parameters
@@ -188,9 +191,9 @@ class DataDiagnostics:
         """
         
         # Validate inputs
-        if not isinstance(data_plot, list) or len(data_plot) == 0 \
+        if not isinstance(data_plot, list) or len(data_plot) != 2 \
             or not all(isinstance(ds, SimulationData) for ds in data_plot):
-            raise TypeError("'data_plot' must be a non-empty list of SimulationData instances.")
+            raise TypeError("'data_plot' must be a non-empty list with two SimulationData instances.")
         
         for dataset in data_plot:
             if var_name not in dataset.data.data_vars:
@@ -212,6 +215,8 @@ class DataDiagnostics:
         # Prepare data
         data_sim_flat_1 = data_sim_1[var_name].mean('time').stack(ngrid = ['lat','lon']).compute()
         data_sim_flat_2 = data_sim_2[var_name].mean('time').stack(ngrid = ['lat','lon']).compute()
+        if data_sim_flat_1.shape != data_sim_flat_2.shape:
+            raise ValueError(f"Averaged data shapes of the two datasets do not match ({data_sim_flat_1.shape} vs {data_sim_flat_2.shape}).")
         
         #  Compute effect sizes in parallel
         tasks = [(data_sim_flat_1.sel(ngrid=i).values, data_sim_flat_2.sel(ngrid=i).values) for i in data_sim_flat_1.ngrid]
@@ -240,7 +245,7 @@ class DataDiagnostics:
 
     def _compute_significant_diff(self, var_name, data_plot, alpha=0.05, stat=ttest_ind):
         """ 
-        Compute significant difference between the simulation ensembles
+        Compute significant difference between two simulation ensembles
         in parallel for the given variable at the grid point level. 
         
         Parameters
@@ -296,6 +301,8 @@ class DataDiagnostics:
         data_mean_var_2 = data_mean_2[var_name].data
         data_mean_flat_2 = data_mean_var_2.compute().reshape((n_realizations,n_points))
         
+        if data_mean_flat_1.shape != data_mean_flat_2.shape:
+            raise ValueError(f"Averaged data shapes of the two datasets do not match ({data_mean_flat_1.shape} vs {data_mean_flat_2.shape}).")
         d1, d2 = (data_mean_flat_1, data_mean_flat_2)
 
         # Compute significant differences in parallel
@@ -333,7 +340,7 @@ class DataDiagnostics:
             if not any(ds.name == dataset.name for ds in self.datasets):
                 self.datasets.append(dataset)
             else:
-                warnings.warn(f"Dataset with name '{dataset.name}' already exists in the DataDiagnostics object. Skipping addition.")
+                warnings.warn(f"\nDataset with name '{dataset.name}' already exists in the DataDiagnostics object. Skipping addition.")
 
         return
     
