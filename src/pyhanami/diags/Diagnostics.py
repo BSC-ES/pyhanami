@@ -43,25 +43,26 @@ class DataDiagnostics:
 
     Methods
     -------
-    _compute_time_series_annual(var_name)
+    _compute_time_series_annual(var_name, data_plot, time_freq='1YS')
         Computes annual spatial mean time series for the specified variable from both ensembles.
 
-    _compute_abs_diff(var_name)
+    _compute_abs_diff(var_name, data_plot)
         Computes the absolute difference between the ensembles at the grid point level.
 
-    _compute_eff_size_ens(var_name)
+    _compute_eff_size_ens(var_name, data_plot)
         Computes the effect size (Cohen's d) between the ensembles in parallel at the grid point level.
 
-    _compute_significant_diff(var_name, alpha, stat)
+    _compute_significant_diff(var_name, data_plot, alpha=0.05, stat=ttest_ind)
         Computes statistically significant differences between the ensembles in parallel at the grid point level.
 
     add_datasets(datasets)
-        dd new datasets to the ReplicabilityTest object.
+        Adds new datasets to the ReplicabilityTest object.
     
-    time_series_plots(var_name, output_path)
+    time_series_plots(var_name, data_names=None, output_path=None, obs=False, obs_paths=None, obs_names=None, time_freq='annual', 
+                      start_year=None, end_year=None, plot_ens=False)
         Generates and saves a plot of the annual time series for the specified variable.
 
-    spatial_plots(var_name, output_path, alpha=0.05, stat=ttest_ind)
+    spatial_plots(var_name, data_names=None, output_path=None, alpha=0.05, stat=ttest_ind)
         Generates and saves spatial plots of the absolute difference, the effect size and the significance difference for the specified variable.
     """
 
@@ -123,7 +124,7 @@ class DataDiagnostics:
 
     def _compute_abs_diff(self, var_name, data_plot):
         """ 
-        Compute absolute average difference between the simulation ensembles 
+        Compute absolute average difference between two simulation ensembles 
         for the given variable and time range at the grid point level. 
         
         Parameters
@@ -137,9 +138,9 @@ class DataDiagnostics:
         """
         
         # Validate inputs
-        if not isinstance(data_plot, list) or len(data_plot) == 0 \
+        if not isinstance(data_plot, list) or len(data_plot) != 2 \
             or not all(isinstance(ds, SimulationData) for ds in data_plot):
-            raise TypeError("'data_plot' must be a non-empty list of SimulationData instances.")
+            raise TypeError("'data_plot' must be a non-empty list with two SimulationData instances.")
         
         for dataset in data_plot:
             if var_name not in dataset.data.data_vars:
@@ -151,8 +152,8 @@ class DataDiagnostics:
         if not data_sim_1.time.equals(data_sim_2.time):
             raise ValueError(
                 f"Time coordinates of the two datasets do not match:\n"
-                f"  {data_plot[0].name} has time from {data_sim_1.time.min().item()} to {data_sim_1.time.max().item()}\n"
-                f"  {data_plot[1].name} has time from {data_sim_2.time.min().item()} to {data_sim_2.time.max().item()}"
+                f"  {data_plot[0].name} has time from {str(data_sim_1.time.min().values)[:19]} to {str(data_sim_1.time.max().values)[:19]}\n"
+                f"  {data_plot[1].name} has time from {str(data_sim_2.time.min().values)[:19]} to {str(data_sim_2.time.max().values)[:19]}"
             )
 
 
@@ -161,8 +162,11 @@ class DataDiagnostics:
         data_sim_mean_2 = data_sim_2[var_name].mean(['time'])
         if 'realization' in data_sim_1.coords:
             data_sim_mean_1 = data_sim_mean_1.mean(['realization'])
-        elif 'realization' in data_sim_2.coords:
+        if 'realization' in data_sim_2.coords:
             data_sim_mean_2 = data_sim_mean_2.mean(['realization'])
+        
+        if data_sim_mean_1.shape != data_sim_mean_2.shape:
+            raise ValueError(f"Averaged data shapes of the two datasets do not match ({data_sim_mean_1.shape} vs {data_sim_mean_2.shape}).")
 
         data_diff = (data_sim_mean_1 - data_sim_mean_2).compute()
         if var_name in ['siconc', 'sos', 'tos']:
@@ -174,7 +178,7 @@ class DataDiagnostics:
 
     def _compute_eff_size_ens(self, var_name, data_plot):
         """ 
-        Compute average effect size (Cohen's d) between the simulation ensembles 
+        Compute average effect size (Cohen's d) between two simulation ensembles 
         in parallel for the given variable at the grid point level. 
         
         Parameters
@@ -188,9 +192,9 @@ class DataDiagnostics:
         """
         
         # Validate inputs
-        if not isinstance(data_plot, list) or len(data_plot) == 0 \
+        if not isinstance(data_plot, list) or len(data_plot) != 2 \
             or not all(isinstance(ds, SimulationData) for ds in data_plot):
-            raise TypeError("'data_plot' must be a non-empty list of SimulationData instances.")
+            raise TypeError("'data_plot' must be a non-empty list with two SimulationData instances.")
         
         for dataset in data_plot:
             if var_name not in dataset.data.data_vars:
@@ -204,14 +208,16 @@ class DataDiagnostics:
         if not data_sim_1.time.equals(data_sim_2.time):
             raise ValueError(
                 f"Time coordinates of the two datasets do not match:\n"
-                f"  {data_plot[0].name} has time from {data_sim_1.time.min().item()} to {data_sim_1.time.max().item()}\n"
-                f"  {data_plot[1].name} has time from {data_sim_2.time.min().item()} to {data_sim_2.time.max().item()}"
+                f"  {data_plot[0].name} has time from {str(data_sim_1.time.min().values)[:19]} to {str(data_sim_1.time.max().values)[:19]}\n"
+                f"  {data_plot[1].name} has time from {str(data_sim_2.time.min().values)[:19]} to {str(data_sim_2.time.max().values)[:19]}"
             )
         
 
         # Prepare data
         data_sim_flat_1 = data_sim_1[var_name].mean('time').stack(ngrid = ['lat','lon']).compute()
         data_sim_flat_2 = data_sim_2[var_name].mean('time').stack(ngrid = ['lat','lon']).compute()
+        if data_sim_flat_1.shape != data_sim_flat_2.shape:
+            raise ValueError(f"Averaged data shapes of the two datasets do not match ({data_sim_flat_1.shape} vs {data_sim_flat_2.shape}).")
         
         #  Compute effect sizes in parallel
         tasks = [(data_sim_flat_1.sel(ngrid=i).values, data_sim_flat_2.sel(ngrid=i).values) for i in data_sim_flat_1.ngrid]
@@ -240,13 +246,13 @@ class DataDiagnostics:
 
     def _compute_significant_diff(self, var_name, data_plot, alpha=0.05, stat=ttest_ind):
         """ 
-        Compute significant difference between the simulation ensembles
+        Compute significant difference between two simulation ensembles
         in parallel for the given variable at the grid point level. 
         
         Parameters
         ----------
         var_name (str): Climate variable name.
-        data_plot (list[SimulationData]): List of two simulation ensembles to compute the absolute difference for.
+        data_plot (list[SimulationData]): List of two simulation ensembles to compute the significant differences for.
         alpha (float): Significance level for the statistical test (default: 0.05).
         stat (Callable): Statistical test function to use (default: ttest_ind).
 
@@ -256,9 +262,9 @@ class DataDiagnostics:
         """
         
         # Validate input
-        if not isinstance(data_plot, list) or len(data_plot) == 0 \
+        if not isinstance(data_plot, list) or len(data_plot) != 2 \
             or not all(isinstance(ds, SimulationData) for ds in data_plot):
-            raise TypeError("'data_plot' must be a non-empty list of SimulationData instances.")
+            raise TypeError("'data_plot' must be a non-empty list with two SimulationData instances.")
         
         for dataset in data_plot:
             if var_name not in dataset.data.data_vars:
@@ -278,8 +284,8 @@ class DataDiagnostics:
         if not data_sim_1.time.equals(data_sim_2.time):
             raise ValueError(
                 f"Time coordinates of the two datasets do not match:\n"
-                f"  {data_plot[0].name} has time from {data_sim_1.time.min().item()} to {data_sim_1.time.max().item()}\n"
-                f"  {data_plot[1].name} has time from {data_sim_2.time.min().item()} to {data_sim_2.time.max().item()}"
+                f"  {data_plot[0].name} has time from {str(data_sim_1.time.min().values)[:19]} to {str(data_sim_1.time.max().values)[:19]}\n"
+                f"  {data_plot[1].name} has time from {str(data_sim_2.time.min().values)[:19]} to {str(data_sim_2.time.max().values)[:19]}"
             )
         
         # Prepare data
@@ -287,16 +293,13 @@ class DataDiagnostics:
         n_lons = data_sim_1.sizes['lon']
         n_points =  n_lats*n_lons
         n_realizations = data_sim_1.sizes['realization']
-        
-        data_mean_1 = data_sim_1.mean('time')
-        data_mean_var_1 = data_mean_1[var_name].data
-        data_mean_flat_1 = data_mean_var_1.compute().reshape((n_realizations,n_points))
 
-        data_mean_2 = data_sim_2.mean('time')
-        data_mean_var_2 = data_mean_2[var_name].data
-        data_mean_flat_2 = data_mean_var_2.compute().reshape((n_realizations,n_points))
+        data_sim_flat_1 = data_sim_1[var_name].mean('time').data.compute().reshape((n_realizations,n_points))
+        data_sim_flat_2 = data_sim_2[var_name].mean('time').data.compute().reshape((n_realizations,n_points))
         
-        d1, d2 = (data_mean_flat_1, data_mean_flat_2)
+        if data_sim_flat_1.shape != data_sim_flat_2.shape:
+            raise ValueError(f"Averaged data shapes of the two datasets do not match ({data_sim_flat_1.shape} vs {data_sim_flat_2.shape}).")
+        d1, d2 = (data_sim_flat_1, data_sim_flat_2)
 
         # Compute significant differences in parallel
         tasks = [(d1[:,n], d2[:,n], alpha, stat) for n in range(n_points)]
@@ -333,13 +336,13 @@ class DataDiagnostics:
             if not any(ds.name == dataset.name for ds in self.datasets):
                 self.datasets.append(dataset)
             else:
-                warnings.warn(f"Dataset with name '{dataset.name}' already exists in the DataDiagnostics object. Skipping addition.")
+                warnings.warn(f"\nDataset with name '{dataset.name}' already exists in the DataDiagnostics object. Skipping addition.")
 
         return
     
     
     def time_series_plots(self, var_name, data_names=None, output_path=None, obs=False, obs_paths=None, obs_names=None, 
-                          time_freq='annual', start_year=None, end_year=None):
+                          time_freq='annual', start_year=None, end_year=None, plot_ens=False):
         """ 
         Generate time series plot for the given ensembles and variable. When no ensembles
         are specified, all datasets in the diagnostics object are used.
@@ -354,6 +357,7 @@ class DataDiagnostics:
         obs_names (str or list[str]): Name of the observational dataset/s.
         time_freq (str): Resampling frequency (default: 'annual').
         start_year, end_year (int): Years to plot.
+        plot_ens (bool): Whether to plot individual ensemble members trajectories (default: False).
         """
         
         # Validate inputs
@@ -416,8 +420,8 @@ class DataDiagnostics:
         # Compute and plot time series
         time_series = self._compute_time_series(var_name, data_plot, time_freq_unit)
         time_series_plot, _ = plot.time_series_plot(time_series, title=f'{time_freq.capitalize()} mean time series of {self.variables[var_name][0]}',
-                                                 y_label=f'{var_name} ({self.variables[var_name][1]})', labels=data_names, 
-                                                 time_freq=time_freq, start_year=start_year, end_year=end_year)
+                                                 y_label=f'{var_name} ({self.variables[var_name][1]})', labels=data_names, time_freq=time_freq,
+                                                 start_year=start_year, end_year=end_year, plot_ens=plot_ens)
         
         # Save plot to path if given
         if output_path is None:

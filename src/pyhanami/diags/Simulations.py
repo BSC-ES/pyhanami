@@ -44,7 +44,7 @@ class SimulationData:
             self.data = self._prepare_data()
         elif isinstance(data_source, xr.Dataset):
             self.data_path = None
-            self.data = data_source
+            self.data = data_source.chunk("auto")
         else:
             raise TypeError("'data_source' must be a path string, Path object, or an xarray.Dataset")
         
@@ -74,5 +74,5 @@ class SimulationData:
         Check provided data (available variables, units, coordinates names, ...). 
         """
 
-        data.check_data(self.data)
+        self.data = data.check_data(self.data)
         return

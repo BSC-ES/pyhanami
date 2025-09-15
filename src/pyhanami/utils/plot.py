@@ -4,6 +4,7 @@ import xarray as xr
 import cartopy.crs as ccrs
 import cartopy.feature as cf
 import matplotlib.pyplot as plt
+import matplotlib.path as mpath
 import cartopy.mpl.ticker as cticker
 
 from pyhanami import config
@@ -13,7 +14,7 @@ from matplotlib.patches import Polygon, Circle
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap, BoundaryNorm
 
 
-def time_series_plot(time_series, title='Mean time series', y_label='', labels=None, time_freq='annual', start_year=None, end_year=None):
+def time_series_plot(time_series, title='Mean time series', y_label='', labels=None, time_freq='annual', start_year=None, end_year=None, plot_ens=False):
     """ 
     Generate time series plot of one or more ensembles, including the 2.5th, 5th, 75th and 97.5th percentiles.
 
@@ -25,6 +26,7 @@ def time_series_plot(time_series, title='Mean time series', y_label='', labels=N
     labels (list[str]): Labels for each time series.
     time_freq (str): Time frequency (default: 'annual').
     start_year, end_year (int): Years for filtering.
+    plot_ens (bool): Whether to plot individual ensemble members trajectories (default: False).
 
     Returns
     -------
@@ -82,12 +84,13 @@ def time_series_plot(time_series, title='Mean time series', y_label='', labels=N
         if 'realization' in series.dims and series.sizes['realization'] > 1:
             # Plot mean
             mean_series = series.mean('realization')
-            line, = ax.plot(dates, mean_series.values, lw=2, ls='-.', label=label)
+            line, = ax.plot(dates, mean_series.values, lw=2, ls='-.', label=label, zorder=4)
             color = line.get_color()
 
             # Plot individual ensemble members
-            # for i in range(series.sizes['realization']):
-            #     ax.plot(common_years, series.isel(realization=i).values, color=color, alpha=0.2)
+            if plot_ens:
+                for i in range(series.sizes['realization']):
+                    ax.plot(dates, series.isel(realization=i).values, color=color, alpha=0.2, zorder=2)
 
             # Compute confidence intervals (bootstrap of mean)
             q025, q975 = [], []
@@ -96,12 +99,12 @@ def time_series_plot(time_series, title='Mean time series', y_label='', labels=N
                 bs_res = bootstrap((data,), np.mean, confidence_level=0.95)
                 q025.append(bs_res.confidence_interval.low)
                 q975.append(bs_res.confidence_interval.high)
-            ax.fill_between(dates, q025, q975, facecolor=color, alpha=0.6)
+            ax.fill_between(dates, q025, q975, facecolor=color, alpha=0.6, zorder=3)
 
             # Plot ensemble spread (5th–95th percentile)
             series = series.chunk({"realization": -1})
             quantiles = series.quantile([0.05, 0.95], dim='realization', skipna=True)
-            ax.fill_between(dates, quantiles[0], quantiles[1], facecolor=color, alpha=0.2)
+            ax.fill_between(dates, quantiles[0], quantiles[1], facecolor=color, alpha=0.2, zorder=1)
 
         else:
             ax.plot(dates, series.values, lw=2, ls='-.', label=label)
@@ -140,7 +143,7 @@ def time_series_plot(time_series, title='Mean time series', y_label='', labels=N
     return fig, ax
 
 
-def style_cartopy_axis(ax, show_gridlines=True):
+def style_cartopy_axis(ax, show_gridlines=True, ocean_data=False):
     """
     Add standard geographic features and optional gridlines to a Cartopy axis.
 
@@ -148,6 +151,7 @@ def style_cartopy_axis(ax, show_gridlines=True):
     ----------
     ax (cartopy.mpl.geoaxes.GeoAxesSubplot):  Axis with a Cartopy geographic projection.
     show_gridlines (bool): Whether to add gridlines with latitude and longitude labels (default: True).
+    ocean_data (bool): Whether only ocean data is provided and the land should be masked in white (default: False).
 
     Returns
     -------
@@ -155,9 +159,13 @@ def style_cartopy_axis(ax, show_gridlines=True):
 
     """
 
-    # Features
-    ax.add_feature(cf.COASTLINE.with_scale("50m"), lw=0.8)
-    ax.add_feature(cf.BORDERS.with_scale("50m"), lw=0.5)
+    # Add land overlay (white fill, no edges) for ocean data
+    if ocean_data:  
+        ax.add_feature(cf.LAND.with_scale("50m"), facecolor="white", edgecolor="none", zorder=3)
+
+    # General features
+    ax.add_feature(cf.COASTLINE.with_scale("50m"), lw=0.8, zorder=4)
+    ax.add_feature(cf.BORDERS.with_scale("50m"), lw=0.5, zorder=4)
 
     # Gridlines
     if show_gridlines:
@@ -232,7 +240,7 @@ def spatial_plot(data, title='Spatial plot', cb_label='', cmap=cmocean.cm.therma
     Returns
     -------
     fig (matplotlib.figure.Figure): Generated plot.
-    ax (matplotlib.axes._subplots.AxesSubplot): Plot axis.
+    ax (matplotlib.axes._subplots.AxesSubplot): Plot axis (an array of two axes for 'siconc' and just one axis otherwise).
     """
 
     # Validate inputs
@@ -241,39 +249,149 @@ def spatial_plot(data, title='Spatial plot', cb_label='', cmap=cmocean.cm.therma
     if 'lat' not in data.coords or 'lon' not in data.coords:
         raise ValueError("Could not identify latitude and longitude coordinates.")
     
+    # Correct 0 and NaN values (values which are exactly 0 are painted in white, not with the corresponding colorbar color for 0)
+    var_name = data.name
+    if var_name in {'siconc', 'sos', 'tos'}:
+        data = xr.where((np.isnan(data)) | (data==0), 10**-10, data)
+        ocean_data = True
+    else:
+        ocean_data = False   
+
     
     # Add cyclic point
     aux, lon = add_cyclic_point(data, coord=data.lon.values)
     data_cyclic = xr.DataArray(data=aux, dims=['lat', 'lon'], coords={'lat': data.lat.values, 'lon': lon}, name=data.name, attrs=data.attrs)
 
-    # Create figure
-    fig, ax = plt.subplots(1, figsize=(20, 10), dpi=150, subplot_kw={'projection': ccrs.Robinson(), "aspect": 'auto'}, gridspec_kw = {'wspace':0.01, 'hspace':0.02})
-    style_cartopy_axis(ax, show_gridlines=gridlines)
-    cb = data_cyclic.plot.contourf(ax=ax, transform=ccrs.PlateCarree(), cmap=cmap, levels=levels, vmin=vmin, vmax=vmax, add_colorbar=False, **plot_kwargs)
 
-    # Add contour lines if requested
-    if show_contours:
-        contour_lines = data_cyclic.plot.contour(ax=ax, transform=ccrs.PlateCarree(), levels=levels, colors='black', linewidths=0.5)
-        ax.clabel(contour_lines, fontsize=contour_fontsize, colors='black')  # For siconc better use: fontsize=8
+    if var_name != 'siconc':
+        # Create figure
+        fig, ax = plt.subplots(1, figsize=(20, 10), dpi=150, subplot_kw={'projection': ccrs.Robinson(), "aspect": 'auto'}, gridspec_kw = {'wspace':0.01, 'hspace':0.02})
+        style_cartopy_axis(ax, show_gridlines=gridlines, ocean_data=ocean_data)
+        cb = data_cyclic.plot.contourf(ax=ax, transform=ccrs.PlateCarree(), cmap=cmap, levels=levels, vmin=vmin, vmax=vmax, add_colorbar=False, **plot_kwargs)
 
-    # Significance hatching
-    if significant is not None:
-        if significant.shape != data.shape:
-            raise ValueError(f"Mask shape {significant.shape} does not match data shape {data.values.shape}.")
-        else:
-            aux, lon = add_cyclic_point(significant, coord=data.lon.values)
-            mask = np.ma.masked_where(aux == 0, data_cyclic.values)  
-            ax.pcolor(data_cyclic.lon.values, data_cyclic.lat.values, mask, transform=ccrs.PlateCarree(), hatch='..', zorder=1, alpha=0.)
+        # Add contour lines if requested
+        if show_contours:
+            contour_lines = data_cyclic.plot.contour(ax=ax, transform=ccrs.PlateCarree(), levels=levels, colors='black', linewidths=0.5)
+            ax.clabel(contour_lines, fontsize=contour_fontsize, colors='black') 
 
-    # Add title if given
-    if title:
-        ax.set_title(title, fontsize=20, pad=20)
+        # Significance hatching
+        if significant is not None:
+            if significant.shape != data.shape:
+                raise ValueError(f"Mask shape {significant.shape} does not match data shape {data.values.shape}.")
+            else:
+                aux, lon = add_cyclic_point(significant, coord=data.lon.values)
+                mask = np.ma.masked_where(aux == 0, data_cyclic.values)  
+                ax.pcolor(data_cyclic.lon.values, data_cyclic.lat.values, mask, transform=ccrs.PlateCarree(), hatch='..', zorder=1, alpha=0.)
 
-    # Add colorbar
-    colorbar = add_colorbar(fig=fig, mappable=cb, ax_r=ax, ax_l=ax, ax_b=ax, label=cb_label, levels=levels)
+        # Add title if given
+        if title:
+            ax.set_title(title, fontsize=20, pad=20)
+
+        # Add colorbar
+        _ = add_colorbar(fig=fig, mappable=cb, ax_l=ax, ax_r=ax, ax_b=ax, label=cb_label, levels=levels)
 
 
-    # NOTE: missing special Stereographic projection plot for sea ice concentration
+    # Special Stereographic projection plot for sea ice concentration
+    else:
+        lat_limit = 40
+
+        # Compute a circle in axes coordinates, to be used as a boundary for the map
+        # (it allows to pan/zoom as much as needed, the boundary will be permanently circular)
+        theta = np.linspace(0, 2*np.pi, 100)
+        center =  [0.5, 0.5] 
+        radius = 0.5
+        verts = np.vstack([np.sin(theta), np.cos(theta)]).T
+        circle = mpath.Path(verts * radius + center)
+
+
+        ### North pole ###
+        proj = ccrs.Stereographic(central_latitude=90, central_longitude=0)
+        crs = ccrs.PlateCarree()
+
+        # Create figure
+        fig, ax = plt.subplots(1,2, figsize=(10,5.5), dpi=150, subplot_kw={'projection': proj})
+
+        # Customize gridlines
+        ax1 = ax[0]
+        ax1.set_extent([-180, 180, lat_limit, 90], crs=crs)
+
+        gl1 = ax1.gridlines(draw_labels=True, linewidth=.4, color='gray', linestyle='-.')
+        gl1.xlabel_style = {'size':8}
+        gl1.ylabel_style = {'size':8}
+        gl1.ylocator = plt.MultipleLocator(10)
+
+        # Specify borders and coastlines
+        ax1.add_feature(cf.LAND.with_scale("50m"), facecolor="white", edgecolor="none", zorder=3)
+        ax1.add_feature(cf.COASTLINE.with_scale("50m"), lw=0.4, zorder=4)
+        ax1.add_feature(cf.BORDERS.with_scale("50m"), lw=0.2, zorder=4)
+
+        ax1.set_boundary(circle, transform=ax1.transAxes)
+
+        # Add contour lines if requested
+        if show_contours:
+            contour_lines = data_cyclic.plot.contour(ax=ax1, transform=ccrs.PlateCarree(), levels=levels, colors='black', linewidths=0.5)
+            ax1.clabel(contour_lines, fontsize=contour_fontsize-5, colors='black')
+
+        # Add data 
+        cb = data_cyclic.plot.contourf(ax=ax1, transform=ccrs.PlateCarree(), cmap=cmap, levels=levels, vmin=vmin, vmax=vmax, add_colorbar=False, **plot_kwargs)
+
+        # Significance hatching
+        if significant is not None:
+            if significant.shape != data.shape:
+                raise ValueError(f"Mask shape {significant.shape} does not match data shape {data.values.shape}.")
+            else:
+                aux, lon = add_cyclic_point(significant, coord=data.lon.values)
+                mask = np.ma.masked_where(aux == 0, data_cyclic.values)  
+                ax1.pcolor(data_cyclic.lon.values, data_cyclic.lat.values, mask, transform=ccrs.PlateCarree(), hatch='..', zorder=1, alpha=0.)
+
+
+        ### South pole ###
+        proj = ccrs.Stereographic(central_latitude=-90, central_longitude=0)   
+
+        # Customize gridlines
+        ax2 = ax[1]
+        ax2.projection = proj
+        ax2.set_extent([-180, 180, -90, -lat_limit], crs=crs)
+
+        gl2 = ax2.gridlines(draw_labels=True, linewidth=.5, color='gray', linestyle='-.')
+        gl2.xlabel_style = {'size':8}
+        gl2.ylabel_style = {'size':8}
+        gl2.ylocator = plt.MultipleLocator(10)
+
+        # Specify borders and coastlines
+        ax2.add_feature(cf.LAND.with_scale("50m"), facecolor="white", edgecolor="none", zorder=3)
+        ax2.add_feature(cf.COASTLINE.with_scale("50m"), lw=0.4, zorder=4)
+        ax2.add_feature(cf.BORDERS.with_scale("50m"), lw=0.2, zorder=4)
+
+        ax2.set_boundary(circle, transform=ax2.transAxes)
+
+        # Add contour lines if requested
+        if show_contours:
+            contour_lines = data_cyclic.plot.contour(ax=ax2, transform=ccrs.PlateCarree(), levels=levels, colors='black', linewidths=0.5)
+            ax2.clabel(contour_lines, fontsize=contour_fontsize-5, colors='black')
+
+        # Add data 
+        cb = data_cyclic.plot.contourf(ax=ax2, transform=ccrs.PlateCarree(), cmap=cmap, levels=levels, vmin=vmin, vmax=vmax, add_colorbar=False, **plot_kwargs)
+
+        # Significance hatching
+        if significant is not None:
+            if significant.shape != data.shape:
+                raise ValueError(f"Mask shape {significant.shape} does not match data shape {data.values.shape}.")
+            else:
+                aux, lon = add_cyclic_point(significant, coord=data.lon.values)
+                mask = np.ma.masked_where(aux == 0, data_cyclic.values)  
+                ax2.pcolor(data_cyclic.lon.values, data_cyclic.lat.values, mask, transform=ccrs.PlateCarree(), hatch='..', zorder=1, alpha=0.)
+                
+
+        # Add titles
+        plt.subplots_adjust(top=0.9) 
+        ax1.set_title("North Pole", fontsize=10)
+        ax2.set_title("South Pole", fontsize=10, pad=15)
+        if title:
+            fig.suptitle(title)
+
+        # Add common colorbar
+        _ = add_colorbar(fig=fig, mappable=cb, ax_l=ax[0], ax_r=ax[1], ax_b=ax[1], label=cb_label, fontsize=8, levels=levels, dist=0.09)
 
     return fig, ax
 

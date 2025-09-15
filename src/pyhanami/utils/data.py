@@ -95,8 +95,8 @@ def normalize_time_format(data):
     # Check calendar type
     if not np.issubdtype(time_type, np.datetime64):
         datetimeindex = data.indexes['time'].to_datetimeindex('ns')
-        data = data.assign_coords(time=datetimeindex.values)
-        warnings.warn(f"Data 'time' coordinate was not in 'np.datetime64' format but '{time_type}' instead." +
+        data = data.assign_coords(time=("time", datetimeindex.values))
+        warnings.warn(f"\nData 'time' coordinate was not in 'np.datetime64' format but '{time_type}' instead." +
                     f" It has been converted automatically but better to provide it in the correct format from the beginning.")
     else:
         # Check if the data frequency is daily or coarser
@@ -111,7 +111,7 @@ def normalize_time_format(data):
 
             if not already_midnight:
                 data = data.assign_coords(time=idxs_floor)
-                warnings.warn(f"Data 'time' coordinate was not in 'YYYY-MM-DDT00:00:00' format (hours were not set to midnight)." +
+                warnings.warn(f"\nData 'time' coordinate was not in 'YYYY-MM-DDT00:00:00' format (hours were not set to midnight)." +
                     f" It has been changed automatically but better to provide it in the correct format from the beginning.")
 
     return data
@@ -119,11 +119,15 @@ def normalize_time_format(data):
 
 def check_data(data):
     """ 
-    Check provided data (available variables, units, coordinates names, ...). 
+    Check and, if necessary, correct provided data (coordinates names and format, available variables, units, ...). 
 
     Parameters
     ----------
     data (xr.Dataset): Input dataset to check.
+
+    Returns
+    ----------
+    data (xr.Dataset): Checked and corrected dataset.
     """
 
     # Validate input
@@ -137,14 +141,7 @@ def check_data(data):
     if missing_coords:
         raise ValueError(f"The dataset is missing the following coordinates: {', '.join(missing_coords)}. "
                          f"Please, ensure these coordinates are included before proceeding.")
-    
-    time_type = type(data['time'].values[0])
-    if not np.issubdtype(time_type, np.datetime64):
-        datetimeindex = data.indexes['time'].to_datetimeindex(time_unit='ns')
-        data['time'] = datetimeindex
-        warnings.warn(f"Data 'time' coordinate was not in 'np.datetime64' format but '{time_type}' instead." +
-                      f" It has been converted automatically, but better to provide it in the correct format from the beginning.")
-    
+
     data = normalize_time_format(data)
 
     for coord in ['lat', 'lon']:
@@ -167,7 +164,7 @@ def check_data(data):
                              f"Please, ensure all requested variables are included before proceeding.")
         
         expected_long_name, expected_units = variables[var]
-        var_attrs = da.attrs
+        var_attrs = data[var].attrs
 
         if 'long_name' not in var_attrs or var_attrs['long_name'] != expected_long_name:
             data[var].attrs['long_name'] = expected_long_name
@@ -191,7 +188,7 @@ def check_data(data):
         #                      f"(expected '{expected_units}'). Error: {e}")
 
     print("Data check passed: all variables and coordinates are valid.", flush=True)
-    return
+    return data
 
 
 def cyclic_wrapper(data, dim="lon"):

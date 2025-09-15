@@ -39,10 +39,11 @@ class ScientificEvaluation:
     add_datasets(datasets)
         Adds new datasets to the ScientificEvaluation object.
 
-    bimodal_ISO(data_name, output_path, start_year_eeof, end_year_eeof, plot_eeofs, years_pc, obs, obs_path,
-                obs_name, clon, lat_range, lags, n_modes, window, low_freq, high_freq)
-        Compute bimodal ISO indices following (K. Kikuchi, 2020) and plot results for the selected years.  
-        Moreover, compute temporal correlation, standard deviations ratio and Taylor Skill Score between 
+    bimodal_ISO(data_name=None, output_path=None, start_year_eeof=None, end_year_eeof=None, plot_eeofs=False,
+                years_pc=None, obs=False, obs_path=None, obs_name=None, clon=0, lat_range=(-30, 30), 
+                lags=[-10, -5, 0], n_modes=2, window=141, low_freq=1/90, high_freq=1/25)
+        Computes bimodal ISO indices following (K. Kikuchi, 2020) and plots results for the selected years.  
+        Moreover, computes temporal correlation, standard deviations ratio and Taylor Skill Score between 
         observations and simulations mean monthly frequency of ISO events following (M. Nakano et al., 2019) 
         when an observations dataset is provided.
     """

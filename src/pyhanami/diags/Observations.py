@@ -41,7 +41,7 @@ class ObservationData:
     Methods
     -------
     _retrieve_obs(sim)
-        (Not implemented) Intended to retrieve raw observations from a database.
+        (Not fully implemented) Intended to retrieve raw observations from a database.
     load_and_process(sim)
         Retrieves observational data and regrids it to match the input simulation.
     """
@@ -101,16 +101,10 @@ class ObservationData:
             # Align the time range with the simulations
             if "time" not in data_obs_aux.coords or "time" not in sim.coords:
                 raise ValueError(f"'time' coordinate missing in either simulations or observations for variable {var}.")
-            
-            time_type = type(data_obs_aux['time'].values[0])
-            if not np.issubdtype(time_type, np.datetime64):
-                datetimeindex = data_obs_aux.indexes['time'].to_datetimeindex('ns')
-                data_obs_aux['time'] = datetimeindex
-                warnings.warn(f"Observations data 'time' coordinate was not in 'np.datetime64' format but '{time_type}' instead." +
-                            f" It has been converted automatically but better to provide it in the correct format from the beginning.")
+            data_obs_time = data.normalize_time_format(data_obs_aux)
             
             try:
-                data_obs_sel = data_obs_aux.sel(time=sim.time)
+                data_obs_sel = data_obs_time.sel(time=sim.time)
             except KeyError:
                 raise KeyError(f"Observations missing for some time points in variable {var}.")
             data_obs_vars.append(data_obs_sel)
