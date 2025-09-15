@@ -251,7 +251,7 @@ def cp_effect_size(sample_1, sample_2):
     std_2 = np.std(sample_2)
     std_pooled = np.sqrt((std_1**2+std_2**2)/2)
 
-    d = (mean_1 - mean_2)/std_pooled
+    d = (mean_1 - mean_2)/std_pooled if std_pooled != 0 else np.nan
     return d
 
 
@@ -282,10 +282,13 @@ def cp_effect_size_bootstrap(args):
         raise TypeError(f"Input samples must be convertible to numeric arrays: {e}.")
 
     # Estimate Cohen's d effect size
-    rng = np.random.default_rng()   
-    res = bootstrap((sample_1,sample_2), cp_effect_size, confidence_level=0.95, n_resamples=5000, random_state=rng)
-    
-    d = np.mean(res.bootstrap_distribution)
+    if (np.std(sample_1) != 0) or (np.std(sample_2) != 0):
+        rng = np.random.default_rng()   
+        res = bootstrap((sample_1,sample_2), cp_effect_size, confidence_level=0.95, n_resamples=5000, random_state=rng)  
+        d = np.mean(res.bootstrap_distribution)
+    else: 
+        d = np.nan
+
     return d
 
 
