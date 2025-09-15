@@ -41,7 +41,7 @@ class ObservationData:
     Methods
     -------
     _retrieve_obs(sim)
-        (Not implemented) Intended to retrieve raw observations from a database.
+        (Not fully implemented) Intended to retrieve raw observations from a database.
     load_and_process(sim)
         Retrieves observational data and regrids it to match the input simulation.
     """

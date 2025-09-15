@@ -58,26 +58,26 @@ class ReplicabilityTest:
     _compare_ensembles()
         (Not implemented) Intended to validate compatibility between the reference and test ensembles.
 
-    _compute_scores_one_var(var_name)
+    _compute_scores_one_var((var_name, data_plot))
         Computes scores employing several metrics for a sgiven variable across both ensembles.
 
-    _compute_scores()
+    _compute_scores(data_plot)
         Computes scores for all variables in parallel.
 
-    _compute_eff_sizes(scores_all)
+    _compute_eff_sizes(scores_all, data_names)
         Computes effect sizes (Cohen's d) between ensembles for each variable, region, and season.
 
-    _apply_tests(scores_all, alpha)
+    _apply_tests(scores_all, data_names, alpha=0.05)
         Applies several statistical tests between ensemble score distributions.
 
     add_datasets(datasets)
         Add new datasets to the ReplicabilityTest object.
 
-    matrix_plot(output_path, alpha=0.05)
+    matrix_plot(data_names=None, output_path=None, alpha=0.05)
         Runs the full replicability test and generates a matrix plot of the results.
 
     report(output_path, time_series=False, spatial=False)
-        Generates a report summarizing the replicability test results and optionally includes plots.
+        (Not implemented) Generates a report summarizing the replicability test results and optionally includes plots.
     """
 
     def __init__(self, datasets: Iterable[SimulationData] = None, obs_path: str = None):
