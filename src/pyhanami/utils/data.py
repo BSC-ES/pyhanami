@@ -95,7 +95,7 @@ def normalize_time_format(data):
     # Check calendar type
     if not np.issubdtype(time_type, np.datetime64):
         datetimeindex = data.indexes['time'].to_datetimeindex('ns')
-        data = data.assign_coords(time=datetimeindex.values)
+        data = data.assign_coords(time=("time", datetimeindex.values))
         warnings.warn(f"\nData 'time' coordinate was not in 'np.datetime64' format but '{time_type}' instead." +
                     f" It has been converted automatically but better to provide it in the correct format from the beginning.")
     else:
@@ -119,11 +119,15 @@ def normalize_time_format(data):
 
 def check_data(data):
     """ 
-    Check provided data (coordinates names and format, available variables, units, ...). 
+    Check and, if necessary, correct provided data (coordinates names and format, available variables, units, ...). 
 
     Parameters
     ----------
     data (xr.Dataset): Input dataset to check.
+
+    Returns
+    ----------
+    data (xr.Dataset): Checked and corrected dataset.
     """
 
     # Validate input
@@ -184,7 +188,7 @@ def check_data(data):
         #                      f"(expected '{expected_units}'). Error: {e}")
 
     print("Data check passed: all variables and coordinates are valid.", flush=True)
-    return
+    return data
 
 
 def cyclic_wrapper(data, dim="lon"):

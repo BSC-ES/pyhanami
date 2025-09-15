@@ -74,5 +74,5 @@ class SimulationData:
         Check provided data (available variables, units, coordinates names, ...). 
         """
 
-        data.check_data(self.data)
+        self.data = data.check_data(self.data)
         return
