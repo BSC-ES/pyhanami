@@ -474,6 +474,39 @@ def compute_PCs(olr_data, eeofs):
     return pcs_data
 
 
+def adjust_PCs(pcs_sim, pcs_obs):
+    """
+    Adjust simulated Principal Components (PCs) by dividing by the ratio of simulated PCs' amplitude over
+    observed PCs' amplitude (alpha), in order to correct for the models' weak BSISO/MJO frequency.
+
+    Parameters
+    ----------
+    pcs_sim (xr.Dataset): Simulated PCs.
+    pcs_obs (xr.Dataset): Observed PCs.
+
+    Returns
+    -------
+    pcs_sim_corr (xr.Dataset): Corrected simulated PCs.
+    """
+
+    # Validate input
+    if not isinstance(pcs_sim, xr.Dataset) or not isinstance(pcs_obs, xr.Dataset):
+        raise TypeError("Both input PCs must be xarray.Datasets.")
+
+
+    # Correct PCs
+    pcs_sim_corr = pcs_sim.copy()
+    for label in ['raw', 'std']:
+        alpha_num = pcs_sim[f'amp_MJO_{label}'] + pcs_sim[f'amp_BSISO_{label}']
+        alpha_den = pcs_obs[f'amp_MJO_{label}'] + pcs_obs[f'amp_BSISO_{label}']
+        alpha = alpha_num / alpha_den
+
+        pcs_sim_corr[f'PC_MJO_{label}'] = pcs_sim[f'PC_MJO_{label}'] / alpha
+        pcs_sim_corr[f'PC_BSISO_{label}'] = pcs_sim[f'PC_BSISO_{label}'] / alpha
+
+    return pcs_sim_corr
+
+
 def compute_freq_ISO(events):
     """
     Compute the mean monthly frequency of ocurrence of ISO events (distinguishing between MJO and BSISO).

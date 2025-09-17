@@ -39,9 +39,9 @@ class ScientificEvaluation:
     add_datasets(datasets)
         Adds new datasets to the ScientificEvaluation object.
 
-    bimodal_ISO(data_name=None, output_path=None, start_year_eeof=None, end_year_eeof=None, plot_eeofs=False,
-                years_pc=None, obs=False, obs_path=None, obs_name=None, clon=0, lat_range=(-30, 30), 
-                lags=[-10, -5, 0], n_modes=2, window=141, low_freq=1/90, high_freq=1/25)
+    bimodal_ISO(data_name=None, output_path=None, start_year_eeof=None, end_year_eeof=None, plot_eeofs=False, years_pc=None, 
+                correct_pc=False, obs=False, obs_path=None, obs_name=None, clon=0, lat_range=(-30, 30), lags=[-10, -5, 0], 
+                n_modes=2, window=141, low_freq=1/90, high_freq=1/25)
         Computes bimodal ISO indices following (K. Kikuchi, 2020) and plots results for the selected years.  
         Moreover, computes temporal correlation, standard deviations ratio and Taylor Skill Score between 
         observations and simulations mean monthly frequency of ISO events following (M. Nakano et al., 2019) 
@@ -94,7 +94,7 @@ class ScientificEvaluation:
     
     
     def bimodal_ISO(self, data_name=None, output_path=None, start_year_eeof=None, end_year_eeof=None, plot_eeofs=False,
-                    years_pc=None, obs=False, obs_path=None, obs_name=None, clon=0, lat_range=(-30, 30), 
+                    years_pc=None, correct_pc=False, obs=False, obs_path=None, obs_name=None, clon=0, lat_range=(-30, 30), 
                     lags=[-10, -5, 0], n_modes=2, window=141, low_freq=1/90, high_freq=1/25):
         """
         Compute bimodal ISO indices following (K. Kikuchi, 2020) and plot results for the selected years.  
@@ -109,6 +109,7 @@ class ScientificEvaluation:
         start_year_eeof, end_year_eeof (int): Initial and end years to compute the TSS for.
         plot_eeofs (bool): If True, also spatially plot EEOFs (default: False).
         years_pc (int or list[int]): Years to compute the indices for.
+        correct_pc (bool): Whether to adjust simulated PCs by dividing by alpha (default: False).
         obs (bool): If True, also plot observational data if available (default: False).
         obs_path (str or list[str]): Path to the observations database.
         obs_name (str or list[str]): Name of the observational dataset.
@@ -219,10 +220,15 @@ class ScientificEvaluation:
         
 
         # Compute PCs and plot if requested
+        pcs_sim = iso_metrics.compute_PCs(olr_data, [eeof_winter, eeof_summer])
         if obs:
             pcs_obs = iso_metrics.compute_PCs(olr_obs, [eeof_winter, eeof_summer])
-
-        pcs_sim = iso_metrics.compute_PCs(olr_data, [eeof_winter, eeof_summer])
+            if correct_pc:
+                iso_metrics.adjust_PCs(pcs_sim, pcs_obs)
+        else:
+            if correct_pc:
+                warnings.warn(f"Simulated PCs cannot be adjusted if observations are not provided. Execution will continue without modifying the PCs.")
+                
         if years_pc is not None:
             for year in years_pc:
                 pcs_year = pcs_sim.sel(time=slice(f'{year}-01-01', f'{year}-12-31'))
