@@ -764,7 +764,7 @@ def pcs_plot(pcs, title='Bimodal ISO indices', normalized=True):
     return fig, axs
 
 
-def freq_ISO_plot(freq_ISO_sim, freq_ISO_obs=None, corr=None, sigma=None, tss=None, title='Mean monthly frequency of ISO events', 
+def freq_ISO_plot(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=None, tss=None, title='Mean monthly frequency of ISO events', 
                   sim_label='simulations', obs_label='observations'):
     """ 
     Generate plot of the mean monthly frequency of occurrence of ISO events (ISO seasonality) 
@@ -775,6 +775,7 @@ def freq_ISO_plot(freq_ISO_sim, freq_ISO_obs=None, corr=None, sigma=None, tss=No
     ----------
     freq_ISO_sim (xarray.Dataset): Mean monthly frequency of occurrence data for simulated data.
     freq_ISO_obs (xarray.Dataset): Mean monthly frequency of occurrence data for observations.
+    alpha (float): Ratio between simulated and observed standarized PCs' amplitudes.
     corr (float): Temporal correlation coefficient of the seasonality.
     sigma (float): Ratio of the standard deviations (model/obs) of the seasonality.
     tss (float): Taylor Skill Score of the seasonality.
@@ -839,11 +840,19 @@ def freq_ISO_plot(freq_ISO_sim, freq_ISO_obs=None, corr=None, sigma=None, tss=No
         ax.add_artist(legend_bsiso)
 
         # Add Taylor Skill Score (TSS) statistics
-        stats_text = (
-            f"Statistics: R={f'{corr:.2f}' if corr is not None else 'N/A'}, "
-            f"$\\sigma$={f'{sigma:.2f}' if sigma is not None else 'N/A'}, "
-            f"TSS={f'{tss:.2f}'if tss is not None else 'N/A'}"
-        )
+        if alpha is None:
+            stats_text = (
+                f"Statistics: R={f'{corr:.2f}' if corr is not None else 'N/A'}, "
+                f"$\\sigma$={f'{sigma:.2f}' if sigma is not None else 'N/A'}, "
+                f"TSS={f'{tss:.2f}'if tss is not None else 'N/A'}"
+            )
+        else:
+            stats_text = (
+                f"Statistics: $\\alpha$={f'{alpha:.2f}' if alpha is not None else 'N/A'}, "
+                f"R={f'{corr:.2f}' if corr is not None else 'N/A'}, "
+                f"$\\sigma$={f'{sigma:.2f}' if sigma is not None else 'N/A'}, "
+                f"TSS={f'{tss:.2f}'if tss is not None else 'N/A'}"
+            )
         fig.text(0.5, 0.02, stats_text, ha='center', va='bottom', fontsize=10, bbox=dict(facecolor='white', edgecolor='black'))
         fig.subplots_adjust(top=0.78, bottom=0.16)
 
