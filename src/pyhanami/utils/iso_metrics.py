@@ -208,10 +208,10 @@ def generate_lagged_matrix(data, lags):
 
     # Stack all lags
     lagged = lagged.transpose("time", "lag", "lat", "lon")
-    valid = ~np.any(np.isnan(lagged), axis=(1, 2, 3))
+    valid = ~lagged.isnull().any(dim=("lag", "lat", "lon"))    #~np.any(np.isnan(lagged), axis=(1, 2, 3))
 
-    lagged_matrix = lagged.isel(time=valid).stack(feature=("lag", "lat", "lon")).values
-    times = lagged.time.values[valid]
+    lagged_matrix = lagged.sel(time=valid).stack(feature=("lag", "lat", "lon")).values
+    times = lagged["time"].values[valid]
 
     return lagged_matrix, times
 
@@ -389,17 +389,48 @@ def project_PCs(data, eeofs):
         eof_flat = eof.stack(feature=("lag", "lat", "lon")).values
         eig = eeof_data["eigval"].values
 
+        # Compute PCs and standarized PCs (dividing by one standard deviation during the period  
+        # of the EEOF analysis, i.e. the squared root of the corresponding eigenvalue)
         pc_aux = data.dot(eof_flat.T)
         pc_std_aux = pc_aux / np.sqrt(eig)[None, :]
         pc.append(pc_aux)
         pc_std.append(pc_std_aux)
 
+        # Compute amplitude and standarized amplitude using the first two PCs
         amp_aux = np.linalg.norm(pc_aux, axis=1)
         amp_std_aux =  np.linalg.norm(pc_std_aux, axis=1)
         amp.append(amp_aux)
         amp_std.append(amp_std_aux)
 
     return pc, pc_std, amp, amp_std
+
+
+def significant_labels(amp, amp_std):
+    """
+    Assign label to Principal Components (PCs) for each time step depending on their
+    amplitudes (1: Significant MJO, 2: Significant BSISO; 0: Insignificant).
+
+    Parameters
+    ----------
+    amp (list): raw PCs' amplitudes.
+    amp_std (list): standarized PCs' amplitudes (i.e. normalized by the corresponding eigenvalues).
+
+    Returns
+    -------
+    labels (np.ndarray): 
+    """
+
+    labels = np.where(
+            (amp[0] > amp[1]) & (amp_std[0] >= 1), 
+            1,
+        np.where(
+            (amp[1] > amp[0]) & (amp_std[1] >= 1),  
+            2,
+            0   
+            )
+        )
+    
+    return labels
 
 
 def compute_PCs(olr_data, eeofs):
@@ -434,15 +465,7 @@ def compute_PCs(olr_data, eeofs):
     pc, pc_std, amp, amp_std = project_PCs(lagged_wmatrix, eeofs)
 
     # Assign label for each time step depending on the amplitudes (1: Significant MJO, 2: Significant BSISO; 0: Insignificant)
-    labels = np.where(
-            (amp[0] > amp[1]) & (amp_std[0] >= 1), 
-            1,
-        np.where(
-            (amp[1] > amp[0]) & (amp_std[1] >= 1),  
-            2,
-            0   
-            )
-        )
+    labels = significant_labels(amp, amp_std)
 
 
     # Compile PCs and amplitudes as an xr.Dataset
@@ -487,6 +510,7 @@ def adjust_PCs(pcs_sim, pcs_obs):
     Returns
     -------
     pcs_sim_corr (xr.Dataset): Corrected simulated PCs.
+    alpha (float): Ratio between the simulated and observed PCs' amplitudes.
     """
 
     # Validate input
@@ -496,15 +520,34 @@ def adjust_PCs(pcs_sim, pcs_obs):
 
     # Correct PCs
     pcs_sim_corr = pcs_sim.copy()
-    for label in ['raw', 'std']:
-        alpha_num = pcs_sim[f'amp_MJO_{label}'] + pcs_sim[f'amp_BSISO_{label}']
-        alpha_den = pcs_obs[f'amp_MJO_{label}'] + pcs_obs[f'amp_BSISO_{label}']
-        alpha = alpha_num / alpha_den
 
-        pcs_sim_corr[f'PC_MJO_{label}'] = pcs_sim[f'PC_MJO_{label}'] / alpha
-        pcs_sim_corr[f'PC_BSISO_{label}'] = pcs_sim[f'PC_BSISO_{label}'] / alpha
+    # Compute alpha (only with raw PCs' amplitudes)
+    alpha_num = pcs_sim[f'amp_MJO_raw'].mean(dim='time') + pcs_sim[f'amp_BSISO_raw'].mean(dim='time')
+    alpha_den = pcs_obs[f'amp_MJO_raw'].mean(dim='time') + pcs_obs[f'amp_BSISO_raw'].mean(dim='time')
+    alpha = alpha_num / alpha_den
 
-    return pcs_sim_corr
+    for label in ('raw', 'std'):
+        # Compute alpha (with raw and standarized PCs' amplitudes separately)
+        # alpha_num = pcs_sim[f'amp_MJO_{label}'].mean(dim='time') + pcs_sim[f'amp_BSISO_{label}'].mean(dim='time')
+        # alpha_den = pcs_obs[f'amp_MJO_{label}'].mean(dim='time') + pcs_obs[f'amp_BSISO_{label}'].mean(dim='time')
+        # alpha = alpha_num / alpha_den
+
+        # Adjust PCs and amplitudes
+        for mode in ('MJO', 'BSISO'):
+            pcs_sim_corr[f'PC_{mode}_{label}'] = pcs_sim[f'PC_{mode}_{label}'] / alpha
+            pcs_sim_corr[f'amp_{mode}_{label}'] = pcs_sim[f'amp_{mode}_{label}'] / alpha
+
+    # Assign new labels
+    amp_corr = [pcs_sim_corr['amp_MJO_raw'].values, pcs_sim_corr['amp_BSISO_raw'].values]
+    amp_std_corr = [pcs_sim_corr['amp_MJO_std'].values, pcs_sim_corr['amp_BSISO_std'].values]
+    label_corr = significant_labels(amp_corr, amp_std_corr)
+    pcs_sim_corr['label'] = xr.DataArray(
+        label_corr, 
+        dims=("time"), 
+        coords={"time":pcs_sim_corr['amp_MJO_raw'].coords['time']}, name="label"
+    )
+
+    return pcs_sim_corr, alpha
 
 
 def compute_freq_ISO(events):

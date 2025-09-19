@@ -221,10 +221,12 @@ class ScientificEvaluation:
 
         # Compute PCs and plot if requested
         pcs_sim = iso_metrics.compute_PCs(olr_data, [eeof_winter, eeof_summer])
+        alpha = None
         if obs:
             pcs_obs = iso_metrics.compute_PCs(olr_obs, [eeof_winter, eeof_summer])
             if correct_pc:
-                iso_metrics.adjust_PCs(pcs_sim, pcs_obs)
+                pcs_sim, alpha = iso_metrics.adjust_PCs(pcs_sim, pcs_obs)
+                print(f'Simulated PCs have been adjusted using the {obs_name} observations.', flush=True)
         else:
             if correct_pc:
                 warnings.warn(f"Simulated PCs cannot be adjusted if observations are not provided. Execution will continue without modifying the PCs.")
@@ -243,7 +245,7 @@ class ScientificEvaluation:
                     # pcs_year.to_netcdf(pcs_path.with_suffix('.nc'))
                     pcs_plot.savefig(pcs_path.with_suffix('.png'), bbox_inches='tight', dpi=150)
                     print(f"PCs (bimodal ISO indices) plot for year {year} created and saved to '{pcs_path.with_suffix('.png')}'.", flush=True)
-        print('PCs computation completed.\n', flush=True)
+        print('PCs (bimodal ISO indices) computation completed.\n', flush=True)
 
         
         # Compute and plot monthly frequency of ocurrence of ISO events
@@ -259,7 +261,7 @@ class ScientificEvaluation:
             name = data_name
             freq_ISO_obs, corr, sigma, tss = None, None, None, None
 
-        freq_plot, _ = plot.freq_ISO_plot(freq_ISO_sim, freq_ISO_obs, corr=corr, sigma=sigma, tss=tss,
+        freq_plot, _ = plot.freq_ISO_plot(freq_ISO_sim, freq_ISO_obs, alpha=alpha, corr=corr, sigma=sigma, tss=tss,
                                           title=f'Mean monthly frequency of ISO events ({start_year}-{end_year})',
                                           sim_label=data_name, obs_label=obs_name)
 
