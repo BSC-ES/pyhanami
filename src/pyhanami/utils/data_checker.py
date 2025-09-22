@@ -2,8 +2,8 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 
-from pyhanami.config import config
 from pyhanami.utils import data_general
+from pyhanami.config import config_params
 
 
 class DataChecker:
@@ -33,7 +33,7 @@ class DataChecker:
     check_standard_compliance(data)
         Checks availability and format of coordinates and metadata of the given dataset.
     check_spatial_completeness(data)
-        Checks for the lack (or presence) of NaN values for atmospheric (or oceanic) variables.
+        Checks for the lack (or presence) of NaN values for atmosphere (or ocean) variables.
     check_spatial_consistency(data)
         Checks grid features of the provided data. Not implemented yet, but left for reference.
     check_temporal_completeness(data)
@@ -47,7 +47,7 @@ class DataChecker:
     def __init__(self):
         self.error_msg = []
         self.warning_msg = []
-        self.variables = data_general.load_yaml_file(config.VARIABLES_PATH)
+        self.variables = data_general.load_yaml_file(config_params.VARIABLES_PATH)
 
 
     @staticmethod
@@ -113,7 +113,7 @@ class DataChecker:
                 datetimeindex = data.indexes['time'].to_datetimeindex('ns')
                 data = data.assign_coords(time=("time", datetimeindex.values))
                 warnings.append(
-                    f"Data 'time' coordinate was not in 'np.datetime64' format but '{time_type}' instead." 
+                    f"Data 'time' coordinate was not in 'np.datetime64' format but '{time_type}' instead. " 
                     f" It has been converted automatically but better to provide it in the correct format from the beginning."
                 )
             else:
@@ -130,7 +130,7 @@ class DataChecker:
                     if not already_midnight:
                         data = data.assign_coords(time=idxs_floor)
                         warnings.append(
-                            f"Data 'time' coordinate was not in 'YYYY-MM-DDT00:00:00' format (hours were not set to midnight)." 
+                            f"Data 'time' coordinate was not in 'YYYY-MM-DDT00:00:00' format (hours were not set to midnight). " 
                             f" It has been changed automatically but better to provide it in the correct format from the beginning."
                         )
         except Exception as e:
@@ -182,8 +182,8 @@ class DataChecker:
                 )
 
         data, errors, warnings = self.normalize_time_format(data)
-        self.error_msg.append(errors)
-        self.warning_msg.append(warnings)
+        self.error_msg = self.error_msg + errors
+        self.warning_msg = self.warning_msg + warnings
         
         # Check each variable and its units   
         # ureg = pint.UnitRegistry()
@@ -201,7 +201,7 @@ class DataChecker:
                 if 'long_name' not in var_attrs or var_attrs['long_name'] != expected_long_name:
                     data[var].attrs['long_name'] = expected_long_name
                     self.warning_msg.append(
-                        f"Variable '{var}' was missing the corresponding 'long_name' attribute: {expected_long_name}." 
+                        f"Variable '{var}' was missing the corresponding 'long_name' attribute: '{expected_long_name}'. " 
                         f" It has been added automatically but better to provide it in the correct format from the beginning."
                     )
                 
@@ -231,14 +231,15 @@ class DataChecker:
         return data
 
 
-    def check_spatial_completeness(self, data):
+    def check_spatial_completeness(self, data, land_mask=None):
         """ 
-        Check for the lack (or presence) of NaN values for atmospheric
-        (or oceanic) variables. 
+        Check for the lack (or presence) of NaN values for atmosphere
+        (or ocean) variables. 
 
         Parameters
         ----------
         data (xr.Dataset): Input dataset to check.
+        land_mask (xr.Dataset): Land mask to check ocean variables.
 
         Returns
         ----------
@@ -261,18 +262,18 @@ class DataChecker:
                     if mask == 'atm':
                         if np.isnan(data_values).any():
                             self.error_msg.append(
-                                f"Variable '{var}' contains NaN values." 
-                                "Not acceptable for an atmospheric variable." 
+                                f"Variable '{var}' contains NaN values. " 
+                                "Not acceptable for an atmosphere variable." 
                             )
                     elif mask == 'oce':
                         if not np.isnan(data_values).any():
                             self.error_msg.append(
-                                f"Variable '{var}' does not contain any NaN values." 
-                                "Not acceptable for an oceanic variable." 
+                                f"Variable '{var}' does not contain any NaN values. " 
+                                "Not acceptable for an ocean variable." 
                             )
                     else:
                         self.error_msg.append(
-                            f"Unrecognizable mask for variable '{var}' in 'variables.yaml'."
+                            f"Unrecognizable mask for variable '{var}' in 'variables.yaml'. "
                             "Please, check the variables metadata."
                         )
 
@@ -373,15 +374,15 @@ class DataChecker:
 
                         if min_ref > min_value:
                             self.error_msg.append(
-                                f"Physically unlikely value for variable '{var}': {min_value}."
+                                f"Physically unlikely value for variable '{var}': {min_value}. "
                                 f"Smaller than lower bound {min_ref}."
                             ) 
 
                     if 'boundaries' in expected_var:
-                        if expected_var['boundaries'] != 'null':
+                        if expected_var['boundaries'] is not None:
                             self.error_msg.append(
-                                f"Variable '{var}' has non-null 'boundaries' in 'variables.yaml'."
-                                f"No physical plausibility check has been implemented yet for this case."
+                                f"Variable '{var}' has non-null 'boundaries' in 'variables.yaml'. "
+                                f"No physical plausibility check has been implemented for this case yet."
                             )
                         
                 else:

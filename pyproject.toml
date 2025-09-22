@@ -37,11 +37,19 @@ dependencies = [
     "numpy",
     "pandas",
     "pint",
+    "pyyaml",
     "scipy",
     "xarray",
     "xesmf",
-    "yaml",
 ]
+
+
+[tool.setuptools]
+include-package-data = true
+
+
+[tool.setuptools.package-data]
+"pyhanami" = ["config/*.yaml"]
 
 
 [project.urls]
