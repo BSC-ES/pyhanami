@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import matplotlib.path as mpath
 import cartopy.mpl.ticker as cticker
 
-from pyhanami import config
 from scipy.stats import bootstrap
+from pyhanami.config import config
 from cartopy.util import add_cyclic_point
 from matplotlib.patches import Polygon, Circle
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap, BoundaryNorm
