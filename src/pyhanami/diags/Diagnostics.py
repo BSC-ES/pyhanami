@@ -13,10 +13,10 @@ from pathlib import Path
 from scipy.stats import ttest_ind
 from collections.abc import Iterable
 
-from pyhanami import config
-from pyhanami.utils import plot, statistics
+from pyhanami.config import config
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
+from pyhanami.utils import data_general, plot, statistics
 
 
 class DataDiagnostics:
@@ -78,7 +78,7 @@ class DataDiagnostics:
             raise TypeError("Input must be a SimulationData object or an iterable of SimulationData objects.")
 
         # Load config parameters once
-        self.variables = config.VARIABLES
+        self.variables = data_general.load_yaml_file(config.VARIABLES_PATH)
         self.max_workers_grid = config.MAX_WORKERS_GRID
 
 

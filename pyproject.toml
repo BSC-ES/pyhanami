@@ -35,10 +35,12 @@ dependencies = [
     "eofs",
     "matplotlib",
     "numpy",
+    "pandas",
     "pint",
     "scipy",
     "xarray",
     "xesmf",
+    "yaml",
 ]
 
 
