@@ -7,8 +7,9 @@ import matplotlib.pyplot as plt
 import matplotlib.path as mpath
 import cartopy.mpl.ticker as cticker
 
-from pyhanami import config
 from scipy.stats import bootstrap
+from pyhanami.utils import data_general
+from pyhanami.config import config_params
 from cartopy.util import add_cyclic_point
 from matplotlib.patches import Polygon, Circle
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap, BoundaryNorm
@@ -427,11 +428,11 @@ def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicabili
 
     # Prepare parameters
     if variables is None:
-        variables = list(config.VARIABLES.keys())
+        variables = list(data_general.load_yaml_file(config_params.VARIABLES_PATH).keys())
     if seasons is None:
-        seasons = config.SEASONS
+        seasons = config_params.SEASONS
     if regions is None:
-        regions = list(config.REGIONS.keys())
+        regions = list(config_params.REGIONS.keys())
 
     abs_eff_sizes = np.abs(eff_sizes)
     if test == 4:

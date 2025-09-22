@@ -10,10 +10,10 @@ from pathlib import Path
 from scipy.stats import bootstrap
 from collections.abc import Iterable
 
-from pyhanami import config
-from pyhanami.utils import plot, report, statistics
+from pyhanami.config import config_params
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
+from pyhanami.utils import data_general, plot, report, statistics
 
 
 class ReplicabilityTest:
@@ -97,14 +97,16 @@ class ReplicabilityTest:
 
             self._compare_ensembles()
             self.obs = ObservationData(self.obs_path, self.datasets[0].data)
-            self.variables = {var: info for var, info in config.VARIABLES.items() if var in datasets[0].data.data_vars}
+
+            expected_vars = data_general.load_yaml_file(config_params.VARIABLES_PATH)
+            self.variables = {var: info for var, info in expected_vars.items() if var in datasets[0].data.data_vars}
 
         # Load config parameters once
-        self.max_workers_vars = config.MAX_WORKERS_VARS
-        self.metrics = config.METRICS
-        self.tests = config.TESTS
-        self.seasons = config.SEASONS
-        self.regions = config.REGIONS
+        self.max_workers_vars = config_params.MAX_WORKERS_VARS
+        self.metrics = config_params.METRICS
+        self.tests = config_params.TESTS
+        self.seasons = config_params.SEASONS
+        self.regions = config_params.REGIONS
 
 
     def _compare_ensembles(self):
@@ -240,7 +242,7 @@ class ReplicabilityTest:
         
         scores_dataset = xr.Dataset(data_vars=scores_var, coords=coords)
         scores_dataset.attrs['variable'] = var_name
-        scores_dataset.attrs['long_name'] = self.variables[var_name][0]
+        scores_dataset.attrs['long_name'] = self.variables[var_name]['long_name']
 
         print(f"\tComputed scores for variable '{var_name}'...", flush=True)
         return scores_dataset
@@ -432,7 +434,8 @@ class ReplicabilityTest:
         # Add observation data and variables if not already present
         if self.obs is None:
             self.obs = ObservationData(self.obs_path, self.datasets[0].data)
-            self.variables = {var: info for var, info in config.VARIABLES.items() if var in self.datasets[0].data.data_vars}
+            expected_vars = data_general.load_yaml_file(config_params.VARIABLES_PATH)
+            self.variables = {var: info for var, info in expected_vars.items() if var in self.datasets[0].data.data_vars}
 
         return
 

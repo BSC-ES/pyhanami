@@ -149,7 +149,7 @@ tester.matrix_plot(
 )
 ```
 
-This `matrix_plot` method uses all variables from the simulation datasets that are listed in `src/pyhanami/config.py` to perform the replicability test.
+This `matrix_plot` method uses all variables from the simulation datasets that are listed in `src/pyhanami/config/variables.yaml` to perform the replicability test.
 
 
 ### **5. Tropical IntraSeasonal Oscillation (ISO) evaluation**
@@ -192,9 +192,9 @@ By default, the `bimodal_ISO` method does not spatially plot the first two EEOFs
 
 
 #### General considerations:  
-- The climate variable name `var_name` must be listed in the `VARIABLES` dictionary in `src/pyhanami/config.py`.  
+- The climate variable name `var_name` must be listed in the configuration file `src/pyhanami/config/variables.yaml`.  
 - `output_path` can be either a directory or a full file path including the file name. If `output_path` is not provided, the plots are displayed interactively.  
-- `obs_path` must be a path to a directory containing observation datasets, with files named following the pattern `data_obs*_{var_name}.nc`, where `var_name` matches the corresponding variable name in `src/pyhanami/config.py`.  
+- `obs_path` must be a path to a directory containing observation datasets, with files named following the pattern `data_obs*_{var_name}.nc`, where `var_name` matches the corresponding variable name in `src/pyhanami/config/variables.yaml`. 
 - The `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes can all be initialized without providing any `SimulationData` objects; datasets can be added later with the `add_datasets` method.
 
 
@@ -222,6 +222,7 @@ Significant contributors at JAMSTEC:
 
 Thanks to researchers at BSC:
 - Bernardo Maraldi: [bernardo.maraldi@bsc.es](bernardo.maraldi@bsc.es)
+- Iker Gonzalez: [iker.gonzalez@bsc.es](iker.gonzalez@bsc.es)
 
 Thanks to researchers at JAMSTEC:
 - Chihiro Kodama: [kodamac@jamstec.go.jp](kodamac@jamstec.go.jp)

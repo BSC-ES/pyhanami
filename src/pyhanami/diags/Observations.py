@@ -1,11 +1,10 @@
 import warnings
 warnings.simplefilter("always")
 
-import numpy as np
 import xarray as xr
 
 from pathlib import Path
-from pyhanami.utils import data
+from pyhanami.utils import data_general, data_checker
 
 
 class ObservationData:
@@ -19,7 +18,7 @@ class ObservationData:
     Parameters
     ----------
     data_path : str
-        Path to an observations database.
+        Path to an observations database.data.
     sim : xr.Dataset
         Input simulation dataset.
     name : str
@@ -98,11 +97,22 @@ class ObservationData:
             var_path = next(self.data_path.glob(f"data_obs*_{var}.nc"))
             data_obs_aux = xr.open_dataset(var_path, chunks="auto")
 
-            # Align the time range with the simulations
+            # Check time coordinate and format
             if "time" not in data_obs_aux.coords or "time" not in sim.coords:
                 raise ValueError(f"'time' coordinate missing in either simulations or observations for variable {var}.")
-            data_obs_time = data.normalize_time_format(data_obs_aux)
             
+            data_obs_time, errors, warnings = data_checker.DataChecker.normalize_time_format(data_obs_aux)
+            if len(warnings) != 0:
+                print(f"{len(warnings)} warnings encountered while loading the observations dataset:", flush=True)
+                for warning in warnings:
+                    print(f'\t - {warning}', flush=True)
+            if len(errors) != 0:
+                print(f"{len(errors)} errors encountered while loading the observations dataset:", flush=True)
+                for error in errors:
+                    print(f'\t - {error}', flush=True)
+                raise RuntimeError("Loading of observations failed due to the errors listed above.")
+
+            # Align the time range with the simulations
             try:
                 data_obs_sel = data_obs_time.sel(time=sim.time)
             except KeyError:
@@ -134,6 +144,6 @@ class ObservationData:
             raise ValueError("Input simulation must contain at least one climate variable.")
 
         data_old_grid = self._retrieve_obs(sim)
-        data_new_grid = data.regrid_data(data_old_grid, sim, method=self.regrid_method)
+        data_new_grid = data_general.regrid_data(data_old_grid, sim, method=self.regrid_method)
 
         return data_new_grid 

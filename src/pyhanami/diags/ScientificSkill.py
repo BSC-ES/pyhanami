@@ -7,10 +7,10 @@ from pathlib import Path
 from collections.abc import Iterable
 from matplotlib.colors import LinearSegmentedColormap
 
-from pyhanami import config
-from pyhanami.utils import iso_metrics, plot
+from pyhanami.config import config_params
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
+from pyhanami.utils import data_general, iso_metrics, plot
 
 import time
 
@@ -61,7 +61,7 @@ class ScientificEvaluation:
                 raise TypeError("Input must be a SimulationData object or an iterable of SimulationData objects.")
 
         # Load config parameters once
-        self.variables = config.VARIABLES
+        self.variables = data_general.load_yaml_file(config_params.VARIABLES_PATH)
 
         return
 

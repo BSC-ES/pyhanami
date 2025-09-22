@@ -35,11 +35,21 @@ dependencies = [
     "eofs",
     "matplotlib",
     "numpy",
+    "pandas",
     "pint",
+    "pyyaml",
     "scipy",
     "xarray",
     "xesmf",
 ]
+
+
+[tool.setuptools]
+include-package-data = true
+
+
+[tool.setuptools.package-data]
+"pyhanami" = ["config/*.yaml"]
 
 
 [project.urls]

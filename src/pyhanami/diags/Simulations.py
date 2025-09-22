@@ -1,7 +1,7 @@
 import xarray as xr
 
 from pathlib import Path
-from pyhanami.utils import data
+from pyhanami.utils import data_general, data_checker
 
 
 class SimulationData:
@@ -65,14 +65,15 @@ class SimulationData:
         data_sim (xr.Dataset): Loaded simulation data.
         """
 
-        data_sim = data.prepare_data(self.data_path)
+        data_sim = data_general.prepare_data(self.data_path)
         return data_sim
 
 
     def check_data(self):
         """ 
-        Check provided data (available variables, units, coordinates names, ...). 
+        Check and correct provided data (available variables, units, coordinates names and format, ...). 
         """
 
-        self.data = data.check_data(self.data)
+        data_checker_ins =  data_checker.DataChecker()
+        self.data = data_checker_ins.check_data(self.data)
         return
