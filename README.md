@@ -3,24 +3,6 @@
 _pyhanami_ is a tool designed to evaluate the replicability and scientific skill of Earth System Models (ESMs).
 
 
-### Replicability
-
-An ESM is replicable if performing the same experiment (with the same model and forcings) using different computing environments or compilers leads to _identical_ results representing the same climate. In practice, bit-for-bit replicability is not feasible due to the chaotic nature of this type of models. However, we can aim to achieve statistically indistinguishable results. _pyhanami_ provides a replicability test to assess whether this indistinguishability holds between two given ensembles of simulated data, following the methodology presented in ([[Preprint] K. Keller et al., 2025](https://egusphere.copernicus.org/preprints/2025/egusphere-2025-1367/)).
-
-
-### Scientific skill
-
-Scientific model skill refers to the ability of an ESM to accurately represent and predict various aspects of the climate system, including its capacity to forecast future climate changes or to capture complex patterns and relationships within the system. 
-
-Currently, evaluation of the following phenomena is available within _pyhanami_:
-- **Tropical IntraSeasonal Oscillation (ISO):** large-scale convective anomalies that modulate tropical atmospheric circulation on 30-90 day timescales. This is the predominant phenomenon in the tropics throughout the year. Following [(K. Kikuchi et al., 2012)](https://link.springer.com/article/10.1007/s00382-011-1159-1), we differentiate between two modes of ISO: the **Madden-Jullian Oscillation (MJO)** and the **Boreal Summer ISO (BSISO)**. 
-
-<!--
-- **Tropical Cyclones (TCs):** warm-core, cyclonic storms characterized by heavy precipitation and strong winds that begin over tropical oceans.
--->
-
-
-
 ## Features
 
 Key features include:
@@ -29,17 +11,8 @@ Key features include:
 - **Diagnostics plotting:** generate visualizations comparing two previously loaded simulation ensembles for selected variables using the `DataDiagnostics` class. 
 These include time series plots (with the `time_series_plots` method) and spatial plots (with the `spatial_plots` method). The latter generates two plots, one for the absolute difference and another for the effect size (Cohen's _d)_ between both ensembles.
 - **Replicability testing:** perform a replicability test checking the statistical indistinguishability between two previously loaded simulation ensembles using the `ReplicabilityTest` class.
-- **Scientific skill evaluation:** compute metrics evaluating ISO using the `ScientificEvaluation` class.
+- **Scientific skill evaluation:** compute metrics evaluating ISO using the `ScientificEvaluation` class. These include the computation of the bimodal ISO indices (MJO and BSISO), as well as the calculation of related statistics comparing the indices for simulations and observations (temporal correlation, standard deviation ratio, and Taylor Skill Score (TSS)).
 - **Flexible data management:** add and compare datasets in the `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes even after initialization. 
-
-
-Available scientific skill metrics:
-- **Bimodal ISO indices:** two separate indices are defined for the MJO and the BSISO, following [(K. Kikuchi, 2020)](https://link.springer.com/article/10.1007/s00382-019-05037-z). These indices capture the ISO behaviour during boreal winter and boreal summer, respectively. They are computed by performing an Extended Empirical Orthogonal Function (EEOF) analysis using TOA Outgoing Longwave Radiation (OLR) data, and then projecting the OLR data onto the first two EEOFs. This results in two Principal Components (PCs) for MJO and two for BSISO, which together represent the bimodal ISO indices. 
-
-    In order to obtain scalar metrics, we also compute the **temporal correlation**, **standard deviation ratio**, and **Taylor Skill Score (TSS)** between simulations and observations using the PCs' amplitude, following [(M. Nakano et al., 2019)](https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2019GL082443). Specifically, the mean monthly frequency of MJO and BSISO events (ISO  seasonality) is calculated using the amplitude of the corresponding PCs. The MJO frequency is then subtracted from the BSISO frequency, and this difference is compared between simulations and observations.
-
-    The correlation indicates how well the phase of the ISO seasonality is reproduced by a model. While the ratio of standard deviations (model/observations) provides information about the amplitude (MJO/BSISO contrast) of the seasonality. Finally, the TSS combines both the correlation and the standard deviation, allowing to assess how well a model matches the ISO seasonality of the observations with a single score.
-
 
 Future releases will include:
 - **Additional scientific skill evaluation:** compute additional metrics evaluating several climate phenomena, such as TCs and precipitation.
