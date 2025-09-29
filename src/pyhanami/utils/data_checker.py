@@ -110,7 +110,7 @@ class DataChecker:
         try:
             # Check calendar type
             if not np.issubdtype(time_type, np.datetime64):
-                datetimeindex = data.indexes['time'].to_datetimeindex('ns')
+                datetimeindex = data.indexes['time'].to_datetimeindex(time_unit='ns')
                 data = data.assign_coords(time=("time", datetimeindex.values))
                 warnings.append(
                     f"Data 'time' coordinate was not in 'np.datetime64' format but '{time_type}' instead. " 
@@ -160,12 +160,11 @@ class DataChecker:
                 f"The dataset is missing the following coordinates: {', '.join(missing_coords)}. "
             )
 
-            # Critical error: print and rasie immediately
-            print(f"{len(self.error_msg)} errors encountered while checking the provided dataset:", flush=True)
-            for error in self.error_msg:
-                print(f'\t - {error}', flush=True)
-            print("Please, correct the dataset before proceeding.", flush=True)
-            raise RuntimeError("Data check failed due to errors listed above.")
+            # Critical error: print and raise immediately
+            error_message = f"{len(self.error_msg)} errors encountered while checking the provided dataset:\n"
+            error_message += "\n".join(f'\t- {error}' for error in self.error_msg)
+            error_message += "\nData check failed due to errors listed above. Please, correct the dataset before proceeding."
+            raise RuntimeError(error_message)
 
 
         # Continue checking if all coordinates are available
@@ -278,12 +277,11 @@ class DataChecker:
                         )
 
         if all_nan:
-            # Critical error: print and rasie immediately
-            print(f"{len(self.error_msg)} errors encountered while checking the provided dataset:", flush=True)
-            for error in self.error_msg:
-                print(f'\t - {error}', flush=True)
-            print("Please, correct the dataset before proceeding.", flush=True)
-            raise RuntimeError("Data check failed due to errors listed above.")
+            # Critical error: print and raise immediately
+            error_message = f"{len(self.error_msg)} errors encountered while checking the provided dataset:\n"
+            error_message += "\n".join(f'\t- {error}' for error in self.error_msg)
+            error_message += "\nData check failed due to errors listed above. Please, correct the dataset before proceeding."
+            raise RuntimeError(error_message)
 
         return data
 
@@ -320,10 +318,10 @@ class DataChecker:
 
         # Infer time frequency
         time_index = pd.to_datetime(time_sorted)
-        inferred_freq = pd.infer_freq(time_index)
+        inferred_freq = pd.infer_freq(time_index[:3])
         if inferred_freq is None:
             self.error_msg.append(
-                "Could not infer the frequency of the dataset. Please, check the time coordinate"
+                "Could not infer the frequency of the dataset from the first 3 timesteps. Please, check the time coordinate."
             )
 
         else:
@@ -331,8 +329,8 @@ class DataChecker:
             missing_times = expected_times.difference(time_index)
             if len(missing_times) != 0:
                 self.error_msg.append(
-                    f"Missing {len(missing_times)} timesteps between {time_index[0]} and {time_index[-1]}:" 
-                    f"{missing_times.strftime('%Y-%m-%d %H:%M:%S').tolist()}"
+                    f"Missing {len(missing_times)} timesteps between {time_index[0]} and {time_index[-1]}. Missing values: "
+                    f"{','.join(missing_times.strftime('%Y-%m-%d %H:%M:%S').tolist())}"
                 )
 
         return data
@@ -364,7 +362,7 @@ class DataChecker:
 
                         if max_ref < max_value:
                             self.error_msg.append(
-                                f"Physically unlikely value for variable '{var}': {max_value}."
+                                f"Physically unlikely value for variable '{var}': {max_value}. "
                                 f"Greater than upper bound {max_ref}."
                             )
 
@@ -374,7 +372,7 @@ class DataChecker:
 
                         if min_ref > min_value:
                             self.error_msg.append(
-                                f"Physically unlikely value for variable '{var}': {min_value}. "
+                                f"Physically unlikely value for variable '{var}': {min_value}.  "
                                 f"Smaller than lower bound {min_ref}."
                             ) 
 
@@ -423,16 +421,15 @@ class DataChecker:
         if len(self.warning_msg) != 0:
             print(f"{len(self.warning_msg)} warnings encountered while checking the provided dataset:", flush=True)
             for warning in self.warning_msg:
-                print(f'\t - {warning}', flush=True)
+                print(f'\t- {warning}', flush=True)
 
         if len(self.error_msg) == 0:
             print("Data check passed: all variables and coordinates are valid.", flush=True)
-        else:
-            print(f"{len(self.error_msg)} errors encountered while checking the provided dataset:", flush=True)
-            for error in self.error_msg:
-                print(f'\t - {error}', flush=True)
-            print("Please, correct the dataset before proceeding.", flush=True)
-            raise RuntimeError("Data check failed due to errors listed above.")
+        else:        
+            error_message = f"{len(self.error_msg)} errors encountered while checking the provided dataset:\n"
+            error_message += "\n".join(f'\t- {error}' for error in self.error_msg)
+            error_message += "\nData check failed due to errors listed above. Please, correct the dataset before proceeding."
+            raise RuntimeError(error_message)
 
         return data
 
