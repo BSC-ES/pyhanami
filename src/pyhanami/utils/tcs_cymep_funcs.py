@@ -1,3 +1,9 @@
+"""
+Functions adapted from the CyMeP package (https://github.com/zarzycki/cymep)
+Original author: Colin Zarzycki
+Used under MIT License
+"""
+
 import os
 import re
 import numpy as np

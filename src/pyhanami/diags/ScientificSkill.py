@@ -274,3 +274,46 @@ class ScientificEvaluation:
             return corr, sigma, tss
         else:
             return 
+        
+    
+    def tcs_metrics(self, data_name=None, output_path=None):
+        """
+        Compute Tropical Cyclone (TC) metrics following (C.M. Zarzycki et al., 2019) and plot results.
+
+        
+        Parameters
+        ----------
+        data_name (str): Name of simulation ensemble to use.
+        output_path (str): Path to save plots.
+        """
+
+        # Validate input
+        if data_name is None:
+            if len(self.datasets) < 1:
+                raise ValueError("At least one dataset is required for the Bimodal ISO indices.")
+            data_plot = self.datasets[0]
+            data_name = data_plot.name
+        elif isinstance(data_name, str):
+            data_plot = [ds for ds in self.datasets if ds.name == data_name]
+            if not data_plot:
+                raise ValueError(f"Dataset with name '{data_name}' not found in the ScientificEvaluation object.")
+            data_plot = data_plot[0]
+        else:
+            raise TypeError("'data_name' must be a string representing a dataset name.")
+        
+        # Prepare output path if given
+        # if output_path is not None:
+        #     output_path = Path(output_path)
+        #     if output_path.suffix != '':  
+        #         raise ValueError("Output path must be a directory, not a file path, as multiple files may be created.")
+            
+        #     output_path.mkdir(parents=True, exist_ok=True)
+        
+
+        # Prepare simulated and observed OLR data
+        var_names = "olr"
+        if var_name not in data_plot.data.data_vars:
+            raise ValueError(f"Variable '{var_name}' not found in the simulated dataset '{data_name}'. "
+                            f"Available variables: {list(data_plot.data.data_vars.keys())}")
+
+        return NotImplementedError('This method is not implemented yet.')
