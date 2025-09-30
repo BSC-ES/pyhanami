@@ -1,0 +1,133 @@
+hus300:
+  check_enabled: True
+  long_name: Specific humidity at 300 hPa
+  mask: atm
+  units: "kg kg**-1"
+  min: -0.000001
+ 
+hus850:
+  check_enabled: True
+  long_name: Specific humidity at 850 hPa
+  mask: atm
+  units: "kg kg**-1"
+  min: -0.000001
+
+net_sfc:
+  check_enabled: True
+  long_name: Net surface heat flux
+  mask: atm
+  units: "W m**-2"
+  boundaries: null
+
+olr:
+  check_enabled: True
+  long_name: TOA outgoing longwave radiation
+  mask: atm
+  units: "W m**-2"
+  boundaries: null
+
+pr:
+  check_enabled: True
+  long_name: Total precipitation rate
+  mask: atm
+  units: "kg m**-2 s**-1"
+  min: -0.000001
+
+psl:
+  check_enabled: True
+  long_name: Sea level pressure
+  mask: atm
+  units: "Pa"
+  boundaries: null
+
+siconc:
+  check_enabled: True
+  long_name: Sea ice concentration
+  mask: oce
+  units: "-"
+  boundaries: null
+
+sos:
+  check_enabled: True
+  long_name: Sea surface salinity
+  mask: oce
+  units: "g kg**-1"
+  boundaries: null
+
+ta200:
+  check_enabled: True
+  long_name: Air temperature at 200 hPa
+  mask: atm
+  units: "K"
+  min: 0.0
+  max: 1000.0
+
+ta850:
+  check_enabled: True
+  long_name: Air temperature at 850 hPa
+  mask: atm
+  units: "K"
+  min: 0.0
+  max: 1000.0
+
+tas:
+  check_enabled: True
+  long_name: Air surface temperature
+  mask: atm
+  units: "K"
+  min: 0.0
+  max: 1000.0
+
+tauu:
+  check_enabled: True
+  long_name: Surface downward eastward stress
+  mask: atm
+  units: "Pa"
+  boundaries: null
+
+tauu:
+  check_enabled: True
+  long_name: Surface downward northward stress
+  mask: atm
+  units: "Pa"
+  boundaries: null
+
+tos:
+  check_enabled: True
+  long_name: Sea surface temperature
+  mask: oce
+  units: "K"
+  min: 173.15
+  max: 1000.0
+
+ua200:
+  check_enabled: True
+  long_name: Zonal wind at 200 hPa
+  mask: atm
+  units: "m s**-1"
+  min: -1000.0
+  max: 1000.0
+
+ua850:
+  check_enabled: True
+  long_name: Zonal wind at 850 hPa
+  mask: atm
+  units: "m s**-1"
+  min: -1000.0
+  max: 1000.0
+
+va200:
+  check_enabled: True
+  long_name: Meridional wind at 200 hPa
+  mask: atm
+  units: "m s**-1"
+  min: -1000.0
+  max: 1000.0
+
+va850:
+  check_enabled: True
+  long_name: Meridional wind at 850 hPa
+  mask: atm
+  units: "m s**-1"
+  min: -1000.0
+  max: 1000.0

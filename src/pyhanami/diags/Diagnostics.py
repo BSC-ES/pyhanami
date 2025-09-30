@@ -13,10 +13,10 @@ from pathlib import Path
 from scipy.stats import ttest_ind
 from collections.abc import Iterable
 
-from pyhanami import config
-from pyhanami.utils import plot, statistics
+from pyhanami.config import config_params
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
+from pyhanami.utils import data_general, plot, statistics
 
 
 class DataDiagnostics:
@@ -78,8 +78,8 @@ class DataDiagnostics:
             raise TypeError("Input must be a SimulationData object or an iterable of SimulationData objects.")
 
         # Load config parameters once
-        self.variables = config.VARIABLES
-        self.max_workers_grid = config.MAX_WORKERS_GRID
+        self.variables = data_general.load_yaml_file(config_params.VARIABLES_PATH)
+        self.max_workers_grid = config_params.MAX_WORKERS_GRID
 
 
     def _compute_time_series(self, var_name, data_plot, time_freq='1YS'):
@@ -419,8 +419,8 @@ class DataDiagnostics:
             
         # Compute and plot time series
         time_series = self._compute_time_series(var_name, data_plot, time_freq_unit)
-        time_series_plot, _ = plot.time_series_plot(time_series, title=f'{time_freq.capitalize()} mean time series of {self.variables[var_name][0]}',
-                                                 y_label=f'{var_name} ({self.variables[var_name][1]})', labels=data_names, time_freq=time_freq,
+        time_series_plot, _ = plot.time_series_plot(time_series, title=f'{time_freq.capitalize()} mean time series of {self.variables[var_name]['long_name']}',
+                                                 y_label=f'{var_name} ({self.variables[var_name]['units']})', labels=data_names, time_freq=time_freq,
                                                  start_year=start_year, end_year=end_year, plot_ens=plot_ens)
         
         # Save plot to path if given
@@ -506,8 +506,8 @@ class DataDiagnostics:
         limit = np.max(np.abs(abs_diff.values))
         levels = np.linspace(-limit, limit, 13)
         
-        abs_diff_plot, _ = plot.spatial_plot(abs_diff, title=f'Difference in {self.variables[var_name][0]} ({data_plot[0].name} - {data_plot[1].name})',
-                                          cb_label=f"difference in {var_name} ({self.variables[var_name][1]})", cmap=cmocean.cm.thermal, levels=levels)
+        abs_diff_plot, _ = plot.spatial_plot(abs_diff, title=f'Difference in {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})',
+                                          cb_label=f"difference in {var_name} ({self.variables[var_name]['units']})", cmap=cmocean.cm.thermal, levels=levels)
         
         if output_path is None:
             plt.show()
@@ -522,7 +522,7 @@ class DataDiagnostics:
         significant = self._compute_significant_diff(var_name, data_plot, alpha, stat)
         levels = [-2,-1.2,-0.8,-0.5,-0.2,-0.01,0.01,0.2,0.5,0.8,1.2,2.0]    # Use Cohen's limits for effect size
 
-        eff_size_plot, _ = plot.spatial_plot(eff_size, title=f"Cohen's effect size ($d$) for {self.variables[var_name][0]} ({data_plot[0].name} - {data_plot[1].name})",
+        eff_size_plot, _ = plot.spatial_plot(eff_size, title=f"Cohen's effect size ($d$) for {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
                                           cb_label=f"$d$ for {var_name} (-)", cmap=cmocean.cm.diff, levels=levels, significant=significant)
 
         if output_path is None:

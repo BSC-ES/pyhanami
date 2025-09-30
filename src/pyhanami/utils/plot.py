@@ -7,8 +7,9 @@ import matplotlib.pyplot as plt
 import matplotlib.path as mpath
 import cartopy.mpl.ticker as cticker
 
-from pyhanami import config
 from scipy.stats import bootstrap
+from pyhanami.utils import data_general
+from pyhanami.config import config_params
 from cartopy.util import add_cyclic_point
 from matplotlib.patches import Polygon, Circle
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap, BoundaryNorm
@@ -427,11 +428,11 @@ def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicabili
 
     # Prepare parameters
     if variables is None:
-        variables = list(config.VARIABLES.keys())
+        variables = list(data_general.load_yaml_file(config_params.VARIABLES_PATH).keys())
     if seasons is None:
-        seasons = config.SEASONS
+        seasons = config_params.SEASONS
     if regions is None:
-        regions = list(config.REGIONS.keys())
+        regions = list(config_params.REGIONS.keys())
 
     abs_eff_sizes = np.abs(eff_sizes)
     if test == 4:
@@ -764,7 +765,7 @@ def pcs_plot(pcs, title='Bimodal ISO indices', normalized=True):
     return fig, axs
 
 
-def freq_ISO_plot(freq_ISO_sim, freq_ISO_obs=None, corr=None, sigma=None, tss=None, title='Mean monthly frequency of ISO events', 
+def freq_ISO_plot(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=None, tss=None, title='Mean monthly frequency of ISO events', 
                   sim_label='simulations', obs_label='observations'):
     """ 
     Generate plot of the mean monthly frequency of occurrence of ISO events (ISO seasonality) 
@@ -775,6 +776,7 @@ def freq_ISO_plot(freq_ISO_sim, freq_ISO_obs=None, corr=None, sigma=None, tss=No
     ----------
     freq_ISO_sim (xarray.Dataset): Mean monthly frequency of occurrence data for simulated data.
     freq_ISO_obs (xarray.Dataset): Mean monthly frequency of occurrence data for observations.
+    alpha (float): Ratio between simulated and observed standarized PCs' amplitudes.
     corr (float): Temporal correlation coefficient of the seasonality.
     sigma (float): Ratio of the standard deviations (model/obs) of the seasonality.
     tss (float): Taylor Skill Score of the seasonality.
@@ -839,11 +841,19 @@ def freq_ISO_plot(freq_ISO_sim, freq_ISO_obs=None, corr=None, sigma=None, tss=No
         ax.add_artist(legend_bsiso)
 
         # Add Taylor Skill Score (TSS) statistics
-        stats_text = (
-            f"Statistics: R={f'{corr:.2f}' if corr is not None else 'N/A'}, "
-            f"$\\sigma$={f'{sigma:.2f}' if sigma is not None else 'N/A'}, "
-            f"TSS={f'{tss:.2f}'if tss is not None else 'N/A'}"
-        )
+        if alpha is None:
+            stats_text = (
+                f"Statistics: R={f'{corr:.2f}' if corr is not None else 'N/A'}, "
+                f"$\\sigma$={f'{sigma:.2f}' if sigma is not None else 'N/A'}, "
+                f"TSS={f'{tss:.2f}'if tss is not None else 'N/A'}"
+            )
+        else:
+            stats_text = (
+                f"Statistics: $\\alpha$={f'{alpha:.2f}' if alpha is not None else 'N/A'}, "
+                f"R={f'{corr:.2f}' if corr is not None else 'N/A'}, "
+                f"$\\sigma$={f'{sigma:.2f}' if sigma is not None else 'N/A'}, "
+                f"TSS={f'{tss:.2f}'if tss is not None else 'N/A'}"
+            )
         fig.text(0.5, 0.02, stats_text, ha='center', va='bottom', fontsize=10, bbox=dict(facecolor='white', edgecolor='black'))
         fig.subplots_adjust(top=0.78, bottom=0.16)
 

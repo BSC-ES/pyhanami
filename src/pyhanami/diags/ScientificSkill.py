@@ -7,10 +7,10 @@ from pathlib import Path
 from collections.abc import Iterable
 from matplotlib.colors import LinearSegmentedColormap
 
-from pyhanami import config
-from pyhanami.utils import iso_metrics, plot
+from pyhanami.config import config_params
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
+from pyhanami.utils import data_general, iso_metrics, plot
 
 import time
 
@@ -39,9 +39,9 @@ class ScientificEvaluation:
     add_datasets(datasets)
         Adds new datasets to the ScientificEvaluation object.
 
-    bimodal_ISO(data_name=None, output_path=None, start_year_eeof=None, end_year_eeof=None, plot_eeofs=False,
-                years_pc=None, obs=False, obs_path=None, obs_name=None, clon=0, lat_range=(-30, 30), 
-                lags=[-10, -5, 0], n_modes=2, window=141, low_freq=1/90, high_freq=1/25)
+    bimodal_ISO(data_name=None, output_path=None, start_year_eeof=None, end_year_eeof=None, plot_eeofs=False, years_pc=None, 
+                correct_pc=False, obs=False, obs_path=None, obs_name=None, clon=0, lat_range=(-30, 30), lags=[-10, -5, 0], 
+                n_modes=2, window=141, low_freq=1/90, high_freq=1/25)
         Computes bimodal ISO indices following (K. Kikuchi, 2020) and plots results for the selected years.  
         Moreover, computes temporal correlation, standard deviations ratio and Taylor Skill Score between 
         observations and simulations mean monthly frequency of ISO events following (M. Nakano et al., 2019) 
@@ -61,7 +61,7 @@ class ScientificEvaluation:
                 raise TypeError("Input must be a SimulationData object or an iterable of SimulationData objects.")
 
         # Load config parameters once
-        self.variables = config.VARIABLES
+        self.variables = data_general.load_yaml_file(config_params.VARIABLES_PATH)
 
         return
 
@@ -94,7 +94,7 @@ class ScientificEvaluation:
     
     
     def bimodal_ISO(self, data_name=None, output_path=None, start_year_eeof=None, end_year_eeof=None, plot_eeofs=False,
-                    years_pc=None, obs=False, obs_path=None, obs_name=None, clon=0, lat_range=(-30, 30), 
+                    years_pc=None, correct_pc=False, obs=False, obs_path=None, obs_name=None, clon=0, lat_range=(-30, 30), 
                     lags=[-10, -5, 0], n_modes=2, window=141, low_freq=1/90, high_freq=1/25):
         """
         Compute bimodal ISO indices following (K. Kikuchi, 2020) and plot results for the selected years.  
@@ -109,6 +109,7 @@ class ScientificEvaluation:
         start_year_eeof, end_year_eeof (int): Initial and end years to compute the TSS for.
         plot_eeofs (bool): If True, also spatially plot EEOFs (default: False).
         years_pc (int or list[int]): Years to compute the indices for.
+        correct_pc (bool): Whether to adjust simulated PCs by dividing by alpha (default: False).
         obs (bool): If True, also plot observational data if available (default: False).
         obs_path (str or list[str]): Path to the observations database.
         obs_name (str or list[str]): Name of the observational dataset.
@@ -219,10 +220,17 @@ class ScientificEvaluation:
         
 
         # Compute PCs and plot if requested
+        pcs_sim = iso_metrics.compute_PCs(olr_data, [eeof_winter, eeof_summer])
+        alpha = None
         if obs:
             pcs_obs = iso_metrics.compute_PCs(olr_obs, [eeof_winter, eeof_summer])
-
-        pcs_sim = iso_metrics.compute_PCs(olr_data, [eeof_winter, eeof_summer])
+            if correct_pc:
+                pcs_sim, alpha = iso_metrics.adjust_PCs(pcs_sim, pcs_obs)
+                print(f'Simulated PCs have been adjusted using the {obs_name} observations.', flush=True)
+        else:
+            if correct_pc:
+                warnings.warn(f"Simulated PCs cannot be adjusted if observations are not provided. Execution will continue without modifying the PCs.")
+                
         if years_pc is not None:
             for year in years_pc:
                 pcs_year = pcs_sim.sel(time=slice(f'{year}-01-01', f'{year}-12-31'))
@@ -237,7 +245,7 @@ class ScientificEvaluation:
                     # pcs_year.to_netcdf(pcs_path.with_suffix('.nc'))
                     pcs_plot.savefig(pcs_path.with_suffix('.png'), bbox_inches='tight', dpi=150)
                     print(f"PCs (bimodal ISO indices) plot for year {year} created and saved to '{pcs_path.with_suffix('.png')}'.", flush=True)
-        print('PCs computation completed.\n', flush=True)
+        print('PCs (bimodal ISO indices) computation completed.\n', flush=True)
 
         
         # Compute and plot monthly frequency of ocurrence of ISO events
@@ -253,7 +261,7 @@ class ScientificEvaluation:
             name = data_name
             freq_ISO_obs, corr, sigma, tss = None, None, None, None
 
-        freq_plot, _ = plot.freq_ISO_plot(freq_ISO_sim, freq_ISO_obs, corr=corr, sigma=sigma, tss=tss,
+        freq_plot, _ = plot.freq_ISO_plot(freq_ISO_sim, freq_ISO_obs, alpha=alpha, corr=corr, sigma=sigma, tss=tss,
                                           title=f'Mean monthly frequency of ISO events ({start_year}-{end_year})',
                                           sim_label=data_name, obs_label=obs_name)
 
