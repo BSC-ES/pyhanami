@@ -1,6 +1,8 @@
 import warnings
 warnings.simplefilter("always")
 
+import numpy as np
+import xarray as xr
 import matplotlib.pyplot as plt
 
 from pathlib import Path
@@ -10,7 +12,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from pyhanami.config import config_params
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
-from pyhanami.utils import data_general, iso_metrics, plot
+from pyhanami.utils import data_general, iso_metrics, plot, tcs_tempestextremes
 
 import time
 
@@ -284,21 +286,26 @@ class ScientificEvaluation:
             return 
         
     
-    def tcs_metrics(self, data_name=None, output_path=None):
+    def tcs_metrics(self, data_name=None, output_path=None, start_year=None, end_year=None, tracks_hist=False, 
+                    tcs_plots=False, bin_size=2.5, clon=0):
         """
-        Compute Tropical Cyclone (TC) metrics following (C.M. Zarzycki et al., 2019) and plot results.
+        Compute Tropical Cyclones (TCs) metrics following (C.M. Zarzycki et al., 2021) and plot results.
 
-        
         Parameters
         ----------
         data_name (str): Name of simulation ensemble to use.
         output_path (str): Path to save plots.
+        start_year, end_year (int): Initial and end years to compute the TCs metrics for.
+        tracks_hist (bool): If True, generate a histogram of TC detections as a .nc file with TempestExtremes (default: False).
+        pcs_plots (bool): If True, spatially plot TCs genesis and tracks density (default: False).
+        bin_size (float): Size of the bins in degrees for the spatial density plots (default: 2.5).
+        clon (int): Central longitude for the spatial maps (default: 0).
         """
 
         # Validate input
         if data_name is None:
             if len(self.datasets) < 1:
-                raise ValueError("At least one dataset is required for the Bimodal ISO indices.")
+                raise ValueError("At least one dataset is required for the Tropical Cyclones metrics.")
             data_plot = self.datasets[0]
             data_name = data_plot.name
         elif isinstance(data_name, str):
@@ -308,20 +315,82 @@ class ScientificEvaluation:
             data_plot = data_plot[0]
         else:
             raise TypeError("'data_name' must be a string representing a dataset name.")
-        
+        input_path = data_plot.data_path
+
         # Prepare output path if given
-        # if output_path is not None:
-        #     output_path = Path(output_path)
-        #     if output_path.suffix != '':  
-        #         raise ValueError("Output path must be a directory, not a file path, as multiple files may be created.")
+        if output_path is not None:
+            output_path = Path(output_path)
+            if output_path.suffix != '':  
+                raise ValueError("Output path must be a directory, not a file path, as multiple files may be created.")
             
-        #     output_path.mkdir(parents=True, exist_ok=True)
-        
+            output_path.mkdir(parents=True, exist_ok=True)
+            tracks_path = output_path / f"tcs_tempestExtremes_{data_name}_output"
+        else:
+            tracks_path = input_path.parent / f"tcs_tempestExtremes_{data_name}_output"
 
-        # Prepare simulated and observed OLR data
-        var_names = "olr"
-        if var_name not in data_plot.data.data_vars:
-            raise ValueError(f"Variable '{var_name}' not found in the simulated dataset '{data_name}'. "
-                            f"Available variables: {list(data_plot.data.data_vars.keys())}")
 
-        return NotImplementedError('This method is not implemented yet.')
+        # Prepare simulated data
+        data_years = data_plot.data.time.dt.year
+        start_year_data = int(data_years.min())
+        end_year_data = int(data_years.max())
+        if start_year is None:
+            start_year = start_year_data
+        if end_year is None:
+            end_year = end_year_data
+
+        data_sim_all = data_plot.data.sel(time=slice(np.datetime64(f"{start_year}-01-01"), np.datetime64(f"{end_year}-12-31")), method="nearest")
+        if data_sim_all is None:
+            raise ValueError(f"No data available in the {data_name} dataset in the selected years {start_year}-{end_year}.")
+
+        data_vars = []
+        var_names = ["psl", "uas", "vas", "zg300", "zg500"]
+        new_names = ["PSL", "UBOT", "VBOT", "Z300", "Z500"]
+        for var_name, new_name in zip(var_names, new_names):
+            if var_name not in data_sim_all.data_vars:
+                raise ValueError(f"Variable '{var_name}' not found in the simulated dataset '{data_name}'. "
+                                f"Available variables: {list(data_sim_all.data_vars.keys())}")
+
+            data_vars.append(data_sim_all.rename({var_name: new_name})[new_name])
+
+        # Add surface geopotential!!!
+
+        data_sim = xr.merge(data_vars, join='inner')   # join='inner' keeps only common coordinates
+        data_sim_path = input_path.parent / f"{data_name}_tcs_tempestExtremes_input.nc"
+        data_sim.to_netcdf(data_sim_path)
+
+
+        # Run TempestExtremes tracking
+        tracks_file = tcs_tempestextremes.track_tcs(data_name, data_sim_path, tracks_path, hist=tracks_hist)
+        print(f"Tropical Cyclones tracking completed. Output files saved to '{tracks_path}'.", flush=True)
+
+
+        # Plot TC genesis and tracks density if requested
+        if tcs_plots:
+            tracks = tcs_tempestextremes.read_tracks_tempestExtremes(tracks_file)
+            counts_gen, counts_traj = tcs_tempestextremes.compute_tc_counts(tracks, start_year, end_year)
+
+            genesis_plot, _ = plot.spatial_plot(counts_gen,  title=f"{data_name} TCs genesis density per {bin_size}°x{bin_size}° cell ({start_year}-{end_year})", 
+                                cb_label="N° of tropical cyclones formed", clon=clon, show_contours=False)
+            if output_path is None:
+                plt.show()
+                print(f"\nTC genesis plot created and displayed.", flush=True)
+            else:
+                genesis_path = output_path / f"tcs_genesis_density_{data_name}_{start_year}-{end_year}.png"
+                genesis_plot.savefig(genesis_path, bbox_inches='tight', dpi=150)
+                print(f"\nTC genesis plot created and saved to '{genesis_path}'.", flush=True)
+
+            
+            traj_plot, _ = plot.spatial_plot(counts_traj,  title=f"{data_name} TCs tracks density per {bin_size}°x{bin_size}° cell ({start_year}-{end_year})",
+                                cb_label="N° of tropical cyclone passed", clon=clon, show_contours=False)
+            if output_path is None:
+                plt.show()
+                print(f"TC tracks plot created and displayed.", flush=True)
+            else:
+                traj_path = output_path / f"tcs_tracks_density_{data_name}_{start_year}-{end_year}.png"
+                traj_plot.savefig(traj_path, bbox_inches='tight', dpi=150)
+                print(f"TC tracks plot created and saved to '{traj_path}'.", flush=True)
+
+            
+        # Compute TCs metrics with CyMeP
+
+        return
