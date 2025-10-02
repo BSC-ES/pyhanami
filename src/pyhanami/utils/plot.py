@@ -219,7 +219,7 @@ def add_colorbar(fig, mappable, ax_l, ax_r, ax_b, label='', fontsize=15, levels=
     return cbar
 
 
-def spatial_plot(data, title='Spatial plot', cb_label='', cmap=cmocean.cm.thermal, levels=None, significant=None,
+def spatial_plot(data, clon=0, title='Spatial plot', cb_label='', cmap=cmocean.cm.thermal, levels=None, significant=None,
                  vmin=None, vmax=None, show_contours=True, contour_fontsize=12, gridlines=True, **plot_kwargs):
     """ 
     Generate a spatial plot using Cartopy with a significance mask if selected.
@@ -227,6 +227,7 @@ def spatial_plot(data, title='Spatial plot', cb_label='', cmap=cmocean.cm.therma
     Parameters
     ----------
     data (xarray.DataArray): 2D dataset to plot with dimensions (lat, lon).
+    clon (int): Central longitude for the spatial map.
     title (str): Title of the plot (default: 'Spatial plot').
     cb_label (str): Label to display below the colorbar (default: ''). 
     cmap (matplotlib colormap): Colormap (default: cmocean.cm.thermal).
@@ -249,6 +250,8 @@ def spatial_plot(data, title='Spatial plot', cb_label='', cmap=cmocean.cm.therma
         raise TypeError("The data must be a xarray.DataArray.")
     if 'lat' not in data.coords or 'lon' not in data.coords:
         raise ValueError("Could not identify latitude and longitude coordinates.")
+    if not isinstance(clon, (int, float)) or not (0 <= clon <= 360):
+        raise TypeError("The central longitude 'clon' must be a numeric value between 0º and 360º.")
     
     # Correct 0 and NaN values (values which are exactly 0 are painted in white, not with the corresponding colorbar color for 0)
     var_name = data.name
@@ -266,7 +269,7 @@ def spatial_plot(data, title='Spatial plot', cb_label='', cmap=cmocean.cm.therma
 
     if var_name != 'siconc':
         # Create figure
-        fig, ax = plt.subplots(1, figsize=(20, 10), dpi=150, subplot_kw={'projection': ccrs.Robinson(), "aspect": 'auto'}, gridspec_kw = {'wspace':0.01, 'hspace':0.02})
+        fig, ax = plt.subplots(1, figsize=(20, 10), dpi=150, subplot_kw={'projection': ccrs.Robinson(central_longitude=clon), "aspect": 'auto'}, gridspec_kw = {'wspace':0.01, 'hspace':0.02})
         style_cartopy_axis(ax, show_gridlines=gridlines, ocean_data=ocean_data)
         cb = data_cyclic.plot.contourf(ax=ax, transform=ccrs.PlateCarree(), cmap=cmap, levels=levels, vmin=vmin, vmax=vmax, add_colorbar=False, **plot_kwargs)
 
