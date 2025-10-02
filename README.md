@@ -203,6 +203,18 @@ By default, the `bimodal_ISO` method does not spatially plot the first two EEOFs
 
 This package is under GPLv3.
 
+### Third-party licenses
+This project includes code and resources from the following sources:
+
+#### Adapted code:
+
+#### Data sources:
+- [GSV-Interface/gsv/dqc/profiles/config/variables.yaml](https://github.com/DestinE-Climate-DT/GSV-Interface/blob/master/gsv/dqc/profiles/config/variables.yaml):
+    - Used for: data ranges and boundaries for plausibility checks in `src/pyhanami/config/variables.yaml`
+    - License: Apache License, Version 2.0, January 2004
+
+For full license texts, see the [LICENSES](./LICENSES) directory.
+
 
 
 ## Support
