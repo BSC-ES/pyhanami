@@ -1,7 +1,9 @@
 """
-Functions adapted from the CyMeP package (https://github.com/zarzycki/cymep)
+This script contains functions adapted from the CyMeP package
+Original source: https://github.com/zarzycki/cymep
 Original author: Colin Zarzycki
-Used under MIT License
+License: MIT License
+Copyright (c) 2021 Colin Zarzycki
 """
 
 import os

@@ -1,7 +1,9 @@
 """
-This script calls functions from the TempestExtremes package (https://github.com/ClimateGlobalChange/tempestextremes)
+This script calls functions from the TempestExtremes package
+Original source: https://github.com/ClimateGlobalChange/tempestextremes
 Original author: Paul Ullrich
-Copyright 2025 Paul Ullrich
+License: BSD 2-Clause License
+Copyright (c) 2025, Paul Ullrich
 
 The criteria for Tropical Cyclones (TCs) detection is taken from (C.M. Zarzycki & P.A. Ullrich, 2017; https://doi.org/10.1002/2016GL071606).
 From Section '3.4 Sample Optimization' in the paper: pslFOmag = 2 hPa, wcOffset = 1°, mergeDist = 6°, trajRange = 8°, trajMaxGap = 18 h,
