@@ -444,7 +444,7 @@ class DataDiagnostics:
         return
 
 
-    def spatial_plots(self, var_name, data_names=None, output_path=None, alpha=0.05, stat=ttest_ind):
+    def spatial_plots(self, var_name, data_names=None, output_path=None, clon=0, alpha=0.05, stat=ttest_ind):
         """ 
         Generate absolute difference and effect size plots for the given
         ensembles and variable. 
@@ -455,6 +455,7 @@ class DataDiagnostics:
         data_names (list[str]): List of names of two simulation ensembles to compare. If None, the first two datasets
                                  in the diagnostics object are used.
         output_path (str): Path to save the spatial plots.
+        clon (int): Central longitude for the spatial maps.
         alpha (float): Significance level for the statistical test (default: 0.05).
         stat (Callable): Statistical test function to use for significance testing (default: ttest_ind).
         """
@@ -506,8 +507,8 @@ class DataDiagnostics:
         abs_diff = self._compute_abs_diff(var_name, data_plot)
         limit = np.max(np.abs(abs_diff.values))
         levels = np.linspace(-limit, limit, 13)
-
-        abs_diff_plot, _ = plot.spatial_plot(abs_diff, title=f"Difference in {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
+        
+        abs_diff_plot, _ = plot.spatial_plot(abs_diff, clon=clon, title=f'Difference in {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})',
                                           cb_label=f"difference in {var_name} ({self.variables[var_name]['units']})", cmap=cmocean.cm.thermal, levels=levels)
         
         if output_path is None:
@@ -523,7 +524,7 @@ class DataDiagnostics:
         significant = self._compute_significant_diff(var_name, data_plot, alpha, stat)
         levels = [-2,-1.2,-0.8,-0.5,-0.2,-0.01,0.01,0.2,0.5,0.8,1.2,2.0]    # Use Cohen's limits for effect size
 
-        eff_size_plot, _ = plot.spatial_plot(eff_size, title=f"Cohen's effect size ($d$) for {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
+        eff_size_plot, _ = plot.spatial_plot(eff_size, clon=clon, title=f"Cohen's effect size ($d$) for {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
                                           cb_label=f"$d$ for {var_name} (-)", cmap=cmocean.cm.diff, levels=levels, significant=significant)
 
         if output_path is None:
