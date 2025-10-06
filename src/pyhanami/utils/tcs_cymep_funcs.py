@@ -9,8 +9,11 @@ Copyright (c) 2021 Colin Zarzycki
 import os
 import re
 import numpy as np
+import xarray as xr
+import pandas as pd
 import netCDF4 as nc
 
+from pathlib import Path
 from datetime import datetime
 
 
@@ -1028,4 +1031,411 @@ def write_single_csv(vardict, modelsin, csvdir, csvname):
     # Write header + data array
     np.savetxt(csvfilename, tmp, delimiter=",", fmt="%s", header=headerstr, comments="")
 
+    return
+
+
+# cymep/conver-traj/ibtracs-to-tempest.ncl functions (translated to Python)
+def load_ibtracs_data(ibfile, stix, enix, ibversion, ms_to_kts, flip_grid_180=True):
+    """
+    Extract and preprocess IBTrACS data. 
+
+    Parameters
+    ----------
+    ibfile (xarray.Dataset): IBTrACS dataset.
+    stix (int): Starting index of the storm to extract.
+    enix (int): Ending index of the storm to extract.
+    ibversion (str): Version of IBTrACS dataset.
+    ms_to_kts (float): Conversion factor from m/s to knots.
+    flip_grid_180 (bool): Whether to convert longitudes from [-180, 180] to [0, 360] (default: True).
+
+    Returns
+    -------
+    iblat (xarray.DataArray): Latitudes of the storm track.
+    iblon (xarray.DataArray): Longitudes of the storm track.
+    ibtype (xarray.DataArray): Storm types along the track.
+    ibwind (xarray.DataArray): Wind speeds along the track (in knots).
+    ibpres (xarray.DataArray): Pressures along the track (in hPa).
+    ibtime (xarray.DataArray): Time points along the track.
+    ibname (xarray.DataArray): Storm names.
+    ibbasin (xarray.DataArray): Basin codes of the storm.
+    """
+
+    if ibversion == "v3":
+        iblat = ibfile.lat_wmo.isel(storm=slice(stix, enix+1)) * 0.01
+        iblon = ibfile.lon_wmo.isel(storm=slice(stix, enix+1)) * 0.01
+        ibtype = ibfile.nature_wmo.isel(storm=slice(stix, enix+1)).astype(int)
+        ibwind = ibfile.wind_wmo.isel(storm=slice(stix, enix+1)) * 0.1 / ms_to_kts
+        ibpres = ibfile.pres_wmo.isel(storm=slice(stix, enix+1))
+        ibtime = ibfile.time_wmo.isel(storm=slice(stix, enix+1))
+    else:
+        iblat = ibfile.lat.isel(storm=slice(stix, enix+1))
+        iblon = ibfile.lon.isel(storm=slice(stix, enix+1))
+        ibtype = ibfile.nature.isel(storm=slice(stix, enix+1))
+        ibwind = ibfile.wmo_wind.isel(storm=slice(stix, enix+1)) / ms_to_kts
+        ibpres = ibfile.wmo_pres.isel(storm=slice(stix, enix+1)) * 100
+        ibtime = ibfile.time.isel(storm=slice(stix, enix+1))
+    
+    ibname = ibfile.name.isel(storm=slice(stix, enix+1))
+    ibbasin = ibfile.basin.isel(storm=slice(stix, enix+1)).astype(str)
+
+    if flip_grid_180:
+        iblon = xr.where(iblon < 0, iblon + 360, iblon)
+    
+    return iblat, iblon, ibtype, ibwind, ibpres, ibtime, ibname, ibbasin
+
+
+def great_circle_distance(lat1, lon1, lat2, lon2, npts=2, iu=4):
+    """
+    Calculate great circle distance between points and interpolate points along the path
+    following 'gc_latlon' function in NCL.
+    
+    Parameters
+    ----------
+    lat1 (float or np.ndarray): Latitude(s) of first point(s).
+    lon1 (float or np.ndarray): Longitude(s) of first point(s).
+    lat2 (float or np.ndarray): Latitude(s) of second point(s).
+    lon2 (float or np.ndarray): Longitude(s) of second point(s).
+    npts (int): Number of points to interpolate (default: 2).
+    iu (int): Unit flag (default: 4)
+        |iu| = 1: radians
+        |iu| = 2: degrees
+        |iu| = 3: meters
+        |iu| = 4: kilometers
+        sign(iu) > 0: longitudes in [0,360]
+        sign(iu) < 0: longitudes in [-180,180]
+    
+    Returns
+    -------
+    distance (float or np.ndarray): Great circle distance in requested units.
+    gclat (np.ndarray): Latitudes along great circle path
+    gclon (np.ndarray): Longitudes along great circle path
+    spacing (float): Distance between interpolated points
+    """
+
+    R = 6371.0  # Earth's radius in km
+    
+    # Convert to numpy arrays if needed
+    lat1 = np.asarray(lat1)
+    lon1 = np.asarray(lon1)
+    lat2 = np.asarray(lat2)
+    lon2 = np.asarray(lon2)
+    
+    # Convert to radians
+    lat1, lon1 = np.radians(lat1), np.radians(lon1)
+    lat2, lon2 = np.radians(lat2), np.radians(lon2)
+    
+    # Calculate great circle distance
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    
+    a = np.sin(dlat/2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2)**2
+    c = 2 * np.arcsin(np.sqrt(a))
+
+
+    # Convert to requested units
+    if abs(iu) == 1:  # radians
+        distance = c
+    elif abs(iu) == 2:  # degrees
+        distance = np.degrees(c)
+    elif abs(iu) == 3:  # meters
+        distance = R * c * 1000
+    else:  # kilometers
+        distance = R * c
+
+    # Interpolate points if requested
+    if npts > 2:
+        f = np.linspace(0, 1, npts)
+        
+        # Calculate intermediate points
+        A = np.sin((1-f)*c) / np.sin(c)
+        B = np.sin(f*c) / np.sin(c)
+        
+        x = A[...,np.newaxis] * np.cos(lat1) * np.cos(lon1) + \
+            B[...,np.newaxis] * np.cos(lat2) * np.cos(lon2)
+        y = A[...,np.newaxis] * np.cos(lat1) * np.sin(lon1) + \
+            B[...,np.newaxis] * np.cos(lat2) * np.sin(lon2)
+        z = A[...,np.newaxis] * np.sin(lat1) + B[...,np.newaxis] * np.sin(lat2)
+        
+        gclat = np.degrees(np.arctan2(z, np.sqrt(x**2 + y**2)))
+        gclon = np.degrees(np.arctan2(y, x))
+        
+        # Adjust longitude range based on iu sign
+        if iu > 0:  # [0,360]
+            gclon = (gclon + 360) % 360
+        else:  # [-180,180]
+            gclon = ((gclon + 180) % 360) - 180
+            
+        spacing = distance / (npts - 1)
+    else:
+        gclat = np.array([lat1, lat2])
+        gclon = np.array([lon1, lon2])
+        spacing = distance
+    
+    return distance, gclat, gclon, spacing
+
+
+def correct_pres_data(wind, pres):
+    """
+    Apply K&Z 07 relationship to fill missing pressure-wind data.
+    
+    Parameters
+    ----------
+    wind (float): Wind speed in m/s.
+    pres (float): Pressure in Pa.
+    
+    Returns
+    -------
+    wind (float): Corrected wind speed in m/s.
+    pres (float): Corrected pressure in Pa.
+    """
+
+    a, b, c = 2.3, 1010.0, 0.76
+    if np.isnan(wind) and not np.isnan(pres):
+        wind = a * (b - pres/100.0)**c
+    elif not np.isnan(wind) and np.isnan(pres):
+        pres = 100.0 * (b - (wind/a)**(1.0/c))
+    elif np.isnan(wind) and np.isnan(pres):
+        wind, pres = 15.0, 100800.0
+
+    return wind, pres
+
+
+def process_ibtracs(ibdir="../data", ibfilename="IBTrACS.since1980.v04r01.nc", ibversion="v4", ibst_yr=1980, iben_yr=datetime.now().year, 
+                    gridfile="../data/topog.nc", is_grid_2d=False, flip_grid_180=True, cut_regional=False, cut_regional_ring_width=8,
+                    correct_pres_wind=True, dur_thresh=3, print_to_screen=True, print_names=False):
+    """
+    Convert IBTrACS data to TempestExtremes format.
+
+    Parameters
+    ----------
+    ibdir (str): Directory containing the IBTrACS data file.
+    ibfilename (str): Name of the IBTrACS data file (default: "IBTrACS.since1980.v04r01.nc").
+    ibversion (str): Version of the IBTrACS data (default: "v4").
+    ibst_yr (int): Start year for IBTrACS data (default: 1990).
+    iben_yr (int): End year for IBTrACS data (default: datetime.now().year).
+    gridfile (str): Path to the grid NetCDF file containing topography data.
+    is_grid_2d (bool): Whether the grid is 2D (default: True).
+    flip_grid_180 (bool): Whether to flip longitudes from [-180, 180] to [0, 360] (default: True).
+    cut_regional (bool): Whether to cut the grid to a regional domain (default: False).
+    cut_regional_ring_width (int): Width of the ring to add around the regional domain (default: 8).
+    correct_pres_wind (bool): Whether to apply pressure-wind correction to fill in missing P/W with K&Z 07 (default: True).
+    dur_thresh (int): Minimum duration threshold for storms (default: 3).
+    print_to_screen (bool): Whether to print progress to the screen (default: True).
+    print_names (bool): Whether to print storm names (default: False).
+    """
+
+    # Define constants
+    g = 9.80665
+    ms_to_kts = 1.94384449
+
+    # Load IBTrACS data
+    print(f"Processing IBTrACS data from {ibst_yr} to {iben_yr}, this may take a while...")
+    ibfile = xr.open_dataset(Path(ibdir) / ibfilename)
+    
+
+    # Find storm bounds
+    ibyear = ibfile.season.values.astype(int)
+    valid_years = (ibyear >= ibst_yr-1) & (ibyear <= iben_yr+1)
+    stix = np.where(valid_years)[0][0]
+    enix = np.where(valid_years)[0][-1]
+
+    # Load IBTrACS data
+    iblat, iblon, ibtype, ibwind, ibpres, ibtime, ibname, ibbasin = load_ibtracs_data(
+        ibfile, stix, enix, ibversion, ms_to_kts, flip_grid_180
+    )
+
+    
+    # Convert start and end dates to time units used in IBTrACS
+    start_date = pd.Timestamp(f"{ibst_yr}-01-01 00:00:00")
+    end_date = pd.Timestamp(f"{iben_yr}-12-31 23:00:00")
+    
+    ib_units = ibtime.attrs['units']  
+    start_date_units = (start_date - pd.Timestamp(ib_units.split("since ")[1])).total_seconds()/3600
+    end_date_units = (end_date - pd.Timestamp(ib_units.split("since ")[1])).total_seconds()/3600
+
+
+    # Get dimensions of the storm data
+    ibstormcount = len(ibfile.season.isel(storm=slice(stix, enix+1)))
+    ibntimes = iblat.shape[1]  # Number of time points per storm
+
+    # Process storm names (convert from char to str)
+    ibnames = []
+    for i in range(ibstormcount):
+        name = str(ibname[i].values).replace(',', '')
+        ibnames.append(name)
+
+
+    # Correct IBTrACS time precision issues
+    ibtime = xr.where(ibtime.notnull(), np.round(ibtime, decimals=3), ibtime)
+
+    # Mask data outside the time range
+    valid_time = (ibtime >= start_date_units) & (ibtime <= end_date_units)
+    ibwind = xr.where(valid_time, ibwind, np.nan)
+    ibpres = xr.where(valid_time, ibpres, np.nan)
+    iblat = xr.where(valid_time, iblat, np.nan)
+    iblon = xr.where(valid_time, iblon, np.nan)
+    ibtime = xr.where(valid_time, ibtime, np.nan)
+    ibnames = xr.where(valid_time, ibnames, np.nan)
+
+    # Mask data at non-standard time steps (not every 6 hours)
+    eps = 0.00001
+    nonstandard_time = (np.mod(ibtime, 0.25) >= eps) | (np.mod(ibtime, 0.25) <= -eps)
+    ibwind = xr.where(nonstandard_time, np.nan, ibwind)
+    ibpres = xr.where(nonstandard_time, np.nan, ibpres)
+    iblat = xr.where(nonstandard_time, np.nan, iblat)
+    iblon = xr.where(nonstandard_time, np.nan, iblon)
+    ibtime = xr.where(nonstandard_time, np.nan, ibtime)
+
+
+    # Load PHIS data
+    topog = xr.open_dataset(gridfile)
+    surf_geopotential = topog['topog'] * g
+    phis = surf_geopotential.to_dataset().rename({'topog': 'PHIS'})
+
+
+    # Process each storm and save IBTrACS data with TempestExtremes format
+    ibtempest_filename = f"ibtracs_{ibst_yr}-{iben_yr}_GLOB.{ibversion}.txt"
+    output_path = Path("../data/") / ibtempest_filename
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    with open(output_path, 'w') as f:
+        for ii in range(ibstormcount):
+            # Initialize arrays for grid indices
+            latix = np.zeros(ibntimes, dtype=int)
+            lonix = np.zeros(ibntimes, dtype=int)
+        
+            for jj in range(ibntimes):
+                if not np.isnan(iblat[ii,jj].values):
+                    # Apply pressure-wind relationship if requested
+                    if correct_pres_wind:
+                        wind, pres = correct_pres_data(ibwind[ii,jj].values, ibpres[ii,jj].values)
+                        ibwind[ii,jj] = wind
+                        ibpres[ii,jj] = pres
+
+
+                # Process grid information if provided
+                if gridfile:
+                    if is_grid_2d:
+                        # Load 2D grid data if not already loaded
+                        if 'gridlat' not in locals():
+                            gridf = topog
+                            gridlat = gridf.XLAT
+                            gridlon = gridf.XLONG
+                            num2dlat, num2dlon = gridlat.shape
+                        
+                        # Find nearest grid point using great circle distance
+                        gcdist, _, _, _ = great_circle_distance(iblat[ii,jj], iblon[ii,jj], gridlat, gridlon)
+                        idx = np.unravel_index(np.argmin(gcdist), gcdist.shape)
+                        latix[jj], lonix[jj] = idx
+
+                        # Apply regional domain cutting if requested
+                        if cut_regional:
+                            if (latix[jj] <= (cut_regional_ring_width-1) or
+                                latix[jj] >= (num2dlat-cut_regional_ring_width) or
+                                lonix[jj] <= (cut_regional_ring_width-1) or
+                                lonix[jj] >= (num2dlon-cut_regional_ring_width)):
+                                iblat[ii,jj] = np.nan
+                                iblon[ii,jj] = np.nan
+                    else:
+                        # Load 1D grid data if not already loaded
+                        if 'gridlat' not in locals():
+                            gridf = topog
+                            gridlat = gridf.lat
+                            gridlon = gridf.lon
+
+                        # Find nearest grid points
+                        latix[jj] = np.abs(gridlat - iblat[ii,jj]).argmin()
+                        lonix[jj] = np.abs(gridlon - iblon[ii,jj]).argmin()
+                else:
+                    latix[jj] = -999
+                    lonix[jj] = -999
+
+            
+            # Count number of valid entries for this storm
+            numentries = np.sum(~np.isnan(iblat[ii,:].values))
+
+            # Check if storm meets duration threshold and has valid name
+            if numentries > dur_thresh:
+                # Find first non-missing index
+                valid_points = ~np.isnan(iblat[ii,:].values)
+                if not any(valid_points):
+                    continue
+                ibstix = np.where(valid_points)[0][0]
+
+                # Get date components from first valid time point
+                thisdate = pd.Timestamp(ib_units.split("since ")[1]) + pd.Timedelta(hours=float(ibtime[ii,ibstix].values))
+                
+                # Create header string
+                if print_names:
+                    header = ibnames[ii]
+                else:
+                    header = "start"
+                    
+                headstr = f"{header}\t{numentries}\t{thisdate.year}\t{thisdate.month}\t{thisdate.day}\t{thisdate.hour}"
+                
+                if print_to_screen:
+                    print()
+                    print(headstr)
+                
+                # Check for missing pressure and wind data
+                missing_both = np.logical_and(
+                    np.logical_and(
+                        np.isnan(ibpres[ii,:].values), 
+                        np.isnan(ibwind[ii,:].values)
+                    ),
+                    ~np.isnan(iblat[ii,:].values)
+                )
+                
+                # If all valid points are missing both pressure and wind
+                if np.array_equal(~np.isnan(iblat[ii,:].values), missing_both):
+                    print(f"********** {ibnames[ii]} in {ibbasin[ii,0].values} is missing ALL pres and wind data " 
+                        f"at all times {thisdate.year}\t{thisdate.month}\t{thisdate.day}\t{thisdate.hour}")
+                elif np.any(missing_both):
+                    print(f"{ibnames[ii]} is missing some pres and wind data at same time "
+                          f"{thisdate.year}\t{thisdate.month}\t{thisdate.day}\t{thisdate.hour}")
+                    pass
+
+                # Write header to file
+                f.write(f"{headstr}\n")
+
+            
+            # Process trajectory points
+            for jj in range(ibstix, ibntimes):
+                if not np.isnan(iblat[ii,jj].values):
+                    # Get nearest grid points from previously calculated indices
+                    thisLat = latix[jj]
+                    thisLon = lonix[jj]
+
+                    # Get surface geopotential at storm location
+                    if (iblon[ii,jj] <= phis.lon.max() and iblon[ii,jj] >= phis.lon.min()):
+                        thisPHIS = float(phis.PHIS.sel(
+                            lat=iblat[ii,jj].values,
+                            lon=iblon[ii,jj].values,
+                            method='nearest'
+                        ))
+                    else:
+                        thisPHIS = float(phis.PHIS.sel(
+                            lat=iblat[ii,jj].values,
+                            lon=phis.lon.max(),
+                            method='nearest'
+                        ))
+                    
+                    # Get datetime components for this point
+                    thisdate = pd.Timestamp(ib_units.split("since ")[1]) + pd.Timedelta(hours=float(ibtime[ii,jj].values))
+                    
+                    # Create string with storm data
+                    stormstr = (f"\t{thisLon}\t{thisLat}"
+                            f"\t{iblon[ii,jj].values:6.2f}\t{iblat[ii,jj].values:6.2f}"
+                            f"\t{ibpres[ii,jj].values:6.0f}\t{ibwind[ii,jj].values:8.2f}"
+                            f"\t{thisPHIS:7.3e}"
+                            f"\t{thisdate.year}\t{thisdate.month}\t{thisdate.day}\t{thisdate.hour}")
+                    
+                    if print_to_screen:
+                        print(stormstr)
+                    
+                    # Write storm data to file
+                    f.write(f"{stormstr}\n")
+
+
+    print(f"IBTrACS data with TempestExtremes format saved to {output_path}.")
     return

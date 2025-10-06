@@ -286,8 +286,8 @@ class ScientificEvaluation:
             return 
         
     
-    def tcs_metrics(self, data_name=None, output_path=None, start_year=None, end_year=None, tracks_hist=False, 
-                    tcs_plots=False, bin_size=2.5, clon=0):
+    def tcs_metrics(self, data_name=None, output_path=None, start_year=None, end_year=None, min_wind=10.0, 
+                    tracks_hist=False, tcs_plots=False, bin_size=2.5, clon=0):
         """
         Compute Tropical Cyclones (TCs) metrics following (C.M. Zarzycki et al., 2021) and plot results.
 
@@ -296,6 +296,7 @@ class ScientificEvaluation:
         data_name (str): Name of simulation ensemble to use.
         output_path (str): Path to save plots.
         start_year, end_year (int): Initial and end years to compute the TCs metrics for.
+        min_wind (float): minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
         tracks_hist (bool): If True, generate a histogram of TC detections as a .nc file with TempestExtremes (default: False).
         pcs_plots (bool): If True, spatially plot TCs genesis and tracks density (default: False).
         bin_size (float): Size of the bins in degrees for the spatial density plots (default: 2.5).
@@ -360,7 +361,7 @@ class ScientificEvaluation:
 
 
         # Run TempestExtremes tracking
-        tracks_file = tcs_tempestextremes.track_tcs(data_name, data_sim_path, tracks_path, hist=tracks_hist)
+        tracks_file = tcs_tempestextremes.track_tcs(data_name, data_sim_path, tracks_path, min_wind=min_wind, hist=tracks_hist)
         print(f"Tropical Cyclones tracking completed. Output files saved to '{tracks_path}'.", flush=True)
 
 
