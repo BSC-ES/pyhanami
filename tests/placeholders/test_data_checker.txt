@@ -1,0 +1,43 @@
+# Test Plan: DataChecker class (all methods in utils/data_checker.py)
+
+## Purpose
+Verify that the DataChecker class correctly validates input datasets for compliance with metadata standards, 
+completeness requirements, and physical plausibility of variables.
+
+## Inputs to test
+- Normal case:
+    - NetCDF files with proper metadata
+    - Complete spatial and temporal coverage
+    - Variables within physical ranges
+    - Correct coordinate names and units
+- Edge cases:
+    - Mixed variable units
+    - Partial temporal coverage
+    - Different calendar types
+    - Non-standard coordinate names
+- Invalid inputs:
+    - Missing required attributes
+    - NaN values in atmospheric fields
+    - Complete NaN fields or no NaN values in ocean data
+    - Values outside physical bounds
+    - Inconsistent time steps
+
+## Expected behaviour
+- For valid inputs:
+    - Return True for all validation checks
+    - Log successful validation messages
+    - Process both simulation and observation data
+- For edge cases:
+    - Convert units when possible
+    - Handle missing ocean/land masks appropriately
+    - Process different calendar types correctly
+- For invalid inputs:
+    - Log detailed error messages
+    - Identify problematic variables/coordinates
+    - Suggest fixes when possible
+
+## Status
+- [x] Not Started (placeholder)
+- [ ] In Progress (corresponding .py script in progress)
+- [ ] Ready for Implementation (ready to merge into `develop` branch)
+- [ ] Completed (tested with corresponding functions in `develop` branch)
