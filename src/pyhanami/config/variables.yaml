@@ -125,7 +125,7 @@ ua850:
 
 uas:
   check_enabled: True
-  long_name: Near-surface (10m) zonal wind
+  long_name: Near-surface (10 m) zonal wind
   mask: atm
   units: "m s**-1"
   min: -1000.0
@@ -149,7 +149,7 @@ va850:
 
 vas:
   check_enabled: True
-  long_name: Near-surface (10m) meridional wind
+  long_name: Near-surface (10 m) meridional wind
   mask: atm
   units: "m s**-1"
   min: -1000.0

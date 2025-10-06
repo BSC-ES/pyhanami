@@ -419,8 +419,8 @@ class DataDiagnostics:
             
         # Compute and plot time series
         time_series = self._compute_time_series(var_name, data_plot, time_freq_unit)
-        time_series_plot, _ = plot.time_series_plot(time_series, title=f'{time_freq.capitalize()} mean time series of {self.variables[var_name]['long_name']}',
-                                                 y_label=f'{var_name} ({self.variables[var_name]['units']})', labels=data_names, time_freq=time_freq,
+        time_series_plot, _ = plot.time_series_plot(time_series, title=f"{time_freq.capitalize()} mean time series of {self.variables[var_name]['long_name']}",
+                                                 y_label=f"{var_name} ({self.variables[var_name]['units']})", labels=data_names, time_freq=time_freq,
                                                  start_year=start_year, end_year=end_year, plot_ens=plot_ens)
         
         # Save plot to path if given
@@ -505,8 +505,8 @@ class DataDiagnostics:
         abs_diff = self._compute_abs_diff(var_name, data_plot)
         limit = np.max(np.abs(abs_diff.values))
         levels = np.linspace(-limit, limit, 13)
-        
-        abs_diff_plot, _ = plot.spatial_plot(abs_diff, title=f'Difference in {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})',
+
+        abs_diff_plot, _ = plot.spatial_plot(abs_diff, title=f"Difference in {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
                                           cb_label=f"difference in {var_name} ({self.variables[var_name]['units']})", cmap=cmocean.cm.thermal, levels=levels)
         
         if output_path is None:

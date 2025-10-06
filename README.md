@@ -104,6 +104,7 @@ corr, std_dev, tss = sciskill.bimodal_ISO(
 ```
 
 
+
 ## License
 
 This package is under GPLv3.
@@ -124,8 +125,12 @@ This project includes code and resources from the following sources:
     - Copyright (c) 2025, Paul Ullrich
 
 #### Data sources:
+- [GSV-Interface/gsv/dqc/profiles/config/variables.yaml](https://github.com/DestinE-Climate-DT/GSV-Interface/blob/master/gsv/dqc/profiles/config/variables.yaml):
+    - Used for: data ranges and boundaries for plausibility checks in `src/pyhanami/config/variables.yaml`
+    - License: Apache License, Version 2.0, January 2004
 
 For full license texts, see the [LICENSES](./LICENSES) directory.
+
 
 
 ## Support
