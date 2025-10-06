@@ -29,7 +29,7 @@ and optional significance hatching properly employing the functions `add_colorba
 - For edge cases:
     - Raise appropriate exceptions (`ValueError`, `TypeError`) or handle gracefully
     - Not crash when NaN values appear and handle missing data gracefully
-    - Plot is still created with reasonable defaults or no contours even for missint title/levels
+    - Plot is still created with reasonable defaults or no contours even for missing title/levels
 - For invalid inputs:
     - Function should fail with meaningful error messages
 

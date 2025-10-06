@@ -1,0 +1,40 @@
+# Test Plan: ISO metrics plot functions (eeofs_plot, pcs_plot, freq_ISO_plot in utils/plot.py)
+
+## Purpose
+Verify that the ISO-related plotting functions correctly visualize EEOFs, PCs, and ISO frequency distributions with 
+proper formatting, labels, and optional features.
+
+## Inputs to test
+- Normal case:
+    - EEOFs data with proper dimensions
+    - PCs with time and mode dimensions
+    - Frequency data with month dimensions
+- Edge cases:
+    - Different central longitudes for map projections
+    - Missing or incomplete metadata
+    - Multiple datasets for comparison
+- Invalid inputs:
+    - Wrong data dimensions or coordinates
+    - Invalid data types
+    - Incompatible data ranges
+    - Invalid projection parameters
+
+## Expected behaviour
+- For valid inputs:
+    - Return a Matplotlib `Figure` object with the correct number of panels
+    - Add title if provided
+    - Show proper spatial patterns and include coastlines and gridlines in eeofs plot
+    - Place colorbar below the map with appropriate label and tick marks in eeofs plot
+    - Include observational data and show skill scores in legend if provided in frequency plot
+- For edge cases:
+    - Adjust to custom plot parameters
+    - Not crash when NaN values appear and handle missing data gracefully
+    - Plot is still created with reasonable defaults or no contours even for missing title/levels
+- For invalid inputs:
+    - Function should fail with meaningful error messages
+    
+## Status
+- [x] Not Started (placeholder)
+- [ ] In Progress (corresponding .py script in progress)
+- [ ] Ready for Implementation (ready to merge into `develop` branch)
+- [ ] Completed (tested with corresponding functions in `develop` branch)

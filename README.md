@@ -89,6 +89,8 @@ corr, std_dev, tss = sciskill.bimodal_ISO(
 )
 ```
 
+
+
 ## License
 
 This package is under GPLv3.
@@ -97,6 +99,16 @@ This package is under GPLv3.
 This project includes code and resources from the following sources:
 
 #### Adapted code:
+- [CyMeP package](https://github.com/zarzycki/cymep):
+    - Used in: `src/pyhanami/utils/tcs_cymep.py`, `src/pyhanami/utils/tcs_cymep_funcs.py`
+    - License: MIT License
+    - Copyright (c) 2021 Colin Zarzycki
+
+#### Code dependencies:
+- [TempestExtremes package](https://github.com/ClimateGlobalChange/tempestextremes):
+    - Used in: `src/pyhanami/utils/tcs_tempestextremes.py`
+    - License: BSD 2-Clause License
+    - Copyright (c) 2025, Paul Ullrich
 
 #### Data sources:
 - [GSV-Interface/gsv/dqc/profiles/config/variables.yaml](https://github.com/DestinE-Climate-DT/GSV-Interface/blob/master/gsv/dqc/profiles/config/variables.yaml):
