@@ -8,7 +8,8 @@ Copyright (c) 2025, Paul Ullrich
 The criteria for Tropical Cyclones (TCs) detection is taken from (C.M. Zarzycki & P.A. Ullrich, 2017; https://doi.org/10.1002/2016GL071606).
 From Section '3.4 Sample Optimization' in the paper: pslFOmag = 2 hPa, wcOffset = 1°, mergeDist = 6°, trajRange = 8°, trajMaxGap = 18 h,
 maxTopo = 1500 m, maxLat = 50°, minWind = 10 m s−1, pslFOdist = 5.5°, wcFOmag =− 6 m, wcFOdist = 6.5°, trajMinLen = 60 h
-NOTE: based on the criteria used at CEMA (JAMSTEC), the wind threshold is set higher (to 17 m/s).
+NOTE: We recommend adjusting the minWind parameter (i.e. 10 m wind speed threshold) according to the model's (or reanalysis') horizontal 
+resolution following the criteria established in (K.J.E. Walsh et al., 2007; https://journals.ametsoc.org/view/journals/clim/20/10/jcli4074.1.xml).
 """
 
 import shutil
@@ -66,7 +67,7 @@ def detect_nodes(input_file, output_file="detected_nodes.txt", psl_delta=200.0, 
 
 
 def stitch_nodes(input_file, output_file="cyclones_trajectories.txt", traj_range=8.0, traj_min_length=10, traj_max_gap=3, 
-                 min_wind=17.0, min_len=10, max_lat=50.0, format_str="i,j,lon,lat,slp,wind,phis"):
+                 min_wind=10.0, min_len=10, max_lat=50.0, format_str="i,j,lon,lat,slp,wind,phis"):
     """
     Wrapper for StitchNodes function from TempestExtremes to identify actual TC tracks from the detected nodes.
 
@@ -77,7 +78,7 @@ def stitch_nodes(input_file, output_file="cyclones_trajectories.txt", traj_range
     traj_range (float): maximum travel distance for a cyclone in 6h in degrees (default: 8.0).
     traj_min_length (int): minimum cyclone lifetime in 6h (default: 10).
     traj_max_gap (int): maximum allowable gap in cyclone trajectory in 6h (default: 3).
-    min_wind (float): minimum lowest model level wind speed in m/s (default: 17.0).
+    min_wind (float): minimum 10 m wind speed in m/s (default: 10.0).
     min_len (int): minimum track length in 6h (default: 10).
     max_lat (float): maximum latitude of psl minimum in degrees (default: 50.0).
     format_str (str): format of columns to be added in the output_file, note the following are 
@@ -123,7 +124,7 @@ def histogram_nodes(input_file, output_file="cyclones_trajectories.nc", ilon_col
     subprocess.run(cmd, check=True)
 
 
-def track_tcs(data_name, input_path, output_path, hist=False):
+def track_tcs(data_name, input_path, output_path, min_wind=10.0, hist=False):
     """
     Identify tracks of Tropical Cyclones (TCs) in the input data using TempestExtremes.
 
@@ -132,6 +133,7 @@ def track_tcs(data_name, input_path, output_path, hist=False):
     data_name (str): Name of the dataset.
     input_path (str): Input .nc file path.
     output_path (str): Output path.
+    min_wind (float): minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
     hist (bool): If True, generate a histogram of TC detections as a .nc file (default: False).
     """
 
@@ -157,7 +159,7 @@ def track_tcs(data_name, input_path, output_path, hist=False):
 
     # Run StitchNodes from TempestExtremes
     tracks_path = output_path / f"cyclones_trajectories_{data_name}.txt"
-    stitch_nodes(nodes_path, tracks_path)
+    stitch_nodes(nodes_path, tracks_path, min_wind=min_wind)
 
     # Run HistogramNodes from TempestExtremes if requested
     if hist:
