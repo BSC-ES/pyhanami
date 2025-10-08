@@ -20,6 +20,47 @@ import xarray as xr
 
 from pathlib import Path
 
+from pyhanami.config import config_params
+
+
+def prepare_data_tempestExtremes(data, data_name):
+    """
+    Prepare input data for TempestExtremes.
+
+    Parameters
+    ----------
+    data (xarray.Dataset): Input dataset containing the necessary variables.
+    data_name (str): Name of the dataset.
+
+    Returns
+    -------
+    data_tempestExtremes (xarray.Dataset): Dataset with variables renamed and surface geopotential added.
+    """
+
+    # Check required variables and rename them
+    data_vars = []
+    var_names = ["psl", "uas", "vas", "zg300", "zg500"]
+    new_names = ["PSL", "UBOT", "VBOT", "Z300", "Z500"]
+    for var_name, new_name in zip(var_names, new_names):
+        if var_name not in data.data_vars:
+            raise ValueError(f"Variable '{var_name}' not found in the simulated dataset '{data_name}'. "
+                            f"Available variables: {list(data.data_vars.keys())}")
+
+        data_vars.append(data.rename({var_name: new_name})[new_name])
+
+    # Add surface geopotential
+    if 'phis' in data.data_vars:
+        data_vars.append(data.rename({'phis': 'PHIS'})['PHIS'])
+    else:
+        topog = xr.open_dataset(config_params.TOPOG_PATH)   
+        surf_geopotential = topog['topog'] * config_params.G
+        phis = surf_geopotential.to_dataset().rename({'topog': 'PHIS'}) 
+        data_vars.append(phis['PHIS'])
+
+
+    data_tempestExtremes = xr.merge(data_vars, join='inner')   # join='inner' keeps only common coordinates
+    return data_tempestExtremes
+
 
 def check_tempestExtremes_installed():
     """

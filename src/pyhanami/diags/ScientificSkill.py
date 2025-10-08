@@ -12,7 +12,8 @@ from matplotlib.colors import LinearSegmentedColormap
 from pyhanami.config import config_params
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
-from pyhanami.utils import data_general, iso_metrics, plot, tcs_tempestextremes
+from pyhanami.utils import data_general, iso_metrics, plot
+from pyhanami.utils.tcs_metrics import tcs_tempestextremes, tcs_ibtracs, tcs_cymep_main
 
 import time
 
@@ -318,7 +319,7 @@ class ScientificEvaluation:
             raise TypeError("'data_name' must be a string representing a dataset name.")
         input_path = data_plot.data_path
 
-        # Prepare output path if given
+        # Prepare output path
         if output_path is not None:
             output_path = Path(output_path)
             if output_path.suffix != '':  
@@ -343,25 +344,12 @@ class ScientificEvaluation:
         if data_sim_all is None:
             raise ValueError(f"No data available in the {data_name} dataset in the selected years {start_year}-{end_year}.")
 
-        data_vars = []
-        var_names = ["psl", "uas", "vas", "zg300", "zg500"]
-        new_names = ["PSL", "UBOT", "VBOT", "Z300", "Z500"]
-        for var_name, new_name in zip(var_names, new_names):
-            if var_name not in data_sim_all.data_vars:
-                raise ValueError(f"Variable '{var_name}' not found in the simulated dataset '{data_name}'. "
-                                f"Available variables: {list(data_sim_all.data_vars.keys())}")
-
-            data_vars.append(data_sim_all.rename({var_name: new_name})[new_name])
-
-        # Add surface geopotential!!!
-
-        data_sim = xr.merge(data_vars, join='inner')   # join='inner' keeps only common coordinates
-        data_sim_path = input_path.parent / f"{data_name}_tcs_tempestExtremes_input.nc"
-        data_sim.to_netcdf(data_sim_path)
-
 
         # Run TempestExtremes tracking
-        tracks_file = tcs_tempestextremes.track_tcs(data_name, data_sim_path, tracks_path, min_wind=min_wind, hist=tracks_hist)
+        data_tempestExtremes = tcs_tempestextremes.prepare_data_tempestExtremes(data_sim_all, data_name)
+        data_tempestExtremes_path = tracks_path / f"{data_name}_tcs_tempestExtremes_input.nc"
+        data_tempestExtremes.to_netcdf(data_tempestExtremes_path)
+        tracks_file = tcs_tempestextremes.track_tcs(data_name, data_tempestExtremes_path, tracks_path, min_wind=min_wind, hist=tracks_hist)
         print(f"Tropical Cyclones tracking completed. Output files saved to '{tracks_path}'.", flush=True)
 
 
@@ -391,7 +379,11 @@ class ScientificEvaluation:
                 traj_plot.savefig(traj_path, bbox_inches='tight', dpi=150)
                 print(f"TC tracks plot created and saved to '{traj_path}'.", flush=True)
 
-            
+
+        # Prepare IBTrACS and observations TCs data
+        ib_path = tcs_ibtracs.check_ibtracs_file(start_year, end_year)  
+        
         # Compute TCs metrics with CyMeP
+
 
         return
