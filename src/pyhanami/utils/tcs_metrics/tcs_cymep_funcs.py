@@ -14,7 +14,7 @@ import netCDF4 as nc
 from datetime import datetime
 
 
-# cymep/functions/getTrajectories.py functions
+# Functions adapted from cymep/functions/getTrajectories.py
 
 def getTrajectories(filename, nVars, headerDelimStr, isUnstruc):
     """
@@ -232,7 +232,7 @@ def getNodes(filename, nVars, isUnstruc):
 
 
 
-# cymep/functions/mask_tc.py functions
+# Functions adapted from cymep/functions/mask_tc.py 
 
 def maskTC(lat, lon, dohemi=False):
     """
@@ -256,8 +256,8 @@ def maskTC(lat, lon, dohemi=False):
         - 5 → North Indian Ocean (NIO)
         - 6 → South Indian Ocean (SIO)
         - 7 → South Pacific (SPAC)
-        - 20 → Northern Hemisphere (if `dohemi=True`)
-        - 21 → Southern Hemisphere (if `dohemi=True`)
+        - 20 → Northern Hemisphere (if `dohemi=True`) (NHEMI)
+        - 21 → Southern Hemisphere (if `dohemi=True`) (SHEMI)
     """
    
     # If lon is negative, switch to [0, 360] convention
@@ -307,6 +307,7 @@ def getbasinmaskstr(gridchoice):
     ----------
     gridchoice (int or list[int]): Basin/hemisphere code(s). If a sequence is provided, 
         only the first element is considered. Codes are:
+            - <0 → GLOB (Global domain)
             - 1  → NATL (North Atlantic)
             - 2  → EPAC (Eastern Pacific)
             - 3  → CPAC (Central Pacific)
@@ -318,7 +319,6 @@ def getbasinmaskstr(gridchoice):
             - 9  → FLA (Florida)
             - 20 → NHEMI (Northern Hemisphere)
             - 21 → SHEMI (Southern Hemisphere)
-            - <0 → GLOB (Global domain)
             - otherwise → NONE (unrecognized)
 
     Returns
@@ -364,7 +364,7 @@ def getbasinmaskstr(gridchoice):
 
 
 
-# cymep/functions/pattern_corr.py functions
+# Functions adapted from cymep/functions/pattern_corr.py
 
 def pattern_cor(x, y, w, opt):
     """
@@ -638,7 +638,7 @@ def taylor_stats(x, y, w, opt):
 
 
 
-# cymep/functions/track_density.py functions
+# Functions adapted from cymep/functions/track_density.py
 
 def track_density(gridsize, lonstart, clat, clon, setzeros):
     """
@@ -855,7 +855,7 @@ def track_minmax(gridsize, lonstart, clat, clon, cvar, minmax, minhits):
   
   
 
-# cymep/functions/write_spatial.py functions
+# Functions adapted from cymep/functions/write_spatial.py
 
 def write_spatial_netcdf(spatialdict, permondict, peryrdict, taydict, modelsin, nyears, nmonths, latin, lonin, globaldict):
     """
