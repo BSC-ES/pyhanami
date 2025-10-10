@@ -216,24 +216,50 @@ def track_tcs(data_name, input_path, output_path, min_wind=10.0, hist=False):
     return tracks_path
 
 
-def read_tracks_tempestExtremes(tracks_file):
+def run_tempestExtremes(data, data_name, output_path, min_wind=10.0, tracks_hist=False):
+    """
+    Main function to run TempestExtremes for identifying Tropical Cyclones (TCs) tracks.
+
+    Parameters
+    ----------
+    data (xarray.Dataset): Input dataset.
+    data_name (str): Name of the dataset.
+    output_path (str): Output path.
+    min_wind (float): minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
+    tracks_hist (bool): If True, generate a histogram of TC detections as a .nc file (default: False).
+    """
+
+    # Prepare data to be used as input for TempestExtremes
+    output_path = Path(output_path)
+    data_tempestExtremes = prepare_data_tempestExtremes(data, data_name)
+    data_tempestExtremes_path = output_path / f"{data_name}_tcs_tempestExtremes_input.nc"
+    data_tempestExtremes.to_netcdf(data_tempestExtremes_path)
+
+    # Run TempestExtremes to identify TCs tracks
+    tracks_path = track_tcs(data_name, data_tempestExtremes_path, output_path, min_wind=min_wind, hist=tracks_hist)
+    data_tempestExtremes_path.unlink(missing_ok=True)
+
+    return tracks_path
+
+
+def read_tracks_tempestExtremes(tracks_path):
     """
     Read TC trajectories from TempestExtremes output file.
     
     Parameters
     ----------
-    tracks_file (str): Path to the TempestExtremes output .txt file.
+    tracks_path (str): Path to the TempestExtremes output .txt file.
 
     Returns
     -------
     tracks (list[list[dict]]): List of trajectories.
     """
 
-    if not Path(tracks_file).exists():
-        raise FileNotFoundError(f"Tracks file '{tracks_file}' does not exist.")
+    if not Path(tracks_path).exists():
+        raise FileNotFoundError(f"Tracks file '{tracks_path}' does not exist.")
 
     tracks = []
-    with open(tracks_file, 'r') as f:
+    with open(tracks_path, 'r') as f:
         while True:
             line = f.readline()
             if not line:

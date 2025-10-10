@@ -113,9 +113,9 @@ class ScientificEvaluation:
         plot_eeofs (bool): If True, also spatially plot EEOFs (default: False).
         years_pc (int or list[int]): Years to compute the indices for.
         correct_pc (bool): Whether to adjust simulated PCs by dividing by alpha (default: False).
-        obs (bool): If True, also plot observational data if available (default: False).
-        obs_path (str or list[str]): Path to the observations database.
-        obs_name (str or list[str]): Name of the observational dataset.
+        obs (bool): If True, also consider and plot observational data if available (default: False).
+        obs_path (str): Path to the observations database.
+        obs_name (str): Name of the observational dataset.
         clon (int): Central longitude for the spatial EEOFs maps (default: 0).
         lat_range (tuple): Geographic latitude bounds (default: (-30, 30)).
         lags (list[int]): Lag values to consider (default: [-10, -5, 0]).
@@ -287,21 +287,27 @@ class ScientificEvaluation:
             return 
         
     
-    def tcs_metrics(self, data_name=None, output_path=None, start_year=None, end_year=None, min_wind=10.0, 
-                    tracks_hist=False, tcs_plots=False, bin_size=2.5, clon=0):
+    def tcs_metrics(self, data_name=None, wind_factor=1.0, output_path=None, start_year=None, end_year=None, min_wind=10.0, 
+                    tracks_hist=False, tcs_plots=False, bin_size=2.5, clon=0, obs=False, obs_path=None, obs_name=None, 
+                    obs_wind_factor=None):
         """
         Compute Tropical Cyclones (TCs) metrics following (C.M. Zarzycki et al., 2021) and plot results.
 
         Parameters
         ----------
         data_name (str): Name of simulation ensemble to use.
+        wind_factor (float): Wind speed correction factor (to normalize provided wind to 10 m wind) for simulations (default: 1.0).
         output_path (str): Path to save plots.
         start_year, end_year (int): Initial and end years to compute the TCs metrics for.
         min_wind (float): minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
         tracks_hist (bool): If True, generate a histogram of TC detections as a .nc file with TempestExtremes (default: False).
-        pcs_plots (bool): If True, spatially plot TCs genesis and tracks density (default: False).
+        tcs_plots (bool): If True, spatially plot TCs genesis and tracks density (default: False).
         bin_size (float): Size of the bins in degrees for the spatial density plots (default: 2.5).
         clon (int): Central longitude for the spatial maps (default: 0).
+        obs (bool): If True, also consider observational data if available (default: False).
+        obs_path (str or list[str]): Path/s to the observations database/s.
+        obs_name (str or list[str]): Name/s of the observational dataset/s.
+        obs_wind_factor (float or list[float]): Wind speed correction factor/s (to normalize provided wind to 10 m wind) for observations.
         """
 
         # Validate input
@@ -319,6 +325,18 @@ class ScientificEvaluation:
             raise TypeError("'data_name' must be a string representing a dataset name.")
         input_path = data_plot.data_path
 
+        if obs:
+            if obs_path is None or obs_name is None or obs_wind_factor is None:
+                raise NotImplementedError('Automatic selection of observations is not implemented yet. '
+                                          'Please provide at least one path, one name and the corresponding wind factor if you want to include observations.')
+            else:
+                obs_path = list(obs_path)
+                obs_name = list(obs_name)
+                obs_wind_factor = list(obs_wind_factor)
+                if len(obs_path) != len(obs_name) or len(obs_path) != len(obs_wind_factor):
+                    raise ValueError("'obs_path', 'obs_name' and 'obs_wind_factor' must have the same length.")
+                
+
         # Prepare output path
         if output_path is not None:
             output_path = Path(output_path)
@@ -326,9 +344,9 @@ class ScientificEvaluation:
                 raise ValueError("Output path must be a directory, not a file path, as multiple files may be created.")
             
             output_path.mkdir(parents=True, exist_ok=True)
-            tracks_path = output_path / f"tcs_tempestExtremes_{data_name}_output"
+            tracks_path = output_path
         else:
-            tracks_path = input_path.parent / f"tcs_tempestExtremes_{data_name}_output"
+            tracks_path = input_path.parent / f"tropical_cyclones_metrics_{data_name}_output"
 
 
         # Prepare simulated data
@@ -337,27 +355,27 @@ class ScientificEvaluation:
         end_year_data = int(data_years.max())
         if start_year is None:
             start_year = start_year_data
+            print(f"As no start year was provided, the first year available in the {data_name} dataset ({start_year}) will be used.", flush=True)
         if end_year is None:
             end_year = end_year_data
+            print(f"As no end year was provided, the last year available in the {data_name} dataset ({end_year}) will be used.", flush=True)
 
         data_sim_all = data_plot.data.sel(time=slice(np.datetime64(f"{start_year}-01-01"), np.datetime64(f"{end_year}-12-31")), method="nearest")
         if data_sim_all is None:
             raise ValueError(f"No data available in the {data_name} dataset in the selected years {start_year}-{end_year}.")
 
 
-        # Run TempestExtremes tracking
-        data_tempestExtremes = tcs_tempestextremes.prepare_data_tempestExtremes(data_sim_all, data_name)
-        data_tempestExtremes_path = tracks_path / f"{data_name}_tcs_tempestExtremes_input.nc"
-        data_tempestExtremes.to_netcdf(data_tempestExtremes_path)
-        tracks_file = tcs_tempestextremes.track_tcs(data_name, data_tempestExtremes_path, tracks_path, min_wind=min_wind, hist=tracks_hist)
-        print(f"Tropical Cyclones tracking completed. Output files saved to '{tracks_path}'.", flush=True)
+        # Run TempestExtremes tracking on simulated data
+        tracks_sim_path = tcs_tempestextremes.run_tempestExtremes(data_sim_all, data_name, tracks_path, min_wind=min_wind, hist=tracks_hist)
+        print(f"Tropical Cyclones tracking completed for {data_name}. Output files saved to '{tracks_path}'.", flush=True)
 
 
         # Plot TC genesis and tracks density if requested
         if tcs_plots:
-            tracks = tcs_tempestextremes.read_tracks_tempestExtremes(tracks_file)
+            tracks = tcs_tempestextremes.read_tracks_tempestExtremes(tracks_sim_path)
             counts_gen, counts_traj = tcs_tempestextremes.compute_tc_counts(tracks, start_year, end_year)
 
+            # Plot genesis density
             genesis_plot, _ = plot.spatial_plot(counts_gen,  title=f"{data_name} TCs genesis density per {bin_size}°x{bin_size}° cell ({start_year}-{end_year})", 
                                 cb_label="N° of tropical cyclones formed", clon=clon, show_contours=False)
             if output_path is None:
@@ -368,7 +386,7 @@ class ScientificEvaluation:
                 genesis_plot.savefig(genesis_path, bbox_inches='tight', dpi=150)
                 print(f"\nTC genesis plot created and saved to '{genesis_path}'.", flush=True)
 
-            
+            # Plot tracks density
             traj_plot, _ = plot.spatial_plot(counts_traj,  title=f"{data_name} TCs tracks density per {bin_size}°x{bin_size}° cell ({start_year}-{end_year})",
                                 cb_label="N° of tropical cyclone passed", clon=clon, show_contours=False)
             if output_path is None:
@@ -381,8 +399,64 @@ class ScientificEvaluation:
 
 
         # Prepare IBTrACS and observations TCs data
-        ib_path = tcs_ibtracs.check_ibtracs_file(start_year, end_year)  
-        
+        configs = {}
+        years = end_year - start_year + 1
+        ib_path = tcs_ibtracs.check_ibtracs_file(start_year, end_year, min_wind=min_wind)  
+        ib_config = [ib_path, "IBTrACS", False, 1, years, 1.0]
+        configs["IBTrACS"] = ib_config
+
+        if obs:
+            obs_tracks_path = config_params.DATA_PATH
+            for name in obs_name:
+                # Check if TCs data is already present for the selected years, minimum wind and observations dataset
+                obs_files = list(obs_tracks_path.glob(f"{name}_*.txt"))
+
+                found = False
+                for obs_file in obs_files:
+                    parts = obs_file.stem.split('_')
+
+                    if len(parts) >= 2 and '-' in parts[1]:
+                        year_range = parts[1]
+                        try:
+                            # Check if the file covers the selected period
+                            file_start, file_end = map(int, year_range.split('-'))                            
+                            if file_start <= start_year and file_end >= end_year:
+
+                                # Check if the file matches the selected min_wind
+                                obs_min_wind = float(parts[2])
+                                if abs(obs_min_wind - min_wind) < 1e-6:
+                                    unstructured = parts[3].lower() == 'true'
+                                    ens_members = int(parts[4])
+                                    aux_wind_factor = float(parts[5])
+                                    found = True
+                                    break
+                        except ValueError:
+                            continue
+                if found:
+                    configs[name] = [obs_file.name, name.lower(), unstructured, ens_members, years, aux_wind_factor]
+
+                # Compute TCs data for observations if not already present
+                else:
+                    # Load observations
+                    var_names = ["psl", "uas", "vas", "zg300", "zg500"]
+                    data_sim_selected = data_sim_all[var_names]
+                    data_obs = ObservationData(obs_path, data_sim_selected, name=name)
+                    
+                    ens_members = 1 if 'realization' not in data_obs.data.dims else data_obs.data.dims['realization']
+                    unstructured = False
+
+                    # Run TempestExtremes tracking on observational data
+                    tracks_obs_path = tcs_tempestextremes.run_tempestExtremes(data_obs, name, obs_tracks_path, min_wind=min_wind)
+                    tracks_obs_path = tracks_obs_path.rename(tracks_obs_path.with_name(f"{name}_{start_year}-{end_year}_{min_wind:.1f}_{unstructured}_{ens_members}_{wind_factor:.1f}.txt"))
+                    print(f"Tropical Cyclones tracking completed for {name} observations. Output files added to '{obs_tracks_path}'.", flush=True)
+
+                    configs[name] = [tracks_obs_path, name, unstructured, ens_members, years, wind_factor]
+
+
+        # Create configuration file for CyMeP with the simulations parameters in the last row
+        configs[data_name] = [tracks_sim_path, data_name, False, 1, years, wind_factor]
+        tcs_cymep_main.prepare_read_configs(configs)
+
         # Compute TCs metrics with CyMeP
 
 
