@@ -9,18 +9,21 @@ from scipy.stats import ks_2samp, ttest_ind, mannwhitneyu
 VARIABLES_PATH = Path(__file__).parent / "variables.yaml"
 
 
-# Downloaded datasets parameters
-DATA_PATH = Path(__file__).parent.parent/ "data"
+# Available datasets parameters
+DATA_PATH = Path(__file__).parent.parent / "data"
 
 IBTRACS_URL = "https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/v04r01/access/netcdf/IBTrACS.since1980.v04r01.nc"
 # NOTE: when updating the URL above, please also update the version, start year and path below
 IBTRACS_VERSION = "v4"
 IBTRACS_START_YEAR = 1980
 IBTRACS_PATH = DATA_PATH / "IBTrACS.since1980.v04r01.nc"
+IBTRACS_DATASET = 'wmo'
 
 TOPOG_URL = None
 TOPOG_PATH = DATA_PATH / "topog.nc"
 G = 9.80665
+
+CYMEP_CONFIGS_PATH = DATA_PATH / "cymep_configs.csv"
 
 
 # General parameters replicability test

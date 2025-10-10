@@ -224,7 +224,8 @@ class DataDiagnostics:
         effect_size = np.empty(len(tasks))
 
         with concurrent.futures.ProcessPoolExecutor(max_workers=self.max_workers_grid, mp_context=mp.get_context("spawn")) as executor:
-            for idx, value in enumerate(tqdm(executor.map(statistics.cp_effect_size_bootstrap, tasks), total=len(tasks), desc=f"Computing effect sizes for variable '{var_name}'")):
+            for idx, value in enumerate(tqdm(executor.map(statistics.cp_effect_size_bootstrap, tasks), total=len(tasks), 
+                                             desc=f"Computing effect sizes for variable '{var_name}'", unit=' grid points')):
                 effect_size[idx] = value
 
         # Convert to xarray.DataArray

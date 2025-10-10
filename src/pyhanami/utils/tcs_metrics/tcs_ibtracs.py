@@ -12,6 +12,7 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 
+from tqdm import tqdm
 from pathlib import Path
 from bs4 import BeautifulSoup
 from datetime import datetime
@@ -19,8 +20,9 @@ from datetime import datetime
 from pyhanami.config import config_params
 
 
-# cymep/conver-traj/ibtracs-to-tempest.ncl functions (translated to Python)
-def prepare_ibtracs_data(ib_file, start_idx, end_idx, ms_to_kts, flip_grid_180=True):
+# Functions adapted from cymep/conver-traj/ibtracs-to-tempest.ncl (translated to Python)
+
+def prepare_ibtracs_data(ib_file, start_idx, end_idx, ms_to_kts=1.94384449, flip_grid_180=True):
     """
     Extract and preprocess IBTrACS data. 
 
@@ -44,19 +46,20 @@ def prepare_ibtracs_data(ib_file, start_idx, end_idx, ms_to_kts, flip_grid_180=T
     ib_basin (xarray.DataArray): Basin codes of the storm.
     """
 
+    ib_dataset=config_params.IBTRACS_DATASET.lower()
     if config_params.IBTRACS_VERSION == "v3":
-        ib_lat = ib_file.lat_wmo.isel(storm=slice(start_idx, end_idx+1)) * 0.01
-        ib_lon = ib_file.lon_wmo.isel(storm=slice(start_idx, end_idx+1)) * 0.01
-        ib_type = ib_file.nature_wmo.isel(storm=slice(start_idx, end_idx+1)).astype(int)
-        ib_wind = ib_file.wind_wmo.isel(storm=slice(start_idx, end_idx+1)) * 0.1 / ms_to_kts
-        ib_pres = ib_file.pres_wmo.isel(storm=slice(start_idx, end_idx+1))
-        ib_time = ib_file.time_wmo.isel(storm=slice(start_idx, end_idx+1))
+        ib_lat = ib_file[f'lat_{ib_dataset}'].isel(storm=slice(start_idx, end_idx+1)) * 0.01
+        ib_lon = ib_file[f'lon_{ib_dataset}'].isel(storm=slice(start_idx, end_idx+1)) * 0.01
+        ib_type = ib_file[f'nature_{ib_dataset}'].isel(storm=slice(start_idx, end_idx+1)).astype(int)
+        ib_wind = ib_file[f'wind_{ib_dataset}'].isel(storm=slice(start_idx, end_idx+1)) * 0.1 / ms_to_kts
+        ib_pres = ib_file[f'pres_{ib_dataset}'].isel(storm=slice(start_idx, end_idx+1))
+        ib_time = ib_file[f'time_{ib_dataset}'].isel(storm=slice(start_idx, end_idx+1))
     else:
         ib_lat = ib_file.lat.isel(storm=slice(start_idx, end_idx+1))
         ib_lon = ib_file.lon.isel(storm=slice(start_idx, end_idx+1))
         ib_type = ib_file.nature.isel(storm=slice(start_idx, end_idx+1)).astype(str)
-        ib_wind = ib_file.wmo_wind.isel(storm=slice(start_idx, end_idx+1)) / ms_to_kts
-        ib_pres = ib_file.wmo_pres.isel(storm=slice(start_idx, end_idx+1)) * 100
+        ib_wind = ib_file[f'{ib_dataset}_wind'].isel(storm=slice(start_idx, end_idx+1)) / ms_to_kts
+        ib_pres = ib_file[f'{ib_dataset}_pres'].isel(storm=slice(start_idx, end_idx+1)) * 100
         ib_time = ib_file.time.isel(storm=slice(start_idx, end_idx+1))
 
     ib_name = ib_file.name.isel(storm=slice(start_idx, end_idx+1))
@@ -122,6 +125,8 @@ def correct_wind_pres_data(wind, pres):
     """
     Apply K&Z 07 relationship to fill missing pressure-wind data
     when possible, keep NaN values otherwise.
+
+    Not used anymore, replaced by vectorized version.
     
     Parameters
     ----------
@@ -144,6 +149,40 @@ def correct_wind_pres_data(wind, pres):
             wind, pres = 15.0, 100800.0
 
     return wind, pres
+
+
+def correct_wind_pres_data_vectorized(wind, pres):
+    """
+    Apply K&Z 07 relationship to fill missing pressure-wind data
+    when possible, keep NaN values otherwise.
+    
+    Parameters
+    ----------
+    wind (np.ndarray): Wind speed in m/s.
+    pres (np.ndarray): Pressure in Pa.
+
+    Returns
+    -------
+    wind (np.ndarray): Corrected wind speed in m/s.
+    pres (np.ndarray): Corrected pressure in Pa.
+    """
+
+    wind_corr = wind.copy()
+    pres_corr = pres.copy()
+
+    a, b, c = 2.3, 1010.0, 0.76
+    with np.errstate(invalid='ignore', divide='ignore'):
+        mask1 = np.isnan(wind) & ~np.isnan(pres)
+        wind_corr[mask1] = a * np.power((b - pres[mask1]/100.0), c)
+
+        mask2 = ~np.isnan(wind) & np.isnan(pres)
+        pres_corr[mask2] = 100.0 * (b - np.power((wind[mask2]/a), (1.0/c)))
+
+        mask3 = np.isnan(wind) & np.isnan(pres)
+        wind_corr[mask3] = 15.0
+        pres_corr[mask3] = 100800.0
+
+    return wind_corr, pres_corr
 
 
 def great_circle_distance(lat1, lon1, lat2, lon2, npts=2, iu=4):
@@ -236,17 +275,19 @@ def great_circle_distance(lat1, lon1, lat2, lon2, npts=2, iu=4):
     return distance, gclat, gclon, spacing
 
 
-def convert_ibtracs_to_tempest(start_year=config_params.IBTRACS_START_YEAR, end_year=datetime.now().year, is_grid_2d=False, flip_grid_180=True, cut_regional=False, 
-                    cut_regional_ring_width=8, correct_pres_wind=True, dur_thresh=3, print_names=False):
+def convert_ibtracs_to_tempest(start_year=config_params.IBTRACS_START_YEAR, end_year=datetime.now().year, min_wind=10.0,
+                               flip_grid_180=True, is_grid_2d=False, cut_regional=False, cut_regional_ring_width=8, 
+                               correct_pres_wind=True, dur_thresh=3, print_names=False):
     """
     Convert IBTrACS data to TempestExtremes format and save to a .txt file.
 
     Parameters
     ----------
-    start_year (int): Start year for IBTrACS data (default: 1980).
+    start_year (int): Start year for IBTrACS data (default: config_params.IBTRACS_START_YEAR).
     end_year (int): End year for IBTrACS data (default: datetime.now().year).
-    is_grid_2d (bool): Whether the grid is 2D (default: False).
+    min_wind (float): minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
     flip_grid_180 (bool): Whether to flip longitudes from [-180, 180] to [0, 360] (default: True).
+    is_grid_2d (bool): Whether the grid is 2D (default: False).
     cut_regional (bool): Whether to cut the grid to a regional domain (default: False).
     cut_regional_ring_width (int): Width of the ring to add around the regional domain (default: 8).
     correct_pres_wind (bool): Whether to apply pressure-wind correction to fill in missing P/W with K&Z 07 (default: True).
@@ -298,70 +339,78 @@ def convert_ibtracs_to_tempest(start_year=config_params.IBTRACS_START_YEAR, end_
     ib_time, ib_wind, ib_pres, ib_lat, ib_lon, ib_names = correct_time_data(
         ib_time, ib_wind, ib_pres, ib_lat, ib_lon, ib_names, valid_time
     )
-    
-    # Load PHIS data
+
+    # Preload and process grid data if requested
     topog = xr.open_dataset(config_params.TOPOG_PATH) 
+    if is_grid_2d:
+        gridlat = topog.XLAT
+        gridlon = topog.XLONG
+        num2dlat, num2dlon = gridlat.shape
+    else:
+        gridlat = topog.lat
+        gridlon = topog.lon
+                            
+    # Prepare PHIS data
     surf_geopotential = topog['topog'] * config_params.G
     phis = surf_geopotential.to_dataset().rename({'topog': 'PHIS'}) 
 
 
     # Process each storm and save IBTrACS data in TempestExtremes format
-    ib_tempest_filename = f"ibtracs_{start_year}-{end_year}_{config_params.IBTRACS_VERSION}.txt"
+    ib_tempest_filename = f"ibtracs{config_params.IBTRACS_VERSION}_{start_year}-{end_year}_{min_wind:.1f}_False_1_1.0.txt"
     output_dir = Path("src/pyhanami/data")
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / ib_tempest_filename
 
     with open(output_path, 'w') as f:
-        for ii in range(ib_stormcount):
+        for ii in tqdm(range(ib_stormcount), total=ib_stormcount, desc='\tProcessing storms', unit=' storms'):
+            # Check for at least one not NaN point
+            valid_points = ~np.isnan(ib_lat[ii,:].values)
+            if not np.any(valid_points):
+                continue
+
             # Initialize lat-lon arrays
             latix = np.repeat(np.nan, ib_ntimes)
             lonix = np.repeat(np.nan, ib_ntimes)
 
-            for jj in range(ib_ntimes):
-                if not np.isnan(ib_lat[ii,jj].values):
-                    # Apply pressure-wind relationship to correct for missing values if requested
-                    if correct_pres_wind:
-                        wind, pres = correct_wind_pres_data(ib_wind[ii,jj].values, ib_pres[ii,jj].values)
-                        ib_wind[ii,jj] = wind
-                        ib_pres[ii,jj] = pres
+            # Apply pressure-wind relationship to correct for missing values if requested
+            valid_indices = np.where(valid_points)[0]
+            if correct_pres_wind:
+                wind, pres = correct_wind_pres_data_vectorized(ib_wind[ii,valid_indices].values, ib_pres[ii,valid_indices].values)
+                ib_wind[ii,valid_indices] = wind
+                ib_pres[ii,valid_indices] = pres
+
+            # Apply minimum wind speed threshold
+            max_wind = np.nanmax(np.abs(ib_wind[ii,:].values))
+            if max_wind < min_wind:
+                continue
 
 
-                    # Process grid information if provided
-                    if topog:
-                        if is_grid_2d:
-                            # Load 2D grid data if not already loaded
-                            if 'gridlat' not in locals():
-                                gridf = topog
-                                gridlat = gridf.XLAT
-                                gridlon = gridf.XLONG
-                                num2dlat, num2dlon = gridlat.shape
-                            
-                            # Find nearest grid point using great circle distance
-                            gcdist, _, _, _ = great_circle_distance(ib_lat[ii,jj], ib_lon[ii,jj], gridlat, gridlon)
-                            idx = np.unravel_index(np.argmin(gcdist), gcdist.shape)
-                            latix[jj], lonix[jj] = idx
+            # Process storm points
+            if topog:
+                if is_grid_2d:
+                    for jj in valid_indices:                           
+                        # Find nearest grid point using great circle distance
+                        gcdist, _, _, _ = great_circle_distance(ib_lat[ii,jj], ib_lon[ii,jj], gridlat, gridlon)
+                        idx = np.unravel_index(np.argmin(gcdist), gcdist.shape)
+                        latix[jj], lonix[jj] = idx
 
-                            # Apply regional domain cutting if requested
-                            if cut_regional:
-                                if (latix[jj] <= (cut_regional_ring_width-1) or
-                                    latix[jj] >= (num2dlat-cut_regional_ring_width) or
-                                    lonix[jj] <= (cut_regional_ring_width-1) or
-                                    lonix[jj] >= (num2dlon-cut_regional_ring_width)):
-                                    ib_lat[ii,jj] = np.nan
-                                    ib_lon[ii,jj] = np.nan
-                        else:
-                            # Load 1D grid data if not already loaded
-                            if 'gridlat' not in locals():
-                                gridf = topog
-                                gridlat = gridf.lat
-                                gridlon = gridf.lon
-
-                            # Find nearest grid points
-                            latix[jj] = np.abs((gridlat - ib_lat[ii,jj]).values).argmin()
-                            lonix[jj] = np.abs((gridlon - ib_lon[ii,jj]).values).argmin()
-                    else:
-                        latix[jj] = -999
-                        lonix[jj] = -999
+                        # Apply regional domain cutting if requested
+                        if cut_regional:
+                            if (latix[jj] <= (cut_regional_ring_width-1) or
+                                latix[jj] >= (num2dlat-cut_regional_ring_width) or
+                                lonix[jj] <= (cut_regional_ring_width-1) or
+                                lonix[jj] >= (num2dlon-cut_regional_ring_width)):
+                                ib_lat[ii,jj] = np.nan
+                                ib_lon[ii,jj] = np.nan
+                else:
+                    for jj in valid_indices:   
+                        # Find nearest grid points
+                        latix[jj] = np.abs((gridlat - ib_lat[ii,jj]).values).argmin()
+                        lonix[jj] = np.abs((gridlon - ib_lon[ii,jj]).values).argmin()
+            else:
+                for jj in valid_indices:   
+                    latix[jj] = -999
+                    lonix[jj] = -999
 
             
             # Count number of valid entries for this storm
@@ -370,21 +419,14 @@ def convert_ibtracs_to_tempest(start_year=config_params.IBTRACS_START_YEAR, end_
             # Check if storm meets duration threshold and has valid name
             if numentries > dur_thresh:
                 # Find first non-missing index
-                valid_points = ~np.isnan(ib_lat[ii,:].values)
-                if not any(valid_points):
-                    continue
-                ib_start_idx = np.where(valid_points)[0][0]
+                ib_start_idx = valid_indices[0]
 
                 # Get date components from first valid time point
                 dt = pd.Timestamp(ib_time[ii,ib_start_idx].values)
                 thisdate = (dt.year, dt.month, dt.day, dt.hour)
 
                 # Create and write header string
-                if print_names:
-                    header = ib_names[ii]
-                else:
-                    header = "start"
-
+                header = ib_names[ii] if print_names else "start"
                 headstr = f"{header}\t{numentries}\t{thisdate[0]}\t{thisdate[1]}\t{thisdate[2]}\t{thisdate[3]}"
                 f.write(f"{headstr}\n")
                 
@@ -415,8 +457,9 @@ def convert_ibtracs_to_tempest(start_year=config_params.IBTRACS_START_YEAR, end_
                         thisLon = lonix[jj].astype(int)
 
                         # Get surface geopotential at storm location
-                        if (ib_lon[ii,jj] <= phis.lon.max() and ib_lon[ii,jj] >= phis.lon.min()):
-                            thisPHIS = phis.PHIS.sel(lat=ib_lat[ii,jj].values, lon=ib_lon[ii,jj].values, method='nearest').item()
+                        lon_val = ib_lon[ii,jj].values
+                        if (lon_val <= phis.lon.max() and lon_val >= phis.lon.min()):
+                            thisPHIS = phis.PHIS.sel(lat=ib_lat[ii,jj].values, lon=lon_val, method='nearest').item()
                         else:
                             thisPHIS = phis.PHIS.sel(lat=ib_lat[ii,jj].values, lon=phis.lon.max(), method='nearest').item()
 
@@ -438,7 +481,8 @@ def convert_ibtracs_to_tempest(start_year=config_params.IBTRACS_START_YEAR, end_
 
 
 
-# Not CyMeP functions
+# Original functions (not adapted from CyMeP)
+
 def check_ibtracs_date():
     """
     Check the last modification date of the selected IBTrACS data file on the NOAA website.
@@ -510,7 +554,7 @@ def download_ibtracs():
     return
 
 
-def check_ibtracs_file(start_year, end_year):
+def check_ibtracs_file(start_year, end_year, min_wind=10.0):
     """
     Check, and create if not existing, .txt file with IBTrACS data for the specified 
     time period in TempestExtremes format, downloading updated IBTrACS data if necessary.
@@ -519,6 +563,7 @@ def check_ibtracs_file(start_year, end_year):
     ----------
     start_year (int): Start year for IBTrACS data.
     end_year (int): End year for IBTrACS data.
+    min_wind (float): minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
 
     Returns
     -------
@@ -535,18 +580,19 @@ def check_ibtracs_file(start_year, end_year):
     # Check years in existing IBTrACS files
     search_path = config_params.DATA_PATH
     current_version = config_params.IBTRACS_VERSION
-    ib_files = list(search_path.glob(f"ibtracs_*-*_{current_version}.txt"))
+    ib_files = list(search_path.glob(f"ibtracs{current_version}_*-*_{min_wind}*.txt"))
 
     ib_file_path = None
     if ib_files:
         # Get the existing file for the current version
         ib_file = ib_files[0]
-        match = re.search(r'ibtracs_(\d+)-(\d+)_', ib_file.name)
+        match = re.search(rf'ibtracs{current_version}_(\d+)-(\d+)_{min_wind}', ib_file.name)
         if match:
+            file_start_year = int(match.group(1))
             file_end_year = int(match.group(2))
 
             # Check whether the current version covers the given period
-            if end_year <= file_end_year:
+            if file_start_year >= start_year and end_year <= file_end_year:
                 ib_file_path = ib_file
             else:
                 ib_file.unlink() 
@@ -569,7 +615,7 @@ def check_ibtracs_file(start_year, end_year):
 
         # Download and process new IBTrACS data
         download_ibtracs()
-        ib_file_path = convert_ibtracs_to_tempest(start_year, end_year)
+        ib_file_path = convert_ibtracs_to_tempest(end_year=end_year, min_wind=min_wind)
 
     return ib_file_path
     
