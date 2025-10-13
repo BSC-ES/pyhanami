@@ -288,7 +288,7 @@ def read_tracks_tempestExtremes(tracks_path):
     return tracks
 
 
-def compute_tc_counts(tracks, start_year, end_year, bin_size=2.5, cutoff_wind=17.0):
+def compute_tc_counts(tracks, start_year, end_year, bin_size=2.5, cutoff_wind=10.0):
     """
     Compute TC genesis and tracks density for each grid box (bin_size x bin_size)
     from a list of TC trajectories.
@@ -298,7 +298,7 @@ def compute_tc_counts(tracks, start_year, end_year, bin_size=2.5, cutoff_wind=17
     tracks (list[list[dict]]): List of trajectories.
     start_year, end_year (int): Initial and final years to compute the densities.
     bin_size (float): Size of the bins in degrees (default: 2.5).
-    cutoff_wind (float): Minimum wind speed in m/s to consider a TC genesis (default: 17.0).
+    cutoff_wind (float): Minimum wind speed in m/s to consider a TC genesis (default: 10.0).
 
     Returns
     -------
