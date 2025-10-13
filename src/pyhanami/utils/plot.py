@@ -144,7 +144,8 @@ def time_series_plot(time_series, title='Mean time series', y_label='', labels=N
     return fig, ax
 
 
-def style_cartopy_axis(ax, show_gridlines=True, ocean_data=False):
+def style_cartopy_axis(ax, show_gridlines=True, ocean_data=False, lw_coast=0.8, lw_borders=0.5, 
+                       gl_lw=0.6, gl_fontsize=15):
     """
     Add standard geographic features and optional gridlines to a Cartopy axis.
 
@@ -153,6 +154,10 @@ def style_cartopy_axis(ax, show_gridlines=True, ocean_data=False):
     ax (cartopy.mpl.geoaxes.GeoAxesSubplot):  Axis with a Cartopy geographic projection.
     show_gridlines (bool): Whether to add gridlines with latitude and longitude labels (default: True).
     ocean_data (bool): Whether only ocean data is provided and the land should be masked in white (default: False).
+    lw_coast (float): Line width for coastlines (default: 0.8).
+    lw_borders (float): Line width for country borders (default: 0.5).
+    gl_lw (float): Line width for gridlines (default: 0.6).
+    gl_fontsize (int): Font size for gridline labels (default: 15).
 
     Returns
     -------
@@ -165,14 +170,14 @@ def style_cartopy_axis(ax, show_gridlines=True, ocean_data=False):
         ax.add_feature(cf.LAND.with_scale("50m"), facecolor="white", edgecolor="none", zorder=3)
 
     # General features
-    ax.add_feature(cf.COASTLINE.with_scale("50m"), lw=0.8, zorder=4)
-    ax.add_feature(cf.BORDERS.with_scale("50m"), lw=0.5, zorder=4)
+    ax.add_feature(cf.COASTLINE.with_scale("50m"), lw=lw_coast, zorder=4)
+    ax.add_feature(cf.BORDERS.with_scale("50m"), lw=lw_borders, zorder=4)
 
     # Gridlines
     if show_gridlines:
-        gl = ax.gridlines(draw_labels=True, crs=ccrs.PlateCarree(), linewidth=0.6, color='black', alpha=0.8, linestyle='-.')
-        gl.xlabel_style = {"size": 15}
-        gl.ylabel_style = {"size": 15}
+        gl = ax.gridlines(draw_labels=True, crs=ccrs.PlateCarree(), linewidth=gl_lw, color='black', alpha=0.8, linestyle='-.')
+        gl.xlabel_style = {"size": gl_fontsize}
+        gl.ylabel_style = {"size": gl_fontsize}
 
     return
 
@@ -228,7 +233,7 @@ def spatial_plot(data, title='Spatial plot', cb_label='', cmap=cmocean.cm.therma
     ----------
     data (xarray.DataArray): 2D dataset to plot with dimensions (lat, lon).
     title (str): Title of the plot (default: 'Spatial plot').
-    cb_label (str): Label to display below the colorbar (default: ''). 
+    cb_label (str): Label to display below the colorbar; set to False to not add a colorbar (default: ''). 
     cmap (matplotlib colormap): Colormap (default: cmocean.cm.thermal).
     levels (np.ndarray): Contour levels.
     significant (np.ndarray): Mask for significance hatching.
@@ -288,8 +293,9 @@ def spatial_plot(data, title='Spatial plot', cb_label='', cmap=cmocean.cm.therma
         if title:
             ax.set_title(title, fontsize=20, pad=20)
 
-        # Add colorbar
-        _ = add_colorbar(fig=fig, mappable=cb, ax_l=ax, ax_r=ax, ax_b=ax, label=cb_label, levels=levels)
+        # Add colorbar if cb_label is given
+        if cb_label:
+            _ = add_colorbar(fig=fig, mappable=cb, ax_l=ax, ax_r=ax, ax_b=ax, label=cb_label, levels=levels)
 
 
     # Special Stereographic projection plot for sea ice concentration
@@ -391,10 +397,174 @@ def spatial_plot(data, title='Spatial plot', cb_label='', cmap=cmocean.cm.therma
         if title:
             fig.suptitle(title)
 
-        # Add common colorbar
-        _ = add_colorbar(fig=fig, mappable=cb, ax_l=ax[0], ax_r=ax[1], ax_b=ax[1], label=cb_label, fontsize=8, levels=levels, dist=0.09)
+        # Add colorbar if cb_label is given
+        if cb_label:
+            _ = add_colorbar(fig=fig, mappable=cb, ax_l=ax[0], ax_r=ax[1], ax_b=ax[1], label=cb_label, fontsize=8, levels=levels, dist=0.09)
 
     return fig, ax
+
+
+def two_spatial_plots(data_1, data_2, clon=0, title_1='Spatial plot 1', title_2='Spatial plot 2', suptitle='Spatial plots', 
+                        cb_label='', cmap=cmocean.cm.thermal, levels=12, significant_1=None, significant_2=None, 
+                        vmin=None, vmax=None, show_contours=True, contour_fontsize=6, gridlines=True, **plot_kwargs):
+    """
+    Generate two spatial plots side by side using Cartopy with significance masks if selected.
+
+    Parameters
+    ----------
+    data_1 (xarray.DataArray): First 2D dataset to plot with dimensions (lat, lon).
+    data_2 (xarray.DataArray): Second 2D dataset to plot with dimensions (lat, lon).
+    clon (int): Central longitude for the spatial maps.
+    title_1 (str): Title of the first plot (default: 'Spatial plot 1').
+    title_2 (str): Title of the second plot (default: 'Spatial plot 2').
+    suptitle (str): Common title for the two plots (default: 'Spatial plots').
+    cb_label (str): Label to display below the common colorbar; set to False to not add a colorbar (default: ''). 
+    cmap (matplotlib colormap): Colormap (default: cmocean.cm.thermal).
+    levels (np.ndarray): Contour levels (default: 12).
+    significant_1 (np.ndarray): Mask for significance hatching in the first plot.
+    significant_2 (np.ndarray): Mask for significance hatching in the second plot.
+    vmin, vmax (float): Common min. and max. values for the colormap.
+    show_contours (bool): Whether to overlay contour lines (default: True).
+    contour_fontsize (int): Font size for contour labels (default: 12).
+    gridlines (bool): Whether to show gridlines (default: True).
+    **plot_kwargs: Additional arguments passed to contourf.
+
+    Returns
+    -------
+    new_fig (matplotlib.figure.Figure): Generated plot.
+    ax (matplotlib.axes._subplots.AxesSubplot): Plot axis.
+    """
+
+    # Validate inputs
+    if not isinstance(data_1, xr.DataArray) or not isinstance(data_2, xr.DataArray):
+        raise TypeError("The data must be a xarray.DataArray.")
+    if 'lat' not in data_1.coords or 'lon' not in data_1.coords or 'lat' not in data_2.coords or 'lon' not in data_2.coords:
+        raise ValueError("Could not identify latitude and longitude coordinates.")
+    if not isinstance(clon, (int, float)) or not (0 <= clon <= 360):
+        raise TypeError("The central longitude 'clon' must be a numeric value between 0º and 360º.")
+
+
+    # Tried reusing spatial_plot function but not working
+    # # Create separate spatial plots
+    # fig_1, ax_1 = spatial_plot(data_1, clon=clon, title=title_1, cb_label=False, cmap=cmap, levels=levels, significant=significant_1,
+    #                            vmin=vmin, vmax=vmax, show_contours=show_contours, contour_fontsize=contour_fontsize, gridlines=gridlines, **plot_kwargs)
+    # fig_2, ax_2 = spatial_plot(data_2, clon=clon, title=title_2, cb_label=False, cmap=cmap, levels=levels, significant=significant_2,
+    #                            vmin=vmin, vmax=vmax, show_contours=show_contours, contour_fontsize=contour_fontsize, gridlines=gridlines, **plot_kwargs)
+
+    # # Combine both plots into a single figure
+    # old_figs = [fig_1, fig_2]
+    # old_axs = [ax_1, ax_2]
+    # for fig, ax in zip(old_figs, old_axs):
+    #     fig.delaxes(ax)
+    #     plt.close(fig)
+
+    # new_fig = plt.figure(figsize=(12, 5))
+    # axs = new_fig.axes
+    # for i, ax in enumerate(old_axs):
+    #     ax.set_figure(new_fig)
+    #     new_fig.add_axes(ax)
+    #     ax.change_geometry(1, 2, i+1)
+
+    # new_fig.suptitle(suptitle, fontsize=14)
+
+    # # Add common colorbar if cb_label is given
+    # if cb_label:
+    #     mappable = old_axs[0].collections[0]
+    #     cbar = new_fig.colorbar(mappable, ax=axs, orientation='horizontal', pad=0.17)
+    #     cbar.ax.tick_params(labelsize=8)
+    #     cbar.set_label(cb_label, fontsize=9)
+
+
+    # Create figure
+    fig, axs = plt.subplots(1,2, figsize=(12, 4.5), dpi=150, subplot_kw={'projection': ccrs.Robinson(central_longitude=clon), "aspect": 'auto'})#, gridspec_kw = {'wspace':0.01, 'hspace':0.02})
+
+    # Add first plot
+    # Correct 0 and NaN values (values which are exactly 0 are painted in white, not with the corresponding colorbar color for 0)
+    var_name = data_1.name
+    if var_name in {'siconc', 'sos', 'tos'}:
+        data_1 = xr.where((np.isnan(data_1)) | (data_1==0), 10**-10, data_1)
+        ocean_data = True
+    else:
+        ocean_data = False   
+
+    # Add cyclic point
+    aux, lon = add_cyclic_point(data_1, coord=data_1.lon.values)
+    data_cyclic = xr.DataArray(data=aux, dims=['lat', 'lon'], coords={'lat': data_1.lat.values, 'lon': lon}, name=data_1.name, attrs=data_1.attrs)
+
+    # Create figure 
+    ax_1 = axs[0]
+    style_cartopy_axis(ax_1, show_gridlines=gridlines, ocean_data=ocean_data, lw_coast=0.4, lw_borders=0.2, gl_lw=0.3, gl_fontsize=7)
+    cb = data_cyclic.plot.contourf(ax=ax_1, transform=ccrs.PlateCarree(), cmap=cmap, levels=levels, vmin=vmin, vmax=vmax, add_colorbar=False, **plot_kwargs)
+
+    # Add contour lines if requested
+    if show_contours:
+        contour_lines = data_cyclic.plot.contour(ax=ax_1, transform=ccrs.PlateCarree(), levels=levels, vmin=vmin, vmax=vmax, colors='black', linewidths=0.2)
+        ax_1.clabel(contour_lines, fontsize=contour_fontsize, colors='black') 
+
+    # Significance hatching
+    if significant_1 is not None:
+        if significant_1.shape != data_1.shape:
+            raise ValueError(f"Mask shape {significant_1.shape} does not match data shape {data_1.values.shape}.")
+        else:
+            aux, lon = add_cyclic_point(significant_1, coord=data_1.lon.values)
+            mask = np.ma.masked_where(aux == 0, data_cyclic.values)
+            ax_1.pcolor(data_cyclic.lon.values, data_cyclic.lat.values, mask, transform=ccrs.PlateCarree(), hatch='..', zorder=1, alpha=0.)
+
+    # Add title if given
+    if title_1:
+        ax_1.set_title(title_1, fontsize=12, pad=8)
+
+
+    # Add second plot
+    # Correct 0 and NaN values (values which are exactly 0 are painted in white, not with the corresponding colorbar color for 0)
+    var_name = data_2.name
+    if var_name in {'siconc', 'sos', 'tos'}:
+        data_2 = xr.where((np.isnan(data_2)) | (data_2==0), 10**-10, data_2)
+        ocean_data = True
+    else:
+        ocean_data = False   
+
+    # Add cyclic point
+    aux, lon = add_cyclic_point(data_2, coord=data_2.lon.values)
+    data_cyclic = xr.DataArray(data=aux, dims=['lat', 'lon'], coords={'lat': data_2.lat.values, 'lon': lon}, name=data_2.name, attrs=data_2.attrs)
+
+    # Create figure
+    ax_2 = axs[1]
+    style_cartopy_axis(ax_2, show_gridlines=gridlines, ocean_data=ocean_data, lw_coast=0.4, lw_borders=0.2, gl_lw=0.3, gl_fontsize=7)
+    cb = data_cyclic.plot.contourf(ax=ax_2, transform=ccrs.PlateCarree(), cmap=cmap, levels=levels, vmin=vmin, vmax=vmax, add_colorbar=False, **plot_kwargs)
+
+    # Add contour lines if requested
+    if show_contours:
+        contour_lines = data_cyclic.plot.contour(ax=ax_2, transform=ccrs.PlateCarree(), levels=levels, vmin=vmin, vmax=vmax, colors='black', linewidths=0.2)
+        ax_2.clabel(contour_lines, fontsize=contour_fontsize, colors='black')
+
+    # Significance hatching
+    if significant_2 is not None:
+        if significant_2.shape != data_2.shape:
+            raise ValueError(f"Mask shape {significant_2.shape} does not match data shape {data_2.values.shape}.")
+        else:
+            aux, lon = add_cyclic_point(significant_2, coord=data_2.lon.values)
+            mask = np.ma.masked_where(aux == 0, data_cyclic.values)
+            ax_2.pcolor(data_cyclic.lon.values, data_cyclic.lat.values, mask, transform=ccrs.PlateCarree(), hatch='..', zorder=1, alpha=0.)
+
+    # Add title if given
+    if title_2:
+        ax_2.set_title(title_2, fontsize=12, pad=8)
+
+    # Add shared colorbar if cb_label is given
+    if cb_label:
+        cbar = fig.colorbar(cb, ax=axs, orientation="horizontal", fraction=0.03, pad=0.1, aspect=60)
+        cbar.set_ticks(cb.levels)
+        
+        cbar.ax.tick_params(labelsize=7)
+        cbar.set_label(cb_label, fontsize=8)
+        plt.tight_layout(rect=[0,0.15,1,0.96])
+    else:
+        plt.tight_layout(rect=[0,0.03,1,1])
+
+    fig.suptitle(suptitle, fontsize=14)
+
+    return fig, axs
 
 
 def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicability test', variables=None, 
