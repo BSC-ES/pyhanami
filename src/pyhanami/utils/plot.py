@@ -15,7 +15,8 @@ from matplotlib.patches import Polygon, Circle
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap, BoundaryNorm
 
 
-def time_series_plot(time_series, title='Mean time series', y_label='', labels=None, time_freq='annual', start_year=None, end_year=None, plot_ens=False):
+def time_series_plot(time_series, title='Mean time series', y_label='', x_label='time', labels=None, 
+                     time_freq='annual', start_year=None, end_year=None, plot_ens=False):
     """ 
     Generate time series plot of one or more ensembles, including the 2.5th, 5th, 75th and 97.5th percentiles.
 
@@ -24,6 +25,7 @@ def time_series_plot(time_series, title='Mean time series', y_label='', labels=N
     time_series (xarray.DataArray or list of xr.DataArray): Time series data.
     title (str): Title of the plot (default: 'Mean time series').
     y_label (str): Label for the y-axis (default: '').
+    x_label (str): Label for the x-axis (default: 'time').
     labels (list[str]): Labels for each time series.
     time_freq (str): Time frequency (default: 'annual').
     start_year, end_year (int): Years for filtering.
@@ -131,7 +133,7 @@ def time_series_plot(time_series, title='Mean time series', y_label='', labels=N
     ax.set_xticklabels(x_labels, rotation=45, ha='right')
 
     # Plot formatting
-    ax.set_xlabel('time', fontsize=14)
+    ax.set_xlabel(x_label, fontsize=14)
     ax.set_ylabel(y_label, fontsize=14)
 
     ax.tick_params(axis='both', labelsize=12)
