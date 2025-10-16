@@ -83,20 +83,22 @@ def prepare_read_configs(configs, output_path=config_params.CYMEP_CONFIGS_PATH):
 
 # Functions adapted from cymep/cymep.py
 
-def run_cymep(styr, enyr, gridsize, output_path, basin=-1, csvfilename=config_params.CYMEP_CONFIGS_PATH, truncate_years=True,
-              do_defineMIbypres=False, do_fill_missing_pw=True, do_special_filter_obs=False, 
-              THRESHOLD_ACE_WIND=-1., THRESHOLD_PACE_PRES=-100., debug_level=0):
+def run_cymep(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilename=config_params.CYMEP_CONFIGS_PATH, truncate_years=True,
+              do_defineMIbypres=False, do_fill_missing_pw=True, do_special_filter_obs=False, THRESHOLD_ACE_WIND=-1., 
+              THRESHOLD_PACE_PRES=-100., debug_level=0):
     
     """
     Compute Tropical Cyclones (TCs) metrics from precomputed TCs trajectories
     using functions from the CyMep package.
 
+    Not used in pyhanami, kept for reference.
+
     Parameters
     ----------
     styr (int): Start year for the analysis.
     enyr (int): End year for the analysis.
-    gridsize (float): Grid size (in degrees) used for spatial analysis.
     output_path (str): Path to save results.
+    gridsize (float): Grid size (in degrees) used for spatial analysis (default: 2.5).
     basin (int): Basin/hemisphere to consider for the analysis (default: -1). Codes are:
             - <0 → GLOB (Global domain)
             - 1  → NATL (North Atlantic)
@@ -149,7 +151,7 @@ def run_cymep(styr, enyr, gridsize, output_path, basin=-1, csvfilename=config_pa
 
 
     # Initialize global numpy array/dicts
-    # Init per month arrays
+    # Init per year arrays
     pydict = {}
     pyvars = ['py_count','py_tcd','py_ace','py_pace','py_latgen','py_lmi']
     for x in pyvars:
@@ -163,14 +165,14 @@ def run_cymep(styr, enyr, gridsize, output_path, basin=-1, csvfilename=config_pa
         pmdict[x] = np.empty((nfiles, nmonths))
         pmdict[x][:] = np.nan
 
-    # Init per year arrays
+    # Init climatology arrays
     aydict = {}
     ayvars = ['uclim_count','uclim_tcd','uclim_ace','uclim_pace','uclim_lmi']
     for x in ayvars:
         aydict[x] = np.empty(nfiles)
         aydict[x][:] = np.nan
 
-    # Init per storm arrays
+    # Init storm arrays
     asdict = {}
     asvars = ['utc_tcd','utc_ace','utc_pace','utc_latgen','utc_lmi']
     for x in asvars:
@@ -471,7 +473,7 @@ def run_cymep(styr, enyr, gridsize, output_path, basin=-1, csvfilename=config_pa
         np.savetxt(output_path / f'storms_{strbasin}_{strs[ii]}_output.csv',
             filtered_storm_data, delimiter=",", fmt=data_formatting, header=header_str, comments='')
         
-        
+
         # Bin storms per dataset per calendar month
         for jj in range(1, 12+1):
             pmdict['pm_count'][ii,jj-1]  = np.count_nonzero(xgmonth == jj) / nmodyears
@@ -648,11 +650,650 @@ def run_cymep(styr, enyr, gridsize, output_path, basin=-1, csvfilename=config_pa
 
     # Package a series of global package inputs for storage as NetCDF attributes
     globaldict={}
-    globaldictvars = ["styr","enyr","stmon","enmon","strbasin","do_special_filter_obs","do_fill_missing_pw","csvfilename","truncate_years","do_defineMIbypres","gridsize"]
+    globaldictvars = ["styr","enyr","stmon","enmon","gridsize","strbasin","csvfilename","truncate_years","do_defineMIbypres","do_fill_missing_pw",
+                      "do_special_filter_obs", "THRESHOLD_ACE_WIND", "THRESHOLD_PACE_PRES"]
     for x in globaldictvars:
         globaldict[x] = globals()[x]
 
     # Write NetCDF file
-    tcs_cymep_funcs.write_spatial_netcdf(msdict, pmdict, pydict, taydict, strs, nyears, nmonths, denslat, denslon, globaldict)
+    _ = tcs_cymep_funcs.write_spatial_netcdf(msdict, pmdict, pydict, taydict, strs, nyears, nmonths, denslat, denslon, globaldict)
 
-    return
+    return 
+
+
+def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilename=config_params.CYMEP_CONFIGS_PATH, truncate_years=True,
+              do_defineMIbypres=False, do_fill_missing_pw=True, do_special_filter_obs=False, THRESHOLD_ACE_WIND=-1., 
+              THRESHOLD_PACE_PRES=-100., debug_level=0):
+    
+    """
+    Compute Tropical Cyclones (TCs) metrics from precomputed TCs trajectories using functions 
+    from the CyMep package.
+
+    Parameters
+    ----------
+    styr (int): Start year for the analysis.
+    enyr (int): End year for the analysis.
+    output_path (str): Path to save results.
+    gridsize (float): Grid size (in degrees) used for spatial analysis (default: 2.5).
+    basin (int): Basin/hemisphere to consider for the analysis (default: -1). Codes are:
+            - <0 → GLOB (Global domain)
+            - 1  → NATL (North Atlantic)
+            - 2  → EPAC (Eastern Pacific)
+            - 3  → CPAC (Central Pacific)
+            - 4  → WPAC (Western Pacific)
+            - 5  → NIO (North Indian Ocean)
+            - 6  → SIO (South Indian Ocean)
+            - 7  → SPAC (South Pacific)
+            - 8  → SATL (South Atlantic)
+            - 9  → FLA (Florida)
+            - 20 → NHEMI (Northern Hemisphere)
+            - 21 → SHEMI (Southern Hemisphere)
+            - otherwise → NONE (unrecognized)
+    csvfilename (str): Path to the file containing the list of files to analyze (default: config_params.CYMEP_CONFIGS_PATH).
+    truncate_years (bool): Whether to filter out years external to styr and enyr (default: True).
+    do_defineMYbypres (bool): Whether to define the maximum intensity location by psl instead of wind (default: False).
+    do_fill_missing_pw (bool): Whether to fill missing data with observed pressure-wind curve (default: True).
+    do_special_filter_obs (bool): Whether to apply special observational filtering; if True, code modifications are needed (default: False).
+    THRESHOLD_ACE_WIND (float): Wind speed threshold (in m/s) for ACE calculations; a negative value means no threshold (default: -1.).
+    THRESHOLD_PACE_PRES (float): psl threshold (in hPa) for PACE calculations; a negative value means no threshold (default: -100.).
+    debug_level (int): Level of debug to perform and print (0: no debug, 1: semi-verbose, 2: very verbose) (default: 0).
+    
+    Returns
+    -------
+    data_cymep (xr.Dataset): xarray Dataset containing all the metrics.
+    """
+
+    # Check output path
+    output_path = Path(output_path)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    # Constants
+    ms_to_kts = 1.94384449
+    pi = 3.141592653589793
+    deg2rad = pi / 180.
+
+    # Read in configuration file and parse columns for each case
+    df=pd.read_csv(csvfilename, sep=',', comment='!', header=None)
+    files = df.loc[:,0]
+    strs = df.loc[:,1]
+    isUnstructStr = df.loc[:,2]
+    ensmembers = df.loc[:,3]
+    yearspermember = df.loc[:,4]
+    windcorrs = df.loc[:,5]
+
+    # Get some useful global values based on input data
+    stmon = 1
+    enmon = 12
+
+    nfiles=len(files)
+    nyears = enyr-styr+1
+    nmonths = enmon-stmon+1
+
+
+    # Initialize global numpy array/dicts
+    # Init per year arrays
+    pydict = {}
+    pyvars = ['per_year_count','per_year_tcd','per_year_ace','per_year_pace','per_year_lmi']
+    for x in pyvars:
+        pydict[x] = np.empty((nfiles, nyears))
+        pydict[x][:] = np.nan
+
+    # Init per month arrays
+    pmdict = {}
+    pmvars = ['per_month_count','per_month_tcd','per_month_ace','per_month_pace','per_month_lmi']
+    for x in pmvars:
+        pmdict[x] = np.empty((nfiles, nmonths))
+        pmdict[x][:] = np.nan
+
+    # Init climatology arrays
+    acdict = {}
+    acvars = ['clim_mean_count','clim_mean_tcd','clim_mean_ace','clim_mean_pace','clim_mean_lmi']
+    for x in acvars:
+        acdict[x] = np.empty(nfiles)
+        acdict[x][:] = np.nan
+
+    # Init storm arrays
+    asdict = {}
+    asvars = ['storm_mean_tcd','storm_mean_ace','storm_mean_pace','storm_mean_lmi']
+    for x in asvars:
+        asdict[x] = np.empty(nfiles)
+        asdict[x][:] = np.nan
+
+    # Get basin string
+    strbasin=tcs_cymep_funcs.getbasinmaskstr(basin)
+
+
+    # Extract trajectories from each file and compute metrics
+    for ii in range(len(files)):
+        trajfile=files[ii]      # MODIFICATION OF ORIGINAL LOGIC!!!
+        isUnstruc=isUnstructStr[ii]
+        nVars=-1
+        headerStr='start'
+
+        wind_factor = windcorrs[ii]
+
+        # Determine the number of model years available in the dataset
+        if truncate_years:
+            #print("Truncating years from "+yearspermember(zz)+" to "+nyears)
+            nmodyears = ensmembers[ii] * nyears
+        else:
+            #print("Using years per member of "+yearspermember(zz))
+            nmodyears = ensmembers[ii] * yearspermember[ii]
+
+
+        # Extract trajectories from tempest file and assign to arrays
+        # USER_MODIFY
+        nstorms, ntimes, ncol, traj_data = tcs_cymep_funcs.getTrajectories(trajfile,nVars,headerStr,isUnstruc)
+        xlon   = traj_data[2,:,:]
+        xlat   = traj_data[3,:,:]
+        xpres  = traj_data[4,:,:]/100.
+        xwind  = traj_data[5,:,:]*wind_factor
+        xyear  = traj_data[ncol-4,:,:]
+        xmonth = traj_data[ncol-3,:,:]
+        xday   = traj_data[ncol-2,:,:]
+        xhour  = traj_data[ncol-1,:,:]
+
+        # Initialize nan'ed arrays specific to this traj file
+        xglon      = np.empty(nstorms)
+        xglat      = np.empty(nstorms)
+        xgmonth    = np.empty(nstorms)
+        xgyear     = np.empty(nstorms)
+        xgday      = np.empty(nstorms)
+        xghour     = np.empty(nstorms)
+        xlatmi     = np.empty(nstorms)
+        xlonmi     = np.empty(nstorms)
+        xglon[:]   = np.nan
+        xglat[:]   = np.nan
+        xgmonth[:] = np.nan
+        xgyear[:]  = np.nan
+        xgday[:]   = np.nan
+        xghour[:]  = np.nan
+        xlatmi[:]  = np.nan
+        xlonmi[:]  = np.nan
+
+
+        # Fill in missing values of pressure and wind if requested
+        if do_fill_missing_pw:
+            aaa=2.3
+            bbb=1010.
+            ccc=0.76
+            #del xpres
+            #del xwind
+            #xpres = np.array([980.,-1,-1])
+            #xwind = np.array([-1.,30.50281984,-1])
+            # first, when xpres is missing but xwind exists, try to fill in xpres
+            numfixes_1 = np.count_nonzero((xpres < 0.0) & (xwind > 0.0))
+            #xpres    = np.where(((xpres < 0.0) & (xwind > 0.0)),-1*((xwind/aaa)**(1./ccc)-bbb),xpres)
+            xpres    = np.where(((xpres < 0.0) & (xwind > 0.0)),-1*(np.sign(xwind/aaa)*(np.abs(xwind/aaa))**(1./ccc)-bbb),xpres)
+            # next, when xwind is missing but xpres exists, try to fill in xwind
+            numfixes_2 = np.count_nonzero((xwind < 0.0) & (xpres > 0.0))
+            #xwind    = np.where(((xwind < 0.0) & (xpres > 0.0)),aaa*(bbb - xpres)**ccc,xwind)
+            xwind    = np.where(((xwind < 0.0) & (xpres > 0.0)),aaa*np.sign(bbb - xpres)*(np.abs(bbb - xpres))**ccc,xwind)
+            # now if still missing assume TD
+            numfixes_3 = np.count_nonzero((xpres < 0.0))
+            xpres    = np.where((xpres < 0.0),1008.,xpres)
+            xwind    = np.where((xwind < 0.0),15.,xwind)
+            print("Num fills for PW " + str(numfixes_1) + " " + str(numfixes_2) + " " + str(numfixes_3))
+
+
+        # Filter observational records
+        # if "control" record and do_special_filter_obs = true, we can apply specific
+        # criteria here to match objective tracks better
+        # for example, ibtracs includes tropical depressions, eliminate these to get WMO
+        # tropical storms > 17 m/s.
+        if do_special_filter_obs and ii == 0:
+            print("Doing special processing of control file")
+            windthreshold=17.5
+            xlon   = np.where(xwind > windthreshold,xlon,float('NaN'))
+            xlat   = np.where(xwind > windthreshold,xlat,float('NaN'))
+            xpres  = np.where(xwind > windthreshold,xpres,float('NaN'))
+            xwind  = np.where(xwind > windthreshold,xwind,float('NaN'))
+            xyear  = np.where(xwind > windthreshold,xyear,float('NaN'))
+            xmonth = np.where(xwind > windthreshold,xmonth,float('NaN'))
+
+            #presthreshold=850.0
+            #xlon = np.where(xpres > presthreshold,xlon,float('NaN'))
+            #xlat = np.where(xpres > presthreshold,xlat,float('NaN'))
+            #xpres = np.where(xpres > presthreshold,xpres,float('NaN'))
+            #xwind = np.where(xpres > presthreshold,xwind,float('NaN'))
+
+        
+        # Get genesis location latitude and longitude
+        # Loop over all storms, check for "finite" (non NaN) points within that storm's trajectory
+        for kk, zz in enumerate(range(nstorms)):
+            validlon = xlon[kk,:][np.isfinite(xlon[kk,:])]
+            validlat = xlat[kk,:][np.isfinite(xlat[kk,:])]
+            validmon = xmonth[kk,:][np.isfinite(xmonth[kk,:])]
+            validyear= xyear[kk,:][np.isfinite(xyear[kk,:])]
+            validday = xday[kk,:][np.isfinite(xday[kk,:])]
+            validhour= xhour[kk,:][np.isfinite(xhour[kk,:])]
+
+            # If the resulting validity array is > 0, it means we have at least 1 non-NaN value
+            # Set the genesis information to that first valid point
+            if validlon.size > 0:
+                xglon[kk]   = validlon[0]
+                xglat[kk]   = validlat[0]
+                xgmonth[kk] = validmon[0]
+                xgyear[kk]  = validyear[0]
+                xgday[kk]   = validday[0]
+                xghour[kk]  = validhour[0]
+
+        # Porting debugging
+        #print(np.count_nonzero(~np.isnan(xglon)))
+        #if ii == 0:
+        #  np.savetxt("foo.csv", xgmonth, delimiter=",")
+
+
+         # MASKING
+        if debug_level >= 2:
+            print("DEBUG2: glat, glon, gmonth, gyear")
+            for qq in range(len(xglon)):
+                if not (np.isnan(xglon[qq]) and np.isnan(xglat[qq]) ):
+                    print("DEBUG2: ",xglat[qq], xglon[qq], xgmonth[qq], xgyear[qq])
+
+        if debug_level >= 1:
+            print("DEBUG1: Storms originally: ",np.sum(~np.isnan(xglon)))
+
+        # Mask TCs for particular basin based on genesis location
+        if basin > 0:
+            for kk, zz in enumerate(range(nstorms)):
+                if basin == 20 or basin == 21:
+                    test_basin = tcs_cymep_funcs.maskTC(xglat[kk],xglon[kk],dohemi=True)
+                else:
+                    test_basin = tcs_cymep_funcs.maskTC(xglat[kk],xglon[kk])
+                if test_basin != basin:
+                    xlon[kk,:]   = float('NaN')
+                    xlat[kk,:]   = float('NaN')
+                    xpres[kk,:]  = float('NaN')
+                    xwind[kk,:]  = float('NaN')
+                    xyear[kk,:]  = float('NaN')
+                    xmonth[kk,:] = float('NaN')
+                    xglon[kk]    = float('NaN')
+                    xglat[kk]    = float('NaN')
+                    xgmonth[kk]  = float('NaN')
+                    xgyear[kk]   = float('NaN')
+                    xgday[kk]    = float('NaN')
+                    xghour[kk]   = float('NaN')
+
+        if debug_level >= 1:
+            print("DEBUG1: Storms after basin filter: ",np.sum(~np.isnan(xglon)))
+
+        # Mask TCs based on temporal characteristics
+        for kk, zz in enumerate(range(nstorms)):
+            maskoff = True
+            if not np.isnan(xglat[kk]):
+                maskoff = False
+                orimon  = xgmonth[kk]
+                oriyear = xgyear[kk]
+                if enmon <= stmon:
+                    if orimon > enmon and orimon < stmon:
+                        maskoff = True
+                else:
+                    if orimon < stmon or orimon > enmon:
+                        maskoff = True
+                if truncate_years:
+                    if oriyear < styr or oriyear > enyr:
+                        maskoff = True
+            if maskoff:
+                xlon[kk,:]   = float('NaN')
+                xlat[kk,:]   = float('NaN')
+                xpres[kk,:]  = float('NaN')
+                xwind[kk,:]  = float('NaN')
+                xyear[kk,:]  = float('NaN')
+                xmonth[kk,:] = float('NaN')
+                xglon[kk]    = float('NaN')
+                xglat[kk]    = float('NaN')
+                xgmonth[kk]  = float('NaN')
+                xgyear[kk]   = float('NaN')
+                xgday[kk]    = float('NaN')
+                xghour[kk]   = float('NaN')
+
+        if debug_level >= 1:
+            print("DEBUG1: Storms after time filter: ",np.sum(~np.isnan(xglon)))
+
+
+        # Calculate lifetime-maximum intensity (LMI)
+        for kk, zz in enumerate(range(nstorms)):
+            if not np.isnan(xglat[kk]):
+                if do_defineMIbypres:
+                    locMI=np.nanargmin(xpres[kk,:])
+                else:
+                    locMI=np.nanargmax(xwind[kk,:])
+                xlatmi[kk]=xlat[kk,locMI]
+                xlonmi[kk]=xlon[kk,locMI]
+
+        # Flip LMI sign in SH to report poleward values when averaging
+        abs_lats=True
+        if abs_lats:
+            xlatmi = np.absolute(xlatmi)
+            #xglat  = np.absolute(xglat)
+
+        
+        # Calculate TC days at every valid track point
+        xtcdpp = xwind
+        xtcdpp = np.where(~np.isnan(xtcdpp),0.25,0)
+
+
+        # Calculate storm-accumulated cyclone energy (ACE)
+        tmp = xwind
+        if THRESHOLD_ACE_WIND > 0:
+            print("Thresholding ACE to only TCs > "+str(THRESHOLD_ACE_WIND)+" m/s")
+            tmp = np.where(xwind < THRESHOLD_ACE_WIND,float('NaN'),xwind)
+        xacepp = 1.0e-4 * (ms_to_kts*tmp)**2.0
+        xace   = np.nansum( xacepp , axis=1 )
+
+
+        # Calculate pressure storm-accumulated cyclone energy (PACE)
+        quadratic_fit=True
+        calcPolyFitPACE=True
+        xprestmp = xpres
+
+        # Threshold PACE if requested
+        if THRESHOLD_PACE_PRES > 0:
+            print("Thresholding PACE to only TCs < "+str(THRESHOLD_PACE_PRES)+" hPa")
+            xprestmp = np.where(xprestmp > THRESHOLD_PACE_PRES,float('NaN'),xprestmp)
+
+        xprestmp = np.ma.array(xprestmp, mask=np.isnan(xprestmp))
+        warnings.filterwarnings('ignore')
+        if quadratic_fit:
+            if calcPolyFitPACE:
+                # Here, we calculate a quadratic P/W fit based off of the "control"
+                if ii == 0:
+                    polyn = 2
+                    xprestmp = np.ma.where(xprestmp < 1010.0, xprestmp, 1010.0)
+                    xprestmp = 1010.-xprestmp
+                    idx = np.isfinite(xprestmp) & np.isfinite(xwind)
+                    quad_a = np.polyfit(xprestmp[idx].flatten(), xwind[idx].flatten() , polyn)
+            else: # Use the coefficients from Z2021
+                print("calcPolyFitPACE is False, using coefficients from Z2021")
+                quad_a=np.array([-1.05371378e-03,5.68356519e-01,1.43290190e+01])
+            print("m/s")
+            print(quad_a)
+            print("kts")
+            print(quad_a*ms_to_kts)
+            xwindtmp = quad_a[2] + quad_a[1]*(1010.-xpres) + quad_a[0]*((1010.-xpres)**2)
+            xpacepp = 1.0e-4 * (ms_to_kts*xwindtmp)**2.0
+
+            if debug_level >= 2:
+                # Flatten the 2-D arrays
+                xwindtmp_flat = xwindtmp.flatten()
+                xwind_flat = xwind.flatten()
+                xpres_flat = xpres.flatten()
+                # Print the flattened values in sets of three
+                for ss in range(len(xwindtmp_flat)):
+                    if not (np.isnan(xwindtmp_flat[ss]) and np.isnan(xwind_flat[ss]) and np.isnan(xpres_flat[ss])):
+                        print("DEBUG2: ",xwindtmp_flat[ss], xwind_flat[ss], xpres_flat[ss])
+
+        else:
+            # Here, we apply a predetermined PW relationship from Holland
+            xprestmp = np.ma.where(xprestmp < 1010.0, xprestmp, 1010.0)
+            xpacepp = 1.0e-4 * (ms_to_kts*2.3*(1010.-xprestmp)**0.76)**2.
+
+        # Calculate PACE from xpacepp
+        xpace   = np.nansum( xpacepp , axis = 1)
+
+
+        # Get maximum intensity and TC days (TCD)
+        xmpres = np.nanmin( xpres , axis=1 )
+        xmwind = np.nanmax( xwind , axis=1 )
+        xtcd   = np.nansum( xtcdpp, axis=1 )
+
+
+        # Need to get rid of storms with no TC, ACE or PACE
+        xtcd   = np.where(xtcd  == 0,float('NaN'),xtcd)
+        xace   = np.where(xace  == 0,float('NaN'),xace)
+        xpace  = np.where(xpace == 0,float('NaN'),xpace)
+
+
+        # # Print some CSV files with storm-level information from each dataset if requested
+        # storm_level_data = np.column_stack((xgyear,xgmonth,xgday,xghour,xglat,xglon,xmpres,xmwind,xtcd,xace,xpace))
+        # filtered_storm_data = storm_level_data[~np.all(np.isnan(storm_level_data), axis=1)]
+        # data_formatting = ['%d', '%d', '%d', '%d'] + ['%.2f'] * (filtered_storm_data.shape[1] - 4)
+        # header_str = "gYear,gMonth,gDay,gHour,gLat,gLon,minPres,maxWind,TCD,ACE,PACE"
+        # np.savetxt(output_path / f'storms_{strbasin}_{strs[ii]}_output.csv',
+        #     filtered_storm_data, delimiter=",", fmt=data_formatting, header=header_str, comments='')
+        # print(f"Storm-level data for {strs[ii]} written to {output_path / f'storms_{strbasin}_{strs[ii]}_output.csv'}.")
+
+
+        # Bin storms per dataset per calendar month
+        for jj in range(1, 12+1):
+            pmdict['per_month_count'][ii,jj-1]  = np.count_nonzero(xgmonth == jj) / nmodyears
+            pmdict['per_month_tcd'][ii,jj-1]    = np.nansum(  np.where(xgmonth == jj,xtcd,0.0) ) / nmodyears
+            pmdict['per_month_ace'][ii,jj-1]    = np.nansum(  np.where(xgmonth == jj,xace,0.0) ) / nmodyears
+            pmdict['per_month_pace'][ii,jj-1]   = np.nansum(  np.where(xgmonth == jj,xpace,0.0) ) / nmodyears
+            pmdict['per_month_lmi'][ii,jj-1]    = np.nanmean( np.where(xgmonth == jj,xlatmi,float('NaN')) )
+
+        # Bin storms per dataset per calendar year
+        for jj in range(styr, enyr+1):
+            yrix = jj - styr   # Convert from year to zero indexing for numpy array
+            if jj >= np.nanmin(xgyear) and jj <= np.nanmax(xgyear):
+                pydict['per_year_count'][ii,yrix]  = np.count_nonzero(xgyear == jj) / ensmembers[ii]
+                pydict['per_year_tcd'][ii,yrix]    = np.nansum(  np.where(xgyear == jj,xtcd,0.0) ) / ensmembers[ii]
+                pydict['per_year_ace'][ii,yrix]    = np.nansum(  np.where(xgyear == jj,xace,0.0) ) / ensmembers[ii]
+                pydict['per_year_pace'][ii,yrix]   = np.nansum(  np.where(xgyear == jj,xpace,0.0) ) / ensmembers[ii]
+                pydict['per_year_lmi'][ii,yrix]    = np.nanmean( np.where(xgyear == jj,xlatmi,float('NaN')) )
+
+
+        # # Calculate control interannual standard deviations
+        # if ii == 0:
+        #     stdydict={}
+        #     stdydict['sdy_count'] = np.nanstd(pydict['per_year_count'][ii,:])
+        #     stdydict['sdy_tcd'] = np.nanstd(pydict['per_year_tcd'][ii,:])
+        #     stdydict['sdy_ace'] = np.nanstd(pydict['per_year_ace'][ii,:])
+        #     stdydict['sdy_pace'] = np.nanstd(pydict['per_year_pace'][ii,:])
+        #     stdydict['sdy_lmi'] = np.nanstd(pydict['per_year_lmi'][ii,:])
+
+        # Calculate annual averages (climatologies)
+        acdict['clim_mean_count'][ii]  = np.nansum(pmdict['per_month_count'][ii,:])
+        acdict['clim_mean_tcd'][ii]    = np.nansum(xtcd) / nmodyears
+        acdict['clim_mean_ace'][ii]    = np.nansum(xace) / nmodyears
+        acdict['clim_mean_pace'][ii]   = np.nansum(xpace) / nmodyears
+        acdict['clim_mean_lmi'][ii]    = np.nanmean(pydict['per_year_lmi'][ii,:])
+
+        # Calculate storm averages
+        asdict['storm_mean_tcd'][ii]    = np.nanmean(xtcd)
+        asdict['storm_mean_ace'][ii]    = np.nanmean(xace)
+        asdict['storm_mean_pace'][ii]   = np.nanmean(xpace)
+        asdict['storm_mean_lmi'][ii]    = np.nanmean(xlatmi)
+
+        # Calculate spatial densities, integrals, and min/maxes
+        trackdens, denslat, denslon = tcs_cymep_funcs.track_density(gridsize,0.0,xlat.flatten(),xlon.flatten(),False)
+        trackdens = trackdens/nmodyears
+        gendens, denslat, denslon = tcs_cymep_funcs.track_density(gridsize,0.0,xglat.flatten(),xglon.flatten(),False)
+        gendens = gendens/nmodyears
+        tcddens, denslat, denslon = tcs_cymep_funcs.track_mean(gridsize,0.0,xlat.flatten(),xlon.flatten(),xtcdpp.flatten(),False,0)
+        tcddens = tcddens/nmodyears
+        acedens, denslat, denslon = tcs_cymep_funcs.track_mean(gridsize,0.0,xlat.flatten(),xlon.flatten(),xacepp.flatten(),False,0)
+        acedens = acedens/nmodyears
+        pacedens, denslat, denslon = tcs_cymep_funcs.track_mean(gridsize,0.0,xlat.flatten(),xlon.flatten(),xpacepp.flatten(),False,0)
+        pacedens = pacedens/nmodyears
+        minpres, denslat, denslon = tcs_cymep_funcs.track_minmax(gridsize,0.0,xlat.flatten(),xlon.flatten(),xpres.flatten(),"min",-1)
+        maxwind, denslat, denslon = tcs_cymep_funcs.track_minmax(gridsize,0.0,xlat.flatten(),xlon.flatten(),xwind.flatten(),"max",-1)
+
+
+        # If there are no storms tracked in this particular dataset, set everything to NaN
+        if np.nansum(trackdens) == 0:
+            trackdens=float('NaN')
+            pacedens=float('NaN')
+            acedens=float('NaN')
+            tcddens=float('NaN')
+            gendens=float('NaN')
+            minpres=float('NaN')
+            maxwind=float('NaN')
+
+
+        # If ii = 0, generate master spatial arrays
+        if ii == 0:
+            print("Generating cosine weights...")
+            denslatwgt    = np.cos(deg2rad*denslat)
+            print("Generating master spatial arrays...")
+            msdict = {}
+            msvars = ['spatial_count','spatial_minpres','spatial_maxwind','spatial_gen','spatial_tcd','spatial_ace','spatial_pace',
+                      'spatial_bias_count','spatial_bias_minpres','spatial_bias_maxwind','spatial_bias_gen','spatial_bias_tcd','spatial_bias_ace','spatial_bias_pace']
+            for x in msvars:
+                msdict[x] = np.empty((nfiles, denslat.size, denslon.size))
+
+        # Store this model's data in the master spatial array
+        msdict['spatial_count'][ii,:,:] = trackdens[:,:]
+        msdict['spatial_minpres'][ii,:,:] = minpres[:,:]
+        msdict['spatial_maxwind'][ii,:,:] = maxwind[:,:]
+        msdict['spatial_gen'][ii,:,:]  = gendens[:,:]
+        msdict['spatial_tcd'][ii,:,:]  = tcddens[:,:]
+        msdict['spatial_pace'][ii,:,:] = pacedens[:,:]
+        msdict['spatial_ace'][ii,:,:]  = acedens[:,:]
+
+        msdict['spatial_bias_count'][ii,:,:] = trackdens[:,:] - msdict['spatial_count'][0,:,:]
+        msdict['spatial_bias_minpres'][ii,:,:]   = minpres[:,:]   - msdict['spatial_minpres'][0,:,:]
+        msdict['spatial_bias_maxwind'][ii,:,:]  = maxwind[:,:]  - msdict['spatial_maxwind'][0,:,:]
+        msdict['spatial_bias_gen'][ii,:,:]   = gendens[:,:]   - msdict['spatial_gen'][0,:,:]
+        msdict['spatial_bias_tcd'][ii,:,:]  = tcddens[:,:]  - msdict['spatial_tcd'][0,:,:]
+        msdict['spatial_bias_ace'][ii,:,:]   = acedens[:,:]   - msdict['spatial_ace'][0,:,:]
+        msdict['spatial_bias_pace'][ii,:,:]  = pacedens[:,:]  - msdict['spatial_pace'][0,:,:]
+
+
+    # Back to the main program
+    #for zz in pydict:
+    #  print(pydict[zz])
+    #  pydict[zz] = np.where( pydict[zz] <= 0.     , 0. , pydict[zz] )
+    #  pydict[zz] = np.where( np.isnan(pydict[zz]) , 0. , pydict[zz] )
+    #  pydict[zz] = np.where( np.isinf(pydict[zz]) , 0. , pydict[zz] )
+
+
+    # Spatial correlation calculations
+    ## Initialize dict
+    rxydict={}
+    rxyvars = ["spatial_pcorr_count","spatial_pcorr_gen","spatial_pcorr_maxwind","spatial_pcorr_minpres","spatial_pcorr_ace","spatial_pcorr_pace"]
+    for x in rxyvars:
+        rxydict[x] = np.empty(nfiles)
+
+    for ii in range(nfiles):
+        rxydict['spatial_pcorr_count'][ii] = tcs_cymep_funcs.pattern_cor(msdict['spatial_count'][0,:,:], msdict['spatial_count'][ii,:,:], denslatwgt, 0)
+        rxydict['spatial_pcorr_gen'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_gen'][0,:,:],  msdict['spatial_gen'][ii,:,:],  denslatwgt, 0)
+        rxydict['spatial_pcorr_maxwind'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_maxwind'][0,:,:], msdict['spatial_maxwind'][ii,:,:], denslatwgt, 0)
+        rxydict['spatial_pcorr_minpres'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_minpres'][0,:,:], msdict['spatial_minpres'][ii,:,:], denslatwgt, 0)
+        rxydict['spatial_pcorr_tcd'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_tcd'][0,:,:],  msdict['spatial_tcd'][ii,:,:],  denslatwgt, 0)
+        rxydict['spatial_pcorr_ace'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_ace'][0,:,:],  msdict['spatial_ace'][ii,:,:],  denslatwgt, 0)
+        rxydict['spatial_pcorr_pace'][ii]  = tcs_cymep_funcs.pattern_cor(msdict['spatial_pace'][0,:,:], msdict['spatial_pace'][ii,:,:], denslatwgt, 0)
+
+    # Temporal correlation calculations
+    # Spearman Rank
+    rsdict = {}
+    for jj in pmdict:
+        # Swap per month strings with corr prefix and init dict key
+        repStr=re.sub("per_month_", "temporal_scorr_", jj)
+        rsdict[repStr] = np.empty(nfiles)
+        for ii in range(len(files)):
+            # Create tmp vars and find nans
+            tmpx = pmdict[jj][0,:]
+            tmpy = pmdict[jj][ii,:]
+            nas = np.logical_or(np.isnan(tmpx), np.isnan(tmpy))
+            rsdict[repStr][ii], tmp = sps.spearmanr(tmpx[~nas],tmpy[~nas])
+    
+    # Pearson correlation
+    rpdict = {}
+    for jj in pmdict:
+        # Swap per month strings with corr prefix and init dict key
+        repStr=re.sub("per_month_", "temporal_pcorr_", jj)
+        rpdict[repStr] = np.empty(nfiles)
+        for ii in range(len(files)):
+            # Create tmp vars and find nans
+            tmpx = pmdict[jj][0,:]
+            tmpy = pmdict[jj][ii,:]
+            nas = np.logical_or(np.isnan(tmpx), np.isnan(tmpy))
+            rpdict[repStr][ii], tmp =sps.pearsonr(tmpx[~nas],tmpy[~nas])
+
+
+    # Generate Taylor dict
+    taydict={}
+    tayvars = ["tay_pc","tay_ratio","tay_bias","tay_xmean","tay_ymean","tay_xvar","tay_yvar","tay_rmse"]
+    for x in tayvars:
+        taydict[x] = np.empty(nfiles)
+
+    # Calculate Taylor stats and put into taylor dict
+    for ii in range(nfiles):
+        ratio = tcs_cymep_funcs.taylor_stats(msdict['spatial_count'][ii,:,:], msdict['spatial_count'][0,:,:], denslatwgt,0)
+        for ix, x in enumerate(tayvars):
+            #print(x+" "+str(ratio[ix]))
+            taydict[x][ii] = ratio[ix]
+
+    # Calculate special bias for Taylor diagrams
+    taydict["tay_bias2"]=np.empty(nfiles)
+    for ii in range(nfiles):
+        taydict["tay_bias2"][ii] = 100. * ( (taydict['clim_mean_count'][ii] - taydict['clim_mean_count'][0]) / taydict['clim_mean_count'][0] )
+
+
+    # # Save results to .csv (if requested) and .nc files
+    # # Write out primary stats files
+    # tcs_cymep_funcs.write_single_csv(rxydict, strs, output_path, f'metrics_{strbasin}_spatial_corr.csv')
+    # tcs_cymep_funcs.write_single_csv(rsdict, strs, output_path, f'metrics_{strbasin}_temporal_scorr.csv')
+    # tcs_cymep_funcs.write_single_csv(rpdict, strs, output_path, f'metrics_{strbasin}_temporal_pcorr.csv')
+    # tcs_cymep_funcs.write_single_csv(acdict, strs, output_path, f'metrics_{strbasin}_climo_mean.csv')
+    # tcs_cymep_funcs.write_single_csv(asdict, strs, output_path, f'metrics_{strbasin}_storm_mean.csv')
+    # tcs_cymep_funcs.write_single_csv(stdydict, strs[0], output_path, f'means_{strbasin}_climo_mean.csv')
+
+    # Package a series of global package inputs for storage as NetCDF attributes
+    globaldict={}
+    globaldictvars = ["styr","enyr","stmon","enmon","gridsize","strbasin","csvfilename","truncate_years","do_defineMIbypres","do_fill_missing_pw",
+                      "do_special_filter_obs", "THRESHOLD_ACE_WIND", "THRESHOLD_PACE_PRES"]
+    for x in globaldictvars:
+        globaldict[x] = globals()[x]
+
+    # # Write NetCDF file
+    # netcdf_path = tcs_cymep_funcs.write_spatial_netcdf(msdict, pmdict, pydict, taydict, strs, nyears, nmonths, denslat, denslon, globaldict)
+
+
+    # Prepare dict with metrics descriptions
+    base_metrics = {
+        'count': 'number of tropical cyclones',
+        'tcd': 'tropical cyclone days (TCD)',
+        'ace': 'accumulated cyclone energy (ACE)',
+        'pace': 'pressure accumulated cyclone energy (PACE)',
+        'lmi': 'latitude of lifetime-maximum intensity (LMI)'
+    }
+    
+    extra_metrics = {
+        'minpres': 'minimum sea level pressure (hPa)',
+        'maxwind': 'maximum 10 m wind speed (m/s)',
+        'gen': 'tropical cyclone genesis points'
+    }
+
+    metrics_descriptions = {
+        # Per month metrics
+        **{f'per_month_{key}': f'Average {value} per month.' 
+           for key, value in base_metrics.items()},
+
+        # Per year metrics
+        **{f'per_year_{key}': f'Average {value} per year.' 
+           for key, value in base_metrics.items()},
+
+        # Climatological mean metrics
+        **{f'clim_mean_{key}': f'Climatological mean {value} over the period covered by "years".' 
+           for key, value in base_metrics.items()},
+
+        # Storm mean metrics (excluding count)
+        **{f'storm_mean_{key}': f'Mean {value} per storm over the period covered by "years".' 
+           for key, value in base_metrics.items() if key != 'count'},
+
+        # Temporal correlation metrics
+        **{f'temporal_scorr_{key}': f'Temporal Spearman rank correlation of {value} over the period covered by "years".'  
+           for key, value in base_metrics.items()},
+
+
+        # Spatial metrics (excluding lmi)
+        **{f'spatial_{key}': f'Spatial distribution of {value} over the period covered by "years" (considering {gridsize}ºx{gridsize}º cells).' 
+           for key, value in {**base_metrics, **extra_metrics}.items() if key != 'lmi'},
+
+        # Spatial bias metrics (excluding lmi)
+        **{f'spatial_bias_{key}': f'Spatial bias in {value} relative to the observations over the period covered by "years" (considering {gridsize}ºx{gridsize}º cells).' 
+           for key, value in {**base_metrics, **extra_metrics}.items() if key != 'lmi'},
+
+        # Spatial correlation metrics (excluding lmi)
+        **{f'spatial_pcorr_{key}': f'Spatial Pearson correlation of {value} relative to the observations over the period covered by "years".' 
+           for key, value in {**base_metrics, **extra_metrics}.items() if key != 'lmi'},
+        }
+    
+    # Create xarray Dataset with all the metrics
+    data_cymep = tcs_cymep_funcs.create_xarray_dataset(pmdict, pydict, acdict, asdict, rsdict, msdict, rxydict, strs, 
+                                                       nyears, nmonths, denslat, denslon, globaldict, metrics_descriptions)
+
+    return data_cymep
