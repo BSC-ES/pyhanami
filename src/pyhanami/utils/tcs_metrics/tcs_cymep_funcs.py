@@ -9,6 +9,7 @@ Copyright (c) 2021 Colin Zarzycki
 import os
 import re
 import numpy as np
+import xarray as xr
 import netCDF4 as nc
 
 from datetime import datetime
@@ -562,7 +563,7 @@ def taylor_stats(x, y, w, opt):
 
     Returns
     -------
-    pc (float): Pattern correlation between the variables.
+    pc (float): Pearson correlation between the variables.
     ratio (float): Ratio of standard deviations (test/reference).
     bias (float): Relative bias with respect to the reference.
     xmean (float): Weighted mean of `x`.
@@ -863,16 +864,20 @@ def write_spatial_netcdf(spatialdict, permondict, peryrdict, taydict, modelsin, 
 
     Parameters
     ----------
-    spatialdict (dict[np.ndarray]): Dictionary of 3D arrays (model x lat x lon) with spatial variables.
+    spatialdict (dict[np.ndarray]): Dictionary of 3D arrays (model x lat x lon) with spatial metrics.
     permondict (dict[np.ndarray]): Dictionary of 2D arrays (model x months) with monthly metrics.
     peryrdict (dict[np.ndarray]): Dictionary of 2D arrays (model x years) with yearly metrics.
-    taydict (dict[np.ndarray]): Dictionary of 1D arrays (model) with summary metrics.
+    taydict (dict[np.ndarray]): Dictionary of 1D arrays (model) with metrics for Taylor diagrams.
     modelsin (list[str]): Model names.
     nyears (int) Number of years in the dataset.
     nmonths (int): Number of months in the dataset.
     latin (np.ndarray): Latitude values.
     lonin (np.ndarray): Longitude values.
-    globaldict (dict): lobal metadata (`strbasin`, `csvfilename`, ...).
+    globaldict (dict): Global metadata (`strbasin`, `csvfilename`, ...).
+
+    Returns
+    -------
+    netcdf_path (str): Path to the created NetCDF file.
     """
 
     # Convert modelsin from pandas to list
@@ -889,7 +894,8 @@ def write_spatial_netcdf(spatialdict, permondict, peryrdict, taydict, modelsin, 
     netcdfile=netcdfdir+"/netcdf_"+globaldict['strbasin']+"_"+os.path.splitext(globaldict['csvfilename'])[0]
     
     # Open a netCDF file to write
-    ncout = nc.Dataset(netcdfile+".nc", 'w', format='NETCDF4')
+    netcdf_path = netcdfile+".nc"
+    ncout = nc.Dataset(netcdf_path, 'w', format='NETCDF4')
 
     # Dfine axis size
     ncout.createDimension('model', nmodels)  # unlimited
@@ -941,7 +947,7 @@ def write_spatial_netcdf(spatialdict, permondict, peryrdict, taydict, modelsin, 
     model_names[:] = nc.stringtochar(np.array(modelsin).astype('S16'))
     
     # today = datetime.today()
-    ncout.description = "Coastal metrics processed data"
+    ncout.description = "Tropical Cyclones metrics processed data"
     ncout.history = "Created " + datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
     for ii in globaldict:
         ncout.setncattr(ii, str(globaldict[ii]))
@@ -949,8 +955,134 @@ def write_spatial_netcdf(spatialdict, permondict, peryrdict, taydict, modelsin, 
     # close files
     ncout.close()
 
-    return
+    return netcdf_path
+ 
+
+def write_cymep_output_pyhanami(per_month_dict, per_year_dict, clim_mean_dict, storm_mean_dict, temp_scorr_dict, spatial_dict, spatial_pcorr_dict,
+                                model_names, nyears, nmonths, lat_idxs, lon_idxs, attrs_dict, descript_dict):
+    """
+    Write spatial, temporal, and summary climate metrics to xarray.Dataset.
+
+    Parameters
+    ----------
+    per_month_dict (dict[np.ndarray]): Dictionary of 2D arrays (model x months) with monthly metrics.
+    per_year_dict (dict[np.ndarray]): Dictionary of 2D arrays (model x years) with yearly metrics.
+    clim_mean_dict (dict[np.ndarray]): Dictionary of 1D arrays (model) with climatological mean metrics.
+    storm_mean_dict (dict[np.ndarray]): Dictionary of 1D arrays (model) with mean storm metrics.
+    temp_scorr_dict (dict[np.ndarray]): Dictionary of 1D arrays (model) with temporal Spearman rank correlation metrics.
+    spatial_dict (dict[np.ndarray]): Dictionary of 3D arrays (model x lat x lon) with spatial metrics.
+    spatial_pcorr_dict (dict[np.ndarray]): Dictionary of 3D arrays (model x lat x lon) with spatial Pearson correlation metrics.
+    model_names (list[str]): Model names.
+    nyears (int) Number of years in the dataset.
+    nmonths (int): Number of months in the dataset.
+    lat_idxs (np.ndarray): Latitude values.
+    lon_idxs (np.ndarray): Longitude values.
+    attrs_dict (dict): Global metadata (`strbasin`, `csvfilename`, ...).
+    descript_dict (dict): Descriptions for each metric.
+
+    Returns
+    -------
+    data_cymep (xr.Dataset): xarray Dataset containing all the metrics.
+    """
+
+    # Create coordinates dictionary
+    coords = {
+        'model': model_names.tolist(),
+        'lat': ('lat', lat_idxs, {
+            'standard_name': 'latitude',
+            'long_name': 'latitude',
+            'units': 'degrees_north',
+            'axis': 'Y'
+        }),
+        'lon': ('lon', lon_idxs, {
+            'standard_name': 'longitude',
+            'long_name': 'longitude',
+            'units': 'degrees_east',
+            'axis': 'X'
+        }),
+        'month': np.arange(nmonths),
+        'year': np.arange(nyears)
+    }
+
+
+    # Initialize data variables dictionary
+    data_vars = {}
+
+    # Add temporal variables (2D: model x months/years)
+    for name, data in per_month_dict.items():
+        data_vars[name] = xr.DataArray(
+            data,
+            dims=('model', 'month'),
+            coords={'model': coords['model'], 'month': coords['month']},
+            attrs={'metric_description': descript_dict[name]}
+        )
+
+    for name, data in per_year_dict.items():
+        data_vars[name] = xr.DataArray(
+            data,
+            dims=('model', 'year'),
+            coords={'model': coords['model'], 'year': coords['year']},
+            attrs={'metric_description': descript_dict[name]}
+        )
+
+    # Add mean temporal variables (1D: model)
+    for name, data in clim_mean_dict.items():
+        data_vars[name] = xr.DataArray(
+            data,
+            dims=('model',),
+            coords={'model': coords['model']},
+            attrs={'metric_description': descript_dict[name]}
+        )
+
+    for name, data in storm_mean_dict.items():
+        data_vars[name] = xr.DataArray(
+            data,
+            dims=('model',),
+            coords={'model': coords['model']},
+            attrs={'metric_description': descript_dict[name]}
+        )
+
+    # Add temporal correlation variables (1D: model)
+    for name, data in temp_scorr_dict.items():
+        data_vars[name] = xr.DataArray(
+            data,
+            dims=('model',),
+            coords={'model': coords['model']},
+            attrs={'metric_description': descript_dict[name]}
+        )
+
+    # Add spatial variables (3D: model x lat x lon)
+    for name, data in spatial_dict.items():
+        data_vars[name] = xr.DataArray(
+            data,
+            dims=('model', 'lat', 'lon'),
+            coords={'model': coords['model'], 'lat': coords['lat'], 'lon': coords['lon']},
+            attrs={'metric_description': descript_dict[name]}
+        )
+
+    # Add spatial correlation variables (1D: model)
+    for name, data in spatial_pcorr_dict.items():
+        data_vars[name] = xr.DataArray(
+            data,
+            dims=('model',),
+            coords={'model': coords['model']},
+            attrs={'metric_description': descript_dict[name]}
+        )
     
+
+    # Create xarray Dataset with all variables
+    data_cymep = xr.Dataset(
+        data_vars=data_vars,
+        coords=coords,
+        attrs={
+            'description': "Tropical Cyclones metrics processed data.",
+            'history': "Created " + datetime.today().strftime('%Y-%m-%d-%H:%M:%S'),
+            **{key: str(value) for key, value in attrs_dict.items()}
+        }
+    )
+
+    return data_cymep
+
 
 def write_dict_csv(vardict, modelsin):
     """
