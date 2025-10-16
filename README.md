@@ -114,13 +114,13 @@ This project includes code and resources from the following sources:
 
 #### Adapted code:
 - [CyMeP package](https://github.com/zarzycki/cymep):
-    - Used in: `src/pyhanami/utils/tcs_cymep.py`, `src/pyhanami/utils/tcs_cymep_funcs.py`
+    - Used in: `src/pyhanami/utils/tcs_metrics/tcs_cymep_main.py`, `src/pyhanami/utils/tcs_metrics/tcs_cymep_funcs.py`
     - License: MIT License
     - Copyright (c) 2021 Colin Zarzycki
 
 #### Code dependencies:
 - [TempestExtremes package](https://github.com/ClimateGlobalChange/tempestextremes):
-    - Used in: `src/pyhanami/utils/tcs_tempestextremes.py`
+    - Used in: `src/pyhanami/utils/tcs_metrics/tcs_tempestextremes.py`
     - License: BSD 2-Clause License
     - Copyright (c) 2025, Paul Ullrich
 

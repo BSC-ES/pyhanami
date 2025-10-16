@@ -288,7 +288,7 @@ class ScientificEvaluation:
         
     
     def tcs_metrics(self, data_name=None, wind_factor=1.0, output_path=None, start_year=None, end_year=None, min_wind=10.0, 
-                    tracks_hist=False, tcs_plots=False, bin_size=2.5, clon=0, obs=False, obs_path=None, obs_name=None, 
+                    full_output=False, bin_size=2.5, clon=0, obs=False, obs_path=None, obs_name=None, 
                     obs_wind_factor=None):
         """
         Compute Tropical Cyclones (TCs) metrics following (C.M. Zarzycki et al., 2021) and plot results.
@@ -300,11 +300,10 @@ class ScientificEvaluation:
         output_path (str): Path to save plots.
         start_year, end_year (int): Initial and end years to compute the TCs metrics for.
         min_wind (float): minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
-        tracks_hist (bool): If True, generate a histogram of TC detections as a .nc file with TempestExtremes (default: False).
-        tcs_plots (bool): If True, spatially plot TCs genesis and tracks density (default: False).
+        full_output (bool): Whether to include spatial and linear plots from the CyMeP output (default: False).
         bin_size (float): Size of the bins in degrees for the spatial density plots (default: 2.5).
         clon (int): Central longitude for the spatial maps (default: 0).
-        obs (bool): If True, also consider observational data if available (default: False).
+        obs (bool): Whether to consider observational data if available (default: False).
         obs_path (str or list[str]): Path/s to the observations database/s.
         obs_name (str or list[str]): Name/s of the observational dataset/s.
         obs_wind_factor (float or list[float]): Wind speed correction factor/s (to normalize provided wind to 10 m wind) for observations.
@@ -367,7 +366,7 @@ class ScientificEvaluation:
 
 
         # Run TempestExtremes tracking on simulated data
-        tracks_sim_path = tcs_tempestextremes.run_tempestExtremes(data_sim_all, data_name, tracks_path, min_wind=min_wind, hist=tracks_hist)
+        tracks_sim_path = tcs_tempestextremes.run_tempestExtremes(data_sim_all, data_name, tracks_path, min_wind=min_wind)
         print(f"Tropical Cyclones tracking completed for {data_name}. Output files saved to '{tracks_path}'.", flush=True)
 
 
@@ -380,7 +379,7 @@ class ScientificEvaluation:
 
 
         # Plot TC genesis and trajectory density if requested
-        if tcs_plots:
+        if full_output:
             # Get simulated tracks and counts
             sim_tracks = tcs_tempestextremes.read_tracks_tempestExtremes(tracks_sim_path)
             sim_counts_gen, sim_counts_traj = tcs_tempestextremes.compute_tc_counts(sim_tracks, start_year, end_year, bin_size=bin_size, cutoff_wind=min_wind)
@@ -470,7 +469,74 @@ class ScientificEvaluation:
         tcs_cymep_main.prepare_read_configs(configs)
 
         # Compute TCs metrics with CyMeP
-        tcs_cymep_main.run_cymep(start_year, end_year, output_path=tracks_path)
+        data_cymep = tcs_cymep_main.run_cymep(start_year, end_year, output_path=tracks_path, gridsize=bin_size)
+        
+        if full_output:
+            tc_metrics_names = ['Storms', 'TCD', 'ACE', 'PDI', 'LMI', 'MinPress', 'MaxWind', 'Genesis']
+            tc_metrics_units = ['number', 'days', '10⁻4 kn²',  '10⁻4 kn²', 'º', 'hPa', 'm/s', 'number']
+            model_names = data_cymep.model.values
 
+            
+            # Create linear plots (comparing all datasets)
+            linear_month_ylabel = [f'{name} ({unit})' for name, unit in zip(tc_metrics_names[:5], tc_metrics_units[:5])]
+            linear_month_titles = [f'{name} seasonal cycle' for name in tc_metrics_names[:5]] 
+
+            linear_year_ylabel = [f'{name} ({unit})' for name, unit in zip(tc_metrics_names[:5], tc_metrics_units[:5])]
+            linear_year_titles = [f'{name} interannual cycle' for name in tc_metrics_names[:5]]
+
+            for name, i in enumerate(tc_metrics_names[:5]):
+                linear_month_data = data_cymep[f'per_month_{name}'].rename({'month': 'time'})
+                linear_month_data_list = [linear_month_data.sel(model=model) for model in model_names]
+                # TO CHANGE: linear_month_plot, _ = plot.time_series_plot(linear_month_data_list, title=linear_month_titles[i], y_label=linear_month_ylabel[i],
+                #                                             labels=model_names, time_freq='monthly', start_year=start_year, end_year=end_year)
+
+                linear_year_data = data_cymep[f'per_year_{name}'].rename({'year': 'time'})
+                linear_year_data_list = [linear_year_data.sel(model=model) for model in model_names]
+                linear_year_plot, _ = plot.time_series_plot(linear_year_data_list, title=linear_year_titles[i], y_label=linear_year_ylabel[i],
+                                                             xlabel='Year', labels=model_names, start_year=start_year, end_year=end_year)
+
+                if output_path is None:
+                    plt.show()
+                    print(f"Linear interannual cycle plot for TC {name} created and displayed.", flush=True)
+                else:
+                    linear_year_path = output_path / f"tcs_{name.lower()}_interann_cycle_plot_{data_name}_{start_year}-{end_year}.png"
+                    linear_year_plot.savefig(linear_year_path, bbox_inches='tight', dpi=150)
+                    print(f"TC interannual cycle linear plot created and saved to '{linear_year_path}'.", flush=True)
+
+
+            # Create spatial plots (comparing simulations with IBTrACS)
+            spatial_titles = [f'TC {name} density per {bin_size}°x{bin_size}° cell ({start_year}-{end_year})' for name in tc_metrics_names if name != 'lmi']
+            spatial_bias_titles = [f'TC {name} bias with respect to IBTrACS per {bin_size}°x{bin_size}° cell ({start_year}-{end_year})' for name in tc_metrics_names if name != 'lmi']
+            
+            spatial_cb_labels = [f'{name} ({unit})' for name, unit in zip(tc_metrics_names, tc_metrics_units) if name != 'lmi']
+
+            for name, i in enumerate(tc_metrics_names):
+                if name == 'lmi':
+                    continue
+                
+                spatial_data = data_cymep[f'spatial_{name}']
+                spatial_plot, _ = plot.two_spatial_plots(spatial_data.sel(model='IBTrACS'), spatial_data.sel(model=data_name), clon=clon,
+                                                        title_1='IBTrACS', title_2=data_name, suptitle=spatial_titles[i], cb_label=spatial_cb_labels[i])
+                if output_path is None:
+                    plt.show()
+                    print(f"Spatial plot for TC {name} created and displayed.", flush=True)
+                else:
+                    spatial_plot_path = output_path / f"tcs_{name.lower()}_spatial_plot_{data_name}_{start_year}-{end_year}.png"
+                    spatial_plot.savefig(spatial_plot_path, bbox_inches='tight', dpi=150)
+                    print(f"TC spatial plot created and saved to '{spatial_plot_path}'.", flush=True)
+
+
+                spatial_bias_data = data_cymep[f'spatial_bias_{name}']
+                spatial_bias_plot, _ = plot.spatial_plot(spatial_bias_data.sel(model=data_name), clon=clon, title=spatial_bias_titles[i],
+                                                        cb_label=f'bias in {spatial_cb_labels[i]}')
+                if output_path is None:
+                    plt.show()
+                    print(f"Spatial bias plot for TC {name} created and displayed.", flush=True)
+                else:
+                    spatial_bias_plot_path = output_path / f"tcs_{name.lower()}_spatial_bias_plot_{data_name}_{start_year}-{end_year}.png"
+                    spatial_bias_plot.savefig(spatial_bias_plot_path, bbox_inches='tight', dpi=150)
+                    print(f"TC spatial bias plot created and saved to '{spatial_bias_plot_path}'.", flush=True)
+
+        # ADD OUTPUT TABLES FROM CyMeP
 
         return
