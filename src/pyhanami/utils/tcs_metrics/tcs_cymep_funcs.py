@@ -1014,7 +1014,7 @@ def write_cymep_output_pyhanami(per_month_dict, per_year_dict, clim_mean_dict, s
             data,
             dims=('model', 'month'),
             coords={'model': coords['model'], 'month': coords['month']},
-            attrs={'metric_description': descript_dict[name]}
+            attrs=descript_dict[name]
         )
 
     for name, data in per_year_dict.items():
@@ -1022,7 +1022,7 @@ def write_cymep_output_pyhanami(per_month_dict, per_year_dict, clim_mean_dict, s
             data,
             dims=('model', 'year'),
             coords={'model': coords['model'], 'year': coords['year']},
-            attrs={'metric_description': descript_dict[name]}
+            attrs=descript_dict[name]
         )
 
     # Add mean temporal variables (1D: model)
@@ -1031,7 +1031,7 @@ def write_cymep_output_pyhanami(per_month_dict, per_year_dict, clim_mean_dict, s
             data,
             dims=('model',),
             coords={'model': coords['model']},
-            attrs={'metric_description': descript_dict[name]}
+            attrs=descript_dict[name]
         )
 
     for name, data in storm_mean_dict.items():
@@ -1039,7 +1039,7 @@ def write_cymep_output_pyhanami(per_month_dict, per_year_dict, clim_mean_dict, s
             data,
             dims=('model',),
             coords={'model': coords['model']},
-            attrs={'metric_description': descript_dict[name]}
+            attrs=descript_dict[name]
         )
 
     # Add temporal correlation variables (1D: model)
@@ -1048,7 +1048,7 @@ def write_cymep_output_pyhanami(per_month_dict, per_year_dict, clim_mean_dict, s
             data,
             dims=('model',),
             coords={'model': coords['model']},
-            attrs={'metric_description': descript_dict[name]}
+            attrs=descript_dict[name]
         )
 
     # Add spatial variables (3D: model x lat x lon)
@@ -1057,7 +1057,7 @@ def write_cymep_output_pyhanami(per_month_dict, per_year_dict, clim_mean_dict, s
             data,
             dims=('model', 'lat', 'lon'),
             coords={'model': coords['model'], 'lat': coords['lat'], 'lon': coords['lon']},
-            attrs={'metric_description': descript_dict[name]}
+            attrs=descript_dict[name]
         )
 
     # Add spatial correlation variables (1D: model)
@@ -1066,7 +1066,7 @@ def write_cymep_output_pyhanami(per_month_dict, per_year_dict, clim_mean_dict, s
             data,
             dims=('model',),
             coords={'model': coords['model']},
-            attrs={'metric_description': descript_dict[name]}
+            attrs=descript_dict[name]
         )
     
 

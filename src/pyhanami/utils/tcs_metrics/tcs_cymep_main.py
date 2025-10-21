@@ -14,6 +14,7 @@ import scipy.stats as sps
 
 from pathlib import Path
 
+from pyhanami.utils import data_general
 from pyhanami.config import config_params
 from pyhanami.utils.tcs_metrics import tcs_cymep_funcs
 
@@ -1243,6 +1244,7 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
 
 
     # Prepare dict with metrics descriptions
+    data_metrics = data_general.load_yaml_file(config_params.TCS_METRICS_PATH)
     base_metrics = {
         'count': 'number of tropical cyclones',
         'tcd': 'tropical cyclone days (TCD)',
@@ -1259,39 +1261,56 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
 
     metrics_descriptions = {
         # Per month metrics
-        **{f'per_month_{key}': f'Average {value} per month.' 
-           for key, value in base_metrics.items()},
+        **{f'per_month_{metric}': {
+            'metric_description': f'Average {data_metrics[metric]['long_name']} per month.',
+            'units': data_metrics[metric]['units']
+            } 
+           for metric in data_metrics if data_metrics[metric]['temporal']==True},
 
         # Per year metrics
-        **{f'per_year_{key}': f'Average {value} per year.' 
-           for key, value in base_metrics.items()},
+        **{f'per_year_{metric}': {
+            'metric_description': f'Average {data_metrics[metric]['long_name']} per year.',
+            'units': data_metrics[metric]['units']
+           } for metric in data_metrics if data_metrics[metric]['temporal']==True},
 
         # Climatological mean metrics
-        **{f'clim_mean_{key}': f'Climatological mean {value} over the period covered by "years".' 
-           for key, value in base_metrics.items()},
+        **{f'clim_mean_{metric}': {
+            'metric_description': f'Climatological mean {data_metrics[metric]['long_name']} over the period covered by "years".',
+            'units': data_metrics[metric]['units']
+           } for metric in data_metrics if data_metrics[metric]['temporal']==True},
 
         # Storm mean metrics (excluding count)
-        **{f'storm_mean_{key}': f'Mean {value} per storm over the period covered by "years".' 
-           for key, value in base_metrics.items() if key != 'count'},
+        **{f'storm_mean_{metric}': {
+            'metric_description': f'Mean {data_metrics[metric]['long_name']} per storm over the period covered by "years".',
+            'units': data_metrics[metric]['units']
+           } for metric in data_metrics if data_metrics[metric]['temporal']==True and metric!='count'},
 
         # Temporal correlation metrics
-        **{f'temporal_scorr_{key}': f'Temporal Spearman rank correlation of {value} over the period covered by "years".'  
-           for key, value in base_metrics.items()},
+        **{f'temporal_scorr_{metric}': {
+            'metric_description': f'Temporal Spearman rank correlation of {data_metrics[metric]['long_name']} over the period covered by "years".',
+            'units': '-'
+           } for metric in data_metrics if data_metrics[metric]['temporal']==True},
 
 
         # Spatial metrics (excluding lmi)
-        **{f'spatial_{key}': f'Spatial distribution of {value} over the period covered by "years" (considering {gridsize}ºx{gridsize}º cells).' 
-           for key, value in {**base_metrics, **extra_metrics}.items() if key != 'lmi'},
+        **{f'spatial_abs_{metric}': {
+            'metric_description': f'Spatial distribution of {data_metrics[metric]['long_name']} over the period covered by "years" (considering {gridsize}ºx{gridsize}º cells).',
+            'units': data_metrics[metric]['units']
+           } for metric in data_metrics if data_metrics[metric]['spatial']==True},
 
         # Spatial bias metrics (excluding lmi)
-        **{f'spatial_bias_{key}': f'Spatial bias in {value} relative to the observations over the period covered by "years" (considering {gridsize}ºx{gridsize}º cells).' 
-           for key, value in {**base_metrics, **extra_metrics}.items() if key != 'lmi'},
+        **{f'spatial_bias_{metric}': {
+            'metric_description': f'Spatial bias in {data_metrics[metric]['long_name']} relative to the observations over the period covered by "years" (considering {gridsize}ºx{gridsize}º cells).',
+            'units': data_metrics[metric]['units']
+           } for metric in data_metrics if data_metrics[metric]['spatial']==True},
 
         # Spatial correlation metrics (excluding lmi)
-        **{f'spatial_pcorr_{key}': f'Spatial Pearson correlation of {value} relative to the observations over the period covered by "years".' 
-           for key, value in {**base_metrics, **extra_metrics}.items() if key != 'lmi'},
+        **{f'spatial_pcorr_{metric}': {
+            'metric_description': f'Spatial Pearson correlation of {data_metrics[metric]['long_name']} relative to the observations over the period covered by "years".',
+            'units': '-'
+           } for metric in data_metrics if data_metrics[metric]['spatial']==True},
         }
-    
+
     # Create xarray Dataset with all the metrics
     data_cymep = tcs_cymep_funcs.create_xarray_dataset(pmdict, pydict, acdict, asdict, rsdict, msdict, rxydict, strs, 
                                                        nyears, nmonths, denslat, denslon, globaldict, metrics_descriptions)

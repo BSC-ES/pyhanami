@@ -8,6 +8,9 @@ from scipy.stats import ks_2samp, ttest_ind, mannwhitneyu
 # Path to available variables and metadata
 VARIABLES_PATH = Path(__file__).parent / "variables.yaml"
 
+# Path to TCs metrics and metadata
+TCS_METRICS_PATH = Path(__file__).parent / "tcs_metrics.yaml"
+
 
 # Available datasets parameters
 DATA_PATH = Path(__file__).parent.parent / "data"
