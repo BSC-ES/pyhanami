@@ -49,6 +49,9 @@ class ScientificEvaluation:
         Moreover, computes temporal correlation, standard deviations ratio and Taylor Skill Score between 
         observations and simulations mean monthly frequency of ISO events following (M. Nakano et al., 2019) 
         when an observations dataset is provided.
+    tcs_metrics(data_name=None, wind_factor=1.0, output_path=None, start_year=None, end_year=None, min_wind=10.0, full_output=False, 
+                bin_size=2.5, clon=0, obs=False, obs_path=None, obs_name=None, obs_wind_factor=None)
+        Computes Tropical Cyclones (TCs) metrics following (C.M. Zarzycki et al., 2021) and plots results.
     """
 
     def __init__(self, datasets: Iterable[SimulationData] = None):        
@@ -393,26 +396,15 @@ class ScientificEvaluation:
             gen_plot, _ = plot.two_spatial_plots(ib_counts_gen, sim_counts_gen, clon=clon, title_1='IBTrACS', title_2=data_name,
                                                   suptitle=f"TCs genesis density per {bin_size}°x{bin_size}° cell ({start_year}-{end_year})",
                                                   cb_label="N° of tropical cyclones formed", show_contours=False)
-            if output_path is None:
-                plt.show()
-                print(f"\nTC genesis plot created and displayed.", flush=True)
-            else:
-                gen_path = output_path / f"tcs_genesis_density_ibtracs_vs_{data_name}_{start_year}-{end_year}.png"
-                gen_plot.savefig(gen_path, bbox_inches='tight', dpi=150)
-                print(f"\nTC genesis plot created and saved to '{gen_path}'.", flush=True)
-
+            plot.save_or_show_plot(gen_plot, output_path, plot_filename=f"tcs_genesis_density_ibtracs_vs_{data_name}_{start_year}-{end_year}",
+                                   plot_name="\nTC genesis plot")
 
             # Generate trajectory density plots
             traj_plot, _ = plot.two_spatial_plots(ib_counts_traj, sim_counts_traj, clon=clon, title_1='IBTrACS', title_2=data_name,
                                                   suptitle=f"TCs trajectory density per {bin_size}°x{bin_size}° cell ({start_year}-{end_year})",
                                                   cb_label="N° of tropical cyclones passed", show_contours=False)
-            if output_path is None:
-                plt.show()
-                print(f"TC trajectories plot created and displayed.", flush=True)
-            else:
-                traj_path = output_path / f"tcs_trajectory_density_ibtracs_vs_{data_name}_{start_year}-{end_year}.png"
-                traj_plot.savefig(traj_path, bbox_inches='tight', dpi=150)
-                print(f"TC trajectories plot created and saved to '{traj_path}'.", flush=True)
+            plot.save_or_show_plot(traj_plot, output_path, plot_filename=f"tcs_trajectory_density_ibtracs_vs_{data_name}_{start_year}-{end_year}",
+                                   plot_name="TC trajectories plot")
 
 
         # Prepare observations TCs data if requested
@@ -470,38 +462,53 @@ class ScientificEvaluation:
 
         # Compute TCs metrics with CyMeP
         data_cymep = tcs_cymep_main.run_cymep(start_year, end_year, output_path=tracks_path, gridsize=bin_size)
-        
+        model_names = data_cymep.model.values
+        data_metrics = data_general.load_yaml_file(config_params.TCS_METRICS_PATH)
+
         if full_output:
-            tc_metrics_names = ['Storms', 'TCD', 'ACE', 'PDI', 'LMI', 'MinPress', 'MaxWind', 'Genesis']
-            tc_metrics_units = ['number', 'days', '10⁻4 kn²',  '10⁻4 kn²', 'º', 'hPa', 'm/s', 'number']
-            model_names = data_cymep.model.values
+            tc_metrics_names = [data_metrics[metric]['short_name'] for metric in data_metrics if data_metrics[metric]['temporal']==True]
+            tc_metrics_units = [data_metrics[metric]['units'] for metric in data_metrics if data_metrics[metric]['temporal']==True]
 
-            
             # Create linear plots (comparing all datasets)
-            linear_month_ylabel = [f'{name} ({unit})' for name, unit in zip(tc_metrics_names[:5], tc_metrics_units[:5])]
+            linear_ylabel = [f'{name} ({unit})' for name, unit in zip(tc_metrics_names[:5], tc_metrics_units[:5])]
             linear_month_titles = [f'{name} seasonal cycle' for name in tc_metrics_names[:5]] 
-
-            linear_year_ylabel = [f'{name} ({unit})' for name, unit in zip(tc_metrics_names[:5], tc_metrics_units[:5])]
             linear_year_titles = [f'{name} interannual cycle' for name in tc_metrics_names[:5]]
 
             for name, i in enumerate(tc_metrics_names[:5]):
+                # Create line plot for monthly cycles
                 linear_month_data = data_cymep[f'per_month_{name}'].rename({'month': 'time'})
                 linear_month_data_list = [linear_month_data.sel(model=model) for model in model_names]
-                # TO CHANGE: linear_month_plot, _ = plot.time_series_plot(linear_month_data_list, title=linear_month_titles[i], y_label=linear_month_ylabel[i],
-                #                                             labels=model_names, time_freq='monthly', start_year=start_year, end_year=end_year)
+                months = np.arange(1, 13, dtype=int)
 
+                plt.figure(figsize=(10, 6))
+                for j, month_data in enumerate(linear_month_data_list):
+                    plt.plot(months, month_data, 'o-', markersize=4, linewidth=1.2, label=model_names[j])
+                plt.xticks(months, months)
+                plt.xlabel('month', fontsize=12)
+                plt.ylabel(linear_ylabel[i], fontsize=12)
+                plt.title(linear_month_titles[i], fontsize=16)
+                plt.grid(True)
+                plt.legend()
+
+                plot.save_or_show_plot(plt.gcf(), output_path, plot_filename=f"tcs_{name.lower()}_monthly_cycle_plot_{data_name}_{start_year}-{end_year}",
+                                        plot_name=f"Linear monthly cycle plot for TC {name}")
+
+                # Create line plot for interannual cycles
                 linear_year_data = data_cymep[f'per_year_{name}'].rename({'year': 'time'})
-                linear_year_data_list = [linear_year_data.sel(model=model) for model in model_names]
-                linear_year_plot, _ = plot.time_series_plot(linear_year_data_list, title=linear_year_titles[i], y_label=linear_year_ylabel[i],
-                                                             xlabel='Year', labels=model_names, start_year=start_year, end_year=end_year)
+                linear_year_data_list = [linear_year_data.sel(model=model) for model in model_names] 
+                years = np.arange(start_year, end_year+1, dtype=int)               
 
-                if output_path is None:
-                    plt.show()
-                    print(f"Linear interannual cycle plot for TC {name} created and displayed.", flush=True)
-                else:
-                    linear_year_path = output_path / f"tcs_{name.lower()}_interann_cycle_plot_{data_name}_{start_year}-{end_year}.png"
-                    linear_year_plot.savefig(linear_year_path, bbox_inches='tight', dpi=150)
-                    print(f"TC interannual cycle linear plot created and saved to '{linear_year_path}'.", flush=True)
+                plt.figure(figsize=(10, 6))
+                for j, year_data in enumerate(linear_year_data_list):
+                    plt.plot(years, year_data, 'o-', markersize=4, linewidth=1.2, label=model_names[j])
+                plt.xlabel('year', fontsize=12)
+                plt.ylabel(linear_ylabel[i], fontsize=12)
+                plt.title(linear_year_titles[i], fontsize=16)
+                plt.grid(True)
+                plt.legend()
+
+                plot.save_or_show_plot(plt.gcf(), output_path, plot_filename=f"tcs_{name.lower()}_interannual_cycle_plot_{data_name}_{start_year}-{end_year}",
+                                        plot_name=f"Linear interannual cycle plot for TC {name}")
 
 
             # Create spatial plots (comparing simulations with IBTrACS)
@@ -509,34 +516,63 @@ class ScientificEvaluation:
             spatial_bias_titles = [f'TC {name} bias with respect to IBTrACS per {bin_size}°x{bin_size}° cell ({start_year}-{end_year})' for name in tc_metrics_names if name != 'lmi']
             
             spatial_cb_labels = [f'{name} ({unit})' for name, unit in zip(tc_metrics_names, tc_metrics_units) if name != 'lmi']
+            spatial_vars = [var.replace('spatial_abs_','') for var in data_cymep.data_vars if var.startswith('spatial_abs')]
 
-            for name, i in enumerate(tc_metrics_names):
-                if name == 'lmi':
-                    continue
-                
-                spatial_data = data_cymep[f'spatial_{name}']
-                spatial_plot, _ = plot.two_spatial_plots(spatial_data.sel(model='IBTrACS'), spatial_data.sel(model=data_name), clon=clon,
+            for i, var in enumerate(spatial_vars):
+                spatial_abs_data = data_cymep[f'spatial_abs_{var}']
+                spatial_abs_plot, _ = plot.two_spatial_plots(spatial_abs_data.sel(model='IBTrACS'), spatial_abs_data.sel(model=data_name), clon=clon,
                                                         title_1='IBTrACS', title_2=data_name, suptitle=spatial_titles[i], cb_label=spatial_cb_labels[i])
-                if output_path is None:
-                    plt.show()
-                    print(f"Spatial plot for TC {name} created and displayed.", flush=True)
-                else:
-                    spatial_plot_path = output_path / f"tcs_{name.lower()}_spatial_plot_{data_name}_{start_year}-{end_year}.png"
-                    spatial_plot.savefig(spatial_plot_path, bbox_inches='tight', dpi=150)
-                    print(f"TC spatial plot created and saved to '{spatial_plot_path}'.", flush=True)
+                plot.save_or_show_plot(spatial_abs_plot, output_path, plot_filename=f"tcs_{name.lower()}_spatial_abs_plot_{data_name}_{start_year}-{end_year}",
+                                        plot_name=f"Spatial plot for TC {name}")
 
-
-                spatial_bias_data = data_cymep[f'spatial_bias_{name}']
+                spatial_bias_data = data_cymep[f'spatial_bias_{var}']
                 spatial_bias_plot, _ = plot.spatial_plot(spatial_bias_data.sel(model=data_name), clon=clon, title=spatial_bias_titles[i],
                                                         cb_label=f'bias in {spatial_cb_labels[i]}')
-                if output_path is None:
-                    plt.show()
-                    print(f"Spatial bias plot for TC {name} created and displayed.", flush=True)
-                else:
-                    spatial_bias_plot_path = output_path / f"tcs_{name.lower()}_spatial_bias_plot_{data_name}_{start_year}-{end_year}.png"
-                    spatial_bias_plot.savefig(spatial_bias_plot_path, bbox_inches='tight', dpi=150)
-                    print(f"TC spatial bias plot created and saved to '{spatial_bias_plot_path}'.", flush=True)
+                plot.save_or_show_plot(spatial_bias_plot, output_path, plot_filename=f"tcs_{name.lower()}_spatial_bias_plot_{data_name}_{start_year}-{end_year}",
+                                       plot_name=f"Spatial bias plot for TC {name}")
 
-        # ADD OUTPUT TABLES FROM CyMeP
+
+        # Prepare labels for table plots with scalar statistics
+        rows = model_names
+
+        cols_clim_bias = [fr'$\overline{{b}}_{{clim,{metric}}}$ ({data_metrics[metric]["units"]})' 
+                          for metric in data_metrics if data_metrics[metric]['temporal']==True]
+        cols_storm_bias = [fr'$\overline{{b}}_{{storm,{metric}}}$ ({data_metrics[metric]["units"]})' 
+                          for metric in data_metrics if data_metrics[metric]['temporal']==True and metric!='count']
+        cbar_ticks_bias = ['Negative bias', 'No bias', 'Positive bias']
+
+        cols_temp_corr = [fr'$\rho_{{s,{metric}}}$' for metric in data_metrics 
+                          if data_metrics[metric]['temporal']==True]
+        cols_spatial_corr = [fr'$r_{{xy,{metric}}}$' for metric in data_metrics 
+                             if data_metrics[metric]['spatial']==True]
+        cbar_ticks_corr = ['Low correlation', '', 'High correlation']
+
+        # Generate bias tables
+        data_clim_mean = [data_cymep[var].values for var in data_cymep.data_vars if var.startswith('clim_mean_')]
+        data_clim_bias = np.append(data_clim_mean[0], data_clim_mean[1:] - data_clim_mean[0], axis=1)
+        table_clim_bias_plot, _ = plot.table_plot(data_clim_bias, title='Global climatological mean bias', col_labels=cols_clim_bias, 
+                                                  row_labels=rows, cbar_tick=cbar_ticks_bias)
+        plot.save_or_show_plot(table_clim_bias_plot, output_path, plot_filename=f"tcs_climatological_bias_table_{data_name}_{start_year}-{end_year}",
+                               plot_name="Climatological bias table for TCs metrics plot")
+        
+        data_storm_mean = [data_cymep[var].values for var in data_cymep.data_vars if var.startswith('storm_mean_')]
+        data_storm_bias = np.append(data_storm_mean[0], data_storm_mean[1:] - data_storm_mean[0], axis=1)
+        table_storm_bias_plot, _ = plot.table_plot(data_storm_bias, title='Global storm mean bias', col_labels=cols_storm_bias, 
+                                                  row_labels=rows, cbar_tick=cbar_ticks_bias)
+        plot.save_or_show_plot(table_storm_bias_plot, output_path, plot_filename=f"tcs_storm_bias_table_{data_name}_{start_year}-{end_year}",
+                               plot_name="Storm bias table for TCs metrics plot")
+        
+        # Generate correlation tables
+        data_temp_corr = [data_cymep[var].values for var in data_cymep.data_vars if var.startswith('temporal_scorr_')]
+        table_temp_corr_plot, _ = plot.table_plot(data_temp_corr, title='Global seasonal correlation', col_labels=cols_temp_corr,
+                                                  row_labels=rows, cbar_tick=cbar_ticks_corr)
+        plot.save_or_show_plot(table_temp_corr_plot, output_path, plot_filename=f"tcs_temp_corr_table_{data_name}_{start_year}-{end_year}",
+                               plot_name="Seasonal correlation table for TCs metrics plot")
+        
+        data_spatial_corr = [data_cymep[var].values for var in data_cymep.data_vars if var.startswith('spatial_pcorr_')]
+        table_spatial_corr_plot, _ = plot.table_plot(data_spatial_corr, title='Global spatial correlation', col_labels=cols_spatial_corr,
+                                                     row_labels=rows, cbar_tick=cbar_ticks_corr)
+        plot.save_or_show_plot(table_spatial_corr_plot, output_path, plot_filename=f"tcs_spatial_corr_table_{data_name}_{start_year}-{end_year}",
+                               plot_name="Spatial correlation table for TCs metrics plot")
 
         return
