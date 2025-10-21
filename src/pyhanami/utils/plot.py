@@ -15,6 +15,30 @@ from matplotlib.patches import Polygon, Circle
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap, BoundaryNorm
 
 
+def save_or_show_plot(plot_obj, output_path, plot_filename, plot_name):
+    """
+    Either saves a plot to file or displays it based on output path.
+    
+    Parameters
+    ----------
+    plot_obj (matplotlib.figure.Figure): The plot object to save or show.
+    output_path (pathlib.Path or None): Directory to save the plot; if None, the plot is displayed.
+    plot_filename (str): Base name for the plot file.
+    plot_name (str): Name of the plot for display messages.
+    """
+
+    if output_path is None:
+        plt.show()
+        print(f"{plot_name} created and displayed.", flush=True)
+    else:
+        plot_path = output_path / f"{plot_filename}.png"
+        plot_obj.savefig(plot_path, bbox_inches='tight', dpi=150)
+        print(f"{plot_name} created and saved to '{plot_path}'.", flush=True)
+
+    plt.close(plot_obj)
+    return
+
+
 def time_series_plot(time_series, title='Mean time series', y_label='', x_label='time', labels=None, 
                      time_freq='annual', start_year=None, end_year=None, plot_ens=False):
     """ 
@@ -1042,4 +1066,97 @@ def freq_ISO_plot(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
     
     ax.set_title(title, fontsize=12)
 
+    return fig, ax
+
+
+def table_plot(data, title='Climate variables', col_labels='', row_labels='', cbar_ticks=['Low', '0', 'High']):
+    """ 
+    Generate a table plot with climate data.
+
+    Parameters
+    ----------
+    data (np.ndarray): 2D array with the data to display in the table.
+    title (str): Title of the table.
+    col_labels (list): List of column labels.
+    row_labels (list): List of row labels.
+    cbar_ticks (list): List of labels for the colorbar ticks.
+
+    Returns
+    -------
+    fig (matplotlib.figure.Figure): Generated table plot.
+    ax (matplotlib.axes._subplots.AxesSubplot): Plot axis.
+    """
+
+    # Validate input
+    if data is None or not isinstance(data, np.ndarray):
+        raise TypeError("The data must be provided as a numpy ndarray.")
+    if data.ndim != 2:
+        raise ValueError("The data array must be 2-dimensional.")
+    if len(row_labels) != data.shape[0]:
+        raise ValueError("The number of row labels must match the number of rows in the data.")
+    if len(col_labels) != data.shape[1]:
+        raise ValueError("The number of column labels must match the number of columns in the data.")
+
+
+    # Create plot
+    fig, ax = plt.subplots(figsize=(6, 4), dpi=200)
+    ax.axis('off')
+    ax.set_title(title, fontsize=16, pad=20)
+
+    table = plt.table(cellText=np.round(data,2), rowLabels=row_labels, colLabels=col_labels, loc='center', cellLoc='center')
+    table.auto_set_font_size(False)
+    table.set_fontsize(14)
+    table.scale(1.1, 1.4)
+
+
+    # Customize cells' colors and size
+    col_width = 0.15
+
+    # Customize first column (row labels)
+    for row in range(1,len(row_labels)+1):
+        table.get_celld()[(row, -1)].set_height(col_width)
+        table.auto_set_column_width(-1)
+
+    # Customize other columns
+    for col in range(len(col_labels)):
+        table.auto_set_column_width(col)
+
+        # Set appearance for header cells
+        table.get_celld()[(0,col)].set_height(col_width)
+
+        # Paint the cells in the first row (corresponding to IBTrACS) with light gray
+        table.get_celld()[(1,col)].set_height(col_width)
+        cell = table[(1, col)]
+        cell.set_facecolor('lightgray')
+
+
+        # Color the cells in rows 2-on
+        values = data[1:, col]
+        vmin, vmax = values.min(), values.max()
+
+        abs_max = max(abs(vmin), abs(vmax))
+        norm = plt.Normalize(-abs_max, abs_max)
+        cmap = LinearSegmentedColormap.from_list("BlueRed", ['tab:blue', 'white', 'tab:red'])
+        # cmap=LinearSegmentedColormap.from_list("GreenOrange", ['tab:green', 'white', 'tab:orange'])
+
+        for row in range(2, len(rows)+1):
+            table.get_celld()[(row, col)].set_height(col_width)
+            val = data[row-1, col]
+            color = cmap(norm(val))
+            table[(row, col)].set_facecolor(color)
+
+        
+    # Add a horizontal colorbar below the table
+    cbar = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax, 
+                        orientation='horizontal', pad=0.1, shrink=1.7, aspect=35)
+
+    # Add ticks to bar
+    left_tick = norm.vmin + (norm.vmax - norm.vmin) * 0.08  # 8% from left
+    middle_tick = 0
+    right_tick = norm.vmax - (norm.vmax - norm.vmin) * 0.08  # 8% from right
+    cbar.set_ticks([left_tick, middle_tick, right_tick])
+    cbar.set_ticklabels(cbar_ticks)
+    cbar.ax.tick_params(labelsize=12, length=0)
+    
+        
     return fig, ax
