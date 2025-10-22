@@ -1245,20 +1245,6 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
 
     # Prepare dict with metrics descriptions
     data_metrics = data_general.load_yaml_file(config_params.TCS_METRICS_PATH)
-    base_metrics = {
-        'count': 'number of tropical cyclones',
-        'tcd': 'tropical cyclone days (TCD)',
-        'ace': 'accumulated cyclone energy (ACE)',
-        'pace': 'pressure accumulated cyclone energy (PACE)',
-        'lmi': 'latitude of lifetime-maximum intensity (LMI)'
-    }
-    
-    extra_metrics = {
-        'minpres': 'minimum sea level pressure (hPa)',
-        'maxwind': 'maximum 10 m wind speed (m/s)',
-        'gen': 'tropical cyclone genesis points'
-    }
-
     metrics_descriptions = {
         # Per month metrics
         **{f'per_month_{metric}': {

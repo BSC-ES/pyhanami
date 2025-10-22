@@ -540,38 +540,40 @@ class ScientificEvaluation:
         cols_storm_bias = [fr'$\overline{{b}}_{{storm,{metric}}}$ ({data_metrics[metric]["units"]})' 
                           for metric in data_metrics if data_metrics[metric]['temporal']==True and metric!='count']
         cbar_ticks_bias = ['Negative bias', 'No bias', 'Positive bias']
+        colors_bias = ("BlueRed", ['tab:blue', 'white', 'tab:red'])
 
         cols_temp_corr = [fr'$\rho_{{s,{metric}}}$' for metric in data_metrics 
                           if data_metrics[metric]['temporal']==True]
         cols_spatial_corr = [fr'$r_{{xy,{metric}}}$' for metric in data_metrics 
                              if data_metrics[metric]['spatial']==True]
         cbar_ticks_corr = ['Low correlation', '', 'High correlation']
+        colors_corr = ("GreenOrange", ['tab:green', 'white', 'tab:orange'])
 
         # Generate bias tables
         data_clim_mean = [data_cymep[var].values for var in data_cymep.data_vars if var.startswith('clim_mean_')]
         data_clim_bias = np.append(data_clim_mean[0], data_clim_mean[1:] - data_clim_mean[0], axis=1)
         table_clim_bias_plot, _ = plot.table_plot(data_clim_bias, title='Global climatological mean bias', col_labels=cols_clim_bias, 
-                                                  row_labels=rows, cbar_tick=cbar_ticks_bias)
+                                                  row_labels=rows, cbar_tick=cbar_ticks_bias, colors=colors_bias)
         plot.save_or_show_plot(table_clim_bias_plot, output_path, plot_filename=f"tcs_climatological_bias_table_{data_name}_{start_year}-{end_year}",
                                plot_name="Climatological bias table for TCs metrics plot")
         
         data_storm_mean = [data_cymep[var].values for var in data_cymep.data_vars if var.startswith('storm_mean_')]
         data_storm_bias = np.append(data_storm_mean[0], data_storm_mean[1:] - data_storm_mean[0], axis=1)
         table_storm_bias_plot, _ = plot.table_plot(data_storm_bias, title='Global storm mean bias', col_labels=cols_storm_bias, 
-                                                  row_labels=rows, cbar_tick=cbar_ticks_bias)
+                                                  row_labels=rows, cbar_tick=cbar_ticks_bias, colors=colors_bias)
         plot.save_or_show_plot(table_storm_bias_plot, output_path, plot_filename=f"tcs_storm_bias_table_{data_name}_{start_year}-{end_year}",
                                plot_name="Storm bias table for TCs metrics plot")
         
         # Generate correlation tables
         data_temp_corr = [data_cymep[var].values for var in data_cymep.data_vars if var.startswith('temporal_scorr_')]
         table_temp_corr_plot, _ = plot.table_plot(data_temp_corr, title='Global seasonal correlation', col_labels=cols_temp_corr,
-                                                  row_labels=rows, cbar_tick=cbar_ticks_corr)
-        plot.save_or_show_plot(table_temp_corr_plot, output_path, plot_filename=f"tcs_temp_corr_table_{data_name}_{start_year}-{end_year}",
+                                                  row_labels=rows, cbar_tick=cbar_ticks_corr, colors=colors_corr)
+        plot.save_or_show_plot(table_temp_corr_plot, output_path, plot_filename=f"tcs_seasonal_corr_table_{data_name}_{start_year}-{end_year}",
                                plot_name="Seasonal correlation table for TCs metrics plot")
         
         data_spatial_corr = [data_cymep[var].values for var in data_cymep.data_vars if var.startswith('spatial_pcorr_')]
         table_spatial_corr_plot, _ = plot.table_plot(data_spatial_corr, title='Global spatial correlation', col_labels=cols_spatial_corr,
-                                                     row_labels=rows, cbar_tick=cbar_ticks_corr)
+                                                     row_labels=rows, cbar_tick=cbar_ticks_corr, colors=colors_corr)
         plot.save_or_show_plot(table_spatial_corr_plot, output_path, plot_filename=f"tcs_spatial_corr_table_{data_name}_{start_year}-{end_year}",
                                plot_name="Spatial correlation table for TCs metrics plot")
 

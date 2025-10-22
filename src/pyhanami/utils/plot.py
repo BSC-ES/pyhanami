@@ -1069,7 +1069,7 @@ def freq_ISO_plot(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
     return fig, ax
 
 
-def table_plot(data, title='Climate variables', col_labels='', row_labels='', cbar_ticks=['Low', '0', 'High']):
+def table_plot(data, title='Climate variables', col_labels='', row_labels='', cbar_ticks=['Low', '0', 'High'], colors=('RdBu_r')):
     """ 
     Generate a table plot with climate data.
 
@@ -1077,9 +1077,10 @@ def table_plot(data, title='Climate variables', col_labels='', row_labels='', cb
     ----------
     data (np.ndarray): 2D array with the data to display in the table.
     title (str): Title of the table.
-    col_labels (list): List of column labels.
-    row_labels (list): List of row labels.
-    cbar_ticks (list): List of labels for the colorbar ticks.
+    col_labels (list): Column labels.
+    row_labels (list): Row labels.
+    cbar_ticks (list): Labels for the colorbar ticks.
+    colors (tuple): Colormap.
 
     Returns
     -------
@@ -1098,8 +1099,11 @@ def table_plot(data, title='Climate variables', col_labels='', row_labels='', cb
         raise ValueError("The number of column labels must match the number of columns in the data.")
 
 
-    # Create plot
-    fig, ax = plt.subplots(figsize=(6, 4), dpi=200)
+    # Create figure with adjusted height based on number of rows
+    n_rows = len(row_labels)
+    height = max(3, n_rows * 0.6)
+    fig, ax = plt.subplots(figsize=(5, height), dpi=200)
+    
     ax.axis('off')
     ax.set_title(title, fontsize=16, pad=20)
 
@@ -1109,12 +1113,14 @@ def table_plot(data, title='Climate variables', col_labels='', row_labels='', cb
     table.scale(1.1, 1.4)
 
 
-    # Customize cells' colors and size
-    col_width = 0.15
+    # Fix cell height in points and convert to fraction of axes height (1 point = 1/72 inch)
+    cell_height_pt = 30
+    axes_height_inches = fig.get_size_inches()[1] * ax.get_position().height
+    cell_height = (cell_height_pt / 72.0) / axes_height_inches
 
     # Customize first column (row labels)
-    for row in range(1,len(row_labels)+1):
-        table.get_celld()[(row, -1)].set_height(col_width)
+    for row in range(1,n_rows+1):
+        table.get_celld()[(row, -1)].set_height(cell_height)
         table.auto_set_column_width(-1)
 
     # Customize other columns
@@ -1122,10 +1128,10 @@ def table_plot(data, title='Climate variables', col_labels='', row_labels='', cb
         table.auto_set_column_width(col)
 
         # Set appearance for header cells
-        table.get_celld()[(0,col)].set_height(col_width)
+        table.get_celld()[(0,col)].set_height(cell_height)
 
         # Paint the cells in the first row (corresponding to IBTrACS) with light gray
-        table.get_celld()[(1,col)].set_height(col_width)
+        table.get_celld()[(1,col)].set_height(cell_height)
         cell = table[(1, col)]
         cell.set_facecolor('lightgray')
 
@@ -1136,11 +1142,10 @@ def table_plot(data, title='Climate variables', col_labels='', row_labels='', cb
 
         abs_max = max(abs(vmin), abs(vmax))
         norm = plt.Normalize(-abs_max, abs_max)
-        cmap = LinearSegmentedColormap.from_list("BlueRed", ['tab:blue', 'white', 'tab:red'])
-        # cmap=LinearSegmentedColormap.from_list("GreenOrange", ['tab:green', 'white', 'tab:orange'])
+        cmap = LinearSegmentedColormap.from_list(**colors)
 
-        for row in range(2, len(rows)+1):
-            table.get_celld()[(row, col)].set_height(col_width)
+        for row in range(2, n_rows+1):
+            table.get_celld()[(row, col)].set_height(cell_height)
             val = data[row-1, col]
             color = cmap(norm(val))
             table[(row, col)].set_facecolor(color)
