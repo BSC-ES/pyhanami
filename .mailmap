@@ -2,4 +2,6 @@
 # Omit commit-name or commit-email if same as replace-with.
 # git log --pretty="%aN <%aE>%n%cN <%cE>" | sort | uniq
 
+Marta Alerany Solé  <marta.alerany@bsc.es>  malerany   <marta.alerany@bsc.es>
 Marta Alerany Solé  <marta.alerany@bsc.es>  Marta Alerany   <marta.alerany@bsc.es>
+Marta Alerany Solé  <marta.alerany@bsc.es>  MartaAlerany   <marta.alerany@bsc.es>
