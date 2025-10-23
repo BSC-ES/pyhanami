@@ -122,7 +122,7 @@ clim_bias, storm_bias, seas_corr, spat_corr = sciskill.tc_metrics(
 
 ## License
 
-This package is under GPLv3.
+This package is under the GPLv3 license, which you can find in the [LICENSE](./LICENSES/LICENSE) file.
 
 ### Third-party licenses
 This project includes code and resources from the following sources:
@@ -144,7 +144,7 @@ This project includes code and resources from the following sources:
     - Used for: data ranges and boundaries for plausibility checks in `src/pyhanami/config/variables.yaml`
     - License: Apache License, Version 2.0, January 2004
 
-For full license texts, see the [LICENSES](./LICENSES) directory.
+For full license files, see the [LICENSES](./LICENSES) directory.
 
 
 
