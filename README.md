@@ -90,18 +90,31 @@ tester.matrix_plot(
 )
 
 
-# Compute bimodal ISO indices and related statistics for one simulation dataset
+# Generate scientific skill evaluation for one simulation dataset
 sciskill = hnmi.ScientificEvaluation(sim_1)
 
+# Compute bimodal ISO indices and related statistics for one simulation dataset
 corr, std_dev, tss = sciskill.bimodal_ISO(
     'name_sim_1',
     'output_path',
     start_year_eeof=year_init,
     end_year_eeof=year_end,
-    years_pc = years,
-    obs = True,
-    obs_path = 'path_obs',
-    obs_name = 'name_obs'
+    years_pc=years,
+    obs=True,
+    obs_path='path_obs',
+    obs_name='name_obs'
+)
+
+# Compute TC metrics statistics for one simulation dataset
+clim_bias, storm_bias, seas_corr, spat_corr = sciskill.tc_metrics(
+    'name_sim_1',
+    'output_path',
+    start_year=year_init,
+    end_year=year_end,
+    obs=True,
+    obs_path='path_obs',
+    obs_name='name_obs',
+    obs_wind_factor=wind_factor
 )
 ```
 
