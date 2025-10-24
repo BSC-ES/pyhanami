@@ -363,14 +363,18 @@ class ScientificEvaluation:
         end_year_data = int(data_years.max())
         if start_year is None:
             start_year = start_year_data
-            print(f"As no start year was provided, the first year available in the {data_name} dataset ({start_year}) will be used.", flush=True)
+            print(f"As no start year was provided, the first year available in the '{data_name}' dataset ({start_year}) will be used.", flush=True)
+        elif start_year < start_year_data:
+            raise ValueError(f"The provided start year ({start_year}) is earlier than the first year available in the '{data_name}' dataset ({start_year_data}).")
         if end_year is None:
             end_year = end_year_data
-            print(f"As no end year was provided, the last year available in the {data_name} dataset ({end_year}) will be used.", flush=True)
+            print(f"As no end year was provided, the last year available in the '{data_name}' dataset ({end_year}) will be used.", flush=True)
+        elif end_year > end_year_data:
+            raise ValueError(f"The provided end year ({end_year}) is later than the last year available in the '{data_name}' dataset ({end_year_data}).")
 
-        data_sim_all = data_plot.data.sel(time=slice(np.datetime64(f"{start_year}-01-01"), np.datetime64(f"{end_year}-12-31")), method="nearest")
-        if data_sim_all.time.size == 0:
-            raise ValueError(f"No data available in the {data_name} dataset in the selected years {start_year}-{end_year}.")
+        data_sim_all = data_plot.data.sel(time=slice(np.datetime64(f"{start_year}-01-01"), np.datetime64(f"{end_year}-12-31")))
+        # if data_sim_all.time.size == 0:
+        #     raise ValueError(f"No data available in the '{data_name}' dataset in the selected years {start_year}-{end_year}.")
 
 
         # Run TempestExtremes tracking on simulated data
