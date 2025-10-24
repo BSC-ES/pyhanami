@@ -713,8 +713,14 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
     pi = 3.141592653589793
     deg2rad = pi / 180.
 
-    # Read in configuration file and parse columns for each case
-    df=pd.read_csv(csvfilename, sep=',', comment='!', header=None)
+    # Read configuration file and parse columns for each case
+    try: 
+        df=pd.read_csv(csvfilename, sep=',', comment='!', header=None)
+        if len(df.columns) < 6:
+            raise ValueError(f"The configuration file {csvfilename} must have at least 6 columns.")
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Configuration file {csvfilename} not found.")
+    
     files = df.loc[:,0]
     strs = df.loc[:,1]
     isUnstructStr = df.loc[:,2]
@@ -1248,51 +1254,51 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
     metrics_descriptions = {
         # Per month metrics
         **{f'per_month_{metric}': {
-            'metric_description': f'Average {data_metrics[metric]['long_name']} per month.',
+            'metric_description': f"Average {data_metrics[metric]['long_name']} per month.",
             'units': data_metrics[metric]['units']
             } 
            for metric in data_metrics if data_metrics[metric]['temporal']==True},
 
         # Per year metrics
         **{f'per_year_{metric}': {
-            'metric_description': f'Average {data_metrics[metric]['long_name']} per year.',
+            'metric_description': f"Average {data_metrics[metric]['long_name']} per year.",
             'units': data_metrics[metric]['units']
            } for metric in data_metrics if data_metrics[metric]['temporal']==True},
 
         # Climatological mean metrics
         **{f'clim_mean_{metric}': {
-            'metric_description': f'Climatological mean {data_metrics[metric]['long_name']} over the period covered by "years".',
+            'metric_description': f"Climatological mean {data_metrics[metric]['long_name']} over the period covered by 'years'.",
             'units': data_metrics[metric]['units']
            } for metric in data_metrics if data_metrics[metric]['temporal']==True},
 
         # Storm mean metrics (excluding count)
         **{f'storm_mean_{metric}': {
-            'metric_description': f'Mean {data_metrics[metric]['long_name']} per storm over the period covered by "years".',
+            'metric_description': f"Mean {data_metrics[metric]['long_name']} per storm over the period covered by 'years'.",
             'units': data_metrics[metric]['units']
            } for metric in data_metrics if data_metrics[metric]['temporal']==True and metric!='count'},
 
         # Temporal correlation metrics
         **{f'temporal_scorr_{metric}': {
-            'metric_description': f'Temporal Spearman rank correlation of {data_metrics[metric]['long_name']} over the period covered by "years".',
+            'metric_description': f"Temporal Spearman rank correlation of {data_metrics[metric]['long_name']} over the period covered by 'years'.",
             'units': '-'
            } for metric in data_metrics if data_metrics[metric]['temporal']==True},
 
 
         # Spatial metrics (excluding lmi)
         **{f'spatial_abs_{metric}': {
-            'metric_description': f'Spatial distribution of {data_metrics[metric]['long_name']} over the period covered by "years" (considering {gridsize}ºx{gridsize}º cells).',
+            'metric_description': f"Spatial distribution of {data_metrics[metric]['long_name']} over the period covered by 'years' (considering {gridsize}ºx{gridsize}º cells).",
             'units': data_metrics[metric]['units']
            } for metric in data_metrics if data_metrics[metric]['spatial']==True},
 
         # Spatial bias metrics (excluding lmi)
         **{f'spatial_bias_{metric}': {
-            'metric_description': f'Spatial bias in {data_metrics[metric]['long_name']} relative to the observations over the period covered by "years" (considering {gridsize}ºx{gridsize}º cells).',
+            'metric_description': f"Spatial bias in {data_metrics[metric]['long_name']} relative to the observations over the period covered by 'years' (considering {gridsize}ºx{gridsize}º cells).",
             'units': data_metrics[metric]['units']
            } for metric in data_metrics if data_metrics[metric]['spatial']==True},
 
         # Spatial correlation metrics (excluding lmi)
         **{f'spatial_pcorr_{metric}': {
-            'metric_description': f'Spatial Pearson correlation of {data_metrics[metric]['long_name']} relative to the observations over the period covered by "years".',
+            'metric_description': f"Spatial Pearson correlation of {data_metrics[metric]['long_name']} relative to the observations over the period covered by 'years'.",
             'units': '-'
            } for metric in data_metrics if data_metrics[metric]['spatial']==True},
         }
