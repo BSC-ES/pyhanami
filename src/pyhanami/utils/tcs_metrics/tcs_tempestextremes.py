@@ -288,6 +288,41 @@ def read_tracks_tempestExtremes(tracks_path):
     return tracks
 
 
+def _compute_density_histogram(points, lat_bins, lon_bins, name="point_density"):
+    """
+    Compute density histogram for given points.
+
+    Parameters
+    ----------
+    points (np.ndarray): Array of shape (N, 2) with (lat, lon) points.
+    lat_bins (np.ndarray): Latitude bin edges.
+    lon_bins (np.ndarray): Longitude bin edges.
+    name (str): Name of the resulting DataArray (default: "point_density").
+
+    Returns
+    -------
+    hist_dens (xarray.DataArray): 2D histogram of point densities.
+    """
+    
+    hist, lat_edges, lon_edges = np.histogram2d(
+        [pt[0] for pt in points],
+        [pt[1] for pt in points],
+        bins=[lat_bins, lon_bins]
+    )
+    lat_centers = (lat_edges[:-1] + lat_edges[1:]) / 2
+    lon_centers = (lon_edges[:-1] + lon_edges[1:]) / 2
+
+    hist_dens = xr.DataArray(
+        hist,
+        coords={"lat": lat_centers, "lon": lon_centers},
+        dims=["lat", "lon"],
+        name=name,
+        attrs={"units": "count"}
+    )
+
+    return hist_dens
+
+
 def compute_tc_counts(tracks, start_year, end_year, bin_size=2.5, cutoff_wind=10.0):
     """
     Compute TC genesis and tracks density for each grid box (bin_size x bin_size)
@@ -316,7 +351,8 @@ def compute_tc_counts(tracks, start_year, end_year, bin_size=2.5, cutoff_wind=10
     for track in tracks:
         # Check time range
         first_point = track[0]
-        t = pd.Timestamp(year=first_point['year'], month=first_point['month'], day=first_point['day'], hour=first_point['hour'])
+        t = pd.Timestamp(year=first_point['year'], month=first_point['month'], 
+                        day=first_point['day'], hour=first_point['hour'])
         
         # Save genesis and tracks locations
         if start_date <= t <= end_date:
@@ -332,41 +368,10 @@ def compute_tc_counts(tracks, start_year, end_year, bin_size=2.5, cutoff_wind=10
 
 
     # Group TC positions in bins and save to xarray.DataArray
-    lat_bins = np.arange(-90, 90+bin_size, bin_size)  # from -60 to 60 (inclusive)
-    lon_bins = np.arange(0, 360+bin_size, bin_size)   # 0 to 360 (if using 0-360 format)
+    lat_bins = np.arange(-90, 90 + bin_size, bin_size)  # from -60 to 60 (inclusive)
+    lon_bins = np.arange(0, 360 + bin_size, bin_size)   # 0 to 360 (if using 0-360 format)
 
-    # Count genesis points
-    hist_gen, lat_edges_gen, lon_edges_gen = np.histogram2d(
-        [pt[0] for pt in genesis_pts],  
-        [pt[1] for pt in genesis_pts], 
-        bins=[lat_bins, lon_bins]
-    )
-    lat_centers_gen = (lat_edges_gen[:-1] + lat_edges_gen[1:]) / 2
-    lon_centers_gen = (lon_edges_gen[:-1] + lon_edges_gen[1:]) / 2
-
-    counts_gen = xr.DataArray(
-        hist_gen,
-        coords={"lat": lat_centers_gen, "lon": lon_centers_gen},
-        dims=["lat", "lon"],
-        name="point_density",
-        attrs={"units": "count"}
-    )
-
-    # Count trajectory points
-    hist_traj, lat_edges_traj, lon_edges_traj = np.histogram2d(
-        [pt[0] for pt in traj_pts],  
-        [pt[1] for pt in traj_pts],   
-        bins=[lat_bins, lon_bins]
-    )
-    lat_centers_traj = (lat_edges_traj[:-1] + lat_edges_traj[1:]) / 2
-    lon_centers_traj = (lon_edges_traj[:-1] + lon_edges_traj[1:]) / 2
-
-    counts_traj = xr.DataArray(
-        hist_traj,
-        coords={"lat": lat_centers_traj, "lon": lon_centers_traj},
-        dims=["lat", "lon"],
-        name="point_density",
-        attrs={"units": "count"}
-    )
+    counts_gen = _compute_density_histogram(genesis_pts, lat_bins, lon_bins, "genesis_density")
+    counts_traj = _compute_density_histogram(traj_pts, lat_bins, lon_bins, "track_density")
 
     return counts_gen, counts_traj
