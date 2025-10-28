@@ -336,12 +336,15 @@ class ScientificEvaluation:
             if obs_path is None or obs_name is None or obs_wind_factor is None:
                 raise NotImplementedError('Automatic selection of observations is not implemented yet. '
                                           'Please provide at least one path, one name and the corresponding wind factor if you want to include observations.')
-            else:                
-                obs_path = [obs_path] if isinstance(obs_path, (str, Path)) else list(obs_path)
-                obs_name = [obs_name] if isinstance(obs_name, str) else list(obs_name)
-                obs_wind_factor = [obs_wind_factor] if isinstance(obs_wind_factor, (int, float)) else list(obs_wind_factor)
-                if len(obs_path) != len(obs_name) or len(obs_path) != len(obs_wind_factor):
-                    raise ValueError("'obs_path', 'obs_name' and 'obs_wind_factor' must have the same length.")
+            
+            # Convert to lists if single values are provided                
+            obs_path = [obs_path] if isinstance(obs_path, (str, Path)) else list(obs_path)
+            obs_name = [obs_name] if isinstance(obs_name, str) else list(obs_name)
+            obs_wind_factor = [obs_wind_factor] if isinstance(obs_wind_factor, (int, float)) else list(obs_wind_factor)
+
+            # Validate lengths match
+            if not (len(obs_path) == len(obs_name) == len(obs_wind_factor)):
+                raise ValueError("'obs_path', 'obs_name' and 'obs_wind_factor' must have the same length.")
 
                 
 
