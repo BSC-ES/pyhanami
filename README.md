@@ -142,3 +142,16 @@ Thanks to researchers at JAMSTEC:
 - Chihiro Kodama: [kodamac@jamstec.go.jp](kodamac@jamstec.go.jp)
 - Tomoe Nasuno: [nasuno@jamstec.go.jp](nasuno@jamstec.go.jp)
 - JAMSTEC - Research Center for Environmental Modeling and Application (CEMA)
+
+
+This work, along with the replicability test methodology, were developed as part of the Hpc AlliaNce for Applications and supercoMputing Innovation (HANAMI) project, which received funding from the European High Performance Computing Joint Undertaking (EuroHPC JU) under the European Union’s Horizon Europe framework program for research and innovation and Grant Agreement No. 101136269.
+
+### Related references
+
+Keller, K.R., Alerany Solé, M., & Acosta, M. Replicability in Earth System Models. EGUsphere [preprint] (2025). https://doi.org/10.5194/egusphere-2025-1367
+
+Kikuchi, K., Wang, B. & Kajikawa, Y. Bimodal representation of the tropical intraseasonal oscillation. Clim Dyn 38, 1989–2000 (2012). https://doi.org/10.1007/s00382-011-1159-1
+
+Kikuchi, K. Extension of the bimodal intraseasonal oscillation index using JRA-55 reanalysis. Clim Dyn 54, 919–933 (2020). https://doi.org/10.1007/s00382-019-05037-z
+
+Nakano, M., & Kikuchi, K. Seasonality of intraseasonal variability in global climate models. Geophysical Research Letters, 46, 4441–4449 (2019). https://doi.org/10.1029/2019GL082443
