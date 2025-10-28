@@ -146,7 +146,7 @@ Thanks to researchers at JAMSTEC:
 
 This work, along with the replicability test methodology, were developed as part of the Hpc AlliaNce for Applications and supercoMputing Innovation (HANAMI) project, which received funding from the European High Performance Computing Joint Undertaking (EuroHPC JU) under the European Union’s Horizon Europe framework program for research and innovation and Grant Agreement No. 101136269.
 
-### Related references
+### Scientific References
 
 Keller, K.R., Alerany Solé, M., & Acosta, M. Replicability in Earth System Models. EGUsphere [preprint] (2025). https://doi.org/10.5194/egusphere-2025-1367
 
