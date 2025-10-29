@@ -5,9 +5,10 @@ This page describes the methodology used in _pyhanami_ for evaluating model repl
 
 ## Data preprocessing
 
-TO DO: add explanation of the intake catalog when implemented.
+<!-- TO DO: add explanation of the intake catalog when implemented.
 
-Moreover, the package includes a `DataChecker` class that verifies the integrity and consistency of the input datasets (both simulations and observations) before any analysis is performed. This ensures that the data meets the required standards and formats, reducing the likelihood of errors during processing. It checks for:
+Moreover, -->
+The package includes a `DataChecker` class that verifies the integrity and consistency of the input datasets (both simulations and observations) before any analysis is performed. This ensures that the data meets the required standards and formats, reducing the likelihood of errors during processing. It checks for:
 
 - **Standard compliance**: names and format of coordinates (`time`, `lat`, `lon`), and variables’ attributes (`long_name` and `units`).
 - **Spatial completeness**: no NaN values present in atmosphere variables, and at least one (but not all) NaN value in the ocean variables.
@@ -113,7 +114,7 @@ Currently, the package includes the following scientific skill metrics:
 
 
 
-TO DO: add examples of the plots.
+<!--TO DO: add examples of the plots.
 
 TO ADD:
-- TCs: 'per_month', 'per_year', 'climo_mean', 'storm_mean', 'temp_scorr', 'spatial', 'spatial_pcorr' for each metric (counts, tcd, ace, pace, lmi). NOTE: no spatial metrics for lmi as it is a latitude.
+- TCs: 'per_month', 'per_year', 'climo_mean', 'storm_mean', 'temp_scorr', 'spatial', 'spatial_pcorr' for each metric (counts, tcd, ace, pace, lmi). NOTE: no spatial metrics for lmi as it is a latitude. -->
