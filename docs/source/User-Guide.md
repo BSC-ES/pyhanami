@@ -2,9 +2,11 @@
 
 This guide provides detailed instructions and examples for using _pyhanami_ to evaluate several features of ESMs. 
 
-TO DO: add explanation of configuration files.
+<!-- ## Set up configuration files
 
-## **Load simulation data** 
+TO DO: add explanation of configuration files.-->
+
+## Load simulation data
 
 ```python
 import pyhanami as hnmi
@@ -16,7 +18,7 @@ sim_2 = hnmi.SimulationData('source_sim_2', name='name_sim_2')
 Note that `source_sim_1` and `source_sim_2` must be paths to NetCDF files or `xarray.Dataset` objects.
 
 
-## **Time series plots**
+## Time series plots
 
 Generate **time series plots** between `year_init` and `year_end` for a given climate variable `var_name`:
 
@@ -61,7 +63,7 @@ diags.time_series_plots(
 This `time_series_plots` method plots annual mean time series by default, but it also supports monthly and daily mean time series by passing the argument `time_freq='monthly'` and `time_freq='daily'`, respectively. Besides, it is possible to include in the plot the trajectories of individual ensemble members together with the mean by passing the argument `plot_ens=True`.
 
 
-## **Spatial plots**
+## Spatial plots
 
 Generate **spatial plots** comparing two simulation datasets:
 
@@ -84,7 +86,7 @@ The `spatial_plots` method generates the following visualization outputs:
 Note that the central longitude for these plots is set to 0º by default, but it can be modified with the argument `clon`.
 
 
-## **Replicability test**
+## Replicability test
 
 Perform and plot results of a **replicability test** comparing two simulation datasets:
 
@@ -102,7 +104,7 @@ tester.matrix_plot(
 This `matrix_plot` method uses all variables from the simulation datasets that are listed in `src/pyhanami/config/variables.yaml` to perform the replicability test.
 
 
-## **Tropical IntraSeasonal Oscillation (ISO) evaluation**
+## Tropical IntraSeasonal Oscillation (ISO) evaluation
 
 The computation of the **bimodal ISO indices** requires daily TOA outgoing longwave radiation (`olr`) data, preferably covering a period of 10 years or more (ideally, at least 30 years).
 
@@ -144,7 +146,7 @@ The `bimodal_ISO` method generates the following visualization outputs:
 3. **Frequency plot**: mean monthly frequency (seasonality) of ISO events for both MJO and BSISO, computed over the entire period covered by the dataset. If observational data is provided, the frequency plots also include the TSS statistics (R, σ and TSS) comparing simulations and observations.
 
 
-## **Tropical Cyclones (TCs) evaluation**
+## Tropical Cyclones (TCs) evaluation
 
 The computation of the **TC metrics** requires the following variables with a 6-hourly frequency:
 - Sea level pressure (`psl`)
@@ -160,4 +162,4 @@ The computation of the **TC metrics** requires the following variables with a 6-
 - The climate variable name `var_name` must be listed in the configuration file `src/pyhanami/config/variables.yaml`.  
 - `output_path` can be either a directory or a full file path including the file name. If `output_path` is not provided, the plots are displayed interactively.  
 - `path_obs` must be a path to a directory containing observation datasets, with files named following the pattern `data_obs*_{var_name}.nc`, where `var_name` matches the corresponding variable name in `src/pyhanami/config/variables.yaml`. 
-- For all the spatial plots, the central longitude is set to 0º by default, but it can be modified with the argument `clon`. 
+- For all the spatial plots, the central longitude is set to 0º by default, but it can be modified with the argument `clon`.

@@ -1,6 +1,6 @@
 # Home
 
-Welcome to the Read the Docs page for _pyhanami_. This documentation contains detailed information on how to use _pyhanami_, a tool designed to evaluate the replicability and scientific skill of Earth System Models (ESMs).
+Welcome to the Read the Docs page for _pyhanami_. This documentation contains detailed information on how to use the _pyhanami_ Python package, a tool designed to evaluate the replicability and scientific skill of Earth System Models (ESMs).
 
 ## Description
 
@@ -27,8 +27,11 @@ For quick start instructions, see the README on the [project's GitHub repository
 
 ## Contact persons
 
-Main developers at the [Barcelona Supercomputing Center (BSC-CNS)](https://www.bsc.es/):
-- Marta Alerany Solé: marta.alerany@bsc.es
-- Kai Keller: kai.keller@bsc.es
+Main developer: 
+- Marta Alerany Solé (BSC-CNS): [marta.alerany@bsc.es](marta.alerany@bsc.es)
+
+Significant contributors:
+- Kai Keller (BSC-CNS): [kai.keller@bsc.es](kai.keller@bsc.es)
+- Masuo Nakano (JAMSTEC): [masuo@jamstec.go.jp](masuo@jamstec.go.jp)
 
 This work was developed as part of the [Hpc AlliaNce for Applications and supercoMputing Innovation (HANAMI) project](https://hanami-project.com/), which received funding from the European High Performance Computing Joint Undertaking (EuroHPC JU) under the European Union’s Horizon Europe framework program for research and innovation and Grant Agreement No. 101136269.

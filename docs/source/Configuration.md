@@ -18,6 +18,6 @@ variable_name:  # Variable shortname
 
 Note that additional fields to check the physical plausibility of the variable can be added (e.g., max, min, boundaries, ...).
 
-TO DO: add explanation of `config_params.py`.
+<!-- TO DO: add explanation of `config_params.py`. -->
 
-For practical examples of using these configurations, see the [User Guide](User-Guide.md).
+<!-- For practical examples of using these configurations, see the [User Guide](User-Guide.md). -->
