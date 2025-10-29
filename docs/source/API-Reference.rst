@@ -3,46 +3,50 @@ API Reference
 
 This document contains the complete API reference for pyhanami.
 
-*Last update*: Wed 29 Oct 16:26:59 CET 2025
+*Last update*: Wed 29 Oct 16:49:31 CET 2025
 
 
-================================================================================
+Diagnostics
+-----------
 
-pyhanami.diags.Diagnostics module
-=================================
+diags.Diagnostics module
+========================
 
-.. automodule:: pyhanami.diags.Diagnostics
+.. automodule:: diags.Diagnostics
    :members:
    :show-inheritance:
    :undoc-members:
 
 
-================================================================================
+Observations
+------------
 
-pyhanami.diags.Observations module
-==================================
+diags.Observations module
+=========================
 
-.. automodule:: pyhanami.diags.Observations
+.. automodule:: diags.Observations
    :members:
    :show-inheritance:
    :undoc-members:
 
 
-================================================================================
+Replicability
+-------------
 
-pyhanami.diags.Replicability module
-===================================
+diags.Replicability module
+==========================
 
-.. automodule:: pyhanami.diags.Replicability
+.. automodule:: diags.Replicability
    :members:
    :show-inheritance:
    :undoc-members:
 
 
-================================================================================
+diags
+-----
 
-pyhanami.diags package
-======================
+diags package
+=============
 
 Submodules
 ----------
@@ -50,60 +54,40 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
-   pyhanami.diags.Diagnostics
-   pyhanami.diags.Observations
-   pyhanami.diags.Replicability
-   pyhanami.diags.ScientificSkill
-   pyhanami.diags.Simulations
+   diags.Diagnostics
+   diags.Observations
+   diags.Replicability
+   diags.ScientificSkill
+   diags.Simulations
 
 Module contents
 ---------------
 
-.. automodule:: pyhanami.diags
+.. automodule:: diags
    :members:
    :show-inheritance:
    :undoc-members:
 
 
-================================================================================
+ScientificSkill
+---------------
 
-pyhanami.diags.ScientificSkill module
-=====================================
+diags.ScientificSkill module
+============================
 
-.. automodule:: pyhanami.diags.ScientificSkill
+.. automodule:: diags.ScientificSkill
    :members:
    :show-inheritance:
    :undoc-members:
 
 
-================================================================================
-
-pyhanami.diags.Simulations module
-=================================
-
-.. automodule:: pyhanami.diags.Simulations
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-
-================================================================================
-
-pyhanami package
-================
-
-Subpackages
+Simulations
 -----------
 
-.. toctree::
-   :maxdepth: 4
+diags.Simulations module
+========================
 
-   pyhanami.diags
-
-Module contents
----------------
-
-.. automodule:: pyhanami
+.. automodule:: diags.Simulations
    :members:
    :show-inheritance:
    :undoc-members:
