@@ -1,0 +1,14 @@
+cmocean
+eofs
+matplotlib
+numpy
+pandas
+pint
+pyproj
+pyyaml
+scipy
+xarray
+xesmf
+Sphinx==7.2.6
+Sphinx-rtd-theme==2.0.0
+myst-parser==3.0.1
