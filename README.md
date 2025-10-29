@@ -48,7 +48,7 @@ pip install .
 
 ## Basic Usage
 
-The following example demonstrates the main functionalities of _pyhanami_. For detailed usage instructions, see the [User Guide](https://earth.bsc.es/gitlab/ces/hanami/pyhanami/-/wikis/User-Guide) in the Wiki page of the project.
+The following example demonstrates the main functionalities of _pyhanami_. For detailed usage instructions, see the project's documentation in [https://pyhanami.readthedocs.io/](https://pyhanami.readthedocs.io/)
 
 ```python
 import pyhanami as hnmi
@@ -156,22 +156,19 @@ Create an issue or contact the authors below.
 
 ## Authors and acknowledgements
 
-Main developers of _pyhanami_ at BSC:
-- Marta Alerany Solé: [marta.alerany@bsc.es](marta.alerany@bsc.es)
-- Kai Keller: [kai.keller@bsc.es](kai.keller@bsc.es)
+Main developer: 
+- Marta Alerany Solé (BSC-CNS): [marta.alerany@bsc.es](marta.alerany@bsc.es)
 
-Significant contributors at JAMSTEC:
-- Masuo Nakano: [masuo@jamstec.go.jp](masuo@jamstec.go.jp)
+Significant contributors:
+- Kai Keller (BSC-CNS): [kai.keller@bsc.es](kai.keller@bsc.es)
+- Masuo Nakano (JAMSTEC): [masuo@jamstec.go.jp](masuo@jamstec.go.jp)
 
-Thanks to researchers at BSC:
-- Bernardo Maraldi: [bernardo.maraldi@bsc.es](bernardo.maraldi@bsc.es)
-- Iker Gonzalez: [iker.gonzalez@bsc.es](iker.gonzalez@bsc.es)
-
-Thanks to researchers at JAMSTEC:
-- Chihiro Kodama: [kodamac@jamstec.go.jp](kodamac@jamstec.go.jp)
-- Tomoe Nasuno: [nasuno@jamstec.go.jp](nasuno@jamstec.go.jp)
-- JAMSTEC - Research Center for Environmental Modeling and Application (CEMA)
-
+Thanks to:
+- Bernardo Maraldi (BSC-CNS): [bernardo.maraldi@bsc.es](bernardo.maraldi@bsc.es)
+- Chihiro Kodama (JAMSTEC): [kodamac@jamstec.go.jp](kodamac@jamstec.go.jp)
+- Iker Gonzalez (BSC-CNS): [iker.gonzalez@bsc.es](iker.gonzalez@bsc.es)
+- Tomoe Nasuno (JAMSTEC): [nasuno@jamstec.go.jp](nasuno@jamstec.go.jp)
+<!-- - JAMSTEC - Research Center for Environmental Modeling and Application (CEMA) -->
 
 This work, along with the replicability test methodology implemented in this package, were developed as part of the [Hpc AlliaNce for Applications and supercoMputing Innovation (HANAMI) project](https://hanami-project.com/), which received funding from the European High Performance Computing Joint Undertaking (EuroHPC JU) under the European Union’s Horizon Europe framework program for research and innovation and Grant Agreement No. 101136269.
 
