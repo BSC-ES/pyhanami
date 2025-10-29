@@ -37,8 +37,12 @@ check_dependencies() {
         missing_deps+=("sphinx")
     fi
     
+    if ! command -v sphinx-build &> /dev/null; then
+        missing_deps+=("sphinx")
+    fi
+    
     if [ ${#missing_deps[@]} -ne 0 ]; then
-        error "Missing dependencies: ${missing_deps[*]}"
+        error "Missing dependencies: sphinx"
         echo "Install with: sudo apt-get install python3-sphinx"
         exit 1
     fi
@@ -55,10 +59,10 @@ generate_docs() {
     sphinx-apidoc -f -e -o "$TEMP_DIR" "$SRC_DIR" --separate
     
     # Create a temporary conf.py for sphinx-build
-    cat > "$TEMP_DIR/conf.py" << 'EOF'
+    cat > "$TEMP_DIR/conf.py" << EOF
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../../src'))
+sys.path.insert(0, os.path.abspath('$(realpath "$SRC_DIR")'))
 
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode', 'sphinx.ext.napoleon']
 autodoc_default_options = {
@@ -66,13 +70,38 @@ autodoc_default_options = {
     'undoc-members': True,
     'show-inheritance': True,
 }
+master_doc = 'index'
 EOF
     
     # Use sphinx-build to generate the actual documentation
-    sphinx-build -b text "$TEMP_DIR" "$TEMP_DIR/output" -q
-    
-    # Create the consolidated API Reference RST file
-    cat > "$API_REFS_FILE" << EOF
+    if ! sphinx-build -b text "$TEMP_DIR" "$TEMP_DIR/output" 2>/dev/null; then
+        warn "Sphinx-build failed, falling back to original RST files"
+        # Fall back to original approach
+        cat > "$API_REFS_FILE" << EOFAPI
+API Reference
+=============
+
+This document contains the complete API reference for pyhanami.
+
+*Last update*: $(date)
+
+EOFAPI
+        
+        find "$TEMP_DIR" -name "*.rst" -not -name "modules.rst" | sort | while read -r rst_file; do
+            module_name=$(basename "$rst_file" .rst)
+            clean_name=$(echo "$module_name" | sed 's/.*\.//g')
+            
+            echo "" >> "$API_REFS_FILE"
+            echo "$clean_name" >> "$API_REFS_FILE"
+            echo "$(printf -- '-%.0s' $(seq 1 ${#clean_name}))" >> "$API_REFS_FILE"
+            echo "" >> "$API_REFS_FILE"
+            
+            cat "$rst_file" >> "$API_REFS_FILE"
+            echo "" >> "$API_REFS_FILE"
+        done
+    else
+        # Create the consolidated API Reference RST file
+        cat > "$API_REFS_FILE" << EOF
 API Reference
 =============
 
@@ -82,24 +111,25 @@ This document contains the complete API reference for pyhanami.
 
 EOF
     
-    # Process each generated text file and convert back to RST format
-    find "$TEMP_DIR/output" -name "*.txt" | sort | while read -r txt_file; do
-        module_name=$(basename "$txt_file" .txt)
-        
-        if [ "$module_name" != "modules" ] && [[ "$module_name" != *"package"* ]]; then
-            # Clean up module name - extract just the final part
-            clean_name=$(echo "$module_name" | sed 's/.*\.//g' | sed 's/ module$//g')
+        # Process each generated text file and convert back to RST format
+        find "$TEMP_DIR/output" -name "*.txt" | sort | while read -r txt_file; do
+            module_name=$(basename "$txt_file" .txt)
             
-            echo "" >> "$API_REFS_FILE"
-            echo "$clean_name" >> "$API_REFS_FILE"
-            echo "$(printf -- '-%.0s' $(seq 1 ${#clean_name}))" >> "$API_REFS_FILE"
-            echo "" >> "$API_REFS_FILE"
-            
-            # Convert the text content to RST format
-            sed 's/^/   /' "$txt_file" >> "$API_REFS_FILE"
-            echo "" >> "$API_REFS_FILE"
-        fi
-    done
+            if [ "$module_name" != "modules" ] && [[ "$module_name" != *"package"* ]]; then
+                # Clean up module name - extract just the final part
+                clean_name=$(echo "$module_name" | sed 's/.*\.//g' | sed 's/ module$//g')
+                
+                echo "" >> "$API_REFS_FILE"
+                echo "$clean_name" >> "$API_REFS_FILE"
+                echo "$(printf -- '-%.0s' $(seq 1 ${#clean_name}))" >> "$API_REFS_FILE"
+                echo "" >> "$API_REFS_FILE"
+                
+                # Convert the text content to RST format
+                sed 's/^/   /' "$txt_file" >> "$API_REFS_FILE"
+                echo "" >> "$API_REFS_FILE"
+            fi
+        done
+    fi
     
     # Cleanup
     rm -rf "$TEMP_DIR"
