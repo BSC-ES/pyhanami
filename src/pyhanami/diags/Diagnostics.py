@@ -508,7 +508,7 @@ class DataDiagnostics:
         limit = np.max(np.abs(abs_diff.values))
         levels = np.linspace(-limit, limit, 13)
         
-        abs_diff_plot, _ = plot.spatial_plot(abs_diff, clon=clon, title=f'Difference in {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})',
+        abs_diff_plot, _ = plot.spatial_plot(abs_diff, title=f"Difference in {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
                                           cb_label=f"difference in {var_name} ({self.variables[var_name]['units']})", cmap=cmocean.cm.thermal, levels=levels)
         
         if output_path is None:
