@@ -81,7 +81,7 @@ EOF
 API Reference
 =============
 
-This document contains the complete API reference for pyhanami.
+This page contains the API reference for the public classes in _pyhanami_.
 
 *Last update*: $(date)
 
@@ -90,6 +90,11 @@ EOFAPI
         find "$TEMP_DIR" -name "*.rst" -not -name "modules.rst" | sort | while read -r rst_file; do
             module_name=$(basename "$rst_file" .rst)
             clean_name=$(echo "$module_name" | sed 's/.*\.//g')
+            
+            # Skip the main diags package module
+            if [ "$clean_name" = "diags" ]; then
+                continue
+            fi
             
             echo "" >> "$API_REFS_FILE"
             echo "$clean_name" >> "$API_REFS_FILE"
@@ -116,7 +121,7 @@ EOF
         find "$TEMP_DIR/output" -name "*.txt" | sort | while read -r txt_file; do
             module_name=$(basename "$txt_file" .txt)
             
-            if [ "$module_name" != "modules" ] && [[ "$module_name" != *"package"* ]]; then
+            if [ "$module_name" != "modules" ] && [[ "$module_name" != *"package"* ]] && [ "$module_name" != "diags" ]; then
                 # Clean up module name - extract just the final part
                 clean_name=$(echo "$module_name" | sed 's/.*\.//g' | sed 's/ module$//g')
                 
