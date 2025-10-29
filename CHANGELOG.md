@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 ### Added
+- Data checker: standard compliance, spatial and temporal completeness, physical plausibility, and consistency of variables and coordinates checks when loading new datasets.
+- Scientific skill metrics: bimodal ISO indices Tropical IntraSeasonal Oscillation (ISO) evaluation and Tropical Cyclones (TCs) metrics.
+- Documentation 
+
 
 ### Changed
 
