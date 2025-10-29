@@ -3,14 +3,12 @@ API Reference
 
 This document contains the complete API reference for pyhanami.
 
-*Last update*: Wed 29 Oct 16:49:31 CET 2025
+*Last update*: Wed 29 Oct 16:59:20 CET 2025
 
 
 Diagnostics
 -----------
 
-diags.Diagnostics module
-========================
 
 .. automodule:: diags.Diagnostics
    :members:
@@ -21,8 +19,6 @@ diags.Diagnostics module
 Observations
 ------------
 
-diags.Observations module
-=========================
 
 .. automodule:: diags.Observations
    :members:
@@ -33,8 +29,6 @@ diags.Observations module
 Replicability
 -------------
 
-diags.Replicability module
-==========================
 
 .. automodule:: diags.Replicability
    :members:
@@ -46,13 +40,7 @@ diags
 -----
 
 diags package
-=============
 
-Submodules
-----------
-
-.. toctree::
-   :maxdepth: 4
 
    diags.Diagnostics
    diags.Observations
@@ -60,8 +48,6 @@ Submodules
    diags.ScientificSkill
    diags.Simulations
 
-Module contents
----------------
 
 .. automodule:: diags
    :members:
@@ -72,8 +58,6 @@ Module contents
 ScientificSkill
 ---------------
 
-diags.ScientificSkill module
-============================
 
 .. automodule:: diags.ScientificSkill
    :members:
@@ -84,8 +68,6 @@ diags.ScientificSkill module
 Simulations
 -----------
 
-diags.Simulations module
-========================
 
 .. automodule:: diags.Simulations
    :members:

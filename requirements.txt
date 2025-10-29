@@ -11,6 +11,7 @@ pint
 pyproj
 pyyaml
 scipy
+tqdm
 xarray
 xesmf
 Sphinx==7.2.6

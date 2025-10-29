@@ -96,7 +96,8 @@ EOFAPI
             echo "$(printf -- '-%.0s' $(seq 1 ${#clean_name}))" >> "$API_REFS_FILE"
             echo "" >> "$API_REFS_FILE"
             
-            cat "$rst_file" >> "$API_REFS_FILE"
+            # Clean the RST file content - remove module headers and keep only automodule directives
+            sed '/^[a-zA-Z].*module$/d; /^=\+$/d; /^-\+$/d; /^Submodules$/d; /^Module contents$/d; /^.. toctree::/,/^$/d' "$rst_file" >> "$API_REFS_FILE"
             echo "" >> "$API_REFS_FILE"
         done
     else

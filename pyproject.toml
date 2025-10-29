@@ -39,6 +39,7 @@ dependencies = [
     "pint",
     "pyyaml",
     "scipy",
+    "tqdm",
     "xarray",
     "xesmf",
 ]
