@@ -13,5 +13,6 @@ Welcome to Pyhanami's documentation!
    Home.md 
    Scientific-Background.md 
    Methodology.md
-   User-Guide.md
    Configuration.md 
+   User-Guide.md
+   API-Reference.rst
