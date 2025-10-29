@@ -15,4 +15,3 @@ Welcome to Pyhanami's documentation!
    Methodology.md
    Configuration.md 
    User-Guide.md
-   API-Reference.rst
