@@ -1,3 +1,7 @@
+# Tested using a conda environment with Python=3.11.5
+# Before using pip install -r requirements.txt, we need to install cartopy using conda:
+# conda install -c conda-forge cartopy
+
 cmocean
 eofs
 matplotlib

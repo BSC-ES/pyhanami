@@ -10,14 +10,8 @@ Welcome to Pyhanami's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   Configuration.md 
    Home.md 
    Scientific-Background.md 
+   Methodology.md
    User-Guide.md
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   Configuration.md 
