@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-SRC_DIR="../src"
+SRC_DIR="../src/pyhanami/diags"
 DOCS_SOURCE_DIR="./source"
 API_REFS_FILE="$DOCS_SOURCE_DIR/API-Reference.rst"
 TEMP_DIR="/tmp/pyhanami_docs"
@@ -51,8 +51,25 @@ generate_docs() {
     # Create temporary directory
     mkdir -p "$TEMP_DIR"
     
-    # Generate RST files using sphinx-apidoc
-    sphinx-apidoc -f -o "$TEMP_DIR" "$SRC_DIR" --separate
+    # Generate RST files using sphinx-apidoc with full content
+    sphinx-apidoc -f -e -o "$TEMP_DIR" "$SRC_DIR" --separate
+    
+    # Create a temporary conf.py for sphinx-build
+    cat > "$TEMP_DIR/conf.py" << 'EOF'
+import os
+import sys
+sys.path.insert(0, os.path.abspath('../../src'))
+
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode', 'sphinx.ext.napoleon']
+autodoc_default_options = {
+    'members': True,
+    'undoc-members': True,
+    'show-inheritance': True,
+}
+EOF
+    
+    # Use sphinx-build to generate the actual documentation
+    sphinx-build -b text "$TEMP_DIR" "$TEMP_DIR/output" -q
     
     # Create the consolidated API Reference RST file
     cat > "$API_REFS_FILE" << EOF
@@ -65,24 +82,30 @@ This document contains the complete API reference for pyhanami.
 
 EOF
     
-    # Process each RST file and consolidate into single file
-    find "$TEMP_DIR" -name "*.rst" -not -name "modules.rst" | sort | while read -r rst_file; do
-        module_name=$(basename "$rst_file" .rst)
+    # Process each generated text file and convert back to RST format
+    find "$TEMP_DIR/output" -name "*.txt" | sort | while read -r txt_file; do
+        module_name=$(basename "$txt_file" .txt)
         
-        echo "" >> "$API_REFS_FILE"
-        echo "$(printf '=%.0s' {1..80})" >> "$API_REFS_FILE"
-        echo "" >> "$API_REFS_FILE"
-        
-        # Append the content of each RST file
-        cat "$rst_file" >> "$API_REFS_FILE"
-        echo "" >> "$API_REFS_FILE"
+        if [ "$module_name" != "modules" ] && [[ "$module_name" != *"package"* ]]; then
+            # Clean up module name - extract just the final part
+            clean_name=$(echo "$module_name" | sed 's/.*\.//g' | sed 's/ module$//g')
+            
+            echo "" >> "$API_REFS_FILE"
+            echo "$clean_name" >> "$API_REFS_FILE"
+            echo "$(printf -- '-%.0s' $(seq 1 ${#clean_name}))" >> "$API_REFS_FILE"
+            echo "" >> "$API_REFS_FILE"
+            
+            # Convert the text content to RST format
+            sed 's/^/   /' "$txt_file" >> "$API_REFS_FILE"
+            echo "" >> "$API_REFS_FILE"
+        fi
     done
     
     # Cleanup
     rm -rf "$TEMP_DIR"
     
     log "API documentation generated successfully: $API_REFS_FILE"
-    log "RST file is ready for Read the Docs integration"
+    log "RST file with actual content is ready for Read the Docs integration"
 }
 
 # Main function
