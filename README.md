@@ -173,7 +173,7 @@ Thanks to researchers at JAMSTEC:
 - JAMSTEC - Research Center for Environmental Modeling and Application (CEMA)
 
 
-This work, along with the replicability test methodology, were developed as part of the Hpc AlliaNce for Applications and supercoMputing Innovation (HANAMI) project, which received funding from the European High Performance Computing Joint Undertaking (EuroHPC JU) under the European Union’s Horizon Europe framework program for research and innovation and Grant Agreement No. 101136269.
+This work, along with the replicability test methodology implemented in this package, were developed as part of the [Hpc AlliaNce for Applications and supercoMputing Innovation (HANAMI) project](https://hanami-project.com/), which received funding from the European High Performance Computing Joint Undertaking (EuroHPC JU) under the European Union’s Horizon Europe framework program for research and innovation and Grant Agreement No. 101136269.
 
 ### Scientific References
 

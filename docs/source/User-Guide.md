@@ -4,7 +4,7 @@ This guide provides detailed instructions and examples for using _pyhanami_ to e
 
 TO DO: add explanation of configuration files.
 
-## **1. Load simulation data** 
+## **Load simulation data** 
 
 ```python
 import pyhanami as hnmi
@@ -16,7 +16,7 @@ sim_2 = hnmi.SimulationData('source_sim_2', name='name_sim_2')
 Note that `source_sim_1` and `source_sim_2` must be paths to NetCDF files or `xarray.Dataset` objects.
 
 
-## **2. Time series plots**
+## **Time series plots**
 
 Generate **time series plots** between `year_init` and `year_end` for a given climate variable `var_name`:
 
@@ -61,7 +61,7 @@ diags.time_series_plots(
 This `time_series_plots` method plots annual mean time series by default, but it also supports monthly and daily mean time series by passing the argument `time_freq='monthly'` and `time_freq='daily'`, respectively. Besides, it is possible to include in the plot the trajectories of individual ensemble members together with the mean by passing the argument `plot_ens=True`.
 
 
-## **3. Spatial plots**
+## **Spatial plots**
 
 Generate **spatial plots** comparing two simulation datasets:
 
@@ -84,7 +84,7 @@ The `spatial_plots` method generates the following visualization outputs:
 Note that the central longitude for these plots is set to 0º by default, but it can be modified with the argument `clon`.
 
 
-## **4. Replicability test**
+## **Replicability test**
 
 Perform and plot results of a **replicability test** comparing two simulation datasets:
 
@@ -102,7 +102,7 @@ tester.matrix_plot(
 This `matrix_plot` method uses all variables from the simulation datasets that are listed in `src/pyhanami/config/variables.yaml` to perform the replicability test.
 
 
-## **5. Tropical IntraSeasonal Oscillation (ISO) evaluation**
+## **Tropical IntraSeasonal Oscillation (ISO) evaluation**
 
 The computation of the **bimodal ISO indices** requires daily TOA outgoing longwave radiation (`olr`) data, preferably covering a period of 10 years or more (ideally, at least 30 years).
 
@@ -144,7 +144,7 @@ The `bimodal_ISO` method generates the following visualization outputs:
 3. **Frequency plot**: mean monthly frequency (seasonality) of ISO events for both MJO and BSISO, computed over the entire period covered by the dataset. If observational data is provided, the frequency plots also include the TSS statistics (R, σ and TSS) comparing simulations and observations.
 
 
-## **6. Tropical Cyclones (TCs) evaluation**
+## **Tropical Cyclones (TCs) evaluation**
 
 The computation of the **TC metrics** requires the following variables with a 6-hourly frequency:
 - Sea level pressure (`psl`)
