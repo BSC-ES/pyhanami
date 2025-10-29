@@ -1,9 +1,9 @@
 API Reference
 =============
 
-This document contains the complete API reference for pyhanami.
+This page contains the API reference for the public classes in _pyhanami_.
 
-*Last update*: Wed 29 Oct 16:59:20 CET 2025
+*Last update*: Wed 29 Oct 17:08:02 CET 2025
 
 
 Diagnostics
@@ -31,25 +31,6 @@ Replicability
 
 
 .. automodule:: diags.Replicability
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-
-diags
------
-
-diags package
-
-
-   diags.Diagnostics
-   diags.Observations
-   diags.Replicability
-   diags.ScientificSkill
-   diags.Simulations
-
-
-.. automodule:: diags
    :members:
    :show-inheritance:
    :undoc-members:
