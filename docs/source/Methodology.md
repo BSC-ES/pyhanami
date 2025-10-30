@@ -25,15 +25,19 @@ First of all, the package includes methods to create time series plots for a giv
 
 Additionally, the package allows to generate spatial comparisons between different simulation datasets for a given climate variable. These include:
 - **Absolute difference**: absolute average difference between the datasets at the grid point level. Before computing the difference, the mean over time (for the whole period covered by the datasets) and the mean over ensemble members (if the datasets contain multiple ensemble members) are calculated.
-- **Effect size (Cohen's _d_)**: effect size between the datasets at the grid point level. This is taken as Cohen's effect size (_d_), computed as:
+- **Effect size (Cohen's $d$)**: effect size between the datasets at the grid point level. This is taken as Cohen's effect size ($d$), computed as
+    
     $$
     d = \frac{\mu_1 - \mu_2}{\sigma},
     $$
-    where μ₁ and μ₂ are the means of the two datasets taken over the ensemble members (after averaging over time), and σ is the pooled standard deviation. The pooled standard deviation is calculated as:
+    
+    where μ₁ and μ₂ are the means of the two datasets taken over the ensemble members (after averaging over time), and σ is the pooled standard deviation. The pooled standard deviation is calculated as
+    
     $$
-    \sigma = \sqrt{\frac{(n_1 - 1)\sigma_1² + (n_2 - 1)\sigma_2²}{n_1 + n_2 - 2}},
+    \sigma = \sqrt{\frac{(n_1 - 1)\sigma_1^2 + (n_2 - 1)\sigma_2^2}{n_1 + n_2 - 2}},
     $$
-    where σ₁ and σ₂ are the standard deviations of the two datasets taken over the ensemble members (after averaging over time), and n₁ and n₂ are the number of samples (ensemble members) in each dataset.
+
+    where $\sigma_1$ and $\sigma_2$ are the standard deviations of the two datasets taken over the ensemble members (after averaging over time), and $n_1$ and $n_2$ are the number of samples (ensemble members) in each dataset.
 
     Note that the effect size is not computed just once for all the ensembles members. Instead,  bootstrapping is used to compute the effect size multiple times, generating a distribution of effect sizes. The mean of this distribution is taken as the final effect size value. Moreover, a _t_-test is performed to assess whether the differences between the two datasets are statistically significant at the grid point level.
 
@@ -80,16 +84,18 @@ Currently, the package includes the following scientific skill metrics:
 
     In order to obtain scalar metrics, we also compute the **temporal correlation (R)**, **standard deviation ratio (σ)**, and **Taylor Skill Score (TSS)** between simulations and observations using the PCs' amplitude, following [(M. Nakano et al., 2019)](https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2019GL082443). Specifically, the mean monthly frequency of MJO and BSISO events (ISO seasonality) is calculated using the amplitude of the corresponding PCs. The MJO frequency is then subtracted from the BSISO frequency, and this difference is compared between simulations and observations.
 
-    The temporal correlation indicates how well the phase of the ISO seasonality is reproduced by a model. While the ratio of standard deviations (model/observations) provides information about the amplitude (MJO/BSISO contrast) of the seasonality. Finally, the TSS combines both the correlation and the standard deviation, allowing to assess how well a model matches the ISO seasonality of the observations with a single score defined as:
+    The temporal correlation indicates how well the phase of the ISO seasonality is reproduced by a model. While the ratio of standard deviations (model/observations) provides information about the amplitude (MJO/BSISO contrast) of the seasonality. Finally, the $\text{TSS}$ combines both the correlation and the standard deviation, allowing to assess how well a model matches the ISO seasonality of the observations with a single score defined as
+    
     $$
-    TSS = \frac{4(1+R)⁴}{(\sigma + 1/\sigma)²(1+R_0)²},
+    \text{TSS} = \frac{4(1+R)^4}{(\sigma + 1/\sigma)^2(1+R_0)^2},
     $$
-    where R₀ is the maximum correlation that can be achieved by the model, taken as R₀=1.
+
+    where $R_0$ is the maximum correlation that can be achieved by the model, taken as $R_0=1$.
 
     The implementation of the analysis described above produces three types of diagnostic plots:
     - **EEOFs**: multiple spatial plots showing the first two EEOFs for boreal winter (during DJFMA) and for boreal summer (during JJASO). The EEOFs are scaled before plotting using the corresponding eigenvalues, and each of them is plotted separately for three different time lags (-10, -5 and 0 days).
-    - **PCs**: two time series plots displaying the temporal evolution of the first two normalized PCs for MJO and BSISO, along with a third plot showing the evolution of the amplitude (sqrt(PC1² + PC2²)) of each set of PCs.
-    - **ISO seasonality**: mean monthly distribution of ISO events separating MJO and BSISO, with comparison between simulations and observations available (including the values for the scalar metrics R, σ and TSS).
+     - **PCs**: two time series plots displaying the temporal evolution of the first two normalized PCs for MJO and BSISO, along with a third plot showing the evolution of the amplitude ( $\scriptsize{\sqrt{\text{PC}_1^2 + \text{PC}_2^2}}$ ) of each set of PCs.
+    - **ISO seasonality**: mean monthly distribution of ISO events separating MJO and BSISO, with comparison between simulations and observations available (including the values for the scalar metrics $R$, $\sigma$ and $\text{TSS}$).
 
     In all cases, a colormap with a blue to red gradient is used for boreal winter (or MJO), while a green to orange gradient is used for boreal summer (or BSISO).
 
