@@ -59,11 +59,13 @@ class DataChecker:
 
         Parameters
         ----------
-        unit_str (str): Input units.
+        unit_str : str
+            Input units.
 
         Returns
         -------
-        new_units (str): Units with corrected format (e.g. from 'm s-1' to 'm s**-1').
+        new_units : str
+            Units with corrected format (e.g. from 'm s-1' to 'm s**-1').
         """
 
         # Validate input
@@ -93,13 +95,17 @@ class DataChecker:
 
         Parameters
         ----------
-        data (xr.Dataset): Input dataset to check.
+        data : xr.Dataset
+            Input dataset to check.
 
         Returns
         -------
-        data (xr.Dataset): Checked dataset.
-        error (lsit[str]): List of error messages encountered during datetime format normalization.
-        warning (lsit[str]): List of warning messages encountered during datetime format normalization.
+        data : xr.Dataset
+            Checked dataset.
+        error : list[str]
+            List of error messages encountered during datetime format normalization.
+        warning : list[str]
+            List of warning messages encountered during datetime format normalization.
         """
 
         time = data['time']
@@ -149,11 +155,13 @@ class DataChecker:
 
         Parameters
         ----------
-        data (xr.Dataset): Input dataset to check.
+        data : xr.Dataset
+            Input dataset to check.
 
         Returns
         ----------
-        data (xr.Dataset): Checked and corrected dataset.
+        data : xr.Dataset
+            Checked and corrected dataset.
         """
 
         # Check coordinates
@@ -241,12 +249,15 @@ class DataChecker:
 
         Parameters
         ----------
-        data (xr.Dataset): Input dataset to check.
-        land_mask (xr.Dataset): Land mask to check ocean variables.
+        data : xr.Dataset
+            Input dataset to check.
+        land_mask : xr.Dataset
+            Land mask to check ocean variables.
 
         Returns
         ----------
-        data (xr.Dataset): Checked and corrected dataset.
+        data : xr.Dataset
+            Checked and corrected dataset.
         """
 
         all_nan = False
@@ -297,11 +308,13 @@ class DataChecker:
 
         Parameters
         ----------
-        data (xr.Dataset): Input dataset to check.
+        data : xr.Dataset
+            Input dataset to check.
 
         Returns
         ----------
-        data (xr.Dataset): Checked and corrected dataset.
+        data : xr.Dataset
+            Checked and corrected dataset.
         """
 
         return data
@@ -314,7 +327,8 @@ class DataChecker:
 
         Parameters
         ----------
-        data (xr.Dataset): Input dataset to check.
+        data : xr.Dataset
+            Input dataset to check.
         """
 
         time = data['time'].values
@@ -347,11 +361,13 @@ class DataChecker:
 
         Parameters
         ----------
-        data (xr.Dataset): Input dataset to check.
+        data : xr.Dataset
+            Input dataset to check.
 
         Returns
         ----------
-        data (xr.Dataset): Checked and corrected dataset.
+        data : xr.Dataset
+            Checked and corrected dataset.
         """
 
         for var in data.data_vars:
@@ -402,11 +418,13 @@ class DataChecker:
 
         Parameters
         ----------
-        data (xr.Dataset): Input dataset to check.
+        data : xr.Dataset
+            Input dataset to check.
 
         Returns
         ----------
-        data (xr.Dataset): Checked and corrected dataset.
+        data : xr.Dataset
+            Checked and corrected dataset.
         """
 
         # Validate input

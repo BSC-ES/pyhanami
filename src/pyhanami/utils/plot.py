@@ -46,19 +46,29 @@ def time_series_plot(time_series, title='Mean time series', y_label='', x_label=
 
     Parameters
     ----------
-    time_series (xarray.DataArray or list of xr.DataArray): Time series data.
-    title (str): Title of the plot (default: 'Mean time series').
-    y_label (str): Label for the y-axis (default: '').
-    x_label (str): Label for the x-axis (default: 'time').
-    labels (list[str]): Labels for each time series.
-    time_freq (str): Time frequency (default: 'annual').
-    start_year, end_year (int): Years for filtering.
-    plot_ens (bool): Whether to plot individual ensemble members trajectories (default: False).
+    time_series : xarray.DataArray or list[xr.DataArray]
+        Time series data.
+    title : str
+        Title of the plot (default: 'Mean time series').
+    y_label : str
+        Label for the y-axis (default: '').
+    labels : list[str]
+        Labels for each time series.
+    time_freq : str
+        Time frequency (default: 'annual').
+    start_year : int
+        Start year for filtering.
+    end_year : int
+        End year for filtering.
+    plot_ens : bool
+        Whether to plot individual ensemble members trajectories (default: False).
 
     Returns
     -------
-    fig (matplotlib.figure.Figure): Generated plot.
-    ax (matplotlib.axes._subplots.AxesSubplot): Plot axis.
+    fig : matplotlib.figure.Figure
+        Generated plot.
+    ax : matplotlib.axes._subplots.AxesSubplot
+        Plot axis.
     """
 
     # Validate input
@@ -177,17 +187,12 @@ def style_cartopy_axis(ax, show_gridlines=True, ocean_data=False, lw_coast=0.8, 
 
     Parameters
     ----------
-    ax (cartopy.mpl.geoaxes.GeoAxesSubplot):  Axis with a Cartopy geographic projection.
-    show_gridlines (bool): Whether to add gridlines with latitude and longitude labels (default: True).
-    ocean_data (bool): Whether only ocean data is provided and the land should be masked in white (default: False).
-    lw_coast (float): Line width for coastlines (default: 0.8).
-    lw_borders (float): Line width for country borders (default: 0.5).
-    gl_lw (float): Line width for gridlines (default: 0.6).
-    gl_fontsize (int): Font size for gridline labels (default: 15).
-
-    Returns
-    -------
-    None
+    ax : cartopy.mpl.geoaxes.GeoAxesSubplot
+        Axis with a Cartopy geographic projection.
+    show_gridlines : bool
+        Whether to add gridlines with latitude and longitude labels (default: True).
+    ocean_data : bool
+        Whether only ocean data is provided and the land should be masked in white (default: False).
 
     """
 
@@ -214,19 +219,28 @@ def add_colorbar(fig, mappable, ax_l, ax_r, ax_b, label='', fontsize=15, levels=
 
     Parameters
     ----------
-    fig (matplotlib.figure.Figure): Figure to add the colorbar to.
-    mappable (matplotlib artist): Object for colorbar.
-    ax_l, ax_r, ax_b (matplotlib.axes.Axes): Leftmost, rightmost, and bottom axes used to determine the bounds.
-    label (str): Colorbar label (default: '').
-    fontsize (int): Font size for label and tick labels (default: 15).
-    levels (np.ndarray): Contour levels for the colorbar ticks.
-    dist (float): Vertical distance below ax_b for placing the colorbar (default: 0.07).
-    width (float): Thickness of the colorbar axis (default: 0.02).
-    **colorbar_kwargs: Additional arguments passed to fig.colorbar().
+    fig : (matplotlib.figure.Figure)
+        Figure to add the colorbar to.
+    mappable : (matplotlib artist)
+        Object for colorbar.
+    ax_l, ax_r, ax_b : (matplotlib.axes.Axes)
+        Leftmost, rightmost, and bottom axes used to determine the bounds.
+    label : (str)
+        Colorbar label (default: '').
+    fontsize : (int)
+        Font size for label and tick labels (default: 15).
+    levels : (np.ndarray)
+        Contour levels for the colorbar ticks.
+    dist : (float)
+        Vertical distance below ax_b for placing the colorbar (default: 0.07).
+    width : (float)
+        Thickness of the colorbar axis (default: 0.02).
+    **colorbar_kwargs : Additional arguments passed to fig.colorbar().
 
     Returns
     -------
-    cb_ax (matplotlib.colorbar.Colorbar): Colorbar.
+    cb_ax : (matplotlib.colorbar.Colorbar)
+        Colorbar.
     """
 
     left = ax_l.get_position().extents[0]
@@ -257,23 +271,36 @@ def spatial_plot(data, clon=0, title='Spatial plot', cb_label='', cmap=cmocean.c
 
     Parameters
     ----------
-    data (xarray.DataArray): 2D dataset to plot with dimensions (lat, lon).
-    clon (int): Central longitude for the spatial map.
-    title (str): Title of the plot (default: 'Spatial plot').
-    cb_label (str): Label to display below the colorbar; set to False to not add a colorbar (default: ''). 
-    cmap (matplotlib colormap): Colormap (default: cmocean.cm.thermal).
-    levels (np.ndarray): Contour levels.
-    significant (np.ndarray): Mask for significance hatching.
-    vmin, vmax (float): Min. and max. values for the colormap.
-    show_contours (bool): Whether to overlay contour lines (default: True).
-    contour_fontsize (int): Font size for contour labels (default: 12).
-    gridlines (bool): Whether to show gridlines (default: True).
-    **plot_kwargs: Additional arguments passed to contourf.
+    data : xarray.DataArray
+        2D dataset to plot with dimensions (lat, lon).
+    clon : int
+        Central longitude for the spatial map.
+    title : str
+        Title of the plot (default: 'Spatial plot').
+    cb_label : str
+        Label to display below the colorbar (default: ''). 
+    cmap : matplotlib colormap
+        Colormap (default: cmocean.cm.thermal).
+    levels : np.ndarray
+        Contour levels.
+    significant : np.ndarray
+        Mask for significance hatching.
+    vmin, vmax : float
+        Min. and max. values for the colormap.
+    show_contours : bool
+        Whether to overlay contour lines (default: True).
+    contour_fontsize : int
+        Font size for contour labels (default: 12).
+    gridlines : bool
+        Whether to show gridlines (default: True).
+    **plot_kwargs : Additional arguments passed to contourf.
 
     Returns
     -------
-    fig (matplotlib.figure.Figure): Generated plot.
-    ax (matplotlib.axes._subplots.AxesSubplot): Plot axis (an array of two axes for 'siconc' and just one axis otherwise).
+    fig : (matplotlib.figure.Figure)
+        Generated plot.
+    ax : (matplotlib.axes._subplots.AxesSubplot)
+        Plot axis (an array of two axes for 'siconc' and just one axis otherwise).
     """
 
     # Validate inputs
@@ -603,18 +630,28 @@ def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicabili
 
     Parameters
     ----------
-    eff_sizes (np.ndarray): Effect sizes between the scores with shape (n_rows, n_cols, n_indices). 
-    test_results (np.ndarray): Results of the statistical tests with shape (n_rows, n_cols, 4).
-    test (int): Statistical test to use, corresponding to last dimension of test_results (0: KS-test, 1: T-test, 2: U-test, 3: B-test, 4: All) (default: 4).
-    title (str): Title of the plot (default: 'Effect sizes replicability test').
-    variables (dict): Dictionary with variables to be included in the plot and their descriptions.
-    seasons (list): List of seasons to include in the plot.
-    regions (list): List of regions to include in the plot.
+    eff_sizes : np.ndarray
+        Effect sizes between the scores with shape (n_rows, n_cols, n_indices). 
+    test_results : np.ndarray
+        Results of the statistical tests with shape (n_rows, n_cols, 4).
+    test : int
+        Statistical test to use, corresponding to last dimension of test_results (0: KS-test, 
+        1: T-test, 2: U-test, 3: B-test, 4: All) (default: 4).
+    title : str
+        Title of the plot (default: 'Effect sizes replicability test').
+    variables : dict
+        Dictionary with variables to be included in the plot and their descriptions.
+    seasons : list
+        List of seasons to include in the plot.
+    regions : list
+        List of regions to include in the plot.
 
     Returns
     -------
-    fig (matplotlib.figure.Figure): Generated matrix plot.
-    ax (matplotlib.axes._subplots.AxesSubplot): Plot axis.
+    fig : (matplotlib.figure.Figure)
+        Generated matrix plot.
+    ax : (matplotlib.axes._subplots.AxesSubplot)
+        Plot axis.
     """
 
     # Validate inputs
@@ -790,18 +827,27 @@ def eeofs_plot(eeof, clon=0, title='ISO convection patterns', cb_label='scaled E
 
     Parameters
     ----------
-    eeof (xarray.Dataset): EEOFs data.
-    clon (int): Central longitude for the spatial maps.
-    title (str): Title of the plot.
-    cb_label (str): Label to display below the colorbar. 
-    cmap (matplotlib colormap): Colormap.
-    levels (np.ndarray): Contour levels.
-    vmin, vmax (float): Min. and max. values for the colormap.
+    eeof : xarray.Dataset
+        EEOFs data.
+    clon : int
+        Central longitude for the spatial maps.
+    title : str
+        Title of the plot.
+    cb_label : str
+        Label to display below the colorbar. 
+    cmap : matplotlib colormap
+        Colormap.
+    levels : np.ndarray
+        Contour levels.
+    vmin, vmax : float
+        Min. and max. values for the colormap.
 
     Returns
     -------
-    fig (matplotlib.figure.Figure): Generated plot.
-    ax (matplotlib.axes._subplots.AxesSubplot): Plot axis.
+    fig : (matplotlib.figure.Figure)
+        Generated plot.
+    ax : (matplotlib.axes._subplots.AxesSubplot)
+        Plot axis.
     """
 
     # Validate input
@@ -890,14 +936,19 @@ def pcs_plot(pcs, title='Bimodal ISO indices', normalized=True):
 
     Parameters
     ----------
-    pcs (xarray.Dataset): PCs data.
-    title (str): Title of the plot.
-    normalized (bool): Wether to plot raw or normalized (by the corresponding eigenvalues) PCs.
+    pcs : xarray.Dataset
+        PCs data.
+    title : str
+        Title of the plot.
+    normalized : bool
+        Wether to plot raw or normalized (by the corresponding eigenvalues) PCs.
 
     Returns
     -------
-    fig (matplotlib.figure.Figure): Generated plot.
-    ax (matplotlib.axes._subplots.AxesSubplot): Plot axis.
+    fig : (matplotlib.figure.Figure)
+        Generated plot.
+    ax : (matplotlib.axes._subplots.AxesSubplot)
+        Plot axis.
     """
 
     # Validate input
@@ -973,19 +1024,29 @@ def freq_ISO_plot(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
 
     Parameters
     ----------
-    freq_ISO_sim (xarray.Dataset): Mean monthly frequency of occurrence data for simulated data.
-    freq_ISO_obs (xarray.Dataset): Mean monthly frequency of occurrence data for observations.
-    alpha (float): Ratio between simulated and observed standarized PCs' amplitudes.
-    corr (float): Temporal correlation coefficient of the seasonality.
-    sigma (float): Ratio of the standard deviations (model/obs) of the seasonality.
-    tss (float): Taylor Skill Score of the seasonality.
-    title (str): Title of the plot.
-    sim_label, obs_label (str): Labels for simulated and observed data.
+    freq_ISO_sim : xarray.Dataset
+        Mean monthly frequency of occurrence data for simulated data.
+    freq_ISO_obs : xarray.Dataset
+        Mean monthly frequency of occurrence data for observations.
+    alpha : float
+        Ratio between simulated and observed standarized PCs' amplitudes.
+    corr : float
+        Temporal correlation coefficient of the seasonality.
+    sigma : float
+        Ratio of the standard deviations (model/obs) of the seasonality.
+    tss : float
+        Taylor Skill Score of the seasonality.
+    title : str
+        Title of the plot.
+    sim_label, obs_label : str
+        Labels for simulated and observed data.
 
     Returns
     -------
-    fig (matplotlib.figure.Figure): Generated plot.
-    ax (matplotlib.axes._subplots.AxesSubplot): Plot axis.
+    fig : (matplotlib.figure.Figure)
+        Generated plot.
+    ax : (matplotlib.axes._subplots.AxesSubplot)
+        Plot axis.
     """
 
     # Validate input

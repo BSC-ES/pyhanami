@@ -36,13 +36,6 @@ class ObservationData:
         Name of the observations instance (default: obs).
     regrid_method : str
         Regridding method.
-
-    Methods
-    -------
-    _retrieve_obs(sim)
-        (Not fully implemented) Intended to retrieve raw observations from a database.
-    load_and_process(sim)
-        Retrieves observational data and regrids it to match the input simulation.
     """
 
     def __init__(self, data_path: str, sim: xr.Dataset, name: str = 'obs', regrid_method: str = 'conservative'):
@@ -77,11 +70,13 @@ class ObservationData:
         
         Parameters
         ----------
-        sim (xr.Dataset): Input simulation dataset.
+        sim : xr.Dataset)
+            Input simulation dataset.
 
         Returns
         -------
-        obs (xr.Dataset): Dataset containing observational data for the variables in sim.
+        obs : xr.Dataset
+            Dataset containing observational data for the variables in sim.
         """
 
         # Validate input
@@ -130,11 +125,13 @@ class ObservationData:
         
         Parameters
         ----------
-        sim (xr.Dataset): Input simulation dataset.     
+        sim : xr.Dataset
+            Input simulation dataset.     
 
         Returns
         -------
-        data_new_grid (xr.Dataset): Regridded observational dataset matching the input simulation.
+        data_new_grid : xr.Dataset
+            Regridded observational dataset matching the input simulation.
         """
 
         # Validate input

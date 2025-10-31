@@ -17,13 +17,17 @@ def lanczos_kernel(window_size, low_freq, high_freq):
 
     Parameters
     ----------
-    window_size (int): Length of the filter kernel.
-    low_freq (float): Lower cutoff frequency.
-    high_freq (float): Upper cutoff frequency.
+    window_size : int
+        Length of the filter kernel.
+    low_freq : float
+        Lower cutoff frequency.
+    high_freq : float
+        Upper cutoff frequency.
 
     Returns
     -------
-    h (np.ndarray): Symmetric bandpass filter kernel.
+    h : np.ndarray
+        Symmetric bandpass filter kernel.
     """
 
     # Generate symmetric time vector
@@ -53,14 +57,19 @@ def lanczos_bandpass(data, window=141, low_freq=1/90, high_freq=1/25):
 
     Parameters
     ----------
-    data (np.ndarray): 1D input signal to be filtered.
-    window_size (int): Length of the filter kernel (default: 141).
-    low_freq (float): Lower cutoff frequency (default: 1/90).
-    high_freq (float): Upper cutoff frequency (default: 1/25).
+    data : np.ndarray
+        1D input signal to be filtered.
+    window_size : int
+        Length of the filter kernel (default: 141).
+    low_freq : float
+        Lower cutoff frequency (default: 1/90).
+    high_freq : float
+        Upper cutoff frequency (default: 1/25).
 
     Returns
     -------
-    filtered_data (np.ndarray): Filtered signal.
+    filtered_data : np.ndarray
+        Filtered signal.
     """
 
     kernel = lanczos_kernel(window, low_freq, high_freq)
@@ -75,14 +84,19 @@ def apply_lanczos_bandpass(data, window=141, low_freq=1/90, high_freq=1/25):
 
     Parameters
     ----------
-    data (xarray.DataArray): Input data to be filtered.
-    window_size (int): Length of the filter kernel (default: 141).
-    low_freq (float): Lower cutoff frequency (default: 1/90).
-    high_freq (float): Upper cutoff frequency (default: 1/25).
+    data : xarray.DataArray
+        Input data to be filtered.
+    window_size : int
+        Length of the filter kernel (default: 141).
+    low_freq : float
+        Lower cutoff frequency (default: 1/90).
+    high_freq : float
+        Upper cutoff frequency (default: 1/25).
 
     Returns
     -------
-    filtered_data (xarray.DataArray): Filtered data.
+    filtered_data : xarray.DataArray
+        Filtered data.
     """
     
     filtered_data = xr.apply_ufunc(
@@ -106,14 +120,19 @@ def apply_lanczos_bandpass_filter(raw_olr_data, window=141, low_freq=1/90, high_
 
     Parameters
     ----------
-    raw_olr_data (xr.DataArray): Input unfiltered OLR data.
-    window_size (int): Length of the filter kernel (default: 141).
-    low_freq (float): Lower cutoff frequency (default: 1/90).
-    high_freq (float): Upper cutoff frequency (default: 1/25).
+    raw_olr_data : xr.DataArray
+        Input unfiltered OLR data.
+    window_size : int
+        Length of the filter kernel (default: 141).
+    low_freq : float
+        Lower cutoff frequency (default: 1/90).
+    high_freq : float
+        Upper cutoff frequency (default: 1/25).
 
     Returns
     -------
-    filered_olr (xr.DataArray): Lanczos filtered OLR data.
+    filtered_olr : xr.DataArray
+        Lanczos filtered OLR data.
     """
 
     # Validate input
@@ -139,15 +158,21 @@ def extract_season_blocks(data, start_year, end_year, season, cutoff_points=90):
 
     Parameters
     ----------
-    data (xarray.DataArray): Input data.
-    start_year (int): Start year for filtering.
-    end_year (int): End year for filtering.
-    season (str): Season to filter.
-    cutoff_points (int): Minimum number of points necessary to keep a block (default: 90).
+    data : xarray.DataArray
+        Input data.
+    start_year : int
+        Start year for filtering.
+    end_year : int
+        End year for filtering.
+    season : str
+        Season to filter.
+    cutoff_points : int
+        Minimum number of points necessary to keep a block (default: 90).
 
     Returns
     -------
-    blocks (list[xarray.DataArray]): Extracted season blocks.
+    blocks : list[xarray.DataArray]
+        Extracted season blocks.
     """
 
     # Validate input
@@ -185,13 +210,17 @@ def generate_lagged_matrix(data, lags):
 
     Parameters
     ----------
-    data (xarray.Dataset): Input data.
-    lags (list[int]): Lag values to add.
+    data : xarray.Dataset
+        Input data.
+    lags : list[int]
+        Lag values to add.
 
     Returns
     -------
-    lagged_matrix (np.ndarray): Stacked lagged version of the data.
-    times (np.ndarray): Times included in the lagged matrix.
+    lagged_matrix : np.ndarray
+        Stacked lagged version of the data.
+    times : np.ndarray
+        Times included in the lagged matrix.
     """
 
     # Update attributes to avoid issues with time ranges
@@ -223,13 +252,17 @@ def broadcasted_area_weights(data, dim_name=None, dim_values=None):
 
     Parameters
     ----------
-    data (xr.DataArray): Input data with reference shape.
-    dim_name (str): Name of the additional dimension.
-    dim_values (list[float]): Values of the additional dimension.
+    data : xr.DataArray
+        Input data with reference shape.
+    dim_name : str
+        Name of the additional dimension.
+    dim_values : list[float]
+        Values of the additional dimension.
 
     Returns
     -------
-    weights_vector (np.dnarray): Flattened area weights matching the shape of the provided data.
+    weights_vector : np.ndarray
+        Flattened area weights matching the shape of the provided data.
     """
 
     # Compute standard area weights
@@ -256,15 +289,21 @@ def compute_EEOFs(data, weights, n_modes=2):
     
     Parameters
     ----------
-    data (np.ndarray): Input data.
-    weights (np.ndarray): Area weights with same shape as data.
-    n_modes (int): Number of EEOFs to compute (default: 2).
+    data : np.ndarray
+        Input data.
+    weights : np.ndarray
+        Area weights with same shape as data.
+    n_modes : int
+        Number of EEOFs to compute (default: 2).
 
     Returns
     -------
-    eofs (np.ndarray): Resulting EOFs.
-    eigvals (np.ndarray): Resulting eigenvalues.
-    var_frac (np.ndarray): Resulting explained variance (normalized eigenvalues).
+    eofs : np.ndarray
+        Resulting EOFs.
+    eigvals : np.ndarray
+        Resulting eigenvalues.
+    var_frac : np.ndarray
+        Resulting explained variance (normalized eigenvalues).
     """
 
     solver = Eof(data, weights=weights)
@@ -282,16 +321,23 @@ def perform_EEOF_analysis(olr_data, start_year, end_year, season, lags=[-10, -5,
 
     Parameters
     ----------
-    olr_data (xr.DataArray): Input OLR data.
-    start_year (int): Start year for filtering.
-    end_year (int): End year for filtering.
-    season (str): Season to filter ('boreal winter' or 'boreal summer').
-    lags (list[int]): Lag values to consider (default: [-10, -5, 0]).
-    n_modes (int): Number of EEOFs modes to compute (default: 2).
+    olr_data : xr.DataArray
+        Input OLR data.
+    start_year : int
+        Start year for filtering.
+    end_year : int
+        End year for filtering.
+    season : str
+        Season to filter ('boreal winter' or 'boreal summer').
+    lags : list[int]
+        Lag values to consider (default: [-10, -5, 0]).
+    n_modes : int
+        Number of EEOFs modes to compute (default: 2).
 
     Returns
     -------
-    eeof_analysis_data (xr.Dataset): Output of EEOF analysis (first 'n_modes' EEOFs, eigenvalues and explanined variances).
+    eeof_analysis_data : xr.Dataset
+        Output of EEOF analysis (first 'n_modes' EEOFs, eigenvalues and explanined variances).
     """
 
     # Validate input
@@ -368,15 +414,21 @@ def project_PCs(data, eeofs):
 
     Parameters
     ----------
-    data (xr.Dataset): Input data.
-    eeofs (list[xr.Dataset]): Output of EEOF analyses (EEOFs and eigenvalues).
+    data : xr.Dataset
+        Input data.
+    eeofs : list[xr.Dataset]
+        Output of EEOF analyses (EEOFs and eigenvalues).
 
     Returns
     -------
-    pc (list): raw PCs for each set of EOFs.
-    pc_std (list): standarized PCs (i.e. normalized by the corresponding eigenvalues) for each set of EOFs.
-    amp (list): raw amplitudes for each set of EOFs.
-    amp_std (list): standarized amplitudes (i.e. normalized by the corresponding eigenvalues) for each set of EOFs.
+    pc : list
+        Raw PCs for each set of EOFs.
+    pc_std : list
+        Standarized PCs (i.e. normalized by the corresponding eigenvalues) for each set of EOFs.
+    amp : list
+        Raw amplitudes for each set of EOFs.
+    amp_std : list
+        Standarized amplitudes (i.e. normalized by the corresponding eigenvalues) for each set of EOFs.
     """
 
     pc = []
@@ -412,12 +464,15 @@ def significant_labels(amp, amp_std):
 
     Parameters
     ----------
-    amp (list): raw PCs' amplitudes.
-    amp_std (list): standarized PCs' amplitudes (i.e. normalized by the corresponding eigenvalues).
+    amp : list
+        Raw PCs' amplitudes.
+    amp_std : list
+        Standarized PCs' amplitudes (i.e. normalized by the corresponding eigenvalues).
 
     Returns
     -------
-    labels (np.ndarray): 
+    labels : np.ndarray
+        Labels for each time step.
     """
 
     labels = np.where(
@@ -440,12 +495,17 @@ def compute_PCs(olr_data, eeofs):
 
     Parameters
     ----------
-    olr_data (xr.DataArray): Input OLR data.
-    eeofs (list[xr.Dataset]): Output of EEOF analysis (EEOFs, eigenvalues and explanined variances) for boreal winter and boreal summer.
+    olr_data : xr.DataArray
+        Input OLR data.
+    eeofs : list[xr.Dataset]
+        Output of EEOF analysis (EEOFs, eigenvalues and explanined variances) for boreal winter 
+        and boreal summer.
 
     Returns
     -------
-    pc_data (xr.Dataset): PCs and their corresponding amplitude (both raw and standarized, i.e. normalized by the eigenvalues) for each ISO mode.
+    pc_data : xr.Dataset
+        PCs and their corresponding amplitude (both raw and standarized, i.e. normalized by the 
+        eigenvalues) for each ISO mode.
     """
 
     # Validate input
@@ -504,13 +564,17 @@ def adjust_PCs(pcs_sim, pcs_obs):
 
     Parameters
     ----------
-    pcs_sim (xr.Dataset): Simulated PCs.
-    pcs_obs (xr.Dataset): Observed PCs.
+    pcs_sim : xr.Dataset
+        Simulated PCs.
+    pcs_obs : xr.Dataset
+        Observed PCs.
 
     Returns
     -------
-    pcs_sim_corr (xr.Dataset): Corrected simulated PCs.
-    alpha (float): Ratio between the simulated and observed PCs' amplitudes.
+    pcs_sim_corr : xr.Dataset
+        Corrected simulated PCs.
+    alpha : float
+        Ratio between the simulated and observed PCs' amplitudes.
     """
 
     # Validate input
@@ -556,11 +620,13 @@ def compute_freq_ISO(events):
 
     Parameters
     ----------
-    events (xr.DataArray): Input labelled events data.
+    events : xr.DataArray
+        Input labelled events data.
 
     Returns
     -------
-    freq_ISO (xr.Dataset): Mean monthly frequency of ocurrence.
+    freq_ISO : xr.Dataset
+        Mean monthly frequency of ocurrence.
     """
 
     # Validate input
@@ -590,14 +656,19 @@ def compute_TSS(freq_ISO, freq_obs):
     
     Parameters
     ----------
-    freq_ISO (xr.Dataset): Simulated mean monthly frequency of ocurrence.
-    freq_obs (xr.Dataset): Observed mean monthly frequency of ocurrence.
+    freq_ISO : xr.Dataset
+        Simulated mean monthly frequency of ocurrence.
+    freq_obs : xr.Dataset
+        Observed mean monthly frequency of ocurrence.
 
     Returns
     -------
-    corr (float): Temporal correlation coefficient of the seasonality.
-    sigma (float): Ratio of the standard deviations (model/obs) of the seasonality.
-    tss (float): Taylor Skill Score.
+    corr : float
+        Temporal correlation coefficient of the seasonality.
+    sigma : float
+        Ratio of the standard deviations (model/obs) of the seasonality.
+    tss : float
+        Taylor Skill Score.
     """
 
     # Validate input
