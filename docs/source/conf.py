@@ -13,7 +13,17 @@ release = '0.1.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
-extensions = ["myst_parser", "sphinx.ext.todo", "sphinx.ext.viewcode", "sphinx.ext.autodoc", "sphinx.ext.mathjax", "sphinx_rtd_theme"]
+extensions = [
+    "myst_parser",                  # Optional Markdown support
+    "sphinx.ext.todo",              # Add todo directives
+    "sphinx.ext.viewcode",          # Add links to highlighted source code
+    "sphinx.ext.autodoc",           # Pull in docstrings
+    "sphinx.ext.mathjax",           # Render math equations
+    "sphinx_rtd_theme",             # Theme for Read the Docs
+    "sphinx.ext.autosummary",       # Auto-generate summary tables
+    "sphinx.ext.napoleon",          # Support Google/NumPy-style docstrings
+    "sphinx_autodoc_typehints",     # Better typing info
+]
 templates_path = ['_templates']
 exclude_patterns = []
 myst_heading_anchors = 2
@@ -24,10 +34,37 @@ myst_enable_extensions = [
     "amsmath",
 ]
 
+# Mock imports for packages that might not be available during doc building
+autodoc_mock_imports = [
+    'esmpy',
+    'ESMF',
+    'xesmf',
+    'matplotlib',
+    'numpy',
+    'pandas',
+    'xarray',
+    'scipy',
+    'netCDF4',
+    'cartopy',
+    'eofs',
+    'cmocean',
+    'seaborn',
+    'sklearn',
+    'statsmodels',
+    'dask',
+    'intake',
+    'intake_esm',
+    'cftime',
+    'nc_time_axis',
+]
+
+# Keep order of the members in the source python files
+# autodoc_member_order = 'bysource'
+
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'sphinx_rtd_theme' # Change theme to common black and blue Read the Docs format
 html_static_path = ['_static']
 html_css_files = [
-    'css/custom.css',
+    'css/custom.css',   # Customize tables formatting
 ]
