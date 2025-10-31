@@ -26,14 +26,6 @@ class SimulationData:
         Name of the simulation instance.
     data : xarray.Dataset
         Loaded dataset object with climate variables.
-
-    Methods
-    -------
-    _prepare_data():
-        Loads the data and applies any preprocessing.
-
-    check_data():
-        Validates that the dataset has required dimensions and variables.
     """
 
     def __init__(self, data_source: str, name: str = 'sim'):
@@ -62,7 +54,8 @@ class SimulationData:
         
         Returns
         -------
-        data_sim (xr.Dataset): Loaded simulation data.
+        data_sim : xr.Dataset
+            Loaded simulation data.
         """
 
         data_sim = data_general.prepare_data(self.data_path)

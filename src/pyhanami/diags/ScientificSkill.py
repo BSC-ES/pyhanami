@@ -24,7 +24,7 @@ class ScientificEvaluation:
     
     Parameters
     ----------
-    datasets : SimulationData or Iterable[SimulationData]
+    datasets : SimulationData or Iterable[SimulationData], optional
         Ensemble or list of ensembles containing simulation data and metadata.
 
     Attributes
@@ -33,20 +33,7 @@ class ScientificEvaluation:
         List of ensembles containing simulation data and metadata.
     variables : dict
         Configuration dictionary mapping variable names to display metadata.
-
-    Methods
-    -------
-    add_datasets(datasets)
-        Adds new datasets to the ScientificEvaluation object.
-
-    bimodal_ISO(data_name=None, output_path=None, start_year_eeof=None, end_year_eeof=None, plot_eeofs=False, years_pc=None, 
-                correct_pc=False, obs=False, obs_path=None, obs_name=None, clon=0, lat_range=(-30, 30), lags=[-10, -5, 0], 
-                n_modes=2, window=141, low_freq=1/90, high_freq=1/25)
-        Computes bimodal ISO indices following (K. Kikuchi, 2020) and plots results for the selected years.  
-        Moreover, computes temporal correlation, standard deviations ratio and Taylor Skill Score between 
-        observations and simulations mean monthly frequency of ISO events following (M. Nakano et al., 2019) 
-        when an observations dataset is provided.
-    """
+    """    
 
     def __init__(self, datasets: Iterable[SimulationData] = None):        
         if datasets is None:
@@ -72,8 +59,8 @@ class ScientificEvaluation:
 
         Parameters
         ----------
-        datasets (SimulationData or Iterable[SimulationData]): Ensemble or list of ensembles containing simulation 
-                                                                data and metadata to add.
+        datasets : SimulationData or Iterable[SimulationData])
+            Ensemble or list of ensembles containing simulation data and metadata to add.
         """
 
         # Validate input
@@ -104,29 +91,48 @@ class ScientificEvaluation:
 
         Parameters
         ----------
-        data_name (str): Name of simulation ensemble to use.
-        output_path (str): Path to save plots.
-        start_year_eeof, end_year_eeof (int): Initial and end years to compute the TSS for.
-        plot_eeofs (bool): If True, also spatially plot EEOFs (default: False).
-        years_pc (int or list[int]): Years to compute the indices for.
-        correct_pc (bool): Whether to adjust simulated PCs by dividing by alpha (default: False).
-        obs (bool): If True, also plot observational data if available (default: False).
-        obs_path (str or list[str]): Path to the observations database.
-        obs_name (str or list[str]): Name of the observational dataset.
-        clon (int): Central longitude for the spatial EEOFs maps (default: 0).
-        lat_range (tuple): Geographic latitude bounds (default: (-30, 30)).
-        lags (list[int]): Lag values to consider (default: [-10, -5, 0]).
-        n_modes (int): Number of EEOFs modes to compute (default: 2).
-        window_size (int): Length of the filter kernel (default: 141).
-        low_freq (float): Lower cutoff frequency (default: 1/90).
-        high_freq (float): Upper cutoff frequency (default: 1/25).
+        data_name : str, optional
+            Name of simulation ensemble to use. If None, the first dataset in the 
+            ScientificEvaluation object is used.
+        output_path : str, optional
+            Path to save plots.
+        start_year_eeof, end_year_eeof : int
+            Initial and end years to compute the TSS for.
+        plot_eeofs : bool
+            If True, also spatially plot EEOFs (default: False).
+        years_pc : int or list[int], optional
+            Years to compute the indices for.
+        correct_pc : bool
+            Whether to adjust simulated PCs by dividing by alpha (default: False).
+        obs : bool
+            If True, also plot observational data if available (default: False).
+        obs_path : str or list[str], optional
+            Path to the observations database.
+        obs_name : str or list[str], optional
+            Name of the observational dataset.
+        clon : int
+            Central longitude for the spatial EEOFs maps (default: 0).
+        lat_range : tuple
+            Geographic latitude bounds (default: (-30, 30)).
+        lags : list[int]
+            Lag values to consider (default: [-10, -5, 0]).
+        n_modes : int)
+            Number of EEOFs modes to compute (default: 2).
+        window_size : int
+            Length of the filter kernel (default: 141).
+        low_freq : float
+            Lower cutoff frequency (default: 1/90).
+        high_freq : float
+            Upper cutoff frequency (default: 1/25).
 
         Returns
         -------
-        if `obs=True`:
-            corr (float): Temporal correlation coefficient of the ISO seasonality.
-            sigma (float): Ratio of the standard deviations (model/obs) of the ISO seasonality.
-            tss (float): Taylor Skill Score of the ISO seasonality.
+        corr : float, optional
+            Temporal correlation coefficient of the ISO seasonality (returned only if `obs=True`).
+        sigma : float, optional
+            Ratio of the standard deviations (model/obs) of the ISO seasonality (returned only if `obs=True`).
+        tss : float, optional
+            Taylor Skill Score of the ISO seasonality (returned only if `obs=True`).
         """
 
         # Validate input
@@ -281,4 +287,4 @@ class ScientificEvaluation:
             f"\tTemporal correlation (R): {corr:.2f}, Ratio standard deviations ($\\sigma$): {sigma:.2f}, TSS: {tss:.2f}\n", flush=True)
             return corr, sigma, tss
         else:
-            return 
+            return

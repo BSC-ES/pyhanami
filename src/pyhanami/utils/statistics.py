@@ -17,13 +17,17 @@ def exp_RK_index(data_sim, data_obs, var_name):
 
     Arguments
     ---------
-    data_sim (xarray.Dataset): Climate simulation ensemble.
-    data_obs (xarray.Dataset): Climate observations ensemble.
-    var_name (str): Climate variable.
+    data_sim : xarray.Dataset
+        Climate simulation ensemble.
+    data_obs : xarray.Dataset
+        Climate observations ensemble.
+    var_name : str
+        Climate variable.
 
     Returns
     -------
-    RK_index (numpy.ndarray): RK index for each ensemble member.
+    RK_index : numpy.ndarray
+        RK index for each ensemble member.
     """
 
     # Validate inputs
@@ -59,12 +63,15 @@ def ilamb_crms(data, var_name):
 
     Arguments
     ---------
-    data (xarray.Dataset): Climate simulation ensemble.
-    var_name (str): Climate variable.
+    data : xarray.Dataset
+        Climate simulation ensemble.
+    var_name : str
+        Climate variable.
 
     Returns
     -------
-    v (xarray.Dataset): Centralized RMS for each grid cell and ensemble member.
+    v : xarray.Dataset
+        Centralized RMS for each grid cell and ensemble member.
     """
 
     # Validate inputs
@@ -93,13 +100,17 @@ def ilamb_crmse(data_sim, data_obs, var_name):
     
     Arguments
     ---------
-    data_sim (xarray.Dataset): Climate simulation ensemble.
-    data_obs (xarray.Dataset): Climate observations ensemble.
-    var_name (str): Climate variable.
+    data_sim : xarray.Dataset
+        Climate simulation ensemble.
+    data_obs : xarray.Dataset
+        Climate observations ensemble.
+    var_name : str
+        Climate variable.
 
     Returns
     -------
-    vs (xarray.Dataset): Centralized RMSE for each grid cell and ensemble member.
+    vs : xarray.Dataset
+        Centralized RMSE for each grid cell and ensemble member.
     """
 
     # Validate inputs
@@ -139,13 +150,17 @@ def ilamb_weighted_bias(data_sim, data_obs, var_name):
 
     Arguments
     ---------
-    data_sim (xarray.Dataset): Climate simulation ensemble.
-    data_obs (xarray.Dataset): Climate observations ensemble.
-    var_name (str): Climate variable.
+    data_sim : xarray.Dataset
+        Climate simulation ensemble.
+    data_obs : xarray.Dataset
+        Climate observations ensemble.
+    var_name : str
+        Climate variable.
 
     Returns
     -------
-    S_bias (numpy.ndarray): Bias for each ensemble member.
+    S_bias : numpy.ndarray
+        Bias for each ensemble member.
     """
 
     # Validate inputs
@@ -183,13 +198,17 @@ def ilamb_weighted_RMSE(data_sim, data_obs, var_name):
 
     Arguments
     ---------
-    data_sim (xarray.Dataset): Climate simulation ensemble.
-    data_obs (xarray.Dataset): Climate observations ensemble.
-    var_name (str): Climate variable.
+    data_sim : xarray.Dataset
+        Climate simulation ensemble.
+    data_obs : xarray.Dataset
+        Climate observations ensemble.
+    var_name : str
+        Climate variable.
 
     Returns
     -------
-    S_rmse (numpy.ndarray): RMSE for each ensemble member.
+    S_rmse : numpy.ndarray
+        RMSE for each ensemble member.
     """
 
     # Validate inputs
@@ -226,12 +245,15 @@ def cp_effect_size(sample_1, sample_2):
 
     Arguments
     ---------
-    sample_1 (np.ndarray): First sample.
-    sample_2 (np.ndarray): Second sample.
+    sample_1 : np.ndarray
+        First sample.
+    sample_2 : np.ndarray
+        Second sample.
 
     Returns
     -------
-    d (float): Cohen's d effect size.
+    d : float
+        Cohen's d effect size.
     """
 
     # Validate inputs
@@ -262,13 +284,15 @@ def cp_effect_size_bootstrap(args):
 
     Parameters
     ----------
-    args (tuple): List containing:
-        sample_1 (np.ndarray): First sample.
-        sample_2 (np.ndarray): Second sample.
+    args : tuple
+        List containing:
+            sample_1 (np.ndarray): First sample.
+            sample_2 (np.ndarray): Second sample.
 
     Returns
     -------
-    d (float): Cohen's d effect size.
+    d : float
+        Cohen's d effect size.
     """
 
     # Validate inputs
@@ -300,15 +324,21 @@ def bootstrap_test(score_ref, score_test, bstat=cp_effect_size):
 
     Arguments
     ---------
-    score_ref (numpy.ndarray): Reference sample.
-    score_test (numpy.ndarray): Test sample.
-    bstat (callable): Statistic to be used by the bootstrap method (default: statistics.cp_effect_size).
+    score_ref : numpy.ndarray
+        Reference sample.
+    score_test : numpy.ndarray
+        Test sample.
+    bstat : callable
+        Statistic to be used by the bootstrap method (default: statistics.cp_effect_size).
 
     Returns
     -------
-    d (float): Mean of the bootstrap distribution.
-    sigma (float): Standard deviation of the bootstrap distribution.
-    p_value (float): Outcome of the bootstrap test (True for rejection).
+    d : float
+        Mean of the bootstrap distribution.
+    sigma : float
+        Standard deviation of the bootstrap distribution.
+    p_value : float
+        Outcome of the bootstrap test (True for rejection).
     """
 
     # Validate inputs
@@ -344,15 +374,17 @@ def significant_diff(args):
 
     Parameters
     ----------
-    args (tuple): List containing:
-        sample_1 (np.ndarray): First sample.
-        sample_2 (np.ndarray): Second sample.
-        alpha (float): Significance level for the test.
-        stat (function): Statistical test to evaluate significant differences.
+    args : tuple
+        List containing:
+            sample_1 (np.ndarray): First sample.
+            sample_2 (np.ndarray): Second sample.
+            alpha (float): Significance level for the test.
+            stat (function): Statistical test to evaluate significant differences.
 
     Returns
     -------
-    diff (bool): Output of statistical test.
+    diff : bool
+        Output of statistical test.
     """
 
     # Validate iputs

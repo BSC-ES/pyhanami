@@ -29,7 +29,7 @@ class DataDiagnostics:
     
     Parameters
     ----------
-    datasets : SimulationData or Iterable[SimulationData]
+    datasets : SimulationData or Iterable[SimulationData], optional
         Ensemble or list of ensembles containing simulation data and metadata.
 
     Attributes
@@ -40,30 +40,6 @@ class DataDiagnostics:
         Configuration dictionary mapping variable names to display metadata.
     max_workers_grid : int
         Number of parallel workers used for grid-level computations.
-
-    Methods
-    -------
-    _compute_time_series_annual(var_name, data_plot, time_freq='1YS')
-        Computes annual spatial mean time series for the specified variable from both ensembles.
-
-    _compute_abs_diff(var_name, data_plot)
-        Computes the absolute difference between the ensembles at the grid point level.
-
-    _compute_eff_size_ens(var_name, data_plot)
-        Computes the effect size (Cohen's d) between the ensembles in parallel at the grid point level.
-
-    _compute_significant_diff(var_name, data_plot, alpha=0.05, stat=ttest_ind)
-        Computes statistically significant differences between the ensembles in parallel at the grid point level.
-
-    add_datasets(datasets)
-        Adds new datasets to the ReplicabilityTest object.
-    
-    time_series_plots(var_name, data_names=None, output_path=None, obs=False, obs_paths=None, obs_names=None, time_freq='annual', 
-                      start_year=None, end_year=None, plot_ens=False)
-        Generates and saves a plot of the annual time series for the specified variable.
-
-    spatial_plots(var_name, data_names=None, output_path=None, alpha=0.05, stat=ttest_ind)
-        Generates and saves spatial plots of the absolute difference, the effect size and the significance difference for the specified variable.
     """
 
     def __init__(self, datasets: Iterable[SimulationData] = None):
@@ -88,13 +64,17 @@ class DataDiagnostics:
         
         Parameters
         ----------
-        var_name (str): Climate variable name.
-        data_plot (list[SimulationData and/or ObservationData]): List of ensembles to compute time series for.
-        time_freq (str): Resampling frequency for averaging (default: '1YS').
-        
+        var_name : str
+            Climate variable name.
+        data_plot : list[SimulationData and/or ObservationData]
+            List of ensembles to compute time series for.
+        time_freq : str
+            Resampling frequency for averaging (default: '1YS').
+
         Returns
         -------
-        time_series (list[xr.DataArray]): List of mean time series.
+        time_series : list[xr.DataArray])
+            List of mean time series.
         """
 
         # Validate inputs
@@ -129,12 +109,15 @@ class DataDiagnostics:
         
         Parameters
         ----------
-        var_name (str): Climate variable name.
-        data_plot (list[SimulationData]): List of two simulation ensembles to compute the absolute difference for.
+        var_name : str
+            Climate variable name.
+        data_plot : list[SimulationData]
+            List of two simulation ensembles to compute the absolute difference for.
 
         Returns
         -------
-        data_diff (xr.DataArray): Absolute difference between the two ensembles.
+        data_diff : xr.DataArray
+            Absolute difference between the two ensembles.
         """
         
         # Validate inputs
@@ -183,12 +166,15 @@ class DataDiagnostics:
         
         Parameters
         ----------
-        var_name (str): Climate variable name.
-        data_plot (list[SimulationData]): List of two simulation ensembles to compute the absolute difference for.
+        var_name : str
+            Climate variable name.
+        data_plot : list[SimulationData]
+            List of two simulation ensembles to compute the absolute difference for.
 
         Returns
         -------
-        data_effect_size (xr.DataArray): Effect size between the two ensembles.
+        data_effect_size : xr.DataArray)
+            Effect size between the two ensembles.
         """
         
         # Validate inputs
@@ -251,14 +237,19 @@ class DataDiagnostics:
         
         Parameters
         ----------
-        var_name (str): Climate variable name.
-        data_plot (list[SimulationData]): List of two simulation ensembles to compute the significant differences for.
-        alpha (float): Significance level for the statistical test (default: 0.05).
-        stat (Callable): Statistical test function to use (default: ttest_ind).
+        var_name : str
+            Climate variable name.
+        data_plot : list[SimulationData]
+            List of two simulation ensembles to compute the significant differences for.
+        alpha : float
+            Significance level for the statistical test (default: 0.05).
+        stat : Callable
+            Statistical test function to use (default: ttest_ind).
 
         Returns
         -------
-        significant (np.ndarray): Boolean array indicating significant differences between the two ensembles.
+        significant : np.ndarray
+            Boolean array indicating significant differences between the two ensembles.
         """
         
         # Validate input
@@ -320,8 +311,8 @@ class DataDiagnostics:
 
         Parameters
         ----------
-        datasets (SimulationData or Iterable[SimulationData]): Ensemble or list of ensembles containing simulation 
-                                                                data and metadata to add.
+        datasets : SimulationData or Iterable[SimulationData])
+            Ensemble or list of ensembles containing simulation data and metadata to add.
         """
 
         # Validate input
@@ -343,21 +334,33 @@ class DataDiagnostics:
     
     def time_series_plots(self, var_name, data_names=None, output_path=None, obs=False, obs_paths=None, obs_names=None, 
                           time_freq='annual', start_year=None, end_year=None, plot_ens=False):
-        """ 
-        Generate time series plot for the given ensembles and variable. When no ensembles
-        are specified, all datasets in the diagnostics object are used.
+        """Generate time series plot for the given ensembles and variable.
+        
+        When no ensembles are specified, all datasets in the diagnostics object are used.
         
         Parameters
         ----------
-        var_name (str): Climate variable name.
-        data_names (str or list[str]): Name or list of names of simulation ensembles to plot.
-        output_path (str): Path to save the time series plot.  
-        obs (bool): If True, also plot observational data if available (default: False).
-        obs_paths (str or list[str]): Path to the observations database/s.
-        obs_names (str or list[str]): Name of the observational dataset/s.
-        time_freq (str): Resampling frequency (default: 'annual').
-        start_year, end_year (int): Years to plot.
-        plot_ens (bool): Whether to plot individual ensemble members trajectories (default: False).
+        var_name : str
+            Climate variable name.
+        data_names : str or list[str], optional
+            Name or list of names of simulation ensembles to plot. If None, all datasets
+            in the DataDiagnostics object are used.
+        output_path : str, optional
+            Path to save the time series plot.
+        obs : bool
+            If True, also plot observational data if available (default: False).
+        obs_paths : str or list[str], optional
+            Path to the observations database/s.
+        obs_names : str or list[str], optional
+            Name of the observational dataset/s.
+        time_freq : str
+            Resampling frequency (default: 'annual').
+        start_year : int
+            Start year to plot.
+        end_year : int 
+            End year to plot.
+        plot_ens : bool
+            Whether to plot individual ensemble members trajectories (default: False).
         """
         
         # Validate inputs
@@ -450,13 +453,19 @@ class DataDiagnostics:
         
         Parameters
         ----------
-        var_name (str): Climate variable name.
-        data_names (list[str]): List of names of two simulation ensembles to compare. If None, the first two datasets
-                                 in the diagnostics object are used.
-        output_path (str): Path to save the spatial plots.
-        clon (int): Central longitude for the spatial maps.
-        alpha (float): Significance level for the statistical test (default: 0.05).
-        stat (Callable): Statistical test function to use for significance testing (default: ttest_ind).
+        var_name : str
+            Climate variable name.
+        data_names : list[str], optional
+            List of names of two simulation ensembles to compare. If None, the first two datasets
+            in the diagnostics object are used.
+        output_path : str, optional
+            Path to save the spatial plots.
+        clon : int
+            Central longitude for the spatial maps.
+        alpha : float
+            Significance level for the statistical test (default: 0.05).
+        stat : Callable
+            Statistical test function to use for significance testing (default: ttest_ind).
         """
         
         # Validate inputs
