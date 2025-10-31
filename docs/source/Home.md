@@ -25,7 +25,7 @@ Future releases will include:
 For quick start instructions, see the README on the [project's GitHub repository](https://github.com/BSC-ES/pyhanami/tree/main). This documentation provides in-depth information and advanced usage details.
 
 
-## Contact persons
+## Contact people
 
 Main developer: 
 - Marta Alerany Solé (BSC-CNS): marta.alerany@bsc.es
