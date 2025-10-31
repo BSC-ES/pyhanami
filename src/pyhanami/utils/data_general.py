@@ -15,11 +15,13 @@ def load_yaml_file(yaml_path):
 
     Parameters
     ----------
-    yaml_path (str): Path to the file.
+    yaml_path : str
+        Path to the file.
 
     Returns
     -------
-    data (dict): Content of the file in a dictionary form.
+    data : dict
+        Content of the file in a dictionary form.
     """
 
     yaml_path = Path(yaml_path)
@@ -38,12 +40,15 @@ def prepare_data(data_path, **xr_kwargs):
     
     Parameters
     ----------
-    data_path (str): Path to the data file or catalogue interface
-    **xr_kwargs (dict): Additional keyword arguments to pass to `xarray.open_dataset`
+    data_path : str
+        Path to the data file or catalogue interface
+    **xr_kwargs : dict
+        Additional keyword arguments to pass to `xarray.open_dataset`.
 
     Returns
     -------
-    data (xr.Dataset): Loaded dataset.
+    data : xr.Dataset
+        Loaded dataset.
     """
 
     # Validate input
@@ -70,12 +75,15 @@ def cyclic_wrapper(data, dim="lon"):
 
     Parameters
     ----------
-    data (xarray.DataArray): Input data array.
-    dim (str): Dimension along which to add the cyclic point (default: "lon").
+    data : xarray.DataArray
+        Input data array.
+    dim : str
+        Dimension along which to add the cyclic point (default: "lon").
 
     Returns
     -------
-    wrapped_data (xarray.DataArray): Data array with cyclic point added.
+    wrapped_data : xarray.DataArray
+        Data array with cyclic point added.
     """
 
     # Validate inputs
@@ -108,16 +116,23 @@ def regrid_data(source_ds, target_ds, var=None, method='conservative', cyclic_po
 
         Parameters
         ----------
-        source_ds (xarray.Dataset): Source dataset.
-        target_ds (xarray.Dataset): Target dataset.
-        var (str): Variable to regrid.
-        method (str): Regridding method (default: 'conservative').
-        cyclic_point (bool): Whether to handle cyclic points (default: False).
-        time_dim (str): Name of the time dimension (default: 'time').
+        source_ds : xarray.Dataset
+            Source dataset.
+        target_ds : xarray.Dataset
+            Target dataset.
+        var : str
+            Variable to regrid.
+        method : str
+            Regridding method (default: 'conservative').
+        cyclic_point : bool
+            Whether to handle cyclic points (default: False).
+        time_dim : str
+            Name of the time dimension (default: 'time').
 
         Returns
         -------
-        regridded_ds (xarray.Dataset): Regridded dataset.
+        regridded_ds : xarray.Dataset
+            Regridded dataset.
         """
 
         # Validate inputs

@@ -27,7 +27,7 @@ class ReplicabilityTest:
     
     Parameters
     ----------
-    datasets : Iterable[SimulationData]
+    datasets : Iterable[SimulationData], optional
         Ensemble or list of ensembles containing simulation data and metadata.
     obs_path : str
         Path to the observations database.
@@ -52,32 +52,6 @@ class ReplicabilityTest:
         List of seasons to compute scores over.
     regions : dict
         Dictionary mapping region names to latitude bounds.
-
-    Methods
-    -------
-    _compare_ensembles()
-        (Not implemented) Intended to validate compatibility between the reference and test ensembles.
-
-    _compute_scores_one_var((var_name, data_plot))
-        Computes scores employing several metrics for a sgiven variable across both ensembles.
-
-    _compute_scores(data_plot)
-        Computes scores for all variables in parallel.
-
-    _compute_eff_sizes(scores_all, data_names)
-        Computes effect sizes (Cohen's d) between ensembles for each variable, region, and season.
-
-    _apply_tests(scores_all, data_names, alpha=0.05)
-        Applies several statistical tests between ensemble score distributions.
-
-    add_datasets(datasets)
-        Add new datasets to the ReplicabilityTest object.
-
-    matrix_plot(data_names=None, output_path=None, alpha=0.05)
-        Runs the full replicability test and generates a matrix plot of the results.
-
-    report(output_path, time_series=False, spatial=False)
-        (Not implemented) Generates a report summarizing the replicability test results and optionally includes plots.
     """
 
     def __init__(self, datasets: Iterable[SimulationData] = None, obs_path: str = None):
@@ -145,13 +119,15 @@ class ReplicabilityTest:
         
         Parameters
         ----------
-        args (tuple): List containing:
-            var_name (str): Climate variable name.
-            data_plot (list[SimulationData]): List of two simulation ensembles to compare.
+        args : tuple
+            List containing:
+                var_name (str): Climate variable name.
+                data_plot (list[SimulationData]): List of two simulation ensembles to compare.
 
         Returns
         -------
-        tuple[str, xr.Dataset]: Variable name and dataset containing computed scores.
+        scores_dataset : tuple[str, xr.Dataset]
+            Variable name and dataset containing computed scores.
         """
 
         # Validate inputs
@@ -254,11 +230,13 @@ class ReplicabilityTest:
 
         Parameters
         ----------
-        data_plot (list[SimulationData]): List of two simulation ensembles to compare.
+        data_plot : list[SimulationData])
+            List of two simulation ensembles to compare.
         
         Returns
         -------
-        dict[str, xr.Dataset]: Dictionary of scores datasets for each variable.
+        scores_all : dict[str, xr.Dataset]
+            Dictionary of scores datasets for each variable.
         """
 
         # Validate inputs
@@ -287,12 +265,15 @@ class ReplicabilityTest:
         
         Parameters
         ----------
-        scores_all (dict[str, xr.Dataset]): Dictionary of scores datasets for each variable.
-        data_names (list[str]): List of two simulation ensemble names to compare.
+        scores_all : dict[str, xr.Dataset])
+            Dictionary of scores datasets for each variable.
+        data_names : list[str])
+            List of two simulation ensemble names to compare.
 
         Returns
         -------
-        effect_sizes (np.ndarray): Array of effect sizes with shape (variables, sections, metrics).
+        effect_sizes : np.ndarray
+            Array of effect sizes with shape (variables, sections, metrics).
         """
 
         # Validate inputs
@@ -345,13 +326,17 @@ class ReplicabilityTest:
         
         Parameters
         ----------
-        scores_all (dict[str, xr.Dataset]): Dictionary of scores datasets for each variable.
-        data_names (list[str]): List of two simulation ensemble names to compare.
-        alpha (float): Significance level for the statistical tests (default: 0.05).
+        scores_all : dict[str, xr.Dataset])
+            Dictionary of scores datasets for each variable.
+        data_names : list[str]
+            List of two simulation ensemble names to compare.
+        alpha : float
+            Significance level for the statistical tests (default: 0.05).
 
         Returns
         -------
-        test_results (np.ndarray): Array of test results with shape (variables, sections, tests).
+        test_results : np.ndarray
+            Array of test results with shape (variables, sections, tests).
         """
 
         # Validate inputs
@@ -409,8 +394,8 @@ class ReplicabilityTest:
 
         Parameters
         ----------
-        datasets (SimulationData or Iterable[SimulationData]): Ensemble or list of ensembles containing simulation 
-                                                                data and metadata to add.
+        datasets : SimulationData or Iterable[SimulationData]
+            Ensemble or list of ensembles containing simulation data and metadata to add.
         """
 
         # Validate input
@@ -447,10 +432,13 @@ class ReplicabilityTest:
         
         Parameters
         ---------- 
-        data_names (list[str]): List of names of two simulation ensembles to compare. If None, the first two datasets
-                                 in the replicability object are used.
-        output_path (str): Path to save the matrix plot.
-        alpha (float): Significance level for the statistical tests (default: 0.05).
+        data_names : list[str], optional
+            List of names of two simulation ensembles to compare. If None, the first two datasets
+            in the ReplicabilityTest object are used.
+        output_path : str, optional
+            Path to save the matrix plot.
+        alpha : float
+            Significance level for the statistical tests (default: 0.05).
         """
         
         # Validate inputs
@@ -511,9 +499,12 @@ class ReplicabilityTest:
         
         Parameters
         ----------
-        output_path (str): Path to save the report.
-        time_series (bool): Whether to include time series plots in the report (default: False).
-        spatial (bool): Whether to include spatial plots in the report (default: False).
+        output_path : str
+            Path to save the report.
+        time_series : bool
+            Whether to include time series plots in the report (default: False).
+        spatial : bool
+            Whether to include spatial plots in the report (default: False).
         """
 
         generated_plots = {'time_series': False, 'spatial': False, 'matrix': False}
