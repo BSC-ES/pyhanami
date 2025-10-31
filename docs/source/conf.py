@@ -22,7 +22,6 @@ extensions = [
     "sphinx_rtd_theme",             # Theme for Read the Docs
     "sphinx.ext.autosummary",       # Auto-generate summary tables
     "sphinx.ext.napoleon",          # Support Google/NumPy-style docstrings
-    "sphinx_autodoc_typehints",     # Better typing info
 ]
 templates_path = ['_templates']
 exclude_patterns = []
@@ -35,31 +34,36 @@ myst_enable_extensions = [
 ]
 
 # Mock imports for packages that might not be available during doc building
-# autodoc_mock_imports = [
-#     'esmpy',
-#     'ESMF',
-#     'xesmf',
-#     'matplotlib',
-#     'numpy',
-#     'pandas',
-#     'xarray',
-#     'scipy',
-#     'netCDF4',
-#     'cartopy',
-#     'eofs',
-#     'cmocean',
-#     'seaborn',
-#     'sklearn',
-#     'statsmodels',
-#     'dask',
-#     'intake',
-#     'intake_esm',
-#     'cftime',
-#     'nc_time_axis',
-# ]
+autodoc_mock_imports = [
+    'esmpy',
+    'ESMF',
+    'xesmf',
+    'matplotlib',
+    'numpy',
+    'pandas',
+    'xarray',
+    'scipy',
+    'netCDF4',
+    'cartopy',
+    'eofs',
+    'cmocean',
+    'seaborn',
+    'sklearn',
+    'statsmodels',
+    'dask',
+    'intake',
+    'intake_esm',
+    'cftime',
+    'nc_time_axis',
+]
 
-# Keep order of the members in the source python files
+# # Keep order of the members in the source python files
 # autodoc_member_order = 'bysource'
+
+# Add path to source code
+import os
+import sys
+sys.path.insert(0, os.path.abspath('../../src'))
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
