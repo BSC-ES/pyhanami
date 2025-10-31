@@ -35,28 +35,28 @@ myst_enable_extensions = [
 ]
 
 # Mock imports for packages that might not be available during doc building
-autodoc_mock_imports = [
-    'esmpy',
-    'ESMF',
-    'xesmf',
-    'matplotlib',
-    'numpy',
-    'pandas',
-    'xarray',
-    'scipy',
-    'netCDF4',
-    'cartopy',
-    'eofs',
-    'cmocean',
-    'seaborn',
-    'sklearn',
-    'statsmodels',
-    'dask',
-    'intake',
-    'intake_esm',
-    'cftime',
-    'nc_time_axis',
-]
+# autodoc_mock_imports = [
+#     'esmpy',
+#     'ESMF',
+#     'xesmf',
+#     'matplotlib',
+#     'numpy',
+#     'pandas',
+#     'xarray',
+#     'scipy',
+#     'netCDF4',
+#     'cartopy',
+#     'eofs',
+#     'cmocean',
+#     'seaborn',
+#     'sklearn',
+#     'statsmodels',
+#     'dask',
+#     'intake',
+#     'intake_esm',
+#     'cftime',
+#     'nc_time_axis',
+# ]
 
 # Keep order of the members in the source python files
 # autodoc_member_order = 'bysource'
