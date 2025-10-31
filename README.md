@@ -1,7 +1,10 @@
+<p align="center">
+  <img width="256" height="256" alt="logo" src="https://github.com/user-attachments/assets/80d42e32-53ae-44d8-9f19-581d1c1a60ac" />
+</p>
+
 # pyhanami
 
 _pyhanami_ is a tool designed to evaluate the replicability and scientific skill of Earth System Models (ESMs).
-
 
 ## Features
 
