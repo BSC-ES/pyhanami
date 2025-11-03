@@ -8,6 +8,8 @@ TO DO: add explanation of configuration files.-->
 
 ## Load simulation data
 
+To load simulation data, create `SimulationData` objects for each dataset you want to analyze:
+
 ```python
 import pyhanami as hnmi
 
@@ -20,7 +22,7 @@ Note that `source_sim_1` and `source_sim_2` must be paths to NetCDF files or `xa
 
 ## Time series plots
 
-Generate **time series plots** between `year_init` and `year_end` for a given climate variable `var_name`:
+To generate **time series plots** between `year_init` and `year_end` for a given climate variable `var_name`, create a `DataDiagnostics` object with the `SimulationData` objects that you want to analyze and use the `time_series_plots` method:
 
 ```python
 # Initialize DataDiagnostics class with a SimulationData object
@@ -65,7 +67,7 @@ This `time_series_plots` method plots annual mean time series by default, but it
 
 ## Spatial plots
 
-Generate **spatial plots** comparing two simulation datasets:
+To generate **spatial plots** comparing two simulation datasets, create a `DataDiagnostics` object with the `SimulationData` objects that you want to analyze and use the `spatial_plots` method:
 
 ```python
 # Initialize DataDiagnostics class with two SimulationData objects
@@ -88,7 +90,7 @@ Note that the central longitude for these plots is set to 0º by default, but it
 
 ## Replicability test
 
-Perform and plot results of a **replicability test** comparing two simulation datasets:
+To perform and plot results of a **replicability test** comparing two simulation datasets, create a `ReplicabilityTest` object with the `SimulationData` objects that you want to compare and use the `matrix_plot` method:
 
 ```python
 # Initialize ReplicabilityTest class with two SimulationData objects
@@ -106,9 +108,9 @@ This `matrix_plot` method uses all variables from the simulation datasets that a
 
 ## Tropical IntraSeasonal Oscillation (ISO) evaluation
 
-The computation of the **bimodal ISO indices** requires daily TOA outgoing longwave radiation (`olr`) data, preferably covering a period of 10 years or more (ideally, at least 30 years).
+To evaluate the simulation of ISOs, create a `ScientificEvaluation` object with the `SimulationData` object that you want to analyze and use the `bimodal_ISO` method. This method computes the **bimodal ISO indices** and requires **daily TOA outgoing longwave radiation** (`olr`) data, preferably covering a period of 10 years or more (ideally, at least 30 years).
 
-Perform an EEOF analysis between `year_init` and `year_end`, and use the resulting EEOFs to compute the bimodal ISO indices (first two PCs) for the entire period covered by the provided dataset. Then, plot these indices for `years`. Finally, use the indices to calculate and plot the mean monthly frequency (seasonality) of ISO events for the full dataset period:
+With the following snippet, the `bimodal_ISO` method will perform an EEOF analysis between `year_init` and `year_end`, and use the resulting EEOFs to compute the bimodal ISO indices (first two PCs) for the entire period covered by the provided dataset. Then, it will plot these indices for `years`. Finally, it will use the indices to calculate and plot the mean monthly frequency (seasonality) of ISO events for the full dataset period:
 
 ```python
 # Initialize ScientificEvaluation class with a SimulationData object
@@ -124,7 +126,7 @@ sciskill.bimodal_ISO(
 )
 ```
 
-Perform the same analysis but using observational data to compute the EEOFs, and then calculate the bimodal ISO indices for both simulations and observations. In this case, the mean monthly frequency (seasonality) of ISO events is compared between simulations and observations, and plotted together with the **TSS statistics**:
+With the following, the `bimodal_ISO` method will perform the same analysis as above but using observational data to compute the EEOFs, and then calculate the bimodal ISO indices for both simulations and observations. In this case, the mean monthly frequency (seasonality) of ISO events is compared between simulations and observations, and plotted together with the **TSS statistics**:
 
 ```python
 # Compute and plot bimodal ISO indices and TSS statistics performing an EEOF analysis on observational data
@@ -148,16 +150,52 @@ The `bimodal_ISO` method generates the following visualization outputs:
 
 ## Tropical Cyclones (TCs) evaluation
 
-The computation of the **TC metrics** requires the following variables with a 6-hourly frequency:
-- Sea level pressure (`psl`)
-- Zonal and meridional wind at 10 m (`uas` and `vas`)
-- Geopotential height at 300 hPa and 500 hPa (`zg300` and `zg500`)
-- Surface geopotential  (`phis`)
+To evaluate the simulation of TCs, create a `ScientificEvaluation` object with the `SimulationData` object that you want to analyze and use the `tc_metrics` method. This method computes several **TC metrics** (see ) and requires the following variables with a 6-hourly frequency:
+- **Sea level pressure** (`psl`)
+- **Zonal and meridional wind at 10 m** (`uas` and `vas`)
+- **Geopotential height at 300 hPa and 500 hPa** (`zg300` and `zg500`)
+
+It is also necessary to provide the **surface geopotential** (`phis`) for the corresponding model. Note that this can be computed from the topography used in the model simulation by multiplying the topography (in meters) by the standard gravity (9.80665 m/s²).
+
+With the following, the `tc_metrics` method will detect and track TCs between `year_init` and `year_end`, and compute various global temporal and spatial statistics for several TC metrics for both the provided simulation data and IBTrACS data. Apart from the scalar values, it will also output summary tables with the computed statistics:
+
+```python
+# Initialize ScientificEvaluation class with a SimulationData object
+# (If you have already added this dataset to an existing ScientificEvaluation object, you can skip this step)
+sciskill = hnmi.ScientificEvaluation(sim_1)
+
+# Compute TC metrics statistics for one simulation dataset
+clim_bias, storm_bias, seas_corr, spat_corr = sciskill.tc_metrics(
+    'name_sim_1',
+    'output_path',
+    start_year=year_init,
+    end_year=year_end
+)
+```
+Besides, it is possible to include observational values in the tables by adding the following arguments:
+
+```python
+# Compute TC metrics statistics for one simulation dataset together with observations
+clim_bias, storm_bias, seas_corr, spat_corr = sciskill.tc_metrics(
+    'name_sim_1',
+    'output_path',
+    start_year=year_init,
+    end_year=year_end,
+    obs=True, 
+    obs_path='path_obs', 
+    obs_name='name_obs'
+)
+```
+
+Finally, by passing the argument `full_output=True`, it will also generate spatial plots of the absolute values and biases with respect to an observational reference (by default, IBTrACS) for the TC metrics.
+
+Considerations regarding the 10 m wind speed:
+- By default, a threshold of 10 m/s is used for TC detection. However, we recommend adjusting it according to the model's (or reanalysis') horizontal 
+resolution following the criteria established in [(K.J.E. Walsh et al., 2007)](https://doi.org/10.1175/JCLI4074.1). This can be done by passing the argument `min_wind` when calling the `tc_metrics` method.
+- By default, it is assumed that the wind passed is at 10 m height. If the wind data corresponds to a different height, it can still be used by passing the argument `wind_factor` when calling the `tc_metrics` method. This factor will be used to scale the wind data to approximate the 10 m wind speed. 
 
 
-
-
-### General considerations:  
+## General considerations:  
 - The `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes can all be initialized without providing any `SimulationData` objects; datasets can be added later with the `add_datasets` method.
 - The climate variable name `var_name` must be listed in the configuration file `src/pyhanami/config/variables.yaml`.  
 - `output_path` can be either a directory or a full file path including the file name. If `output_path` is not provided, the plots are displayed interactively.  
