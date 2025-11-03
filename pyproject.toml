@@ -31,6 +31,7 @@ classifiers=[
 requires-python = ">=3.7"
 dependencies = [
     "cartopy",
+    "cftime",
     "cmocean",
     "eofs",
     "matplotlib",
@@ -41,8 +42,8 @@ dependencies = [
     "pyyaml",
     "scipy",
     "tqdm",
-    "xarray",
-    "xesmf",
+    "xarray>=2023.1.0,<2024.7.0",
+    "xesmf>=0.7.0,<0.9.0",
 ]
 
 
