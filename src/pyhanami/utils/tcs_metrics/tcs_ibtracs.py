@@ -358,8 +358,7 @@ def convert_ibtracs_to_tempest(start_year=config_params.IBTRACS_START_YEAR, end_
 
     # Process each storm and save IBTrACS data in TempestExtremes format
     ib_tempest_filename = f"ibtracs{config_params.IBTRACS_VERSION}_{start_year}-{end_year}_{min_wind:.1f}_False_1_1.0.txt"
-    output_dir = Path("src/pyhanami/data")
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir = config_params.DATA_PATH
     output_path = output_dir / ib_tempest_filename
 
     with open(output_path, 'w') as f:
@@ -625,4 +624,3 @@ def check_ibtracs_file(start_year, end_year, min_wind=10.0):
         tcs_tempestextremes.filter_tracks_by_wind(unfiltered_file_path, ib_file_path, cutoff_wind=min_wind)
 
     return ib_file_path
-    
