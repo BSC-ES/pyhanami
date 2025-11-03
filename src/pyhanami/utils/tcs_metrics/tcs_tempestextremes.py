@@ -6,10 +6,21 @@ License: BSD 2-Clause License
 Copyright (c) 2025, Paul Ullrich
 
 The criteria for Tropical Cyclones (TCs) detection is taken from (C.M. Zarzycki & P.A. Ullrich, 2017; https://doi.org/10.1002/2016GL071606).
-From Section '3.4 Sample Optimization' in the paper: pslFOmag = 2 hPa, wcOffset = 1°, mergeDist = 6°, trajRange = 8°, trajMaxGap = 18 h,
-maxTopo = 1500 m, maxLat = 50°, minWind = 10 m s−1, pslFOdist = 5.5°, wcFOmag =− 6 m, wcFOdist = 6.5°, trajMinLen = 60 h
-NOTE: We recommend adjusting the minWind parameter (i.e. 10 m wind speed threshold) according to the model's (or reanalysis') horizontal 
-resolution following the criteria established in (K.J.E. Walsh et al., 2007; https://journals.ametsoc.org/view/journals/clim/20/10/jcli4074.1.xml).
+From Section '3.4 Sample Optimization' in the paper (param_name_here (param_name_in_paper) = default_value): 
+- psl_delta (pslFOmag) = 2 hPa
+- z_offset (wcMaxOffset) = 1°
+- merge_dist (mergeDist) = 6°
+- traj_range (trajRange) = 8°
+- traj_max_gap (trajMaxGap) = 18 h
+- maxTopo = 1500 m
+- max_lat (maxLat) = 50°
+- min_wind (minWind) = 10 m s−1
+- psl_dist (pslFOdist) = 5.5°
+- z_delta (scFOmax) = −6 m
+- z_dist (wcFOdist) = 6.5°
+- traj_min_length (trajMinLen) = 60 h
+NOTE: We recommend adjusting the min_wind parameter (i.e. 10 m wind speed threshold) according to the model's (or reanalysis') horizontal 
+resolution following the criteria established in (K.J.E. Walsh et al., 2007; https://doi.org/10.1175/JCLI4074.1).
 """
 
 import shutil
@@ -52,10 +63,11 @@ def prepare_data_tempestExtremes(data, data_name):
     if 'phis' in data.data_vars:
         data_vars.append(data.rename({'phis': 'PHIS'})['PHIS'])
     else:
-        topog = xr.open_dataset(config_params.TOPOG_PATH)   
-        surf_geopotential = topog['topog'] * config_params.G
-        phis = surf_geopotential.to_dataset().rename({'topog': 'PHIS'}) 
-        data_vars.append(phis['PHIS'])
+        raise NotImplementedError("Automatic surface geopotential calculation is not implemented yet.")
+        # topog = xr.open_dataset(config_params.TOPOG_PATH)   
+        # surf_geopotential = topog['topog'] * config_params.G
+        # phis = surf_geopotential.to_dataset().rename({'topog': 'PHIS'}) 
+        # data_vars.append(phis['PHIS'])
 
 
     data_tempestExtremes = xr.merge(data_vars, join='inner')   # join='inner' keeps only common coordinates
@@ -288,7 +300,7 @@ def read_tracks_tempestExtremes(tracks_path):
     return tracks
 
 
-def _compute_density_histogram(points, lat_bins, lon_bins, name="point_density"):
+def compute_density_histogram(points, lat_bins, lon_bins, name="point_density"):
     """
     Compute density histogram for given points.
 
@@ -371,7 +383,62 @@ def compute_tc_counts(tracks, start_year, end_year, bin_size=2.5, cutoff_wind=10
     lat_bins = np.arange(-90, 90 + bin_size, bin_size)  # from -60 to 60 (inclusive)
     lon_bins = np.arange(0, 360 + bin_size, bin_size)   # 0 to 360 (if using 0-360 format)
 
-    counts_gen = _compute_density_histogram(genesis_pts, lat_bins, lon_bins, "genesis_density")
-    counts_traj = _compute_density_histogram(traj_pts, lat_bins, lon_bins, "track_density")
+    counts_gen = compute_density_histogram(genesis_pts, lat_bins, lon_bins, "genesis_density")
+    counts_traj = compute_density_histogram(traj_pts, lat_bins, lon_bins, "track_density")
 
     return counts_gen, counts_traj
+
+
+def filter_tracks_by_wind(tracks_path, filtered_tracks_path, cutoff_wind=10.0):
+    """
+    Filter TC trajectories from TempestExtremes output file, keeping only those with 
+    at least one point exceeding the specified 10 m wind speed.
+
+    Parameters
+    ----------
+    tracks_file : str
+        Path to the TempestExtremes output .txt file.
+    filtered_tracks_path : str
+        Path to save the filtered tracks .txt file.
+    cutoff_wind : float
+        Minimum 10 m wind speed in m/s to consider a TC track (default: 10.0).
+    """
+
+    # Prepare files
+    if not Path(tracks_path).exists():
+        raise FileNotFoundError(f"Tracks file '{tracks_path}' does not exist.")
+    filtered_tracks_path = Path(filtered_tracks_path)
+    filtered_tracks_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Read and filter tracks
+    filtered_tracks = []
+    with open(tracks_path, 'r') as f:
+        while True:
+            line = f.readline()
+            if not line:
+                break
+            if line.startswith('start'):
+                parts = line.strip().split()
+                num_points = int(parts[1])
+                track_lines = [line]
+                wind_exceeds_cutoff = False
+
+                # Read and store all points
+                for _ in range(num_points):
+                    point_line = f.readline()
+                    track_lines.append(point_line)
+                    fields = point_line.strip().split()
+                    wind = float(fields[5])
+                    if wind >= cutoff_wind:
+                        wind_exceeds_cutoff = True
+
+                # Write track if it contains at least one point above wind threshold
+                if wind_exceeds_cutoff:
+                    filtered_tracks.extend(track_lines)
+
+    # Write filtered tracks to output file
+    with open(filtered_tracks_path, 'w') as f:
+        for line in filtered_tracks:
+            f.write(line)
+
+    return

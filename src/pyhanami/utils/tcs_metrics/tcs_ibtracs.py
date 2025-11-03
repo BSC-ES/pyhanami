@@ -18,6 +18,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 
 from pyhanami.config import config_params
+from pyhanami.utils.tcs_metrics import tcs_tempestextremes
 
 
 # Functions adapted from cymep/conver-traj/ibtracs-to-tempest.ncl (translated to Python)
@@ -580,19 +581,19 @@ def check_ibtracs_file(start_year, end_year, min_wind=10.0):
     # Check years in existing IBTrACS files
     search_path = config_params.DATA_PATH
     current_version = config_params.IBTRACS_VERSION
-    ib_files = list(search_path.glob(f"ibtracs{current_version}_*-*_{min_wind}*.txt"))
+    ib_files = list(search_path.glob(f"ibtracs{current_version}_*.txt"))
 
     ib_file_path = None
     if ib_files:
         # Get the existing file for the current version
         ib_file = ib_files[0]
-        match = re.search(rf'ibtracs{current_version}_(\d+)-(\d+)_{min_wind}', ib_file.name)
+        match = re.search(rf'ibtracs{current_version}_(\d+)-(\d+)', ib_file.name)
         if match:
             file_start_year = int(match.group(1))
             file_end_year = int(match.group(2))
 
             # Check whether the current version covers the given period
-            if file_start_year >= start_year and end_year <= file_end_year:
+            if file_start_year <= start_year and end_year <= file_end_year:
                 ib_file_path = ib_file
             else:
                 ib_file.unlink() 
@@ -615,7 +616,13 @@ def check_ibtracs_file(start_year, end_year, min_wind=10.0):
 
         # Download and process new IBTrACS data
         download_ibtracs()
-        ib_file_path = convert_ibtracs_to_tempest(end_year=end_year, min_wind=min_wind)
+        ib_file_path = convert_ibtracs_to_tempest(end_year=end_year, min_wind=10.0)
+
+    # Apply wind threshold
+    if min_wind > 10.0:
+        unfiltered_file_path = ib_file_path
+        ib_file_path = ib_file_path.parent / f'ibtracs{current_version}_{start_year}-{end_year}_{min_wind:.1f}_False_1_1.0.txt'
+        tcs_tempestextremes.filter_tracks_by_wind(unfiltered_file_path, ib_file_path, cutoff_wind=min_wind)
 
     return ib_file_path
     
