@@ -332,6 +332,9 @@ class ScientificEvaluation:
             raise TypeError("'data_name' must be a string representing a dataset name.")
         input_path = data_plot.data_path
 
+        if min_wind < 10.0:
+            raise ValueError("The minimum 10 m wind speed for TCs detection must be at least 10 m/s.")
+
         if obs:
             if obs_path is None or obs_name is None or obs_wind_factor is None:
                 raise NotImplementedError('Automatic selection of observations is not implemented yet. '
@@ -353,11 +356,10 @@ class ScientificEvaluation:
             output_path = Path(output_path)
             if output_path.suffix != '':  
                 raise ValueError("Output path must be a directory, not a file path, as multiple files may be created.")
-            
-            output_path.mkdir(parents=True, exist_ok=True)
             tracks_path = output_path
         else:
             tracks_path = input_path.parent / f"tropical_cyclones_metrics_{data_name}_output"
+        tracks_path.mkdir(parents=True, exist_ok=True)
 
 
         # Prepare simulated data
@@ -376,11 +378,12 @@ class ScientificEvaluation:
             raise ValueError(f"The provided end year ({end_year}) is later than the last year available in the '{data_name}' dataset ({end_year_data}).")
 
         data_sim_all = data_plot.data.sel(time=slice(np.datetime64(f"{start_year}-01-01"), np.datetime64(f"{end_year}-12-31")))
-        # if data_sim_all.time.size == 0:
-        #     raise ValueError(f"No data available in the '{data_name}' dataset in the selected years {start_year}-{end_year}.")
+        if data_sim_all.time.size == 0:
+            raise ValueError(f"No data available in the '{data_name}' dataset in the selected years {start_year}-{end_year}.")
 
 
         # Run TempestExtremes tracking on simulated data
+        print(f'Starting Tropical Cyclones tracking using TempestExtremes for {data_name}...', flush=True)
         tracks_sim_path = tcs_tempestextremes.run_tempestExtremes(data_sim_all, data_name, tracks_path, min_wind=min_wind)
         print(f"Tropical Cyclones tracking completed for {data_name}. Output files saved to '{tracks_path}'.", flush=True)
 
@@ -461,6 +464,7 @@ class ScientificEvaluation:
                     unstructured = False
 
                     # Run TempestExtremes tracking on observational data
+                    print(f'Starting Tropical Cyclones tracking using TempestExtremes for {name} observations...', flush=True)
                     tracks_obs_path = tcs_tempestextremes.run_tempestExtremes(data_obs, name, obs_tracks_path, min_wind=min_wind)
                     tracks_obs_path = tracks_obs_path.rename(tracks_obs_path.with_name(f"{name}_{start_year}-{end_year}_{min_wind:.1f}_{unstructured}_{ens_members}_{wind:.1f}.txt"))
                     print(f"Tropical Cyclones tracking completed for {name} observations. Output files added to '{obs_tracks_path}'.", flush=True)
@@ -592,5 +596,10 @@ class ScientificEvaluation:
                                                      row_labels=rows, cbar_tick=cbar_ticks_corr, colors=colors_corr)
         plot.save_or_show_plot(table_spatial_corr_plot, output_path, plot_filename=f"tcs_spatial_corr_table_{data_name}_{start_year}-{end_year}",
                                plot_name="Spatial correlation table for TCs metrics plot")
+
+
+        # Delete intermediate files for min_wind above 10 m/s
+        if min_wind > 10.0:
+            ib_path.unlink(missing_ok=True)
 
         return data_clim_bias, data_storm_bias, data_temp_corr, data_spatial_corr
