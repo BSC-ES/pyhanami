@@ -146,7 +146,12 @@ This project includes code and resources from the following sources:
 - [GSV-Interface/gsv/dqc/profiles/config/variables.yaml](https://github.com/DestinE-Climate-DT/GSV-Interface/blob/master/gsv/dqc/profiles/config/variables.yaml):
     - Used for: data ranges and boundaries for plausibility checks in `src/pyhanami/config/variables.yaml`
     - License: Apache License, Version 2.0, January 2004
-- []
+- [GEBCO_2024 Grid](https://www.gebco.net/data-products-gridded-bathymetry-data/gebco2024-grid):
+    - Used for: computing surface geopotential in `src/pyhanami/utils/tcs_tempestextremes.py`
+    - Reference: GEBCO Compilation Group (2025) GEBCO 2025 Grid (doi:10.5285/ 37c52e96-24ea-67ce-e063-7086abc05f29)
+- [IBTrACS Version 4.01](https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C01552):
+    - Used for: reference Tropical Cyclone data in `src/pyhanami/utils/tcs_ibtracs.py`
+    - Reference: NCEI DSI 9637_02 (doi:10.25921/82ty-9e16)
 
 For full license files, see the [LICENSES](./LICENSES) directory.
 
@@ -178,10 +183,18 @@ This work, along with the replicability test methodology implemented in this pac
 
 ### Scientific References
 
-Keller, K.R., Alerany Solé, M., & Acosta, M. Replicability in Earth System Models. EGUsphere [preprint] (2025). https://doi.org/10.5194/egusphere-2025-1367
+Gahtan, J., Knapp, K.R., Schreck, C.J., Diamond, H.J., Kossin, J.P., & Kruk, M.C. International Best Track Archive for Climate Stewardship (IBTrACS) Project, Version 4r01, Subset since1980. NOAA National Centers for Environmental Information (2024). https://doi.org/10.25921/82ty-9e16 (access date: 2025-11-31)
 
-Kikuchi, K., Wang, B. & Kajikawa, Y. Bimodal representation of the tropical intraseasonal oscillation. Clim Dyn 38, 1989–2000 (2012). https://doi.org/10.1007/s00382-011-1159-1
+Keller, K.R., Alerany Solé, M., & Acosta, M., Replicability in Earth System Models. EGUsphere [preprint] (2025). https://doi.org/10.5194/egusphere-2025-1367
 
-Kikuchi, K. Extension of the bimodal intraseasonal oscillation index using JRA-55 reanalysis. Clim Dyn 54, 919–933 (2020). https://doi.org/10.1007/s00382-019-05037-z
+Kikuchi, K., Wang, B. & Kajikawa, Y., Bimodal representation of the tropical intraseasonal oscillation. Clim Dyn 38, 1989–2000 (2012). https://doi.org/10.1007/s00382-011-1159-1
 
-Nakano, M., & Kikuchi, K. Seasonality of intraseasonal variability in global climate models. Geophysical Research Letters, 46, 4441–4449 (2019). https://doi.org/10.1029/2019GL082443
+Kikuchi, K., Extension of the bimodal intraseasonal oscillation index using JRA-55 reanalysis. Clim Dyn 54, 919–933 (2020). https://doi.org/10.1007/s00382-019-05037-z
+
+Knapp, K.R., Kruk, M.C., Levinson, D.H., Diamond, H.J., & Neumann, C.J., The International Best Track Archive for Climate Stewardship (IBTrACS): Unifying tropical cyclone best track data. Bulletin of the American Meteorological Society, 91, 363-376 (2010). https://doi.org/10.1175/2009BAMS2755.1
+
+Nakano, M., & Kikuchi, K., Seasonality of intraseasonal variability in global climate models. Geophysical Research Letters, 46, 4441–4449 (2019). https://doi.org/10.1029/2019GL082443
+
+Walsh, K.J.E., Fiorino, M., Landsea, C.W., & McInnes, K.L., Objectively Determined Resolution-Dependent Threshold Criteria for the Detection of Tropical Cyclones in Climate Models and Reanalyses. J. Climate, 20, 2307–2314 (2007). https://doi.org/10.1175/JCLI4074.1
+
+Zarzycki, C.M., & Ullrich, P.A., Assessing sensitivities in algorithmic detection of tropical cyclones in climate data. Geophys. Res. Lett., 44, 1141–1149 (2017). https://doi.org/10.1002/2016GL071606.
