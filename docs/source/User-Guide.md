@@ -155,8 +155,6 @@ To evaluate the simulation of TCs, create a `ScientificEvaluation` object with t
 - **Zonal and meridional wind at 10 m** (`uas` and `vas`)
 - **Geopotential height at 300 hPa and 500 hPa** (`zg300` and `zg500`)
 
-It is also necessary to provide the **surface geopotential** (`phis`) for the corresponding model. Note that this can be computed from the topography used in the model simulation by multiplying the topography (in meters) by the standard gravity (9.80665 m/s²).
-
 With the following, the `tc_metrics` method will detect and track TCs between `year_init` and `year_end`, and compute various global temporal and spatial statistics for several TC metrics for both the provided simulation data and IBTrACS data. Apart from the scalar values, it will also output summary tables with the computed statistics:
 
 ```python
