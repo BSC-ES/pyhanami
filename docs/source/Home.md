@@ -27,11 +27,13 @@ For quick start instructions, see the README on the [project's GitHub repository
 
 ## Contact people
 
-Main developer: 
+TO BE COMPLETED
+
+<!--Main developer: 
 - Marta Alerany Solé (BSC-CNS): marta.alerany@bsc.es
 
 Significant contributors:
 - Kai Keller (BSC-CNS): kai.keller@bsc.es
-- Masuo Nakano (JAMSTEC): masuo@jamstec.go.jp
+- Masuo Nakano (JAMSTEC): masuo@jamstec.go.jp-->
 
 This work was developed as part of the [Hpc AlliaNce for Applications and supercoMputing Innovation (HANAMI) project](https://hanami-project.com/), which received funding from the European High Performance Computing Joint Undertaking (EuroHPC JU) under the European Union’s Horizon Europe framework program for research and innovation and Grant Agreement No. 101136269.

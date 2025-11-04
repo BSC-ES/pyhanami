@@ -150,7 +150,7 @@ The `bimodal_ISO` method generates the following visualization outputs:
 
 ## Tropical Cyclones (TCs) evaluation
 
-To evaluate the simulation of TCs, create a `ScientificEvaluation` object with the `SimulationData` object that you want to analyze and use the `tc_metrics` method. This method computes several **TC metrics** (see ) and requires the following variables with a 6-hourly frequency:
+To evaluate the simulation of TCs, create a `ScientificEvaluation` object with the `SimulationData` object that you want to analyze and use the `tc_metrics` method. This method computes several **TC metrics** (see [Methodology](./Methodology.md#tc-metrics)) and requires the following variables with a 6-hourly frequency:
 - **Sea level pressure** (`psl`)
 - **Zonal and meridional wind at 10 m** (`uas` and `vas`)
 - **Geopotential height at 300 hPa and 500 hPa** (`zg300` and `zg500`)
