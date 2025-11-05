@@ -28,8 +28,10 @@ def write_configs_line(config, output_path):
 
     Parameters
     ----------
-    config (list): List with configuration parameters.
-    output_path (Path): Path to the configuration file.
+    config : list
+        List with configuration parameters.
+    output_path : Path
+        Path to the configuration file.
     """
 
     # Validate input
@@ -61,9 +63,11 @@ def prepare_read_configs(configs, output_path=config_params.CYMEP_CONFIGS_PATH):
     
     Parameters
     ----------
-    configs (dict): Dictionary with configuration parameters for each dataset (containing traj_filename, 
-                    short_name, unstructured, ens_members, years_per_member, wind_speed_correction).
-    output_path (Path): Path to the configuration file.
+    configs : dict
+        Dictionary with configuration parameters for each dataset (containing traj_filename,
+        short_name, unstructured, ens_members, years_per_member, wind_speed_correction).
+    output_path : Path
+        Path to the configuration file.
     """
 
     # Prepare configuration .csv file
@@ -96,11 +100,16 @@ def run_cymep(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilename=confi
 
     Parameters
     ----------
-    styr (int): Start year for the analysis.
-    enyr (int): End year for the analysis.
-    output_path (str): Path to save results.
-    gridsize (float): Grid size (in degrees) used for spatial analysis (default: 2.5).
-    basin (int): Basin/hemisphere to consider for the analysis (default: -1). Codes are:
+    styr : int
+        Start year for the analysis.
+    enyr : int
+        End year for the analysis.
+    output_path : str
+        Path to save results.
+    gridsize : float
+        Grid size (in degrees) used for spatial analysis (default: 2.5).
+    basin : int
+        Basin/hemisphere to consider for the analysis (default: -1). Codes are:
             - <0 → GLOB (Global domain)
             - 1  → NATL (North Atlantic)
             - 2  → EPAC (Eastern Pacific)
@@ -114,14 +123,22 @@ def run_cymep(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilename=confi
             - 20 → NHEMI (Northern Hemisphere)
             - 21 → SHEMI (Southern Hemisphere)
             - otherwise → NONE (unrecognized)
-    csvfilename (str): Path to the file containing the list of files to analyze (default: config_params.CYMEP_CONFIGS_PATH).
-    truncate_years (bool): Whether to filter out years external to styr and enyr (default: True).
-    do_defineMYbypres (bool): Whether to define the maximum intensity location by psl instead of wind (default: False).
-    do_fill_missing_pw (bool): Whether to fill missing data with observed pressure-wind curve (default: True).
-    do_special_filter_obs (bool): Whether to apply special observational filtering; if True, code modifications are needed (default: False).
-    THRESHOLD_ACE_WIND (float): Wind speed threshold (in m/s) for ACE calculations; a negative value means no threshold (default: -1.).
-    THRESHOLD_PACE_PRES (float): psl threshold (in hPa) for PACE calculations; a negative value means no threshold (default: -100.).
-    debug_level (int): Level of debug to perform and print (0: no debug, 1: semi-verbose, 2: very verbose) (default: 0).
+    csvfilename : str
+        Path to the file containing the list of files to analyze (default: config_params.CYMEP_CONFIGS_PATH).
+    truncate_years : bool
+        Whether to filter out years external to styr and enyr (default: True).
+    do_defineMYbypres : bool
+        Whether to define the maximum intensity location by psl instead of wind (default: False).
+    do_fill_missing_pw : bool
+        Whether to fill missing data with observed pressure-wind curve (default: True).
+    do_special_filter_obs : bool
+        Whether to apply special observational filtering; if True, code modifications are needed (default: False).
+    THRESHOLD_ACE_WIND : float
+        Wind speed threshold (in m/s) for ACE calculations; a negative value means no threshold (default: -1.).
+    THRESHOLD_PACE_PRES : float
+        psl threshold (in hPa) for PACE calculations; a negative value means no threshold (default: -100.).
+    debug_level : int
+        Level of debug to perform and print (0: no debug, 1: semi-verbose, 2: very verbose) (default: 0).
     """
 
     # Check output path
@@ -672,11 +689,16 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
 
     Parameters
     ----------
-    styr (int): Start year for the analysis.
-    enyr (int): End year for the analysis.
-    output_path (str): Path to save results.
-    gridsize (float): Grid size (in degrees) used for spatial analysis (default: 2.5).
-    basin (int): Basin/hemisphere to consider for the analysis (default: -1). Codes are:
+    styr : int
+        Start year for the analysis.
+    enyr : int
+        End year for the analysis.
+    output_path : str
+        Path to save results.
+    gridsize : float
+        Grid size (in degrees) used for spatial analysis (default: 2.5).
+    basin : int
+        Basin/hemisphere to consider for the analysis (default: -1). Codes are:
             - <0 → GLOB (Global domain)
             - 1  → NATL (North Atlantic)
             - 2  → EPAC (Eastern Pacific)
@@ -690,18 +712,27 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
             - 20 → NHEMI (Northern Hemisphere)
             - 21 → SHEMI (Southern Hemisphere)
             - otherwise → NONE (unrecognized)
-    csvfilename (str): Path to the file containing the list of files to analyze (default: config_params.CYMEP_CONFIGS_PATH).
-    truncate_years (bool): Whether to filter out years external to styr and enyr (default: True).
-    do_defineMYbypres (bool): Whether to define the maximum intensity location by psl instead of wind (default: False).
-    do_fill_missing_pw (bool): Whether to fill missing data with observed pressure-wind curve (default: True).
-    do_special_filter_obs (bool): Whether to apply special observational filtering; if True, code modifications are needed (default: False).
-    THRESHOLD_ACE_WIND (float): Wind speed threshold (in m/s) for ACE calculations; a negative value means no threshold (default: -1.).
-    THRESHOLD_PACE_PRES (float): psl threshold (in hPa) for PACE calculations; a negative value means no threshold (default: -100.).
-    debug_level (int): Level of debug to perform and print (0: no debug, 1: semi-verbose, 2: very verbose) (default: 0).
-    
+    csvfilename : str
+        Path to the file containing the list of files to analyze (default: config_params.CYMEP_CONFIGS_PATH).
+    truncate_years : bool
+        Whether to filter out years external to styr and enyr (default: True).
+    do_defineMYbypres : bool
+        Whether to define the maximum intensity location by psl instead of wind (default: False).
+    do_fill_missing_pw : bool
+        Whether to fill missing data with observed pressure-wind curve (default: True).
+    do_special_filter_obs : bool
+        Whether to apply special observational filtering; if True, code modifications are needed (default: False).
+    THRESHOLD_ACE_WIND : float
+        Wind speed threshold (in m/s) for ACE calculations; a negative value means no threshold (default: -1.).
+    THRESHOLD_PACE_PRES : float
+        psl threshold (in hPa) for PACE calculations; a negative value means no threshold (default: -100.).
+    debug_level : int
+        Level of debug to perform and print (0: no debug, 1: semi-verbose, 2: very verbose) (default: 0).
+
     Returns
     -------
-    data_cymep (xr.Dataset): xarray Dataset containing all the metrics.
+    data_cymep : xr.Dataset
+        xarray Dataset containing all the metrics.
     """
 
     # Check output path

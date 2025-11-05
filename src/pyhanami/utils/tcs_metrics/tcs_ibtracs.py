@@ -29,22 +29,35 @@ def prepare_ibtracs_data(ib_file, start_idx, end_idx, ms_to_kts=1.94384449, flip
 
     Parameters
     ----------
-    ib_file (xarray.Dataset): IBTrACS dataset.
-    start_idx (int): Starting index of the storm to extract.
-    end_idx (int): Ending index of the storm to extract.
-    ms_to_kts (float): Conversion factor from m/s to knots.
-    flip_grid_180 (bool): Whether to convert longitudes from [-180, 180] to [0, 360] (default: True).
+    ib_file : xarray.Dataset
+        IBTrACS dataset.
+    start_idx : int
+        Starting index of the storm to extract.
+    end_idx : int
+        Ending index of the storm to extract.
+    ms_to_kts : float
+        Conversion factor from m/s to knots.
+    flip_grid_180 : bool
+        Whether to convert longitudes from [-180, 180] to [0, 360] (default: True).
 
     Returns
     -------
-    ib_lat (xarray.DataArray): Latitudes of the storm track.
-    ib_lon (xarray.DataArray): Longitudes of the storm track.
-    ib_type (xarray.DataArray): Storm types along the track.
-    ib_wind (xarray.DataArray): Wind speeds along the track (in knots).
-    ib_pres (xarray.DataArray): Pressures along the track (in hPa).
-    ib_time (xarray.DataArray): Time points along the track.
-    ib_name (xarray.DataArray): Storm names.
-    ib_basin (xarray.DataArray): Basin codes of the storm.
+    ib_lat : xarray.DataArray
+        Latitudes of the storm track.
+    ib_lon : xarray.DataArray
+        Longitudes of the storm track.
+    ib_type : xarray.DataArray
+        Storm types along the track.
+    ib_wind : xarray.DataArray
+        Wind speeds along the track (in knots).
+    ib_pres : xarray.DataArray
+        Pressures along the track (in hPa).
+    ib_time : xarray.DataArray
+        Time points along the track.
+    ib_name : xarray.DataArray
+        Storm names.
+    ib_basin : xarray.DataArray
+        Basin codes of the storm.
     """
 
     ib_dataset=config_params.IBTRACS_DATASET.lower()
@@ -78,22 +91,35 @@ def correct_time_data(ib_time, ib_wind, ib_pres, ib_lat, ib_lon, ib_names, valid
 
     Parameters
     ----------
-    ib_time (xarray.DataArray): Time points along the storm track.
-    ib_wind (xarray.DataArray): Wind speeds along the storm track.
-    ib_pres (xarray.DataArray): Pressures along the storm track.
-    ib_lat (xarray.DataArray): Latitudes along the storm track.
-    ib_lon (xarray.DataArray): Longitudes along the storm track.
-    ib_names (xarray.DataArray): Storm names.
-    valid_time (xarray.DataArray): Boolean array indicating valid time points.
+    ib_time : xarray.DataArray
+        Time points along the storm track.
+    ib_wind : xarray.DataArray
+        Wind speeds along the storm track.
+    ib_pres : xarray.DataArray
+        Pressures along the storm track.
+    ib_lat : xarray.DataArray
+        Latitudes along the storm track.
+    ib_lon : xarray.DataArray
+        Longitudes along the storm track.
+    ib_names : xarray.DataArray
+        Storm names.
+    valid_time : xarray.DataArray
+        Boolean array indicating valid time points.
 
     Returns
     -------
-    ib_time (xarray.DataArray): Corrected time points.
-    ib_wind (xarray.DataArray): Masked wind speeds. 
-    ib_pres (xarray.DataArray): Masked pressures.
-    ib_lat (xarray.DataArray): Masked latitudes.
-    ib_lon (xarray.DataArray): Masked longitudes.
-    ib_names (xarray.DataArray): Masked storm names.
+    ib_time : xarray.DataArray
+        Corrected time points.
+    ib_wind : xarray.DataArray
+        Masked wind speeds.
+    ib_pres : xarray.DataArray
+        Masked pressures.
+    ib_lat : xarray.DataArray
+        Masked latitudes.
+    ib_lon : xarray.DataArray
+        Masked longitudes.
+    ib_names : xarray.DataArray
+        Masked storm names.
     """
 
     # Correct null values
@@ -131,13 +157,17 @@ def correct_wind_pres_data(wind, pres):
     
     Parameters
     ----------
-    wind (float): Wind speed in m/s.
-    pres (float): Pressure in Pa.
-    
+    wind : float
+        Wind speed in m/s.
+    pres : float
+        Pressure in Pa.
+
     Returns
     -------
-    wind (float): Corrected wind speed in m/s.
-    pres (float): Corrected pressure in Pa.
+    wind : float
+        Corrected wind speed in m/s.
+    pres : float
+        Corrected pressure in Pa.
     """
 
     a, b, c = 2.3, 1010.0, 0.76
@@ -159,13 +189,17 @@ def correct_wind_pres_data_vectorized(wind, pres):
     
     Parameters
     ----------
-    wind (np.ndarray): Wind speed in m/s.
-    pres (np.ndarray): Pressure in Pa.
+    wind : np.ndarray
+        Wind speed in m/s.
+    pres : np.ndarray
+        Pressure in Pa.
 
     Returns
     -------
-    wind (np.ndarray): Corrected wind speed in m/s.
-    pres (np.ndarray): Corrected pressure in Pa.
+    wind : np.ndarray
+        Corrected wind speed in m/s.
+    pres : np.ndarray
+        Corrected pressure in Pa.
     """
 
     wind_corr = wind.copy()
@@ -193,25 +227,35 @@ def great_circle_distance(lat1, lon1, lat2, lon2, npts=2, iu=4):
     
     Parameters
     ----------
-    lat1 (float or np.ndarray): Latitude(s) of first point(s).
-    lon1 (float or np.ndarray): Longitude(s) of first point(s).
-    lat2 (float or np.ndarray): Latitude(s) of second point(s).
-    lon2 (float or np.ndarray): Longitude(s) of second point(s).
-    npts (int): Number of points to interpolate (default: 2).
-    iu (int): Unit flag (default: 4)
-        |iu| = 1: radians
-        |iu| = 2: degrees
-        |iu| = 3: meters
-        |iu| = 4: kilometers
-        sign(iu) > 0: longitudes in [0,360]
-        sign(iu) < 0: longitudes in [-180,180]
+    lat1 : float or np.ndarray
+        Latitude(s) of first point(s).
+    lon1 : float or np.ndarray
+        Longitude(s) of first point(s).
+    lat2 : float or np.ndarray
+        Latitude(s) of second point(s).
+    lon2 : float or np.ndarray
+        Longitude(s) of second point(s).
+    npts : int
+        Number of points to interpolate (default: 2).
+    iu : int
+        Unit flag (default: 4)
+            |iu| = 1: radians
+            |iu| = 2: degrees
+            |iu| = 3: meters
+            |iu| = 4: kilometers
+            sign(iu) > 0: longitudes in [0,360]
+            sign(iu) < 0: longitudes in [-180,180]
     
     Returns
     -------
-    distance (float or np.ndarray): Great circle distance in requested units.
-    gclat (np.ndarray): Latitudes along great circle path
-    gclon (np.ndarray): Longitudes along great circle path
-    spacing (float): Distance between interpolated points
+    distance : float or np.ndarray
+        Great circle distance in requested units.
+    gclat : np.ndarray
+        Latitudes along great circle path
+    gclon : np.ndarray
+        Longitudes along great circle path
+    spacing : float
+        Distance between interpolated points
     """
 
     R = 6371.0  # Earth's radius in km
@@ -284,16 +328,26 @@ def convert_ibtracs_to_tempest(start_year=config_params.IBTRACS_START_YEAR, end_
 
     Parameters
     ----------
-    start_year (int): Start year for IBTrACS data (default: config_params.IBTRACS_START_YEAR).
-    end_year (int): End year for IBTrACS data (default: datetime.now().year).
-    min_wind (float): minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
-    flip_grid_180 (bool): Whether to flip longitudes from [-180, 180] to [0, 360] (default: True).
-    is_grid_2d (bool): Whether the grid is 2D (default: False).
-    cut_regional (bool): Whether to cut the grid to a regional domain (default: False).
-    cut_regional_ring_width (int): Width of the ring to add around the regional domain (default: 8).
-    correct_pres_wind (bool): Whether to apply pressure-wind correction to fill in missing P/W with K&Z 07 (default: True).
-    dur_thresh (int): Minimum duration threshold for storms (default: 3).
-    print_names (bool): Whether to print storm names in the output file (default: False).
+    start_year : int
+        Start year for IBTrACS data (default: config_params.IBTRACS_START_YEAR).
+    end_year : int
+        End year for IBTrACS data (default: datetime.now().year).
+    min_wind : float
+        minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
+    flip_grid_180 : bool
+        Whether to flip longitudes from [-180, 180] to [0, 360] (default: True).
+    is_grid_2d : bool
+        Whether the grid is 2D (default: False).
+    cut_regional : bool
+        Whether to cut the grid to a regional domain (default: False).
+    cut_regional_ring_width : int
+        Width of the ring to add around the regional domain (default: 8).
+    correct_pres_wind : bool
+        Whether to apply pressure-wind correction to fill in missing P/W with K&Z 07 (default: True).
+    dur_thresh : int
+        Minimum duration threshold for storms (default: 3).
+    print_names : bool
+        Whether to print storm names in the output file (default: False).
     """
 
     # Define constants
@@ -489,7 +543,8 @@ def check_ibtracs_date():
 
     Returns
     -------
-    ib_date (int): Last modification date.
+    ib_date : int
+        Last modification date.
     """
 
     # Get web parameters
@@ -561,13 +616,17 @@ def check_ibtracs_file(start_year, end_year, min_wind=10.0):
 
     Parameters
     ----------
-    start_year (int): Start year for IBTrACS data.
-    end_year (int): End year for IBTrACS data.
-    min_wind (float): minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
+    start_year : int
+        Start year for IBTrACS data.
+    end_year : int
+        End year for IBTrACS data.
+    min_wind : float
+        minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
 
     Returns
     -------
-    ib_file_path (Path): Path to the processed IBTrACS data file.
+    ib_file_path : Path
+        Path to the processed IBTrACS data file.
     """
 
     # Validate input start year

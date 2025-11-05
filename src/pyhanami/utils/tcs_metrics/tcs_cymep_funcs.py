@@ -23,17 +23,25 @@ def getTrajectories(filename, nVars, headerDelimStr, isUnstruc):
 
     Parameters:
     ----------
-    filename (str): Path to input trajectory file.
-    nVars (int): Number of variables per trajectory point (-1 for auto-detection).
-    headerDelimStr (str): String that marks header lines (e.g. "start").
-    isUnstruc (bool): If True, adds an extra column for unstructured grid data.
+    filename : str
+        Path to input trajectory file.
+    nVars : int
+        Number of variables per trajectory point (-1 for auto-detection).
+    headerDelimStr : str
+        String that marks header lines (e.g. "start").
+    isUnstruc : bool
+        If True, adds an extra column for unstructured grid data.
 
     Returns:
     ----------
-    numtraj (int): Number of trajectories found.
-    maxNumPts (int): Maximum length of any trajectory.
-    ncols (int): Number of data columns per point.
-    prodata (np.ndarray): Array of shape (nvars, ntraj, maxpts) containing trajectory data.
+    numtraj : int
+        Number of trajectories found.
+    maxNumPts : int
+        Maximum length of any trajectory.
+    ncols : int
+        Number of data columns per point.
+    prodata : np.ndarray
+        Array of shape (nvars, ntraj, maxpts) containing trajectory data.
     """
 
     print("Getting trajectories from TempestExtremes file...")
@@ -103,11 +111,16 @@ def writeTrajectories(filename, data, ntraj, npts, headerDelimStr="start"):
 
     Parameters:
     ----------
-    filename (str): Output file path.
-    data (np.ndarray): Data array of shape (nvars, ntraj, maxpts).
-    ntraj (int): Number of trajectories.
-    npts (int): Max number of points.
-    headerDelimStr (str): Header delimiter string (default: 'start').
+    filename : str
+        Output file path.
+    data : np.ndarray
+        Data array of shape (nvars, ntraj, maxpts).
+    ntraj : int
+        Number of trajectories.
+    npts : int
+        Max number of points.
+    headerDelimStr : str
+        Header delimiter string (default: 'start').
     """
 
     print(f"Writing TempestExtremes file to {filename}...")
@@ -150,15 +163,21 @@ def getNodes(filename, nVars, isUnstruc):
 
     Parameters:
     ----------
-    filename (str): Path to input nodes file.
-    nVars (int): Number of variables per node (-1 for auto-detection).
-    isUnstruc (bool): If True, adds extra columns for unstructured grid data.
+    filename : str
+        Path to input nodes file.
+    nVars : int
+        Number of variables per node (-1 for auto-detection).
+    isUnstruc : bool
+        If True, adds extra columns for unstructured grid data.
 
     Returns:
     ----------
-    numnodetimes (int): Number of timesteps with nodes.
-    maxNumPts (int): Maximum number of nodes at any timestep.
-    prodata (np.ndarray): Array of shape (nvars+4/5, numnodetimes, maxpts) containing node data.
+    numnodetimes : int
+        Number of timesteps with nodes.
+    maxNumPts : int
+        Maximum number of nodes at any timestep.
+    prodata : np.ndarray
+        Array of shape (nvars+4/5, numnodetimes, maxpts) containing node data.
     """
 
     print("Getting nodes from TempestExtremes file...")
@@ -241,24 +260,27 @@ def maskTC(lat, lon, dohemi=False):
 
     Parameters
     ----------
-    lat (float): Latitude of the TC (degrees).
-    lon (float): Longitude of the TC (degrees).
-    dohemi (bool): Whether to only classify by hemisphere (if True) or basin-by-basin using 
+    lat : float
+    lon : float
+        Longitude of the TC (degrees).
+    dohemi : bool
+        Whether to only classify by hemisphere (if True) or basin-by-basin using 
         latitude/longitude boundaries (if False) (default: False).
 
     Returns
     -------
-    basin (int): Integer code for the basin/hemisphere:
-        - 0 → Unclassified / outside defined basins
-        - 1 → North Atlantic (NATL)
-        - 2 → Eastern Pacific (EPAC)
-        - 3 → Central Pacific (CPAC)
-        - 4 → Western Pacific (WPAC)
-        - 5 → North Indian Ocean (NIO)
-        - 6 → South Indian Ocean (SIO)
-        - 7 → South Pacific (SPAC)
-        - 20 → Northern Hemisphere (if `dohemi=True`) (NHEMI)
-        - 21 → Southern Hemisphere (if `dohemi=True`) (SHEMI)
+    basin : int
+        Integer code for the basin/hemisphere:
+            - 0 → Unclassified / outside defined basins
+            - 1 → North Atlantic (NATL)
+            - 2 → Eastern Pacific (EPAC)
+            - 3 → Central Pacific (CPAC)
+            - 4 → Western Pacific (WPAC)
+            - 5 → North Indian Ocean (NIO)
+            - 6 → South Indian Ocean (SIO)
+            - 7 → South Pacific (SPAC)
+            - 20 → Northern Hemisphere (if `dohemi=True`) (NHEMI)
+            - 21 → Southern Hemisphere (if `dohemi=True`) (SHEMI)
     """
    
     # If lon is negative, switch to [0, 360] convention
@@ -306,8 +328,9 @@ def getbasinmaskstr(gridchoice):
 
     Parameters
     ----------
-    gridchoice (int or list[int]): Basin/hemisphere code(s). If a sequence is provided, 
-        only the first element is considered. Codes are:
+    gridchoice : int or list[int]): 
+        Basin/hemisphere code(s). If a sequence is provided, only the first element 
+        is considered. Codes are:
             - <0 → GLOB (Global domain)
             - 1  → NATL (North Atlantic)
             - 2  → EPAC (Eastern Pacific)
@@ -324,7 +347,8 @@ def getbasinmaskstr(gridchoice):
 
     Returns
     -------
-    strbasin (str): String label corresponding to the input basin/hemisphere code.
+    strbasin : str
+        String label corresponding to the input basin/hemisphere code.
     """
 
     if hasattr(gridchoice, "__len__"):
@@ -373,15 +397,19 @@ def pattern_cor(x, y, w, opt):
 
     Parameters
     ----------
-    x (np.ndarray): First spatial field (lat x lon).
-    y (np.ndarray): Second spatial field (lat x lon).
-    w (np.ndarray): Weights to apply.
-    opt (int): Correlation option (0 for anomaly correlation (mean removed before correlation),
+    x : np.ndarray
+    y : np.ndarray
+        Second spatial field (lat x lon).
+    w : np.ndarray
+        Weights to apply.
+    opt : int
+        Correlation option (0 for anomaly correlation (mean removed before correlation),
         otherwise, direct correlation without mean removal).
 
     Returns
     -------
-    r (float): Weighted correlation coefficient between the spatial fields.
+    r : float
+        Weighted correlation coefficient between the spatial fields.
     """
 
     if x.shape != y.shape:
@@ -436,15 +464,20 @@ def wgt_arearmse2(x, y, w, opt):
 
     Parameters
     ----------
-    x (np.ndarray): First spatial field (lat x lon).
-    y (np.ndarray): Second spatial field (lat x lon).
-    w (np.ndarray): Weights to apply.
-    opt (int): Option for handling zeros (0 to use raw values, and 1 to set matching 0s 
+    x : np.ndarray
+        First spatial field (lat x lon).
+    y : np.ndarray
+        Second spatial field (lat x lon).
+    w : np.ndarray
+        Weights to apply.
+    opt : int
+        Option for handling zeros (0 to use raw values, and 1 to set matching 0s
         to NaNs (to avoid getting 0 when obs 0)).
 
     Returns
     -------
-    rmse (float): Weighted area RMSE between the spatial fields.
+    rmse : float
+        Weighted area RMSE between the spatial fields.
     """
 
     if x.shape != y.shape:
@@ -501,14 +534,18 @@ def wgt_areaave2(x, w, opt):
 
     Parameters
     ----------
-    x (np.ndarray): Input spatial field (lat x lon).
-    w (np.ndarray): Weights to apply.
-    opt (int): Option for handling zeros (0 to use raw values, and 1 to set matching 0s 
+    x : np.ndarray
+        Input spatial field (lat x lon).
+    w : np.ndarray
+        Weights to apply.
+    opt : int
+        Option for handling zeros (0 to use raw values, and 1 to set matching 0s
         to NaNs (to avoid getting 0 when obs 0)).
 
     Returns
     -------
-    ave (float): Weighted area average of the spatial field.
+    ave : float
+        Weighted area average of the spatial field.
     """
     
     sumt = 0.
@@ -556,21 +593,33 @@ def taylor_stats(x, y, w, opt):
 
     Parameters
     ----------
-    x (np.ndarray): Test variable (lat x lon).
-    y (np.ndarray): Reference variable (lat x lon), truth or control.
-    w (np.ndarray): Weights to apply.
-    opt (int): Currently unused.
+    x : np.ndarray
+        Test variable (lat x lon).
+    y : np.ndarray
+        Reference variable (lat x lon), truth or control.
+    w : np.ndarray
+        Weights to apply.
+    opt : int
+        Currently unused.
 
     Returns
     -------
-    pc (float): Pearson correlation between the variables.
-    ratio (float): Ratio of standard deviations (test/reference).
-    bias (float): Relative bias with respect to the reference.
-    xmean (float): Weighted mean of `x`.
-    ymean (float): Weighted mean of `y`.
-    xvar (float): Weighted variance of `x`.
-    yvar (float): Weighted variance of `y`.
-    rmse (float): Normalized RMSE between the variables.
+    pc : float
+        Pearson correlation between the variables.
+    ratio : float
+        Ratio of standard deviations (test/reference).
+    bias : float
+        Relative bias with respect to the reference.
+    xmean : float
+        Weighted mean of `x`.
+    ymean : float
+        Weighted mean of `y`.
+    xvar : float
+        Weighted variance of `x`.
+    yvar : float
+        Weighted variance of `y`.
+    rmse : float
+        Normalized RMSE between the variables.
     """
 
     if x.shape != y.shape:
@@ -647,17 +696,25 @@ def track_density(gridsize, lonstart, clat, clon, setzeros):
 
     Parameters
     ----------
-    gridsize (float): Grid spacing (in degrees) for both latitude and longitude.
-    lonstart (float): Starting longitude (degrees), which defines the western boundary of the grid.
-    clat (np.ndarray): Latitudes of the track points.
-    clon (np.ndarray): Longitudes of the track points.
-    setzeros (bool): Whether to set grid cells with zero counts to NaN (if True) or retain them (if False).
+    gridsize : float
+        Grid spacing (in degrees) for both latitude and longitude.
+    lonstart : float
+        Starting longitude (degrees), which defines the western boundary of the grid.
+    clat : np.ndarray
+        Latitudes of the track points.
+    clon : np.ndarray
+        Longitudes of the track points.
+    setzeros : bool
+        Whether to set grid cells with zero counts to NaN (if True) or retain them (if False).
 
     Returns
     -------
-    countarr (np.ndarray): Number of track points per grid cell (lat x lon).
-    lat (np.ndarray): Latitude coordinates of the grid centers.
-    lon (np.ndarray): Longitude coordinates of the grid centers.
+    countarr : np.ndarray
+        Number of track points per grid cell (lat x lon).
+    lat : np.ndarray
+        Latitude coordinates of the grid centers.
+    lon : np.ndarray
+        Longitude coordinates of the grid centers.
     """
 
     # Error checking 
@@ -716,21 +773,31 @@ def track_mean(gridsize, lonstart, clat, clon, cvar, meanornot, minhits):
 
     Parameters
     ----------
-    gridsize (float): Grid spacing (in degrees) for both latitude and longitude.
-    lonstart (float): Starting longitude (degrees), which defines the western boundary of the grid.
-    clat (np.ndarray): Latitudes of the track points.
-    clon (np.ndarray): Longitudes of the track points.
-    cvar (np.ndarray): Variable values associated with each track point (e.g., intensity, pressure).
-    meanornot (bool): Whether to compute the mean (if True) or just the cumulative sums (if False) 
+    gridsize : float
+        Grid spacing (in degrees) for both latitude and longitude.
+    lonstart : float
+        Starting longitude (degrees), which defines the western boundary of the grid.
+    clat : np.ndarray
+        Latitudes of the track points.
+    clon : np.ndarray
+        Longitudes of the track points.
+    cvar : np.ndarray
+        Variable values associated with each track point (e.g., intensity, pressure).
+    meanornot : bool
+        Whether to compute the mean (if True) or just the cumulative sums (if False) 
         of `cvar` per grid cell.
-    minhits (int): Minimum number of hits per grid cell required to include the result (cells with 
+    minhits : int
+        Minimum number of hits per grid cell required to include the result (cells with 
         fewer hits are set to NaN).
 
     Returns
     -------
-    cumulative (np.ndarray): Mean or cumulative sum of `cvar` values per grid cell (lat x lon).
-    lat (np.ndarray): Latitude coordinates of the grid centers.
-    lon (np.ndarray): Longitude coordinates of the grid centers.
+    cumulative : np.ndarray
+        Mean or cumulative sum of `cvar` values per grid cell (lat x lon).
+    lat : np.ndarray
+        Latitude coordinates of the grid centers.
+    lon : np.ndarray
+        Longitude coordinates of the grid centers.
     """
 
     # Create grid 
@@ -791,19 +858,30 @@ def track_minmax(gridsize, lonstart, clat, clon, cvar, minmax, minhits):
 
     Parameters
     ----------
-    gridsize (float): Grid spacing (in degrees) for both latitude and longitude.
-    lonstart (float): Starting longitude (degrees), which defines the western boundary of the grid.
-    clat (np.ndarray): Latitudes of the track points.
-    clon (np.ndarray): Longitudes of the track points.
-    cvar (np.ndarray): Variable values associated with each track point (e.g., intensity, pressure).
-    minmax ({"min", "max"}): Whether to compute minimum or maximum values per grid cell.
-    minhits (int): Placeholder for minimum number of hits per grid cell..
+    gridsize : float
+        Grid spacing (in degrees) for both latitude and longitude.
+    lonstart : float
+        Starting longitude (degrees), which defines the western boundary of the grid.
+    clat : np.ndarray
+        Latitudes of the track points.
+    clon : np.ndarray
+        Longitudes of the track points.
+    cvar : np.ndarray
+        Variable values associated with each track point (e.g., intensity, pressure).
+    minmax : {"min", "max"}
+        Whether to compute minimum or maximum values per grid cell.
+    minhits : int
+        Minimum number of hits per grid cell required to include the result (cells with 
+        fewer hits are set to NaN).
 
     Returns
     -------
-    countarr (np.ndarray): Minimum or maximum `cvar` values per grid cell (lat x lon).
-    lat (np.ndarray): Latitude coordinates of the grid centers.
-    lon (np.ndarray): Longitude coordinates of the grid centers.
+    countarr : np.ndarray
+        Minimum or maximum `cvar` values per grid cell (lat x lon).
+    lat : np.ndarray
+        Latitude coordinates of the grid centers.
+    lon : np.ndarray
+        Longitude coordinates of the grid centers.
     """
 
     # Create grid 
@@ -864,20 +942,31 @@ def write_spatial_netcdf(spatialdict, permondict, peryrdict, taydict, modelsin, 
 
     Parameters
     ----------
-    spatialdict (dict[np.ndarray]): Dictionary of 3D arrays (model x lat x lon) with spatial metrics.
-    permondict (dict[np.ndarray]): Dictionary of 2D arrays (model x months) with monthly metrics.
-    peryrdict (dict[np.ndarray]): Dictionary of 2D arrays (model x years) with yearly metrics.
-    taydict (dict[np.ndarray]): Dictionary of 1D arrays (model) with metrics for Taylor diagrams.
-    modelsin (list[str]): Model names.
-    nyears (int) Number of years in the dataset.
-    nmonths (int): Number of months in the dataset.
-    latin (np.ndarray): Latitude values.
-    lonin (np.ndarray): Longitude values.
-    globaldict (dict): Global metadata (`strbasin`, `csvfilename`, ...).
+    spatialdict : dict[np.ndarray]
+        Dictionary of 3D arrays (model x lat x lon) with spatial metrics.
+    permondict : dict[np.ndarray]
+        Dictionary of 2D arrays (model x months) with monthly metrics.
+    peryrdict : dict[np.ndarray]
+        Dictionary of 2D arrays (model x years) with yearly metrics.
+    taydict : dict[np.ndarray]
+        Dictionary of 1D arrays (model) with metrics for Taylor diagrams.
+    modelsin : list[str]
+        Model names.
+    nyears : int
+        Number of years in the dataset.
+    nmonths : int
+        Number of months in the dataset.
+    latin : np.ndarray
+        Latitude values.
+    lonin : np.ndarray
+        Longitude values.
+    globaldict : dict
+        Global metadata (`strbasin`, `csvfilename`, ...).
 
     Returns
     -------
-    netcdf_path (str): Path to the created NetCDF file.
+    netcdf_path : str
+        Path to the created NetCDF file.
     """
 
     # Convert modelsin from pandas to list
@@ -965,24 +1054,39 @@ def write_cymep_output_pyhanami(per_month_dict, per_year_dict, clim_mean_dict, s
 
     Parameters
     ----------
-    per_month_dict (dict[np.ndarray]): Dictionary of 2D arrays (model x months) with monthly metrics.
-    per_year_dict (dict[np.ndarray]): Dictionary of 2D arrays (model x years) with yearly metrics.
-    clim_mean_dict (dict[np.ndarray]): Dictionary of 1D arrays (model) with climatological mean metrics.
-    storm_mean_dict (dict[np.ndarray]): Dictionary of 1D arrays (model) with mean storm metrics.
-    temp_scorr_dict (dict[np.ndarray]): Dictionary of 1D arrays (model) with temporal Spearman rank correlation metrics.
-    spatial_dict (dict[np.ndarray]): Dictionary of 3D arrays (model x lat x lon) with spatial metrics.
-    spatial_pcorr_dict (dict[np.ndarray]): Dictionary of 3D arrays (model x lat x lon) with spatial Pearson correlation metrics.
-    model_names (list[str]): Model names.
-    nyears (int) Number of years in the dataset.
-    nmonths (int): Number of months in the dataset.
-    lat_idxs (np.ndarray): Latitude values.
-    lon_idxs (np.ndarray): Longitude values.
-    attrs_dict (dict): Global metadata (`strbasin`, `csvfilename`, ...).
-    descript_dict (dict): Descriptions for each metric.
+    per_month_dict : dict[np.ndarray]
+        Dictionary of 2D arrays (model x months) with monthly metrics.
+    per_year_dict : dict[np.ndarray]
+        Dictionary of 2D arrays (model x years) with yearly metrics.
+    clim_mean_dict : dict[np.ndarray]
+        Dictionary of 1D arrays (model) with climatological mean metrics.
+    storm_mean_dict : dict[np.ndarray]
+        Dictionary of 1D arrays (model) with mean storm metrics.
+    temp_scorr_dict : dict[np.ndarray]
+        Dictionary of 1D arrays (model) with temporal Spearman rank correlation metrics.
+    spatial_dict : dict[np.ndarray]
+        Dictionary of 3D arrays (model x lat x lon) with spatial metrics.
+    spatial_pcorr_dict : dict[np.ndarray]
+        Dictionary of 3D arrays (model x lat x lon) with spatial Pearson correlation metrics.
+    model_names : list[str]
+        Model names.
+    nyears : int
+        Number of years in the dataset.
+    nmonths : int
+        Number of months in the dataset.
+    lat_idxs : np.ndarray
+        Latitude values.
+    lon_idxs : np.ndarray
+        Longitude values.
+    attrs_dict : dict
+        Global metadata (`strbasin`, `csvfilename`, ...).
+    descript_dict : dict
+        Descriptions for each metric.
 
     Returns
     -------
-    data_cymep (xr.Dataset): xarray Dataset containing all the metrics.
+    data_cymep : xr.Dataset
+        xarray Dataset containing all the metrics.
     """
 
     # Create coordinates dictionary
@@ -1090,8 +1194,10 @@ def write_dict_csv(vardict, modelsin):
 
     Parameters
     ----------
-    vardict (dict): Variable names and with the correpsonding values.
-    modelsin (list[str]): Model names.
+    vardict : dict
+        Variable names and with the correpsonding values.
+    modelsin : list[str]
+        Model names.
     """
 
     # Create variable array
@@ -1114,11 +1220,15 @@ def write_single_csv(vardict, modelsin, csvdir, csvname):
 
     Parameters
     ----------
-    vardict (dict): Variable names and with the correpsonding values.
-    modelsin (str or list[str]): Model names. If scalar, function writes a single-row CSV.
+    vardict : dict
+        Variable names and with the correpsonding values.
+    modelsin : (str or list[str])
+        Model names. If scalar, function writes a single-row CSV.
         If array, must align with variable arrays in `vardict`.
-    csvdir (str): Path to directory where csv file will be written.
-    csvname (str): Name of the output csv file.
+    csvdir : str
+        Path to directory where csv file will be written.
+    csvname : str
+        Name of the output csv file.
     """
 
     # Create variable array

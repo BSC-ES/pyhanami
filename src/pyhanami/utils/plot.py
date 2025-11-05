@@ -21,10 +21,14 @@ def save_or_show_plot(plot_obj, output_path, plot_filename, plot_name):
     
     Parameters
     ----------
-    plot_obj (matplotlib.figure.Figure): The plot object to save or show.
-    output_path (pathlib.Path or None): Directory to save the plot; if None, the plot is displayed.
-    plot_filename (str): Base name for the plot file.
-    plot_name (str): Name of the plot for display messages.
+    plot_obj : matplotlib.figure.Figure
+        The plot object to save or show.
+    output_path : pathlib.Path or None
+        Directory to save the plot; if None, the plot is displayed.
+    plot_filename : str
+        Base name for the plot file.
+    plot_name : str
+        Name of the plot for display messages.
     """
 
     if output_path is None:
@@ -468,27 +472,45 @@ def two_spatial_plots(data_1, data_2, clon=0, title_1='Spatial plot 1', title_2=
 
     Parameters
     ----------
-    data_1 (xarray.DataArray): First 2D dataset to plot with dimensions (lat, lon).
-    data_2 (xarray.DataArray): Second 2D dataset to plot with dimensions (lat, lon).
-    clon (int): Central longitude for the spatial maps.
-    title_1 (str): Title of the first plot (default: 'Spatial plot 1').
-    title_2 (str): Title of the second plot (default: 'Spatial plot 2').
-    suptitle (str): Common title for the two plots (default: 'Spatial plots').
-    cb_label (str): Label to display below the common colorbar; set to False to not add a colorbar (default: ''). 
-    cmap (matplotlib colormap): Colormap (default: cmocean.cm.thermal).
-    levels (np.ndarray): Contour levels (default: 12).
-    significant_1 (np.ndarray): Mask for significance hatching in the first plot.
-    significant_2 (np.ndarray): Mask for significance hatching in the second plot.
-    vmin, vmax (float): Common min. and max. values for the colormap.
-    show_contours (bool): Whether to overlay contour lines (default: True).
-    contour_fontsize (int): Font size for contour labels (default: 12).
-    gridlines (bool): Whether to show gridlines (default: True).
-    **plot_kwargs: Additional arguments passed to contourf.
+    data_1 : xarray.DataArray
+        First 2D dataset to plot with dimensions (lat, lon).
+    data_2 : xarray.DataArray
+        Second 2D dataset to plot with dimensions (lat, lon).
+    clon : int
+        Central longitude for the spatial maps.
+    title_1 : str
+        Title of the first plot (default: 'Spatial plot 1').
+    title_2 : str
+        Title of the second plot (default: 'Spatial plot 2').
+    suptitle : str
+        Common title for the two plots (default: 'Spatial plots').
+    cb_label : str
+        Label to display below the common colorbar; set to False to not add a colorbar (default: '').
+    cmap : matplotlib colormap
+        Colormap (default: cmocean.cm.thermal).
+    levels : np.ndarray
+        Contour levels (default: 12).
+    significant_1 : np.ndarray
+        Mask for significance hatching in the first plot.
+    significant_2 : np.ndarray
+        Mask for significance hatching in the second plot.
+    vmin, vmax : float
+        Common min. and max. values for the colormap.
+    show_contours : bool
+        Whether to overlay contour lines (default: True).
+    contour_fontsize : int
+        Font size for contour labels (default: 12).
+    gridlines : bool
+        Whether to show gridlines (default: True).
+    **plot_kwargs : 
+        Additional arguments passed to contourf.
 
     Returns
     -------
-    new_fig (matplotlib.figure.Figure): Generated plot.
-    ax (matplotlib.axes._subplots.AxesSubplot): Plot axis.
+    new_fig : matplotlib.figure.Figure
+        Generated plot.
+    ax : matplotlib.axes._subplots.AxesSubplot
+        Plot axis.
     """
 
     # Validate inputs
@@ -1139,17 +1161,25 @@ def table_plot(data, title='Climate variables', col_labels='', row_labels='', cb
 
     Parameters
     ----------
-    data (np.ndarray): 2D array with the data to display in the table.
-    title (str): Title of the table.
-    col_labels (list): Column labels.
-    row_labels (list): Row labels.
-    cbar_ticks (list): Labels for the colorbar ticks.
-    colors (tuple): Colormap.
+    data : np.ndarray
+        2D array with the data to display in the table.
+    title : str
+        Title of the table.
+    col_labels : list
+        Column labels.
+    row_labels : list
+        Row labels.
+    cbar_ticks : list
+        Labels for the colorbar ticks.
+    colors : tuple
+        Colormap.
 
     Returns
     -------
-    fig (matplotlib.figure.Figure): Generated table plot.
-    ax (matplotlib.axes._subplots.AxesSubplot): Plot axis.
+    fig : matplotlib.figure.Figure
+        Generated table plot.
+    ax : matplotlib.axes._subplots.AxesSubplot
+        Plot axis.
     """
 
     # Validate input

@@ -41,12 +41,15 @@ def prepare_data_tempestExtremes(data, data_name):
 
     Parameters
     ----------
-    data (xarray.Dataset): Input dataset containing the necessary variables.
-    data_name (str): Name of the dataset.
+    data : xarray.Dataset
+        Input dataset containing the necessary variables.
+    data_name : str
+        Name of the dataset.
 
     Returns
     -------
-    data_tempestExtremes (xarray.Dataset): Dataset with variables renamed and surface geopotential added.
+    data_tempestExtremes : xarray.Dataset
+        Dataset with variables renamed and surface geopotential added.
     """
 
     # Check required variables and rename them
@@ -67,7 +70,7 @@ def prepare_data_tempestExtremes(data, data_name):
         topog_varname = config_params.TOPOG_VARNAME
         topog_original = xr.open_dataset(config_params.TOPOG_PATH)
         topog_regridded = data_general.regrid_data(topog_original, data, var=topog_varname)
-        
+
         surf_geopotential = topog_regridded[topog_varname] * config_params.G
         phis = surf_geopotential.to_dataset().rename({topog_varname: 'PHIS'})
         data_vars.append(phis['PHIS'])
@@ -96,14 +99,22 @@ def detect_nodes(input_file, output_file="detected_nodes.txt", psl_delta=200.0, 
 
     Parameters
     ----------
-    input_file (str): input .nc file containing the necessary variables.
-    output_file (str): output .txt file to write down the detected nodal features (default: "detected_nodes.txt").
-    psl_delta (float): strength of local psl minimum in hPa (default: 200.0).
-    psl_dist (float): allowable distance from local psl minimum for psl closed contour in degrees (default: 5.5).
-    z_delta (float): strength of warm core anomaly given by zg maximum in m (default: -6.0).
-    z_dist (float): allowable distance from warm core anomaly for z closed contour in degrees (default: 6.5).
-    z_offset (float): maximum separation between psl minimum and zg maximum in degrees (default: 1.0).
-    merge_dist (float): minimum allowable distance between two candidates in degrees (default: 6.0).
+    input_file : str
+        Input .nc file containing the necessary variables.
+    output_file : str
+        Output .txt file to write down the detected nodal features (default: "detected_nodes.txt").
+    psl_delta : float
+        Strength of local psl minimum in hPa (default: 200.0).
+    psl_dist : float
+        Allowable distance from local psl minimum for psl closed contour in degrees (default: 5.5).
+    z_delta : float
+        Strength of warm core anomaly given by zg maximum in m (default: -6.0).
+    z_dist : float
+        Allowable distance from warm core anomaly for z closed contour in degrees (default: 6.5).
+    z_offset : float
+        Maximum separation between psl minimum and zg maximum in degrees (default: 1.0).
+    merge_dist : float
+        Minimum allowable distance between two candidates in degrees (default: 6.0).
     """
 
     cmd = [
@@ -129,15 +140,24 @@ def stitch_nodes(input_file, output_file="cyclones_trajectories.txt", traj_range
 
     Parameters
     ----------
-    input_file (str): input .txt nodefile with the detected nodal features.
-    output_file (str): output .txt file to write down a filtered list of TC candidates (default: "cyclones_trajectories.txt").
-    traj_range (float): maximum travel distance for a cyclone in 6h in degrees (default: 8.0).
-    traj_min_length (int): minimum cyclone lifetime in 6h (default: 10).
-    traj_max_gap (int): maximum allowable gap in cyclone trajectory in 6h (default: 3).
-    min_wind (float): minimum 10 m wind speed in m/s (default: 10.0).
-    min_len (int): minimum track length in 6h (default: 10).
-    max_lat (float): maximum latitude of psl minimum in degrees (default: 50.0).
-    format_str (str): format of columns to be added in the output_file, note the following are 
+    input_file : str
+        Input .txt nodefile with the detected nodal features.
+    output_file : str
+        Output .txt file to write down a filtered list of TC candidates (default: "cyclones_trajectories.txt").
+    traj_range : float
+        Maximum travel distance for a cyclone in 6h in degrees (default: 8.0).
+    traj_min_length : int
+        Minimum cyclone lifetime in 6h (default: 10).
+    traj_max_gap : int
+        Maximum allowable gap in cyclone trajectory in 6h (default: 3).
+    min_wind : float
+        Minimum 10 m wind speed in m/s (default: 10.0).
+    min_len : int
+        Minimum track length in 6h (default: 10).
+    max_lat : float
+        Maximum latitude of psl minimum in degrees (default: 50.0).
+    format_str : str
+        Format of columns to be added in the output_file, note the following are 
         automatically added as final columns in the output: year (yyyy), month (mm), day (dd), 
         hour (hh) (default: "i,j,lon,lat,slp,wind,phis").
     """
@@ -163,10 +183,14 @@ def histogram_nodes(input_file, output_file="cyclones_trajectories.nc", ilon_col
     
     Parameters
     ----------
-    input_file (str): input .txt file containing TC tracks.
-    output_file (str): output .nc file to include histogram of TC detections (default: "cyclones_trajectories.nc").
-    ilon_col (int): column index for longitude in input file (default: 3).
-    ilatcol (int): column index for latitude in input file (default: 4).
+    input_file : str
+        Input .txt file containing TC tracks.
+    output_file : str
+        Output .nc file to include histogram of TC detections (default: "cyclones_trajectories.nc").
+    ilon_col : int
+        Column index for longitude in input file (default: 3).
+    ilatcol : int
+        Column index for latitude in input file (default: 4).
     """
 
     cmd = [
@@ -186,11 +210,16 @@ def track_tcs(data_name, input_path, output_path, min_wind=10.0, hist=False):
 
     Parameters
     ----------
-    data_name (str): Name of the dataset.
-    input_path (str): Input .nc file path.
-    output_path (str): Output path.
-    min_wind (float): minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
-    hist (bool): If True, generate a histogram of TC detections as a .nc file (default: False).
+    data_name : str
+        Name of the dataset.
+    input_path : str
+        Input .nc file path.
+    output_path : str
+        Output path.
+    min_wind : float
+        Minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
+    hist : bool
+        If True, generate a histogram of TC detections as a .nc file (default: False).
     """
 
     # Check input and output paths
@@ -237,11 +266,16 @@ def run_tempestExtremes(data, data_name, output_path, min_wind=10.0, tracks_hist
 
     Parameters
     ----------
-    data (xarray.Dataset): Input dataset.
-    data_name (str): Name of the dataset.
-    output_path (str): Output path.
-    min_wind (float): minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
-    tracks_hist (bool): If True, generate a histogram of TC detections as a .nc file (default: False).
+    data : xarray.Dataset
+        Input dataset.
+    data_name : str
+        Name of the dataset.
+    output_path : str
+        Output path.
+    min_wind : float
+        Minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
+    tracks_hist : bool
+        If True, generate a histogram of TC detections as a .nc file (default: False).
     """
 
     # Prepare data to be used as input for TempestExtremes
@@ -263,11 +297,13 @@ def read_tracks_tempestExtremes(tracks_path):
     
     Parameters
     ----------
-    tracks_path (str): Path to the TempestExtremes output .txt file.
+    tracks_path : str
+        Path to the TempestExtremes output .txt file.
 
     Returns
     -------
-    tracks (list[list[dict]]): List of trajectories.
+    tracks : list[list[dict]]
+        List of trajectories.
     """
 
     if not Path(tracks_path).exists():
@@ -309,14 +345,19 @@ def compute_density_histogram(points, lat_bins, lon_bins, name="point_density"):
 
     Parameters
     ----------
-    points (np.ndarray): Array of shape (N, 2) with (lat, lon) points.
-    lat_bins (np.ndarray): Latitude bin edges.
-    lon_bins (np.ndarray): Longitude bin edges.
-    name (str): Name of the resulting DataArray (default: "point_density").
+    points : np.ndarray
+        Array of shape (N, 2) with (lat, lon) points.
+    lat_bins : np.ndarray
+        Latitude bin edges.
+    lon_bins : np.ndarray
+        Longitude bin edges.
+    name : str
+        Name of the resulting DataArray (default: "point_density").
 
     Returns
     -------
-    hist_dens (xarray.DataArray): 2D histogram of point densities.
+    hist_dens : xarray.DataArray
+        2D histogram of point densities.
     """
     
     hist, lat_edges, lon_edges = np.histogram2d(
@@ -345,15 +386,21 @@ def compute_tc_counts(tracks, start_year, end_year, bin_size=2.5, cutoff_wind=10
 
     Parameters
     ----------
-    tracks (list[list[dict]]): List of trajectories.
-    start_year, end_year (int): Initial and final years to compute the densities.
-    bin_size (float): Size of the bins in degrees (default: 2.5).
-    cutoff_wind (float): Minimum wind speed in m/s to consider a TC genesis (default: 10.0).
+    tracks : list[list[dict]]
+        List of trajectories.
+    start_year, end_year : int
+        Initial and final years to compute the densities.
+    bin_size : float
+        Size of the bins in degrees (default: 2.5).
+    cutoff_wind : float
+        Minimum wind speed in m/s to consider a TC genesis (default: 10.0).
 
     Returns
     -------
-    counts_gen (xarray.DataArray): TC genesis density.
-    counts_traj (xarray.DataArray): TC tracks density.
+    counts_gen : xarray.DataArray
+        TC genesis density.
+    counts_traj : xarray.DataArray
+        TC tracks density.
     """
 
     start_date = pd.Timestamp(year=start_year, month=1, day=1)
