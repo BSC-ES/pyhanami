@@ -31,6 +31,7 @@ import xarray as xr
 
 from pathlib import Path
 
+from pyhanami.utils import data_general
 from pyhanami.config import config_params
 
 
@@ -63,11 +64,13 @@ def prepare_data_tempestExtremes(data, data_name):
     if 'phis' in data.data_vars:
         data_vars.append(data.rename({'phis': 'PHIS'})['PHIS'])
     else:
-        raise NotImplementedError("Automatic surface geopotential calculation is not implemented yet.")
-        # topog = xr.open_dataset(config_params.TOPOG_PATH)   
-        # surf_geopotential = topog['topog'] * config_params.G
-        # phis = surf_geopotential.to_dataset().rename({'topog': 'PHIS'}) 
-        # data_vars.append(phis['PHIS'])
+        topog_varname = config_params.TOPOG_VARNAME
+        topog_original = xr.open_dataset(config_params.TOPOG_PATH)
+        topog_regridded = data_general.regrid_data(topog_original, data, var=topog_varname)
+        
+        surf_geopotential = topog_regridded[topog_varname] * config_params.G
+        phis = surf_geopotential.to_dataset().rename({topog_varname: 'PHIS'})
+        data_vars.append(phis['PHIS'])
 
 
     data_tempestExtremes = xr.merge(data_vars, join='inner')   # join='inner' keeps only common coordinates

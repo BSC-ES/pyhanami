@@ -110,7 +110,7 @@ def regrid_data(source_ds, target_ds, var=None, method='conservative', cyclic_po
         ----------
         source_ds (xarray.Dataset): Source dataset.
         target_ds (xarray.Dataset): Target dataset.
-        var (str): Variable to regrid.
+        var (str): Variable to regrid. If none given, all variables in the source dataset will be regridded.
         method (str): Regridding method (default: 'conservative').
         cyclic_point (bool): Whether to handle cyclic points (default: False).
         time_dim (str): Name of the time dimension (default: 'time').

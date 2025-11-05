@@ -157,7 +157,7 @@ class ScientificEvaluation:
         
 
         # Prepare simulated and observed OLR data
-        var_name = "olr"
+        var_name = "rlut"
         if var_name not in data_plot.data.data_vars:
             raise ValueError(f"Variable '{var_name}' not found in the simulated dataset '{data_name}'. "
                             f"Available variables: {list(data_plot.data.data_vars.keys())}")
