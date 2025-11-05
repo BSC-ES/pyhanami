@@ -108,7 +108,7 @@ This `matrix_plot` method uses all variables from the simulation datasets that a
 
 ## Tropical IntraSeasonal Oscillation (ISO) evaluation
 
-To evaluate the simulation of ISOs, create a `ScientificEvaluation` object with the `SimulationData` object that you want to analyze and use the `bimodal_ISO` method. This method computes the **bimodal ISO indices** and requires **daily TOA outgoing longwave radiation** (`olr`) data, preferably covering a period of 10 years or more (ideally, at least 30 years).
+To evaluate the simulation of ISOs, create a `ScientificEvaluation` object with the `SimulationData` object that you want to analyze and use the `bimodal_ISO` method. This method computes the **bimodal ISO indices** and requires **daily TOA outgoing longwave radiation** (`rlut`) data, preferably covering a period of 10 years or more (ideally, at least 30 years).
 
 With the following snippet, the `bimodal_ISO` method will perform an EEOF analysis between `year_init` and `year_end`, and use the resulting EEOFs to compute the bimodal ISO indices (first two PCs) for the entire period covered by the provided dataset. Then, it will plot these indices for `years`. Finally, it will use the indices to calculate and plot the mean monthly frequency (seasonality) of ISO events for the full dataset period:
 

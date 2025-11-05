@@ -19,16 +19,30 @@ net_sfc:
   units: "W m**-2"
   boundaries: null
 
-olr:
+rlut:
   check_enabled: True
   long_name: TOA outgoing longwave radiation
   mask: atm
   units: "W m**-2"
   boundaries: null
 
+orog:
+  check_enabled: True
+  long_name: Surface altitude
+  mask: land # what goes here??
+  units: "m"
+  boundaries: null
+
+phis: # check this one??
+  check_enabled: True
+  long_name: Surface geopotential
+  mask: land
+  units: "m**2 s**-2"
+  boundaries: null
+
 pr:
   check_enabled: True
-  long_name: Total precipitation rate
+  long_name: Precipitation
   mask: atm
   units: "kg m**-2 s**-1"
   min: -0.000001
@@ -42,7 +56,7 @@ psl:
 
 siconc:
   check_enabled: True
-  long_name: Sea ice concentration
+  long_name: Sea-ice area percentage
   mask: oce
   units: "-"
   boundaries: null
@@ -72,7 +86,7 @@ ta850:
 
 tas:
   check_enabled: True
-  long_name: Air surface temperature
+  long_name: Near-surface air temperature
   mask: atm
   units: "K"
   min: 0.0
@@ -80,14 +94,14 @@ tas:
 
 tauu:
   check_enabled: True
-  long_name: Surface downward eastward stress
+  long_name: Surface downward eastward wind stress
   mask: atm
   units: "Pa"
   boundaries: null
 
-tauu:
+tauv:
   check_enabled: True
-  long_name: Surface downward northward stress
+  long_name: Surface downward northward wind stress
   mask: atm
   units: "Pa"
   boundaries: null
@@ -102,7 +116,7 @@ tos:
 
 ua200:
   check_enabled: True
-  long_name: Zonal wind at 200 hPa
+  long_name: Eastward wind at 200 hPa
   mask: atm
   units: "m s**-1"
   min: -1000.0
@@ -110,7 +124,15 @@ ua200:
 
 ua850:
   check_enabled: True
-  long_name: Zonal wind at 850 hPa
+  long_name: Eastward wind at 850 hPa
+  mask: atm
+  units: "m s**-1"
+  min: -1000.0
+  max: 1000.0
+
+uas:
+  check_enabled: True
+  long_name: Eastward near-surface wind
   mask: atm
   units: "m s**-1"
   min: -1000.0
@@ -118,7 +140,7 @@ ua850:
 
 va200:
   check_enabled: True
-  long_name: Meridional wind at 200 hPa
+  long_name: Northward wind at 200 hPa
   mask: atm
   units: "m s**-1"
   min: -1000.0
@@ -126,8 +148,30 @@ va200:
 
 va850:
   check_enabled: True
-  long_name: Meridional wind at 850 hPa
+  long_name: Northward wind at 850 hPa
   mask: atm
   units: "m s**-1"
   min: -1000.0
   max: 1000.0
+
+vas:
+  check_enabled: True
+  long_name: Northward near-surface wind
+  mask: atm
+  units: "m s**-1"
+  min: -1000.0
+  max: 1000.0
+
+zg300:
+  check_enabled: True
+  long_name: Geopotential height at 300 hPa
+  mask: atm
+  units: "m"
+  boundaries: null
+
+zg500:
+  check_enabled: True
+  long_name: Geopotential height at 500 hPa
+  mask: atm
+  units: "m"
+  boundaries: null
