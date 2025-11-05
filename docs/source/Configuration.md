@@ -4,7 +4,7 @@ _pyhanami_ uses the configuration files in `src/pyhanami/config` to manage analy
 
 ## variables.yaml
 
-The `variables.yaml` file is the main configuration file that defines climate variables and their corresponding metadata.
+The `variables.yaml` file is the main configuration file that defines climate variables and their corresponding metadata. Both the variable's shortname and long name follow CMIP conventions (see [CMIP6 Data Request](https://clipc-services.ceda.ac.uk/dreq/index/var.html)).
 
 ### Variable Definitions
 Required fields for each variable:
@@ -16,7 +16,7 @@ variable_name:  # Variable shortname
   units: str  # Units of the variable
 ```
 
-Note that additional fields to check the physical plausibility of the variable can be added (e.g., max, min, boundaries, ...).
+Note that additional fields to check the physical plausibility of a variable, such as `max`, `min` and/or `boundaries`, can be added.
 
 <!-- TO DO: add explanation of `config_params.py`. -->
 
