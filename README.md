@@ -26,7 +26,7 @@ Future releases will include:
 ## Installation
 The package can be installed from the source using `pip`:
 ```bash
-git clone https://earth.bsc.es/gitlab/ces/hanami/pyhanami.git
+git clone https://github.com/BSC-ES/pyhanami.git
 cd pyhanami
 pip install .
 ```
