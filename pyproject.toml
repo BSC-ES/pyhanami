@@ -14,7 +14,7 @@ authors = [
 
 description = "pyhanami is a tool designed to evaluate the replicability and projection skill of Earth System Models"
 readme = "README.md"
-license = {file = "LICENSE"}
+license = {file = "LICENSES/LICENSE"}
 keywords = ["Earth System Models", "replicability", "projection skill"]
 classifiers=[
     "Development Status :: 3 - Alpha",
@@ -40,8 +40,8 @@ dependencies = [
     "pyyaml",
     "scipy",
     "tqdm",
-    "xarray",
-    "xesmf",
+    "xarray>=2023.1.0,<2024.7.0",
+    "xesmf>=0.7.0,<0.9.0",
 ]
 
 
