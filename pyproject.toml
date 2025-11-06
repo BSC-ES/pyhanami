@@ -14,7 +14,7 @@ authors = [
 
 description = "pyhanami is a tool designed to evaluate the replicability and projection skill of Earth System Models"
 readme = "README.md"
-license = {file = "LICENSE"}
+license = {file = "LICENSES/LICENSE"}
 keywords = ["Earth System Models", "replicability", "projection skill"]
 classifiers=[
     "Development Status :: 3 - Alpha",

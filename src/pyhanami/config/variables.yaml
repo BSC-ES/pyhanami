@@ -29,14 +29,14 @@ rlut:
 orog:
   check_enabled: True
   long_name: Surface altitude
-  mask: land # what goes here??
+  mask: atm # what goes here??
   units: "m"
   boundaries: null
 
 phis: # check this one??
   check_enabled: True
   long_name: Surface geopotential
-  mask: land
+  mask: atm # what goes here??
   units: "m**2 s**-2"
   boundaries: null
 

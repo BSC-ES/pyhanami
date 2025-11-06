@@ -276,6 +276,11 @@ def run_tempestExtremes(data, data_name, output_path, min_wind=10.0, tracks_hist
         Minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
     tracks_hist : bool
         If True, generate a histogram of TC detections as a .nc file (default: False).
+
+    Returns
+    -------
+    tracks_path : str
+        Path to the TempestExtremes output .txt file with TC tracks.
     """
 
     # Prepare data to be used as input for TempestExtremes
