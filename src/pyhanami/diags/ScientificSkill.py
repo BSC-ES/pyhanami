@@ -173,6 +173,8 @@ class ScientificEvaluation:
             start_year_eeof = start_year
         if end_year_eeof is None:
             end_year_eeof = end_year
+        if start_year_eeof == end_year_eeof:
+            raise ValueError("More than one year is needed for the EEOF analysis (at least 10 years is recommended, ideally ~ 30 years).")
 
         if years_pc is not None:
             if isinstance(years_pc, int):
