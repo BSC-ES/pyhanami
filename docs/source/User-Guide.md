@@ -2,9 +2,13 @@
 
 This guide provides detailed instructions and examples for using _pyhanami_ to evaluate several features of ESMs. 
 
-<!-- ## Set up configuration files
+ ## Set up configuration files
 
-TO DO: add explanation of configuration files.-->
+Before using _pyhanami_, ensure that the configuration files explained in the [Configuration](./Configuration.md) guide are properly set up. In particular, pay attention to the following aspects:
+
+- **Variables:** for each variable to be analyzed, ensure it is defined in `src/pyhanami/config/variables.yaml` following CMIP conventions (see [Configuration](./Configuration.md#variables.yaml)). It is required that each variable (as a xarray.DataArray) has as attribute the corresponding `units`.
+
+<!-- TO DO: finish explanation of configuration files.-->
 
 ## Load simulation data
 
