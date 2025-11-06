@@ -12,16 +12,31 @@ Before using _pyhanami_, ensure that the configuration files explained in the [C
 
 ## Load simulation data
 
-To load simulation data, create `SimulationData` objects for each dataset you want to analyze:
+To load simulation data, create a `SimulationData` object for each dataset you want to analyze:
 
 ```python
-import pyhanami as hnmi
+import pyhanami
 
-sim_1 = hnmi.SimulationData('source_sim_1', name='name_sim_1')
-sim_2 = hnmi.SimulationData('source_sim_2', name='name_sim_2')
+sim_1 = pyhanami.SimulationData('source_sim_1', name='name_sim_1')
+sim_2 = pyhanami.SimulationData('source_sim_2', name='name_sim_2')
 ```
 
-Note that `source_sim_1` and `source_sim_2` must be paths to NetCDF files or `xarray.Dataset` objects.
+Note that the `'source_sim_*'` parameter can be:
+- A path to a NetCDF file containing the simulation data (as string)
+- An `xarray.Dataset` object already loaded in memory
+
+Example with file path:
+```python
+sim_1 = pyhanami.SimulationData('/path/to/simulation_1.nc', name='name_sim_1')
+```
+
+Example with `xarray.Dataset` object:
+```python
+import xarray as xr
+
+data_sim_1 = xr.open_dataset('/path/to/simulation_1.nc')
+sim_1 = pyhanami.SimulationData(data_sim_1, name='name_sim_1')
+```
 
 
 ## Time series plots
@@ -30,7 +45,7 @@ To generate **time series plots** between `year_init` and `year_end` for a given
 
 ```python
 # Initialize DataDiagnostics class with a SimulationData object
-diags = hnmi.DataDiagnostics(sim_1)
+diags = pyhanami.DataDiagnostics(sim_1)
 
 # Plot mean time series for one dataset
 diags.time_series_plots(
@@ -76,7 +91,7 @@ To generate **spatial plots** comparing two simulation datasets, create a `DataD
 ```python
 # Initialize DataDiagnostics class with two SimulationData objects
 # (If you have already added these datasets to an existing DataDiagnostics object, you can skip this step)
-diags = hnmi.DataDiagnostics([sim_1, sim_2])
+diags = pyhanami.DataDiagnostics([sim_1, sim_2])
 
 # Plot spatial plots comparing both datasets
 diags.spatial_plots(
@@ -98,7 +113,7 @@ To perform and plot results of a **replicability test** comparing two simulation
 
 ```python
 # Initialize ReplicabilityTest class with two SimulationData objects
-tester = hnmi.ReplicabilityTest([sim_1, sim_2], obs_path='path_obs')
+tester = pyhanami.ReplicabilityTest([sim_1, sim_2], obs_path='path_obs')
 
 # Perform test
 tester.matrix_plot(
@@ -118,7 +133,7 @@ With the following snippet, the `bimodal_ISO` method will perform an EEOF analys
 
 ```python
 # Initialize ScientificEvaluation class with a SimulationData object
-sciskill = hnmi.ScientificEvaluation(sim_1)
+sciskill = pyhanami.ScientificEvaluation(sim_1)
 
 # Compute and plot bimodal ISO indices performing an EEOF analysis on simulated data
 sciskill.bimodal_ISO(
@@ -164,7 +179,7 @@ With the following, the `tc_metrics` method will detect and track TCs between `y
 ```python
 # Initialize ScientificEvaluation class with a SimulationData object
 # (If you have already added this dataset to an existing ScientificEvaluation object, you can skip this step)
-sciskill = hnmi.ScientificEvaluation(sim_1)
+sciskill = pyhanami.ScientificEvaluation(sim_1)
 
 # Compute TC metrics statistics for one simulation dataset
 clim_bias, storm_bias, seas_corr, spat_corr = sciskill.tc_metrics(
