@@ -145,8 +145,8 @@ def apply_lanczos_bandpass_filter(raw_olr_data, window=141, low_freq=1/90, high_
 
     # Filter data
     filtered_olr_data = apply_lanczos_bandpass(raw_olr_data, window, low_freq, high_freq)
-    if filtered_olr_data.name != "olr":
-        filtered_olr_data.name = "olr"
+    if filtered_olr_data.name != "rlut":
+        filtered_olr_data.name = "rlut"
 
     return filtered_olr_data
 
