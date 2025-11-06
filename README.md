@@ -38,15 +38,15 @@ pip install .
 The following example demonstrates the main functionalities of _pyhanami_. For detailed usage instructions, see the project's documentation in [https://pyhanami.readthedocs.io/](https://pyhanami.readthedocs.io/)
 
 ```python
-import pyhanami as hnmi
+import pyhanami
 
 # Load simulation data 
-sim_1 = hnmi.SimulationData('source_simulation_1', name='name_sim_1')
-sim_2 = hnmi.SimulationData('source_simulation_2', name='name_sim_2')
+sim_1 = pyhanami.SimulationData('source_simulation_1', name='name_sim_1')
+sim_2 = pyhanami.SimulationData('source_simulation_2', name='name_sim_2')
 
 
 # Generate diagnostics plots comparing both simulation datasets
-diags = hnmi.DataDiagnostics([sim_1, sim_2])
+diags = pyhanami.DataDiagnostics([sim_1, sim_2])
 
 # Create time series plot (simulations + observations)
 diags.time_series_plots(
@@ -69,7 +69,7 @@ diags.spatial_plots(
 
 
 # Perform replicability test comparing both simulation datasets
-tester = hnmi.ReplicabilityTest([sim_1, sim_2], obs_path='path_obs')
+tester = pyhanami.ReplicabilityTest([sim_1, sim_2], obs_path='path_obs')
 
 tester.matrix_plot(
     ['name_sim_1', 'name_sim_2'],
@@ -78,7 +78,7 @@ tester.matrix_plot(
 
 
 # Compute bimodal ISO indices and related statistics for one simulation dataset
-sciskill = hnmi.ScientificEvaluation(sim_1)
+sciskill = pyhanami.ScientificEvaluation(sim_1)
 
 corr, std_dev, tss = sciskill.bimodal_ISO(
     'name_sim_1',
