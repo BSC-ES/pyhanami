@@ -184,7 +184,7 @@ def extract_season_blocks(data, start_year, end_year, season, cutoff_points=90):
     
     # Compute blocks
     blocks = []
-    for year in range(start_year, end_year+1):
+    for year in range(start_year, end_year):
         # Generate season labels for the corresponding years
         if season == "boreal_winter":
             start = np.datetime64(f"{year}-12-01")
