@@ -9,6 +9,16 @@ from scipy.stats import ks_2samp, ttest_ind, mannwhitneyu
 VARIABLES_PATH = Path(__file__).parent / "variables.yaml"
 
 
+# Available datasets parameters
+DATA_PATH = Path(__file__).parent.parent / "data"
+
+NOAA_EEOF_SUMMER_PATH = DATA_PATH / "eeof_boreal_summer_noaa_1975-2020.nc"
+NOAA_EEOF_WINTER_PATH = DATA_PATH / "eeof_boreal_winter_noaa_1975-2020.nc"
+NOAA_PC_PATH = DATA_PATH / "pc_noaa_1975-2020.nc"
+NOAA_START_YEAR = 1975
+NOAA_END_YEAR = 2020
+
+
 # General parameters
 METRICS = np.array([
         ('RK08', [statistics.exp_RK_index], True),
