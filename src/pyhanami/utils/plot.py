@@ -701,7 +701,7 @@ def eeofs_plot(eeof, clon=0, title='ISO convection patterns', cb_label='scaled E
                 transform=ax.transAxes, 
                 ha="right", va="top", 
                 fontsize=6,
-                bbox=dict(facecolor="white", edgecolor="black", boxstyle="square,pad=0.4", alpha=0.8)
+                bbox=dict(facecolor="white", edgecolor="black", boxstyle="square,pad=0.4", alpha=0.9)
             )
 
     

@@ -136,26 +136,26 @@ class bimodal_ISO:
             self.eeof_summer = xr.open_dataset(config_params.NOAA_EEOF_SUMMER_PATH)
             self.eeof_winter = xr.open_dataset(config_params.NOAA_EEOF_WINTER_PATH)
             self.pcs_obs = xr.open_dataset(config_params.NOAA_PC_PATH)
-            print(f"EEOF analysis loaded for '{self.obs_name}' observations between {self.start_year_eeof} and {self.end_year_eeof}.")
+            print(f"\tEEOF analysis loaded for '{self.obs_name}' observations between {self.start_year_eeof} and {self.end_year_eeof}.")
         else:
             self.eeof_summer, self.eeof_winter = self._compute_EEOFs(data_filtered_sim, lags, n_modes)
             self.pcs_obs = None
-            print(f"EEOF analysis completed for '{self.sim_name}' data between {self.start_year_eeof} and {self.end_year_eeof}."
+            print(f"\tEEOF analysis completed for '{self.sim_name}' data between {self.start_year_eeof} and {self.end_year_eeof}."
                   " See attributes `eeof_summer` and `eeof_winter` for results.", flush=True)
 
         # Compute PCs and ISO statistics
         self.pcs_sim, self.alpha = self._compute_PCs(data_filtered_sim, correct_pc)
-        print(f"PCs (bimodal ISO indices) computation completed data between {self.start_year_pc} and {self.end_year_pc}."
+        print(f"\tPCs (bimodal ISO indices) computation completed data between {self.start_year_pc} and {self.end_year_pc}."
               " See attribute `pcs_sim` (and `pcs_obs` if obs=True) for results.", flush=True)
 
         self.freq_ISO_sim, self.freq_ISO_obs, corr, sigma, tss = self._compute_ISO_stats()
         self.stats = {'Temporal correlation (R)': corr, 'Ratio standard deviations ($\\sigma$)': sigma, 'TSS': tss}
-        print(f'Mean monthly frequency computation completed data between {self.start_year_pc} and {self.end_year_pc}.'
+        print(f'\tMean monthly frequency computation completed data between {self.start_year_pc} and {self.end_year_pc}.'
               ' See attributes `freq_ISO_sim` (and `freq_ISO_obs` if obs=True) for results.', flush=True)
         
         if self.obs:
-            print(f"Computed Taylor Skill Score (TSS) between simulations and observations (stored in attribute `stats`):\n"
-                  f"\tTemporal correlation (R): {self.stats['Temporal correlation (R)']:.2f}, Ratio standard deviations ($\\sigma$):"
+            print(f"\tComputed Taylor Skill Score (TSS) between simulations and observations (stored in attribute `stats`):\n"
+                  f"\t\tTemporal correlation (R): {self.stats['Temporal correlation (R)']:.2f}, Ratio standard deviations ($\\sigma$):"
                   f" {self.stats['Ratio standard deviations ($\\sigma$)']:.2f}, TSS: {self.stats['TSS']:.2f}\n", flush=True)
 
         print("Bimodal ISO indices computation completed.", flush=True)
@@ -217,7 +217,7 @@ class bimodal_ISO:
         alpha = None
         if correct_pc and self.obs:
             pcs_sim, alpha = iso_metrics.adjust_PCs(pcs_sim, self.pcs_obs)
-            print(f"Simulated PCs have been adjusted using the '{self.obs_name}' observations.", flush=True)
+            print(f"\tSimulated PCs have been adjusted using the '{self.obs_name}' observations.", flush=True)
         elif correct_pc:
             warnings.warn("Simulated PCs cannot be adjusted without observations. Continuing without modification.")
 
@@ -277,33 +277,41 @@ class bimodal_ISO:
             name = self.sim_name
 
         # Save EEOFS
-        eeof_summer_path = output_path / f"eeof_boreal_summer_{name}_{self.start_year_eeof}-{self.end_year_eeof}.nc"
+        eeof_summer_path = output_path / f"eeof_boreal_summer_{('_').join(name.split())}_{self.start_year_eeof}-{self.end_year_eeof}.nc"
         self.eeof_summer.to_netcdf(eeof_summer_path)
         print(f"EEOFs computed from '{name}' for boreal summer saved to '{eeof_summer_path}'.", flush=True)
 
-        eeof_winter_path = output_path / f"eeof_boreal_winter_{name}_{self.start_year_eeof}-{self.end_year_eeof}.nc"
+        eeof_winter_path = output_path / f"eeof_boreal_winter_{('_').join(name.split())}_{self.start_year_eeof}-{self.end_year_eeof}.nc"
         self.eeof_winter.to_netcdf(eeof_winter_path)
         print(f"EEOFs computed from '{name}' for boreal winter saved to '{eeof_winter_path}'.", flush=True)
 
         # Save PCs
-        pcs_sim_path = output_path / f"pcs_{self.sim_name}_projected_{self.start_year_pc}-{self.end_year_pc}.nc"
-        self.pcs_sim.to_netcdf(pcs_sim_path)
-        print(f"PCs (bimodal ISO indices) computed for '{self.sim_name}' simulations saved to '{pcs_sim_path}'.", flush=True)
-
         if self.obs:
-            pcs_obs_path = output_path / f"pcs_{self.obs_name}_projected_{config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}.nc"
+            pcs_sim_path = output_path / f"pcs_{('_').join(self.sim_name.split())}_projected_on_{('_').join(self.obs_name.split())}_{self.start_year_pc}-{self.end_year_pc}.nc"
+            self.pcs_sim.to_netcdf(pcs_sim_path)
+            print(f"PCs (bimodal ISO indices) computed for '{self.sim_name}' simulations saved to '{pcs_sim_path}'.", flush=True)
+
+            pcs_obs_path = output_path / f"pcs_{('_').join(self.obs_name.split())}_projected_{config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}.nc"
             self.pcs_obs.to_netcdf(pcs_obs_path)
             print(f"PCs (bimodal ISO indices) computed for '{self.obs_name}' observations saved to '{pcs_obs_path}'.", flush=True)
+        else:
+            pcs_sim_path = output_path / f"pcs_{('_').join(self.sim_name.split())}_projected_{self.start_year_pc}-{self.end_year_pc}.nc"
+            self.pcs_sim.to_netcdf(pcs_sim_path)
+            print(f"PCs (bimodal ISO indices) computed for '{self.sim_name}' simulations saved to '{pcs_sim_path}'.", flush=True)
 
         # Save frequency of ISO events
-        freq_ISO_sim_path = output_path / f"freq_ISO_{self.sim_name}_{self.start_year_pc}-{self.end_year_pc}.nc"
-        self.freq_ISO_sim.to_netcdf(freq_ISO_sim_path)
-        print(f"Mean monthly frequency of ISO events computed for '{self.sim_name}' saved to '{freq_ISO_sim_path}'.", flush=True)
-
         if self.obs:
-            freq_ISO_obs_path = output_path / f"freq_ISO_{self.obs_name}_{config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}.nc"
+            freq_ISO_sim_path = output_path / f"freq_ISO_{('_').join(self.sim_name.split())}_{('_').join(self.obs_name.split())}_{self.start_year_pc}-{self.end_year_pc}.nc"
+            self.freq_ISO_sim.to_netcdf(freq_ISO_sim_path)
+            print(f"Mean monthly frequency of ISO events computed for '{self.sim_name}' saved to '{freq_ISO_sim_path}'.", flush=True)
+
+            freq_ISO_obs_path = output_path / f"freq_ISO_{('_').join(self.obs_name.split())}_{config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}.nc"
             self.freq_ISO_obs.to_netcdf(freq_ISO_obs_path)
             print(f"Mean monthly frequency of ISO events computed for '{self.obs_name}' observations saved to '{freq_ISO_obs_path}'.", flush=True)
+        else:
+            freq_ISO_sim_path = output_path / f"freq_ISO_{('_').join(self.sim_name.split())}_{self.start_year_pc}-{self.end_year_pc}.nc"
+            self.freq_ISO_sim.to_netcdf(freq_ISO_sim_path)
+            print(f"Mean monthly frequency of ISO events computed for '{self.sim_name}' saved to '{freq_ISO_sim_path}'.", flush=True)
 
         return
 
@@ -328,10 +336,10 @@ class bimodal_ISO:
             output_path.mkdir(parents=True, exist_ok=True)
 
         # Determine dataset name for titles
-        if self.obs is None:
-            name = self.sim_name
-        else:
+        if self.obs:
             name = self.obs_name
+        else:
+            name = self.sim_name
 
 
         # Plot EEOFs for borean summer
@@ -341,7 +349,7 @@ class bimodal_ISO:
             plt.show()
             print("BSISO EEOFs plot created and displayed.", flush=True)
         else:
-            eeofs_path = output_path / f"eeof_boreal summer_{name}_{self.start_year_eeof}-{self.end_year_eeof}.png"
+            eeofs_path = output_path / f"eeof_boreal_summer_{('_').join(name.split())}_{self.start_year_eeof}-{self.end_year_eeof}.png"
 
             eeofs_plot.savefig(eeofs_path, bbox_inches='tight', dpi=150)
             print(f"BSISO EEOFs plot created and saved to '{eeofs_path}'.", flush=True)
@@ -355,7 +363,7 @@ class bimodal_ISO:
             plt.show()
             print("MJO EEOFs plot created and displayed.", flush=True)
         else:
-            eeofw_path = output_path / f"eeof_boreal_winter_{name}_{self.start_year_eeof}-{self.end_year_eeof}.png"
+            eeofw_path = output_path / f"eeof_boreal_winter_{('_').join(name.split())}_{self.start_year_eeof}-{self.end_year_eeof}.png"
 
             eeofw_plot.savefig(eeofw_path, bbox_inches='tight', dpi=150)
             print(f"MJO EEOFs plot created and saved to '{eeofw_path}'.", flush=True)
@@ -384,12 +392,20 @@ class bimodal_ISO:
         # Determine dataset to plot
         if data == 'sim':
             pcs_data = self.pcs_sim
-            name = self.sim_name
+            if self.obs:
+                name_title = f"'{self.sim_name}' projected on '{self.obs_name}'" 
+                name_projected = f"_{('_').join(self.obs_name.split())}"
+            else:
+                name_title = f"'{self.sim_name}'"
+                name_projected = ''
+            name_file = ('_').join(self.sim_name.split())
         elif data == 'obs':
             if not self.obs:
                 raise ValueError("Observational PCs are not available. Set 'obs=True' when initializing the bimodal_ISO object to load them.")
             pcs_data = self.pcs_obs
-            name = self.obs_name
+            name_title = f"'{self.obs_name}'"
+            name_file = ('_').join(self.obs_name.split())
+            name_projected = ''
 
         # Validate years input
         if years is None:
@@ -402,13 +418,13 @@ class bimodal_ISO:
         # Plot PCs for selected years
         for year in years:
             pcs_year = pcs_data.sel(time=slice(f'{year}-01-01', f'{year}-12-31'))
-            pcs_plot, _ = plot.pcs_plot(pcs_year, title=f"Bimodal ISO indices '{name}' ({year})")
+            pcs_plot, _ = plot.pcs_plot(pcs_year, title=f"Bimodal ISO indices {name_title} ({year})")
 
             if output_path is None:
                 plt.show()
                 print(f"PCs (bimodal ISO indices) for year {year} plot created and displayed.", flush=True)
             else:
-                pcs_path = output_path / f"pcs_{name}_{year}_projected_{self.start_year_eeof}-{self.end_year_eeof}.png"
+                pcs_path = output_path / f"pcs_{name_file}_{year}_projected{name_projected}_{self.start_year_eeof}-{self.end_year_eeof}.png"
 
                 # pcs_year.to_netcdf(pcs_path.with_suffix('.nc'))
                 pcs_plot.savefig(pcs_path, bbox_inches='tight', dpi=150)
@@ -433,16 +449,23 @@ class bimodal_ISO:
                                            sigma=self.stats['Ratio standard deviations ($\\sigma$)'], tss=self.stats['TSS'],
                                            title=f'Mean monthly frequency of ISO events', sim_label=self.sim_name, obs_label=self.obs_name)
 
+        if self.obs:
+            name_title = f"'{self.sim_name}'_vs_'{self.obs_name}'"
+            name_file = f"{('_').join(self.sim_name.split())}_vs_{('_').join(self.obs_name.split())}"
+        else:
+            name_title = f"'{self.sim_name}'"
+            name_file = f"{('_').join(self.sim_name.split())}"
+
         if output_path is None:
             plt.show()
-            print(f"Mean monthly frequency of ISO events for '{self.sim_name}' plot created and displayed.", flush=True)
+            print(f"Mean monthly frequency of ISO events for {name_title} plot created and displayed.", flush=True)
         else:
             output_path = Path(output_path)
             output_path.mkdir(parents=True, exist_ok=True)
 
-            freq_path = output_path / f"freq_ISO_{self.sim_name}_projected_{self.start_year_eeof}-{self.end_year_eeof}.png"
+            freq_path = output_path / f"freq_ISO_{name_file}_projected_{self.start_year_eeof}-{self.end_year_eeof}.png"
             freq_plot.savefig(freq_path, bbox_inches='tight', dpi=150)
-            print(f"Mean monthly frequency of ISO events for '{self.sim_name}' plot created and saved to '{freq_path}'.", flush=True)
+            print(f"Mean monthly frequency of ISO events for {name_title} plot created and saved to '{freq_path}'.", flush=True)
 
         return
 
