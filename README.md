@@ -77,19 +77,27 @@ tester.matrix_plot(
 )
 
 
-# Compute bimodal ISO indices and related statistics for one simulation dataset
+# Generate scientific skill evaluation for one simulation dataset
 sciskill = pyhanami.ScientificEvaluation(sim_1)
 
-corr, std_dev, tss = sciskill.bimodal_ISO(
+# Compute bimodal ISO indices and related statistics comparing to observations
+bimodal_indices = sciskill.compute_bimodal_ISO(
     'name_sim_1',
-    'output_path',
-    start_year_eeof=year_init,
-    end_year_eeof=year_end,
-    years_pc = years,
-    obs = True,
-    obs_path = 'path_obs',
-    obs_name = 'name_obs'
+    start_year_pc=year_init_pc,
+    end_year_pc=year_end_pc,
+    obs = True
 )
+
+# Save results
+bimodal_indices.save_data('output_path')
+
+# Generate plots for EEOFs, PCs (bimodal indices) and frequency of ISO events
+bimodal_indices.plot_eeofs('output_path')
+bimodal_indices.plot_pcs('output_path', years=[year_1, year_2, year_3])
+bimodal_indices.plot_freq_ISO('output_path')
+
+# Check computed statistics
+print(bimodal_indices.stats)
 ```
 
 
