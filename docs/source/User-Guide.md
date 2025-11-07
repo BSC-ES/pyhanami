@@ -131,7 +131,7 @@ To evaluate the simulation of ISOs, create a `ScientificEvaluation` object with 
 
 The following snippet creates a `bimodal_ISO` instance that:
 1. Performs an Extended Empirical Orthogonal Function (EEOF) analysis between `year_init_eeof` and `year_end_eeof`
-2. Uses the EEOFs to compute bimodal ISO indices (first two Principal Components (PCs)) between `start_year_pc` and `end_year_pc`
+2. Uses the EEOFs to compute bimodal ISO indices (first two Principal Components (PCs)) between `year_init_pc` and `year_end_pc`
 3. Calculates mean monthly frequency of ISO events using all the bimodal ISO indices computed in step 2
 
 ```python
