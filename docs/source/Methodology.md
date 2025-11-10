@@ -78,7 +78,7 @@ This visualization allows for a quick assessment of the replicability, helping i
 
 The `ScientificEvaluation` class implements various plots and scalar metrics to analyze how well ESMs reproduce key climate phenomena. These metrics compare model output against observational data to quantify the models' skill in capturing specific features of the Earth's climate system.
 
-This section explains the approach taken to evaluate each different phenomenon. Currently, the package includes the following scientific skill metrics:
+This section explains the approach used to evaluate several climate phenomena. Currently, the package includes the following scientific skill metrics:
 
 ### Tropical IntraSeasonal Oscillation (ISO): Bimodal ISO indices
 
@@ -96,6 +96,7 @@ $$
 where $R_0$ is the maximum correlation that can be achieved by the model, taken as $R_0=1$.
 
 Since models usually underestimate the amplitude of the ISO, the PCs can be adjusted before computing the above quantities by scaling them with the ratio of the ISO amplitude between simulations and observations, defined as
+
 $$
 \alpha = \frac{\overline{\lVert\text{PC}_{\text{MJO}}^{\text{sim}}\rVert} + \overline{\lVert\text{PC}_{\text{BSISO}}^{\text{sim}}\rVert}}{\overline{\lVert\text{PC}_{\text{MJO}}^{\text{obs}}\rVert} + \overline{\lVert\text{PC}_{\text{BSISO}}^{\text{obs}}\rVert}}.
 $$
