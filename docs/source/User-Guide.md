@@ -160,6 +160,7 @@ bimodal_indices.plot_freq_ISO('output_path')
 ```
 
 By passing the argument `obs=True`, the `bimodal_ISO` class performs the same analysis as above but using precomputed EEOFs from NOAA data ([NOAA Interpolated OLR dataset](https://psl.noaa.gov/data/gridded/data.olrcdr.interp.html)) to generate the PCs and the frequency of ISO events for the simulation data: 
+<!-- Mention that either the NOAA EEOFs or the simulated data is regridded based on the relative resolutions. -->
 
 ```python
 # Compute bimodal ISO indices and related statistics comparing to observations
