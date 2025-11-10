@@ -37,7 +37,7 @@ class bimodal_ISO:
     obs : bool
         If True, also plot observational data if available (default: False).
     correct_pc : bool
-        Whether to adjust simulated PCs by dividing by alpha (default: False).
+        Whether to adjust simulated PCs by dividing by alpha (default: True).
     lat_range : tuple
         Geographic latitude bounds (default: (-30, 30)).
     lags : list[int]
@@ -76,7 +76,9 @@ class bimodal_ISO:
     freq_ISO_obs : xarray.DataArray or None
         Mean monthly frequency of occurrence for observational data, or None if not computed.
     stats : dict
-        Dictionary containing various statistics comparing simulation and observational data:
+        Dictionary containing various statistics comparing simulations and observational data:
+            alpha : float
+                Ratio of PCs' amplitude (model/obs).
             corr : float
                 Temporal correlation coefficient of the seasonality.
             sigma : float
@@ -86,7 +88,7 @@ class bimodal_ISO:
     """
 
     def __init__(self, data_sim : SimulationData, var_name : str = 'rlut', start_year_eeof : int = None, end_year_eeof : int = None, 
-                 start_year_pc : int = None, end_year_pc : int = None, obs : bool = False, correct_pc : bool = False,
+                 start_year_pc : int = None, end_year_pc : int = None, obs : bool = False, correct_pc : bool = True,
                  lat_range : tuple = (-30, 30), lags : list[int] = [-10, -5, 0], n_modes : int = 2, window : int = 141, 
                  low_freq : float = 1/90, high_freq : float = 1/25):
 
@@ -99,10 +101,6 @@ class bimodal_ISO:
         self.sim_name = data_sim.name
         self.obs_name = None
         self.obs = obs
-        
-        # Filter simulation data
-        data_unfiltered_sim = data_sim.data[var_name].sortby("lat").sel(lat=slice(*lat_range)).compute()
-        data_filtered_sim = iso_metrics.apply_lanczos_bandpass_filter(data_unfiltered_sim, window, low_freq, high_freq)
 
         # Select years for EEOF analysis and PCs computation
         years = data_sim.data.time.dt.year
@@ -133,32 +131,64 @@ class bimodal_ISO:
         # Compute/load EEOFs
         if self.obs:
             self.obs_name = 'NOAA'
+            
+            # Load observational data 
+            noaa_grid = xr.open_dataset(config_params.NOAA_GRID_PATH)
             self.eeof_summer = xr.open_dataset(config_params.NOAA_EEOF_SUMMER_PATH)
             self.eeof_winter = xr.open_dataset(config_params.NOAA_EEOF_WINTER_PATH)
             self.pcs_obs = xr.open_dataset(config_params.NOAA_PC_PATH)
+
             print(f"\tEEOF analysis loaded for '{self.obs_name}' observations between {self.start_year_eeof} and {self.end_year_eeof}.")
-        else:
+            
+            # Compute resolutions
+            sim_lat_res = abs(data_sim.data.lat[1] - data_sim.data.lat[0]).values
+            sim_lon_res = abs(data_sim.data.lon[1] - data_sim.data.lon[0]).values
+            obs_lat_res = abs(noaa_grid.lat[1] - noaa_grid.lat[0]).values
+            obs_lon_res = abs(noaa_grid.lon[1] - noaa_grid.lon[0]).values
+            
+            sim_resolution = (sim_lat_res + sim_lon_res) / 2
+            obs_resolution = (obs_lat_res + obs_lon_res) / 2
+            
+            # Regrid simulations if their resolution is higher
+            if sim_resolution < obs_resolution:  
+                data_sim.data = data_general.regrid_data(data_sim.data, noaa_grid)
+                print(f"\tSimulation data regridded to match observations' resolution (~{obs_resolution:.2f}°).")
+            # Regrid observational EEOFs if their resolution is higher
+            elif obs_resolution < sim_resolution:
+                self.eeof_summer = data_general.regrid_data(self.eeof_summer, data_sim.data)
+                self.eeof_winter = data_general.regrid_data(self.eeof_winter, data_sim.data)
+                print(f"\tObservational EEOFs regridded to match simulations resolution (~{sim_resolution:.2f}°).")
+
+        # Filter simulation data
+        data_unfiltered_sim = data_sim.data[var_name].sortby("lat").sel(lat=slice(*lat_range)).compute()
+        data_filtered_sim = iso_metrics.apply_lanczos_bandpass_filter(data_unfiltered_sim, window, low_freq, high_freq)
+        
+        if not self.obs:
+            # Compute EEOFs from simulation data
             self.eeof_summer, self.eeof_winter = self._compute_EEOFs(data_filtered_sim, lags, n_modes)
             self.pcs_obs = None
             print(f"\tEEOF analysis completed for '{self.sim_name}' data between {self.start_year_eeof} and {self.end_year_eeof}."
                   " See attributes `eeof_summer` and `eeof_winter` for results.", flush=True)
 
+
         # Compute PCs and ISO statistics
-        self.pcs_sim, self.alpha = self._compute_PCs(data_filtered_sim, correct_pc)
-        print(f"\tPCs (bimodal ISO indices) computation completed data between {self.start_year_pc} and {self.end_year_pc}."
+        self.stats = {}
+        self.pcs_sim, self.stats['alpha'] = self._compute_PCs(data_filtered_sim, correct_pc)
+        print(f"\tPCs (bimodal ISO indices) computed between {self.start_year_pc} and {self.end_year_pc}."
               " See attribute `pcs_sim` (and `pcs_obs` if obs=True) for results.", flush=True)
 
-        self.freq_ISO_sim, self.freq_ISO_obs, corr, sigma, tss = self._compute_ISO_stats()
-        self.stats = {'Temporal correlation (R)': corr, 'Ratio standard deviations ($\\sigma$)': sigma, 'TSS': tss}
-        print(f'\tMean monthly frequency computation completed data between {self.start_year_pc} and {self.end_year_pc}.'
+        self.freq_ISO_sim, self.freq_ISO_obs, self.stats['R'], self.stats['sigma'], self.stats['TSS'] = self._compute_ISO_stats()
+        print(f'\tMean monthly frequency computed between {self.start_year_pc} and {self.end_year_pc}.'
               ' See attributes `freq_ISO_sim` (and `freq_ISO_obs` if obs=True) for results.', flush=True)
         
         if self.obs:
-            print(f"\tComputed Taylor Skill Score (TSS) between simulations and observations (stored in attribute `stats`):\n"
-                  f"\t\tTemporal correlation (R): {self.stats['Temporal correlation (R)']:.2f}, Ratio standard deviations ($\\sigma$):"
-                  f" {self.stats['Ratio standard deviations ($\\sigma$)']:.2f}, TSS: {self.stats['TSS']:.2f}\n", flush=True)
-
-        print("Bimodal ISO indices computation completed.", flush=True)
+            alpha_str = "None, as no PCs correction was applied" if self.stats['alpha'] is None else f"{self.stats['alpha']:.2f}"
+            print(f"\tTaylor Skill Score (TSS) between simulations and observations computed (stored in attribute `stats`):"
+                  f"\n\t\tRatio PCs amplitudes ($\\alpha$): {alpha_str}"
+                  f"\n\t\tTemporal correlation (R): {self.stats['R']:.2f}"
+                  f"\n\t\tRatio standard deviations ($\\sigma$): {self.stats['sigma']:.2f}"
+                  f"\n\t\tTaylor Skill Score (TSS): {self.stats['TSS']:.2f}", flush=True)
+        print("\nBimodal ISO indices computation completed.", flush=True)
 
         return
 
@@ -191,7 +221,7 @@ class bimodal_ISO:
         return eeof_summer, eeof_winter
 
 
-    def _compute_PCs(self, data_sim, correct_pc=False):
+    def _compute_PCs(self, data_sim, correct_pc=True):
         """
         Compute Principal Components (PCs) from the simulation data for the requested years, 
         and adjust them with observational data if requested.
@@ -201,7 +231,7 @@ class bimodal_ISO:
         data_sim : xarray.DataArray
             Filtered simulation data.
         correct_pc : bool
-            Whether to adjust simulated PCs (default: False).
+            Whether to adjust simulated PCs (default: True).
 
         Returns
         -------
@@ -218,8 +248,8 @@ class bimodal_ISO:
         if correct_pc and self.obs:
             pcs_sim, alpha = iso_metrics.adjust_PCs(pcs_sim, self.pcs_obs)
             print(f"\tSimulated PCs have been adjusted using the '{self.obs_name}' observations.", flush=True)
-        elif correct_pc:
-            warnings.warn("Simulated PCs cannot be adjusted without observations. Continuing without modification.")
+        # elif correct_pc:
+        #     warnings.warn("Simulated PCs cannot be adjusted without observations. Continuing without modification.")
 
         return pcs_sim, alpha
 
@@ -445,8 +475,8 @@ class bimodal_ISO:
         """
 
         # Plot frequency of ISO events
-        freq_plot, _ = plot.freq_ISO_plot(self.freq_ISO_sim, self.freq_ISO_obs, alpha=self.alpha, corr=self.stats['Temporal correlation (R)'],
-                                           sigma=self.stats['Ratio standard deviations ($\\sigma$)'], tss=self.stats['TSS'],
+        freq_plot, _ = plot.freq_ISO_plot(self.freq_ISO_sim, self.freq_ISO_obs, alpha=self.stats['alpha'], corr=self.stats['R'],
+                                           sigma=self.stats['sigma'], tss=self.stats['TSS'],
                                            title=f'Mean monthly frequency of ISO events', sim_label=self.sim_name, obs_label=self.obs_name)
 
         if self.obs:
@@ -533,7 +563,7 @@ class ScientificEvaluation:
     
     
     def compute_bimodal_ISO(self, data_name=None, start_year_eeof=None, end_year_eeof=None, start_year_pc=None, end_year_pc=None, obs=False, 
-                            correct_pc=False, lat_range=(-30, 30), lags=[-10, -5, 0], n_modes=2, window=141, low_freq=1/90, high_freq=1/25):
+                            correct_pc=True, lat_range=(-30, 30), lags=[-10, -5, 0], n_modes=2, window=141, low_freq=1/90, high_freq=1/25):
         """
         Initialize and compute bimodal ISO indices (following (K. Kikuchi, 2020)) and derived 
         statistics (following (M. Nakano et al., 2019)) for a selected dataset.
@@ -551,7 +581,7 @@ class ScientificEvaluation:
         obs : bool
             If True, use EEOFs from observational data (default: False).
         correct_pc : bool
-            Whether to adjust simulated PCs by dividing by alpha (default: False).
+            Whether to adjust simulated PCs by dividing by alpha (default: True).
         lat_range : tuple
             Geographic latitude bounds (default: (-30, 30)).
         lags : list[int]
