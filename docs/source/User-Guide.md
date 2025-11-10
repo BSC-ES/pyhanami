@@ -180,7 +180,7 @@ The same way as before, it is possible to save the computed data and create plot
 bimodal_indices_obs.stats
 ```
 
-By default, if `obs=True`, the simulated PCs are adjusted before computing the TSS statistics to account for amplitude differences between simulations and observations (see [Methodology](./Methodology.md#tropical-intraseasonal-oscillation-iso-evaluation) for more details). This correction can be turned off by passing the argument `correct_pc=False'`.
+By default, if `obs=True`, the simulated PCs are adjusted before computing the TSS statistics to account for amplitude differences between simulations and observations (see [Methodology](./Methodology.md#tropical-intraseasonal-oscillation-iso-bimodal-iso-indices) for more details). This correction can be turned off by passing the argument `correct_pc=False'`.
 
 To summarize, the `bimodal_ISO` class includes methods to generate the following visualization outputs:
 1. **EEOF plots** (`bimodal_ISO.plot_eeofs`): spatial patterns of the first two EEOFs for boreal winter and boreal summer. The central longitude for these plots is set to 0º by default, but it can be modified with the argument `clon`.
@@ -190,7 +190,7 @@ To summarize, the `bimodal_ISO` class includes methods to generate the following
 
 ## Tropical Cyclones (TCs) evaluation
 
-To evaluate the simulation of TCs, create a `ScientificEvaluation` object with the `SimulationData` object that you want to analyze and use the `tc_metrics` method. This method computes several **TC metrics** (see [Methodology](./Methodology.md#tc-metrics)) and requires the following variables with a 6-hourly frequency:
+To evaluate the simulation of TCs, create a `ScientificEvaluation` object with the `SimulationData` object that you want to analyze and use the `tc_metrics` method. This method computes several **TC metrics** (see [Methodology](./Methodology.md#tropical-cyclones-tcs-tc-metrics)) and requires the following variables with a 6-hourly frequency:
 - **Sea level pressure** (`psl`)
 - **Zonal and meridional wind at 10 m** (`uas` and `vas`)
 - **Geopotential height at 300 hPa and 500 hPa** (`zg300` and `zg500`)
