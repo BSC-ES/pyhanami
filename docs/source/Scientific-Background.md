@@ -13,7 +13,7 @@ Scientific model skill refers to the ability of an ESM to accurately represent a
 
 Currently, evaluation of the following phenomena is available within _pyhanami_:
 - **Tropical IntraSeasonal Oscillation (ISO):** characterized by large-scale convective anomalies that modulate tropical atmospheric circulation on 30-90 day timescales. This is the predominant phenomenon in the tropics throughout the year. Following [(K. Kikuchi et al., 2012)](https://link.springer.com/article/10.1007/s00382-011-1159-1), we differentiate between two modes of ISO:     
-    - The **Madden-Jullian Oscillation (MJO)** mode during boreal winter with predominant eastward propagation along the equator.
+    - The **Madden-Julian Oscillation (MJO)** mode during boreal winter with predominant eastward propagation along the equator.
     - The **Boreal Summer ISO (BSISO)** mode during boreal summer with not only eastward but also northward/northwestward propagation over the northern Indian Ocean and the western North Pacific.
 
 - **Tropical Cyclones (TCs):** warm-core, cyclonic storms characterized by heavy precipitation and strong winds that begin over tropical oceans. 

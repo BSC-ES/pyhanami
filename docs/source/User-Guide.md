@@ -147,8 +147,9 @@ bimodal_indices = sciskill.compute_bimodal_ISO(
     end_year_pc=year_end_pc,
 )
 ```
+If no years are passed for the EEOFs or the PCs computation, the whole period covered by the simulation dataset is used by default.
 
-The `bimodal_ISO` class includes methods to visualize and save the results of the analysis. The following shows how to save the computed data and create plots for the EEOFs, the PCs (bimodal indices) for the selected years (`[year_1, year_2, year_3]`), and the frequency of ISO events:
+Moreover, the `bimodal_ISO` class includes methods to visualize and save the results of the analysis. The following shows how to save the computed data and create plots for the EEOFs, the PCs (bimodal indices) for the selected years (`[year_1, year_2, year_3]`), and the frequency of ISO events:
 
 ```python
 # Save and plot outcome of the bimodal ISO analysis
@@ -158,7 +159,7 @@ bimodal_indices.plot_pcs('output_path', years=[year_1, year_2, year_3])
 bimodal_indices.plot_freq_ISO('output_path')
 ```
 
-By passing the argument `obs=True`, the `bimodal_ISO` class will perform the same analysis as above but using precomputed EEOFs from NOAA data ([NOAA Interpolated Outgoing Longwave Radiation (OLR) dataset](https://psl.noaa.gov/data/gridded/data.olrcdr.interp.html)) to generate the PCs and the frequency of ISO events for the simulation data: 
+By passing the argument `obs=True`, the `bimodal_ISO` class performs the same analysis as above but using precomputed EEOFs from NOAA data ([NOAA Interpolated OLR dataset](https://psl.noaa.gov/data/gridded/data.olrcdr.interp.html)) to generate the PCs and the frequency of ISO events for the simulation data: 
 
 ```python
 # Compute bimodal ISO indices and related statistics comparing to observations
@@ -171,17 +172,19 @@ bimodal_indices_obs = sciskill.compute_bimodal_ISO(
 ```
 Note that, in this case, it is not necessary to specify `start_year_eeof`and `end_year_eeof`, as the ones used for the NOAA dataset will be applied automatically.
 
-The same way as before, it is possible to save the computed data and create plots for the EEOFs, the PCs (bimodal indices) for the selected years (`[year_1, year_2, year_3]`), and the frequency of ISO events. In this case, the mean monthly frequency (seasonality) of ISO events is compared between simulations and observations, and plotted together with the **TSS statistics**. The statistics can also be retrieved from the `bimodal_ISO.stats` attribute:
+The same way as before, it is possible to save the computed data and create plots for the EEOFs, the PCs (bimodal indices) for the selected years (`[year_1, year_2, year_3]`), and the frequency of ISO events. In this case, the mean monthly frequency (seasonality) of ISO events is compared between simulations and observations, and plotted together with the **TSS statistics**. The statistics can also be retrieved with the `bimodal_ISO.stats` attribute:
 
 ```python
 # Check computed statistics
-print(bimodal_indices_obs.stats)
+bimodal_indices_obs.stats
 ```
+
+By default, if `obs=True`, the simulated PCs are adjusted before computing the TSS statistics to account for amplitude differences between simulations and observations (see [Methodology](./Methodology.md#tropical-intraseasonal-oscillation-iso-evaluation) for more details). This correction can be turned off by passing the argument `correct_pc=False'`.
 
 To summarize, the `bimodal_ISO` class includes methods to generate the following visualization outputs:
 1. **EEOF plots** (`bimodal_ISO.plot_eeofs`): spatial patterns of the first two EEOFs for boreal winter and boreal summer. The central longitude for these plots is set to 0º by default, but it can be modified with the argument `clon`.
-2. **PC plots** (`bimodal_ISO.plot_pcs`, passing the years as just one year or a list of years): time series of the first two PCs and their amplitude for both MJO and BSISO for the specified years.
-3. **Frequency plot** (`bimodal_ISO.plot_freq_ISO`): mean monthly frequency (seasonality) of ISO events for both MJO and BSISO, computed over the entire period covered by the dataset. If observations are set to `True`, the frequency plots also include the TSS statistics (R, σ and TSS) comparing simulations and observations.
+2. **PC plots** (`bimodal_ISO.plot_pcs`, passing one year or a list of years): time series of the first two PCs and their amplitude for both MJO and BSISO for the specified years.
+3. **Frequency plot** (`bimodal_ISO.plot_freq_ISO`): mean monthly frequency (seasonality) of ISO events for both MJO and BSISO, computed over the entire period covered by the dataset. If observations are set to `True`, these are included in the  frequency plot, which also shows the TSS statistics (R, σ and TSS) comparing simulations and observations.
 
 
 ## Tropical Cyclones (TCs) evaluation

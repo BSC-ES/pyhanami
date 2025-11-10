@@ -76,13 +76,13 @@ This visualization allows for a quick assessment of the replicability, helping i
 
 ## Scientific skill
 
-The `ScientificEvaluation` class implements various scalar metrics to analyze how well ESMs reproduce key climate phenomena. These metrics compare model output against observational data to quantify the models' skill in capturing specific features of the Earth's climate system.
+The `ScientificEvaluation` class implements various plots and scalar metrics to analyze how well ESMs reproduce key climate phenomena. These metrics compare model output against observational data to quantify the models' skill in capturing specific features of the Earth's climate system.
 
-Currently, the package includes the following scientific skill metrics:
+This section explains the approach taken to evaluate each different phenomenon. Currently, the package includes the following scientific skill metrics:
 
-### Bimodal ISO indices
+### Tropical IntraSeasonal Oscillation (ISO): Bimodal ISO indices
 
-Two separate indices are defined for the MJO and the BSISO, following [(K. Kikuchi, 2020)](https://link.springer.com/article/10.1007/s00382-019-05037-z). These indices capture the ISO behavior during boreal winter and boreal summer, respectively. They are computed by performing an Extended Empirical Orthogonal Function (EEOF) analysis using TOA Outgoing Longwave Radiation (OLR) data, and then projecting the OLR data onto the first two EEOFs. This results in two Principal Components (PCs) for MJO and two for BSISO, which together represent the bimodal ISO indices. Note that the indices are normalized by dividing by one standard deviation during the period taken for the EEOF analysis, i.e. the squared root of the corresponding eigenvalue.
+Two separate indices are defined for the Madden-Julian Oscillation (MJO) and the Boreal Summer ISO (BSISO), following [(K. Kikuchi, 2020)](https://link.springer.com/article/10.1007/s00382-019-05037-z). These indices capture the ISO behavior during boreal winter and boreal summer, respectively. They are computed by performing an Extended Empirical Orthogonal Function (EEOF) analysis using TOA Outgoing Longwave Radiation (OLR) data, and then projecting the OLR data onto the first two EEOFs. This results in two Principal Components (PCs) for MJO and two for BSISO, which together represent the **bimodal ISO indices**. These indices are normalized by dividing by one standard deviation during the period taken for the EEOF analysis, i.e. the squared root of the corresponding eigenvalue.
 
 
 In order to obtain scalar metrics, we also compute the **temporal correlation (R)**, **standard deviation ratio (σ)**, and **Taylor Skill Score (TSS)** between simulations and observations using the PCs' amplitude, following [(M. Nakano et al., 2019)](https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2019GL082443). Specifically, the mean monthly frequency of MJO and BSISO events (ISO seasonality) is calculated using the amplitude of the corresponding PCs. The MJO frequency is then subtracted from the BSISO frequency, and this difference is compared between simulations and observations.
@@ -95,14 +95,21 @@ $$
 
 where $R_0$ is the maximum correlation that can be achieved by the model, taken as $R_0=1$.
 
+Since models usually underestimate the amplitude of the ISO, the PCs can be adjusted before computing the above quantities by scaling them with the ratio of the ISO amplitude between simulations and observations, defined as
+$$
+\alpha = \frac{\overline{\lVert\text{PC}_{\text{MJO}}^{\text{sim}}\rVert} + \overline{\lVert\text{PC}_{\text{BSISO}}^{\text{sim}}\rVert}}{\overline{\lVert\text{PC}_{\text{MJO}}^{\text{obs}}\rVert} + \overline{\lVert\text{PC}_{\text{BSISO}}^{\text{obs}}\rVert}}.
+$$
+
+After applying this correction, the average number of ISO events per year becomes comparable between simulations and observations. This adjustment ensures that the computed statistics better reflect how well the model reproduces the ISO seasonality pattern (i.e., the relative occurrence of MJO vs BSISO). However, because the simulated PCs have been normalized, these statistics cannot be used to assess absolute amplitude differences of MJO and BSISO between simulations and observations.
+
 The implementation of the analysis described above produces three types of diagnostic plots:
 - **EEOFs**: multiple spatial plots showing the first two EEOFs for boreal winter (during DJFMA) and for boreal summer (during JJASO). The EEOFs are scaled before plotting using the corresponding eigenvalues, and each of them is plotted separately for three different time lags (-10, -5 and 0 days).
-    - **PCs**: two time series plots displaying the temporal evolution of the first two normalized PCs for MJO and BSISO, along with a third plot showing the evolution of the amplitude ( $\scriptsize{\sqrt{\text{PC}_1^2 + \text{PC}_2^2}}$ ) of each set of PCs.
+- **PCs**: two time series plots displaying the temporal evolution of the first two normalized PCs for MJO and BSISO, along with a third plot showing the evolution of the amplitude ( $\scriptsize{\sqrt{\text{PC}_1^2 + \text{PC}_2^2}}$ ) of each set of PCs.
 - **ISO seasonality**: mean monthly distribution of ISO events separating MJO and BSISO, with comparison between simulations and observations available (including the values for the scalar metrics $R$, $\sigma$ and $\text{TSS}$).
 
 In all cases, a colormap with a blue to red gradient is used for boreal winter (or MJO), while a green to orange gradient is used for boreal summer (or BSISO).
 
-### TC metrics
+### Tropical Cyclones (TCs): TC metrics
 
 TC trajectories are detected and tracked using the [TempestExtremes package](https://github.com/ClimateGlobalChange/tempestextremes). The default criteria for TC detection is taken from [(C.M. Zarzycki & P.A. Ullrich, 2017)](https://doi.org/10.1002/2016GL071606). However, we recommend adjusting the `min_wind` parameter (i.e. 10 m wind speed detection threshold) according to the model's (or reanalysis') horizontal resolution following the criteria established in [(K.J.E. Walsh et al., 2007)](https://doi.org/10.1175/JCLI4074.1) (see Fig. 2 in the paper for guidance). Moreover, the TempestExtremes package requires **surface geopotential** (`phis`) data to track TCs. In here, this is computed from topography data taken from the [GEBCO_2024 Grid](https://www.gebco.net/data-products-gridded-bathymetry-data/gebco2024-grid), a global terrain model for ocean and land which provides elevation data with a horizontal resolution of 15 arc-seconds (~ 0.5 km). Using this data, `phis` is computed by multiplying the topography (in meters) by the standard gravity (9.80665 m/s²). Then, before using it, `phis` is regridded to match the horizontal resolution of the input dataset. 
 
