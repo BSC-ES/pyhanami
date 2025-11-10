@@ -701,7 +701,7 @@ def eeofs_plot(eeof, clon=0, title='ISO convection patterns', cb_label='scaled E
                 transform=ax.transAxes, 
                 ha="right", va="top", 
                 fontsize=6,
-                bbox=dict(facecolor="white", edgecolor="black", boxstyle="square,pad=0.4", alpha=0.8)
+                bbox=dict(facecolor="white", edgecolor="black", boxstyle="square,pad=0.4", alpha=0.9)
             )
 
     
@@ -787,7 +787,14 @@ def pcs_plot(pcs, title='Bimodal ISO indices', normalized=True):
     fig, axs = plt.subplots(3,1, figsize=(12, 8), sharex=True, dpi=150)
     colors = [['tab:blue', 'tab:red', 'tab:brown', 'tab:pink'], ['tab:orange', 'tab:green',' tab:purple', 'tab:gray']]
     labels = ['MJO','BSISO']
-    y_lim = 4
+    
+    # Compute the maximum absolute value from all PCs and amplitudes
+    y_lim = max(
+        int(np.max(np.abs(pcs_MJO.values)))+1,
+        int(np.max(np.abs(pcs_BSISO.values)))+1,
+        int(np.max(np.abs(amp_MJO.values)))+1,
+        int(np.max(np.abs(amp_BSISO.values)))+1
+    )
     
     # Plot PCs
     for i, data in enumerate([pcs_MJO, pcs_BSISO]):

@@ -588,7 +588,7 @@ def adjust_PCs(pcs_sim, pcs_obs):
     # Compute alpha (only with raw PCs' amplitudes)
     alpha_num = pcs_sim[f'amp_MJO_raw'].mean(dim='time') + pcs_sim[f'amp_BSISO_raw'].mean(dim='time')
     alpha_den = pcs_obs[f'amp_MJO_raw'].mean(dim='time') + pcs_obs[f'amp_BSISO_raw'].mean(dim='time')
-    alpha = alpha_num / alpha_den
+    alpha = ((alpha_num / alpha_den).values).item()
 
     for label in ('raw', 'std'):
         # Compute alpha (with raw and standarized PCs' amplitudes separately)
@@ -682,8 +682,8 @@ def compute_TSS(freq_ISO, freq_obs):
 
     # Compute statistics (Note: corr_0 is the maximum correlation attainable by the model, here assumed to be 1)
     corr_0 = 1
-    corr = xr.corr(freq_diff_sim, freq_diff_obs, dim='month')
-    sigma = freq_diff_sim.std(dim='month') / freq_diff_obs.std(dim='month')
+    corr = (xr.corr(freq_diff_sim, freq_diff_obs, dim='month').values).item()
+    sigma = ((freq_diff_sim.std(dim='month') / freq_diff_obs.std(dim='month')).values).item()
 
     tss = (4 * (1+corr)**4) / ((sigma + (1/sigma))**2 * (1+corr_0)**2)
 
