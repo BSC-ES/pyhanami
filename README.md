@@ -97,7 +97,7 @@ bimodal_indices.plot_pcs('output_path', years=[year_1, year_2, year_3])
 bimodal_indices.plot_freq_ISO('output_path')
 
 # Check computed statistics
-print(bimodal_indices.stats)
+bimodal_indices.stats
 ```
 
 
@@ -125,6 +125,9 @@ This project includes code and resources from the following sources:
 - [GSV-Interface/gsv/dqc/profiles/config/variables.yaml](https://github.com/DestinE-Climate-DT/GSV-Interface/blob/master/gsv/dqc/profiles/config/variables.yaml):
     - Used for: data ranges and boundaries for plausibility checks in `src/pyhanami/config/variables.yaml`
     - License: Apache License, Version 2.0, January 2004
+- [NOAA Interpolated Outgoing Longwave Radiation (OLR) data](https://psl.noaa.gov/data/gridded/data.olrcdr.interp.html):
+    - Used for: ISO evaluation in `src/pyhanami/diags/ScientificSkill.py`
+    - Reference: NOAA PSL, Boulder, Colorado, USA ([https://psl.noaa.gov/](https://psl.noaa.gov/))
 - [GEBCO_2024 Grid](https://www.gebco.net/data-products-gridded-bathymetry-data/gebco2024-grid):
     - Used for: computing surface geopotential in `src/pyhanami/utils/tcs_tempestextremes.py`
     - Reference: GEBCO Compilation Group (2025) GEBCO 2025 Grid (doi:10.5285/ 37c52e96-24ea-67ce-e063-7086abc05f29)
@@ -171,6 +174,8 @@ Kikuchi, K., Wang, B. & Kajikawa, Y., Bimodal representation of the tropical int
 Kikuchi, K., Extension of the bimodal intraseasonal oscillation index using JRA-55 reanalysis. Clim Dyn 54, 919–933 (2020). https://doi.org/10.1007/s00382-019-05037-z
 
 Knapp, K.R., Kruk, M.C., Levinson, D.H., Diamond, H.J., & Neumann, C.J., The International Best Track Archive for Climate Stewardship (IBTrACS): Unifying tropical cyclone best track data. Bulletin of the American Meteorological Society, 91, 363-376 (2010). https://doi.org/10.1175/2009BAMS2755.1
+
+Liebmann, B., & Smith, C.A., Description of a Complete (Interpolated) Outgoing Longwave Radiation Dataset. Bulletin of the American Meteorological Society, 77, 1275-1277 (1996).
 
 Nakano, M., & Kikuchi, K., Seasonality of intraseasonal variability in global climate models. Geophysical Research Letters, 46, 4441–4449 (2019). https://doi.org/10.1029/2019GL082443
 
