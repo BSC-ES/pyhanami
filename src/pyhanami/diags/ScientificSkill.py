@@ -15,7 +15,7 @@ from pyhanami.utils import data_general, iso_metrics, plot
 
 VARIABLES = data_general.load_yaml_file(config_params.VARIABLES_PATH)
 
-class bimodal_ISO:
+class BimodalISO:
     """
     Compute bimodal ISO indices and derived statistics.
 
@@ -246,6 +246,7 @@ class bimodal_ISO:
         alpha = None
         if correct_pc and self.obs:
             pcs_sim, alpha = iso_metrics.adjust_PCs(pcs_sim, self.pcs_obs)
+            pcs_sim.attrs['alpha'] = alpha
             print(f"\tSimulated PCs have been adjusted using the '{self.obs_name}' observations.", flush=True)
         # elif correct_pc:
         #     warnings.warn("Simulated PCs cannot be adjusted without observations. Continuing without modification.")
@@ -280,6 +281,11 @@ class bimodal_ISO:
             events_obs = self.pcs_obs['label']
             freq_ISO_obs = iso_metrics.compute_freq_ISO(events_obs)
             corr, sigma, tss = iso_metrics.compute_TSS(freq_ISO_sim, freq_ISO_obs)
+
+            # Add statistics as attributes to freq_ISO_sim
+            freq_ISO_sim.attrs['R'] = corr
+            freq_ISO_sim.attrs['sigma'] = sigma
+            freq_ISO_sim.attrs['TSS'] = tss
         else:
             freq_ISO_obs, corr, sigma, tss = None, None, None, None
 
@@ -345,7 +351,7 @@ class bimodal_ISO:
         return
 
 
-    def plot_eeofs(self, output_path=None, var_name='rlut', clon=0):
+    def eeof_plots(self, output_path=None, var_name='rlut', clon=0):
         """
         Generate and save/display plots of the EEOFs for boreal summer and winter
         for the simulation data or, if `obs=True`, for the observational data.
@@ -372,7 +378,7 @@ class bimodal_ISO:
 
 
         # Plot EEOFs for borean summer
-        eeofs_plot, _ = plot.eeofs_plot(self.eeof_summer, clon=clon, title=f"BSISO convective pattern '{name}' (JJASO {self.start_year_eeof}-{self.end_year_eeof})",
+        eeofs_plot, _ = plot.plot_eeofs(self.eeof_summer, clon=clon, title=f"BSISO convective pattern '{name}' (JJASO {self.start_year_eeof}-{self.end_year_eeof})",
                                 cb_label=f'scaled EEOF ({VARIABLES[var_name]['units']})', cmap=LinearSegmentedColormap.from_list("GreenOrange", ['tab:green', 'white', 'tab:orange']))       
         if output_path is None:
             plt.show()
@@ -385,7 +391,7 @@ class bimodal_ISO:
 
 
         # Plot EEOFs for borean winter
-        eeofw_plot, _ = plot.eeofs_plot(self.eeof_winter, clon=clon, title=f"MJO convective pattern '{name}' (DJFMA {self.start_year_eeof}-{self.end_year_eeof})",
+        eeofw_plot, _ = plot.plot_eeofs(self.eeof_winter, clon=clon, title=f"MJO convective pattern '{name}' (DJFMA {self.start_year_eeof}-{self.end_year_eeof})",
                                         cb_label=f'scaled EEOF ({VARIABLES[var_name]['units']})', cmap=LinearSegmentedColormap.from_list("BlueRed", ['tab:blue', 'white', 'tab:red']))
         
         if output_path is None:
@@ -400,7 +406,7 @@ class bimodal_ISO:
         return
 
 
-    def plot_pcs(self, output_path=None, years=None, data='sim'):
+    def pc_plots(self, output_path=None, years=None, data='sim'):
         """
         Generate and save/display plots of the PCs (bimodal ISO indices) for the selected years.
         
@@ -430,7 +436,7 @@ class bimodal_ISO:
             name_file = ('_').join(self.sim_name.split())
         elif data == 'obs':
             if not self.obs:
-                raise ValueError("Observational PCs are not available. Set 'obs=True' when initializing the bimodal_ISO object to load them.")
+                raise ValueError("Observational PCs are not available. Set 'obs=True' when initializing the bimodalISO object to load them.")
             pcs_data = self.pcs_obs
             name_title = f"'{self.obs_name}'"
             name_file = ('_').join(self.obs_name.split())
@@ -447,7 +453,7 @@ class bimodal_ISO:
         # Plot PCs for selected years
         for year in years:
             pcs_year = pcs_data.sel(time=slice(f'{year}-01-01', f'{year}-12-31'))
-            pcs_plot, _ = plot.pcs_plot(pcs_year, title=f"Bimodal ISO indices {name_title} ({year})")
+            pcs_plot, _ = plot.plot_pcs(pcs_year, title=f"Bimodal ISO indices {name_title} ({year})")
 
             if output_path is None:
                 plt.show()
@@ -462,7 +468,7 @@ class bimodal_ISO:
         return
 
 
-    def plot_freq_ISO(self, output_path=None):
+    def freq_ISO_plot(self, output_path=None):
         """
         Generate and save/display plots of the mean monthly frequency of ISO events
         for the simulation data or, if `obs=True`, for the observational data.
@@ -474,7 +480,7 @@ class bimodal_ISO:
         """
 
         # Plot frequency of ISO events
-        freq_plot, _ = plot.freq_ISO_plot(self.freq_ISO_sim, self.freq_ISO_obs, alpha=self.stats['alpha'], corr=self.stats['R'],
+        freq_plot, _ = plot.plot_freq_ISO(self.freq_ISO_sim, self.freq_ISO_obs, alpha=self.stats['alpha'], corr=self.stats['R'],
                                            sigma=self.stats['sigma'], tss=self.stats['TSS'],
                                            title=f'Mean monthly frequency of ISO events', sim_label=self.sim_name, obs_label=self.obs_name)
 
@@ -609,9 +615,9 @@ class ScientificEvaluation:
         else:
             raise TypeError("'data_name' must be a string representing a dataset name.")
         
-        # Create bimodal_ISO object and compute indices/statistics
+        # Create BimodalISO object and compute indices/statistics
         print(f"Performing ISO analysis for dataset '{data_name}':", flush=True)
-        bimodal_indices = bimodal_ISO(data_ISO, start_year_eeof=start_year_eeof, end_year_eeof=end_year_eeof, start_year_pc=start_year_pc, 
+        bimodal_indices = BimodalISO(data_ISO, start_year_eeof=start_year_eeof, end_year_eeof=end_year_eeof, start_year_pc=start_year_pc, 
                                       end_year_pc=end_year_pc, obs=obs, correct_pc=correct_pc, lat_range=lat_range, lags=lags,
                                       n_modes=n_modes, window=window, low_freq=low_freq, high_freq=high_freq)
 
