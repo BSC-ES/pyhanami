@@ -40,7 +40,8 @@ The following example demonstrates the main functionalities of _pyhanami_. For d
 ```python
 import pyhanami
 
-# Load simulation data 
+# Load two simulation datasets from paths to NetCDF files or xarray.Dataset objects ('source_simulation_1' 
+# and 'source_simulation_2') and assign a name to each of them ('name_sim_1' and 'name_sim_2')
 sim_1 = pyhanami.SimulationData('source_simulation_1', name='name_sim_1')
 sim_2 = pyhanami.SimulationData('source_simulation_2', name='name_sim_2')
 
@@ -48,7 +49,8 @@ sim_2 = pyhanami.SimulationData('source_simulation_2', name='name_sim_2')
 # Generate diagnostics plots comparing both simulation datasets
 diags = pyhanami.DataDiagnostics([sim_1, sim_2])
 
-# Create time series plot (simulations + observations)
+# Create time series plot (simulations + observations) for one climate variable ('variable_name')
+# over a specified time period (from 'year_init' to 'year_end') and save it to 'output_path'
 diags.time_series_plots(
     'variable_name',
     ['name_sim_1', 'name_sim_2'],
@@ -60,7 +62,8 @@ diags.time_series_plots(
     end_year=year_end
 )
 
-# Create spatial plots (absolute difference + effect size)
+# Create spatial plots (absolute difference + effect size) for one climate variable ('variable_name')
+# and save them to 'output_path'
 diags.spatial_plots(
     'variable_name',
     ['name_sim_1', 'name_sim_2'],
@@ -68,7 +71,7 @@ diags.spatial_plots(
 )
 
 
-# Perform replicability test comparing both simulation datasets
+# Perform replicability test comparing both simulation datasets and save results to 'output_path'
 tester = pyhanami.ReplicabilityTest([sim_1, sim_2], obs_path='path_obs')
 
 tester.matrix_plot(
@@ -77,11 +80,11 @@ tester.matrix_plot(
 )
 
 
-# Generate scientific skill evaluation for one simulation dataset
+# Evaluate scientific skill (climate phenomena simulation) for one simulation dataset
 sciskill = pyhanami.ScientificEvaluation(sim_1)
 
-# Assess simulation of the Tropical IntraSeasonal Oscillation (ISO) 
-# Compute bimodal ISO indices and related statistics comparing to observations
+# Assess simulation of the Tropical IntraSeasonal Oscillation (ISO) by computing the bimodal ISO
+# indices and related statistics comparing to observations
 bimodal_indices = sciskill.compute_bimodal_ISO(
     'name_sim_1',
     start_year_pc=year_init_pc,
@@ -89,15 +92,16 @@ bimodal_indices = sciskill.compute_bimodal_ISO(
     obs = True
 )
 
-# Save results
+# Save results of the analysis to 'output_path'
 bimodal_indices.save_data('output_path')
 
-# Generate plots for EEOFs, PCs (bimodal indices) and frequency of ISO events
+# Create plots for EEOFs, PCs (bimodal ISO indices) and frequency of ISO events and save them 
+# to 'output_path'
 bimodal_indices.plot_eeofs('output_path')
 bimodal_indices.plot_pcs('output_path', years=[year_1, year_2, year_3])
 bimodal_indices.plot_freq_ISO('output_path')
 
-# Check computed statistics
+# Display computed statistics (scalar values that measure how well simulations match observations)
 bimodal_indices.stats
 ```
 

@@ -17,6 +17,7 @@ To load simulation data, create a `SimulationData` object for each dataset you w
 ```python
 import pyhanami
 
+# Load two simulation datasets
 sim_1 = pyhanami.SimulationData('source_sim_1', name='name_sim_1')
 sim_2 = pyhanami.SimulationData('source_sim_2', name='name_sim_2')
 ```
