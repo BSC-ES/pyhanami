@@ -80,6 +80,7 @@ tester.matrix_plot(
 # Generate scientific skill evaluation for one simulation dataset
 sciskill = pyhanami.ScientificEvaluation(sim_1)
 
+# Assess simulation of the Tropical IntraSeasonal Oscillation (ISO) 
 # Compute bimodal ISO indices and related statistics comparing to observations
 bimodal_indices = sciskill.compute_bimodal_ISO(
     'name_sim_1',
