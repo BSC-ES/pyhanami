@@ -15,7 +15,7 @@ from matplotlib.patches import Polygon, Circle
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap, BoundaryNorm
 
 
-def time_series_plot(time_series, title='Mean time series', y_label='', labels=None, time_freq='annual', start_year=None, end_year=None, plot_ens=False):
+def plot_time_series(time_series, title='Mean time series', y_label='', labels=None, time_freq='annual', start_year=None, end_year=None, plot_ens=False):
     """ 
     Generate time series plot of one or more ensembles, including the 2.5th, 5th, 75th and 97.5th percentiles.
 
@@ -238,7 +238,7 @@ def add_colorbar(fig, mappable, ax_l, ax_r, ax_b, label='', fontsize=15, levels=
     return cbar
 
 
-def spatial_plot(data, clon=0, title='Spatial plot', cb_label='', cmap=cmocean.cm.thermal, levels=None, significant=None,
+def plot_spatial(data, clon=0, title='Spatial plot', cb_label='', cmap=cmocean.cm.thermal, levels=None, significant=None,
                  vmin=None, vmax=None, show_contours=True, contour_fontsize=12, gridlines=True, **plot_kwargs):
     """ 
     Generate a spatial plot using Cartopy with a significance mask if selected.
@@ -432,7 +432,7 @@ def spatial_plot(data, clon=0, title='Spatial plot', cb_label='', cmap=cmocean.c
     return fig, ax
 
 
-def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicability test', variables=None, 
+def plot_matrix(eff_sizes, test_results, test=4, title='Effect sizes replicability test', variables=None, 
                 seasons=None, regions=None):
     """ 
     Generate a matrix plot with effect sizes and results of the replicability test for the selected statistical test/s.
@@ -629,7 +629,7 @@ def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicabili
     return fig, ax
 
 
-def eeofs_plot(eeof, clon=0, title='ISO convection patterns', cb_label='scaled EEOF', cmap='RdBu_r', levels=13, vmin=None, vmax=None):
+def plot_eeofs(eeof, clon=0, title='ISO convection patterns', cb_label='scaled EEOF', cmap='RdBu_r', levels=13, vmin=None, vmax=None):
     """ 
     Generate plot of Empirical Orthogonal Functions (EOFs) for each ISO mode (MJO and BSISO)
     during boreal winter and boreal summer separately.
@@ -739,7 +739,7 @@ def eeofs_plot(eeof, clon=0, title='ISO convection patterns', cb_label='scaled E
     return fig, axs
 
 
-def pcs_plot(pcs, title='Bimodal ISO indices', normalized=True):
+def plot_pcs(pcs, title='Bimodal ISO indices', normalized=True):
     """ 
     Generate plot of the Bimodal ISO indices, i.e. the Principal Components (PCs) for each ISO mode (MJO and BSISO).
 
@@ -831,7 +831,7 @@ def pcs_plot(pcs, title='Bimodal ISO indices', normalized=True):
     return fig, axs
 
 
-def freq_ISO_plot(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=None, tss=None, title='Mean monthly frequency of ISO events', 
+def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=None, tss=None, title='Mean monthly frequency of ISO events', 
                   sim_label='simulations', obs_label='observations'):
     """ 
     Generate plot of the mean monthly frequency of occurrence of ISO events (ISO seasonality) 

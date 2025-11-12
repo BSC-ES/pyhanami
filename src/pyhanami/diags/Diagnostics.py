@@ -332,11 +332,11 @@ class DataDiagnostics:
         return
     
     
-    def time_series_plots(self, var_name, data_names=None, output_path=None, obs=False, obs_paths=None, obs_names=None, 
+    def time_series_plot(self, var_name, data_names=None, output_path=None, obs=False, obs_paths=None, obs_names=None, 
                           time_freq='annual', start_year=None, end_year=None, plot_ens=False):
-        """Generate time series plot for the given ensembles and variable.
-        
-        When no ensembles are specified, all datasets in the diagnostics object are used.
+        """
+        Generate time series plot for the given datasets and variable for the selected period 
+        and time frequency. 
         
         Parameters
         ----------
@@ -422,7 +422,7 @@ class DataDiagnostics:
             
         # Compute and plot time series
         time_series = self._compute_time_series(var_name, data_plot, time_freq_unit)
-        time_series_plot, _ = plot.time_series_plot(time_series, title=f"{time_freq.capitalize()} mean time series of {self.variables[var_name]['long_name']}",
+        time_series_plot, _ = plot.plot_time_series(time_series, title=f"{time_freq.capitalize()} mean time series of {self.variables[var_name]['long_name']}",
                                                  y_label=f"{var_name} ({self.variables[var_name]['units']})", labels=data_names, time_freq=time_freq,
                                                  start_year=start_year, end_year=end_year, plot_ens=plot_ens)
         
@@ -448,8 +448,7 @@ class DataDiagnostics:
 
     def spatial_plots(self, var_name, data_names=None, output_path=None, clon=0, alpha=0.05, stat=ttest_ind):
         """ 
-        Generate absolute difference and effect size plots for the given
-        ensembles and variable. 
+        Generate absolute difference and effect size plots for the given datasets and variable. 
         
         Parameters
         ----------
@@ -516,7 +515,7 @@ class DataDiagnostics:
         limit = np.max(np.abs(abs_diff.values))
         levels = np.linspace(-limit, limit, 13)
         
-        abs_diff_plot, _ = plot.spatial_plot(abs_diff, title=f"Difference in {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
+        abs_diff_plot, _ = plot.plot_spatial(abs_diff, title=f"Difference in {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
                                           cb_label=f"difference in {var_name} ({self.variables[var_name]['units']})", cmap=cmocean.cm.thermal, levels=levels)
         
         if output_path is None:
@@ -532,7 +531,7 @@ class DataDiagnostics:
         significant = self._compute_significant_diff(var_name, data_plot, alpha, stat)
         levels = [-2,-1.2,-0.8,-0.5,-0.2,-0.01,0.01,0.2,0.5,0.8,1.2,2.0]    # Use Cohen's limits for effect size
 
-        eff_size_plot, _ = plot.spatial_plot(eff_size, clon=clon, title=f"Cohen's effect size ($d$) for {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
+        eff_size_plot, _ = plot.plot_spatial(eff_size, clon=clon, title=f"Cohen's effect size ($d$) for {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
                                           cb_label=f"$d$ for {var_name} (-)", cmap=cmocean.cm.diff, levels=levels, significant=significant)
 
         if output_path is None:

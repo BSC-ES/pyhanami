@@ -472,7 +472,7 @@ class ReplicabilityTest:
         test_results = self._apply_tests(scores, data_names, alpha)
         
         # Plot results and save to path if given
-        matrix, _ = plot.matrix_plot(eff_sizes, test_results, title=f"Effect size replicability test ({data_names[0]} vs {data_names[1]})", variables=self.variables)
+        matrix, _ = plot.plot_matrix(eff_sizes, test_results, title=f"Effect size replicability test ({data_names[0]} vs {data_names[1]})", variables=self.variables)
 
         if output_path is None:
             plt.show()
