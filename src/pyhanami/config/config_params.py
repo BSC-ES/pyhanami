@@ -12,10 +12,10 @@ VARIABLES_PATH = Path(__file__).parent / "variables.yaml"
 # Available datasets parameters
 DATA_PATH = Path(__file__).parent.parent / "data"
 
-NOAA_GRID_PATH = DATA_PATH / "noaa_grid.nc"
-NOAA_EEOF_SUMMER_PATH = DATA_PATH / "eeof_boreal_summer_noaa_1975-2020.nc"
-NOAA_EEOF_WINTER_PATH = DATA_PATH / "eeof_boreal_winter_noaa_1975-2020.nc"
-NOAA_PC_PATH = DATA_PATH / "pc_noaa_1975-2020.nc"
+NOAA_GRID_PATH = DATA_PATH / "noaa/noaa_grid.nc"
+NOAA_EEOF_SUMMER_PATH = DATA_PATH / "noaa/eeof_boreal_summer_noaa_1975-2020.nc"
+NOAA_EEOF_WINTER_PATH = DATA_PATH / "noaa/eeof_boreal_winter_noaa_1975-2020.nc"
+NOAA_PC_PATH = DATA_PATH / "noaa/pc_noaa_1975-2020.nc"
 NOAA_START_YEAR = 1975
 NOAA_END_YEAR = 2020
 

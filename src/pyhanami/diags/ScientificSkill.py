@@ -152,10 +152,21 @@ class BimodalISO:
             if sim_resolution < obs_resolution:  
                 data_sim.data = data_general.regrid_data(data_sim.data, noaa_grid)
                 print(f"\tSimulation data regridded to match observations' resolution (~{obs_resolution:.2f}°).")
+                
             # Regrid observational EEOFs if their resolution is higher
             elif obs_resolution < sim_resolution:
-                self.eeof_summer = data_general.regrid_data(self.eeof_summer, data_sim.data)
-                self.eeof_winter = data_general.regrid_data(self.eeof_winter, data_sim.data)
+                eeof_summer_regrid = data_general.regrid_data(self.eeof_summer, data_sim.data.sortby("lat").sel(lat=slice(*lat_range)), var='eeof')
+                eeof_winter_regrid = data_general.regrid_data(self.eeof_winter, data_sim.data.sortby("lat").sel(lat=slice(*lat_range)), var='eeof')
+
+                eeof_summer_copy = self.eeof_summer.copy()
+                eeof_winter_copy = self.eeof_winter.copy()
+
+                eeof_summer_no_eeof = eeof_summer_copy.drop_vars('eeof').drop_dims(['lat', 'lon'])
+                eeof_winter_no_eeof = eeof_winter_copy.drop_vars('eeof').drop_dims(['lat', 'lon'])
+
+                self.eeof_summer = xr.merge([eeof_summer_regrid, eeof_summer_no_eeof])
+                self.eeof_winter = xr.merge([eeof_winter_regrid, eeof_winter_no_eeof])
+
                 print(f"\tObservational EEOFs regridded to match simulations resolution (~{sim_resolution:.2f}°).")
 
         # Filter simulation data
