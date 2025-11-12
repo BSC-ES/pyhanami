@@ -12,7 +12,7 @@ Before using _pyhanami_, ensure that the configuration files explained in the [C
 
 ## Load simulation data
 
-To load simulation data, create a `SimulationData` object for each dataset you want to analyze:
+To load simulation data, create a `SimulationData` object for each dataset you want to analyze. Each simulation dataset requires two parameters: a `data_source` (the data location/object) and a `name` (a unique identifier for the dataset):
 
 ```python
 import pyhanami
@@ -22,9 +22,11 @@ sim_1 = pyhanami.SimulationData('source_sim_1', name='name_sim_1')
 sim_2 = pyhanami.SimulationData('source_sim_2', name='name_sim_2')
 ```
 
-Note that the `'source_sim_*'` parameter can be:
+The `data_source` parameter can be:
 - A path to a NetCDF file containing the simulation data (as string)
 - An `xarray.Dataset` object already loaded in memory
+
+The `name` parameter is a user-defined string that uniquely identifies the dataset during the analysis.
 
 Example with file path:
 ```python
@@ -57,7 +59,7 @@ diags.time_series_plots(
     end_year=year_end
 )
 
-# Add SimulationData object to the DataDiagnostics object 
+# Add another SimulationData object to the DataDiagnostics object 
 diags.add_datasets(sim_2)
 
 # Plot mean time series for two datasets together
@@ -82,7 +84,7 @@ diags.time_series_plots(
 )
 ```
 
-This `time_series_plots` method plots annual mean time series by default, but it also supports monthly and daily mean time series by passing the argument `time_freq='monthly'` and `time_freq='daily'`, respectively. Besides, it is possible to include in the plot the trajectories of individual ensemble members together with the mean by passing the argument `plot_ens=True`.
+This `time_series_plots` method plots **annual mean** time series by default, but it also supports **monthly and daily mean** time series by passing the argument `time_freq='monthly'` and `time_freq='daily'`, respectively. Besides, it is possible to include in the plot the trajectories of **individual ensemble members** together with the mean by passing the argument `plot_ens=True`.
 
 
 ## Spatial plots
