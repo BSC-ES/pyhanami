@@ -390,7 +390,7 @@ class BimodalISO:
 
         # Plot EEOFs for borean summer
         eeofs_plot, _ = plot.plot_eeofs(self.eeof_summer, clon=clon, title=f"BSISO convective pattern '{name}' (JJASO {self.start_year_eeof}-{self.end_year_eeof})",
-                                cb_label=f'scaled EEOF ({VARIABLES[var_name]['units']})', cmap=LinearSegmentedColormap.from_list("GreenOrange", ['tab:green', 'white', 'tab:orange']))       
+                                cb_label=f"scaled EEOF ({VARIABLES[var_name]['units']})", cmap=LinearSegmentedColormap.from_list("GreenOrange", ['tab:green', 'white', 'tab:orange']))       
         if output_path is None:
             plt.show()
             print("BSISO EEOFs plot created and displayed.", flush=True)
@@ -403,7 +403,7 @@ class BimodalISO:
 
         # Plot EEOFs for borean winter
         eeofw_plot, _ = plot.plot_eeofs(self.eeof_winter, clon=clon, title=f"MJO convective pattern '{name}' (DJFMA {self.start_year_eeof}-{self.end_year_eeof})",
-                                        cb_label=f'scaled EEOF ({VARIABLES[var_name]['units']})', cmap=LinearSegmentedColormap.from_list("BlueRed", ['tab:blue', 'white', 'tab:red']))
+                                        cb_label=f"scaled EEOF ({VARIABLES[var_name]['units']})", cmap=LinearSegmentedColormap.from_list("BlueRed", ['tab:blue', 'white', 'tab:red']))
         
         if output_path is None:
             plt.show()
