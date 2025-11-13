@@ -1,9 +1,19 @@
-name: pyhanami-env_v0.1.0
+name:
+  pyhanami-env_v0.1.0
 channels:
   - conda-forge
 dependencies:
-  - python==3.11.5
+  - python>=3.7
+  - tempest-extremes
   - cartopy
-  - pip
-  - pip:
-    - -r requirements.txt
+  - cmocean
+  - eofs
+  - matplotlib
+  - numpy
+  - pandas
+  - pint
+  - pyyaml
+  - scipy
+  - tqdm
+  - xarray>=2023.1.0,<2025.3.0
+  - xesmf>=0.7.0,<0.9.0

@@ -53,6 +53,6 @@ include-package-data = true
 
 
 [project.urls]
-homepage = "https://earth.bsc.es/gitlab/ces/hanami/pyhanami"
-repository = "https://earth.bsc.es/gitlab/ces/hanami/pyhanami"
-documentation = "https://earth.bsc.es/gitlab/ces/hanami/pyhanami"
+homepage = "https://github.com/BSC-ES/pyhanami.git"
+repository = "https://github.com/BSC-ES/pyhanami.git"
+documentation = "https://pyhanami.readthedocs.io/"
