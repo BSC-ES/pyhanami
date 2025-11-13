@@ -1,0 +1,9 @@
+name: docs-pyhanami-env_v0.1.0
+channels:
+  - conda-forge
+dependencies:
+  - python==3.11.5
+  - cartopy
+  - pip
+  - pip:
+    - -r docs_requirements.txt

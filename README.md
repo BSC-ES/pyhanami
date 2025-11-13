@@ -24,13 +24,25 @@ Future releases will include:
 
 
 ## Installation
-The package can be installed from the source using `pip`:
+The package can be installed from the source using the provided conda environment (`environment.yaml`):
+```bash
+git clone https://github.com/BSC-ES/pyhanami.git
+cd pyhanami
+
+conda env create -f environment.yaml
+conda activate pyhanami-env_v0.1.0
+
+pip install .
+```
+
+<!--
+It is also possible to install the package directly from the source using pip:
 ```bash
 git clone https://github.com/BSC-ES/pyhanami.git
 cd pyhanami
 pip install .
 ```
-
+-->
 
 
 ## Basic Usage

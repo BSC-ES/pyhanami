@@ -86,7 +86,7 @@ diags.time_series_plot(
 
 This `time_series_plots` method plots **annual mean** time series by default, but it also supports **monthly and daily mean** time series by passing the argument `time_freq='monthly'` and `time_freq='daily'`, respectively. Besides, it is possible to include in the plot the trajectories of **individual ensemble members** together with the mean by passing the argument `plot_ens=True`.
 
-jkjhkj
+
 ## Spatial plots
 
 To generate **spatial plots** comparing two simulation datasets, create a `DataDiagnostics` object with the `SimulationData` objects that you want to analyze and use the `spatial_plots` method:
