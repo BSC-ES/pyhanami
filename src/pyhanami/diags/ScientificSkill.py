@@ -107,6 +107,9 @@ class BimodalISO:
         end_year = int(years.max())
 
         if self.obs:
+            if start_year_eeof is not None or end_year_eeof is not None:
+                warnings.warn("\t'start_year_eeof' and 'end_year_eeof' are ignored when `obs=True`. "
+                            f"Using predefined observational period for EEOFs: {config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}.")
             self.start_year_eeof = config_params.NOAA_START_YEAR
             self.end_year_eeof = config_params.NOAA_END_YEAR
         else:
@@ -116,6 +119,10 @@ class BimodalISO:
                 end_year_eeof = end_year
             if start_year_eeof == end_year_eeof:
                 raise ValueError("More than one year is needed for the EEOF analysis (at least 10 years is recommended, ideally ~ 30 years).")
+            if start_year_eeof > end_year_eeof:
+                raise ValueError(f"'start_year_eeof' ({start_year_eeof}) must be less than 'end_year_eeof' ({end_year_eeof}).")
+            if start_year_eeof < start_year or end_year_eeof > end_year:
+                raise ValueError(f"EEOF years ({start_year_eeof}-{end_year_eeof}) must be within the available simulation data range ({start_year}-{end_year}).")
             self.start_year_eeof = start_year_eeof
             self.end_year_eeof = end_year_eeof
 
