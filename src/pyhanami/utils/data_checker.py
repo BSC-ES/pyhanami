@@ -249,19 +249,16 @@ class DataChecker:
             Input dataset to check.
         land_mask : xr.Dataset
             Land mask to check ocean variables.
-
-        Returns
-        ----------
-        data : xr.Dataset
-            Checked and corrected dataset.
         """
 
         all_nan = False
         for var in data.data_vars:
             if var in self.variables:
-
-                data_values = data[var].values
-                if np.isnan(data_values).all():
+                
+                # Check if all values are NaN
+                data_var = data[var]
+                all_nan_check = data_var.isnull().all()
+                if all_nan_check:
                     self.error_msg.append(
                         f"Variable '{var}' only contains NaN values." 
                     )
@@ -270,13 +267,17 @@ class DataChecker:
                 else:
                     mask = self.variables[var]['mask']
                     if mask == 'atm':
-                        if np.isnan(data_values).any():
+                        # Check if any values are NaN
+                        any_nan_check = data_var.isnull().any()
+                        if any_nan_check:
                             self.error_msg.append(
                                 f"Variable '{var}' contains NaN values. " 
                                 "Not acceptable for an atmosphere variable." 
                             )
                     elif mask == 'oce':
-                        if not np.isnan(data_values).any():
+                        # Check if at least one value is NaN
+                        any_nan_check = data_var.isnull().any()
+                        if not any_nan_check:
                             self.error_msg.append(
                                 f"Variable '{var}' does not contain any NaN values. " 
                                 "Not acceptable for an ocean variable." 
@@ -294,7 +295,7 @@ class DataChecker:
             error_message += "\nData check failed due to errors listed above. Please, correct the dataset before proceeding."
             raise RuntimeError(error_message)
 
-        return data
+        return
 
 
     def check_spatial_consistency(self, data):
@@ -306,14 +307,9 @@ class DataChecker:
         ----------
         data : xr.Dataset
             Input dataset to check.
-
-        Returns
-        ----------
-        data : xr.Dataset
-            Checked and corrected dataset.
         """
 
-        return data
+        return
 
 
     def check_temporal_completeness(self, data):
@@ -347,7 +343,7 @@ class DataChecker:
                     f"{','.join(missing_times.strftime('%Y-%m-%d %H:%M:%S').tolist())}"
                 )
 
-        return data
+        return
 
 
     def check_physical_plausibility(self, data):
@@ -359,22 +355,18 @@ class DataChecker:
         ----------
         data : xr.Dataset
             Input dataset to check.
-
-        Returns
-        ----------
-        data : xr.Dataset
-            Checked and corrected dataset.
         """
 
         for var in data.data_vars:
             if var in self.variables:
                 expected_var = self.variables[var]
                 if expected_var['check_enabled']:
-                    data_values = data[var].values
+                    data_var = data[var]
 
                     if 'max' in expected_var:
                         max_ref = expected_var['max']
-                        max_value = np.nanmax(data_values)
+                        # Compute only the max value, not the full array
+                        max_value = data_var.max(skipna=True).compute().item()
 
                         if max_ref < max_value:
                             self.error_msg.append(
@@ -384,7 +376,8 @@ class DataChecker:
 
                     if 'min' in expected_var:
                         min_ref = expected_var['min']
-                        min_value = np.nanmin(data_values)
+                        # Compute only the min value, not the full array
+                        min_value = data_var.min(skipna=True).compute().item()
 
                         if min_ref > min_value:
                             self.error_msg.append(
@@ -404,8 +397,8 @@ class DataChecker:
                         f"Skipping physical plausibility check on variable '{var}' (check_enabled: False)."
                     )
 
-        return data
-
+        return 
+    
 
     def check_data(self, data):
         """ 
@@ -425,15 +418,14 @@ class DataChecker:
 
         # Validate input
         if not isinstance(data, xr.Dataset):    
-            raise TypeError("Input must be an xarray.Dataiker.gonzalez@bsc.esset.")
-
+            raise TypeError("Input must be an xarray.Dataset.")
 
         # Check data
         data = self.check_standard_compliance(data)
-        data = self.check_spatial_completeness(data)
-        data = self.check_spatial_consistency(data) # Not implemented yet
-        data = self.check_temporal_completeness(data)
-        data = self.check_physical_plausibility(data)
+        self.check_spatial_completeness(data)
+        self.check_spatial_consistency(data) # Not implemented yet
+        self.check_temporal_completeness(data)
+        self.check_physical_plausibility(data)
         
         # Summarize outcome of data check
         if len(self.warning_msg) != 0:
