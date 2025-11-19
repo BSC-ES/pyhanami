@@ -19,24 +19,17 @@ net_sfc:
   units: "W m**-2"
   boundaries: null
 
-rlut:
-  check_enabled: True
-  long_name: TOA outgoing longwave radiation
-  mask: atm
-  units: "W m**-2"
-  boundaries: null
-
 orog:
   check_enabled: True
   long_name: Surface altitude
-  mask: atm # what goes here??
+  mask: atm
   units: "m"
   boundaries: null
 
-phis: # check this one??
+phis:
   check_enabled: True
   long_name: Surface geopotential
-  mask: atm # what goes here??
+  mask: atm
   units: "m**2 s**-2"
   boundaries: null
 
@@ -52,6 +45,13 @@ psl:
   long_name: Sea level pressure
   mask: atm
   units: "Pa"
+  boundaries: null
+
+rlut:
+  check_enabled: True
+  long_name: TOA outgoing longwave radiation
+  mask: atm
+  units: "W m**-2"
   boundaries: null
 
 siconc:
