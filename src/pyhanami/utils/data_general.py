@@ -36,7 +36,8 @@ def load_yaml_file(yaml_path):
 
 def prepare_data(data_path, **xr_kwargs):
     """ 
-    Load climate data from netcdf file or catalogue interface.
+    Load climate data from netcdf file or catalogue interface and
+    return it as a dask array.
     
     Parameters
     ----------
