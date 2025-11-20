@@ -1,8 +1,12 @@
 import numpy as np
 import xarray as xr
+import concurrent.futures
+import multiprocessing as mp
 
 from functools import cache
 from eofs.standard import Eof
+
+from pyhanami.config import config_params
 
 
 def math_sinc(x):
@@ -245,6 +249,12 @@ def generate_lagged_matrix(data, lags):
     return lagged_matrix, times
 
 
+def generate_lagged_matrix_with_index(args):
+    """Wrapper function for 'generate_lagged_matrix' for parallel processing that preserves order."""
+    index, block, lags = args
+    return index, generate_lagged_matrix(block, lags)[0]
+
+
 def broadcasted_area_weights(data, dim_name=None, dim_values=None):
     """
     Compute latitude-based area weights, broadcast them to match the shape of the given data 
@@ -314,7 +324,7 @@ def compute_EEOFs(data, weights, n_modes=2):
     return eofs, eigvals, var_frac
 
 
-def perform_EEOF_analysis(olr_data, start_year, end_year, season, lags=[-10, -5, 0], n_modes=2):
+def perform_EEOF_analysis(olr_data, start_year, end_year, season, lags=[-10, -5, 0], n_modes=2, cutoff_points=90):
     """
     Perform Extended Empirical Orthogonal Function (EEOF) analysis to Outgoing Longwave Radiation (OLR) data
     to identify MJO and BSISO events (boreal winter and boreal summer modes of ISO, respectively).
@@ -333,6 +343,8 @@ def perform_EEOF_analysis(olr_data, start_year, end_year, season, lags=[-10, -5,
         Lag values to consider (default: [-10, -5, 0]).
     n_modes : int
         Number of EEOFs modes to compute (default: 2).
+    cutoff_points : int
+        Minimum number of points necessary to keep a seasonal block (default: 90).
 
     Returns
     -------
@@ -349,14 +361,45 @@ def perform_EEOF_analysis(olr_data, start_year, end_year, season, lags=[-10, -5,
     if not isinstance(lags, list) or not all(isinstance(lag, int) for lag in lags):
         raise TypeError("'lags' must be a list of integer lag days.")
 
+
     # Generate and vertically stack blocks for EOF analysis
-    blocks = extract_season_blocks(olr_data, start_year, end_year, season)
-    lagged_blocks = np.vstack([generate_lagged_matrix(block, lags)[0] for block in blocks if block.time.size > 0])
+    # blocks = extract_season_blocks(olr_data, start_year, end_year, season, cutoff_points)
+    # lagged_blocks = np.vstack([generate_lagged_matrix(block, lags)[0] for block in blocks if block.time.size > 0])
+
+    # Generate sesonal blocks for EOF analysis
+    blocks = extract_season_blocks(olr_data, start_year, end_year, season, cutoff_points)  
+    valid_blocks = [block for block in blocks if block.time.size > 0]
+    del blocks
+
+    if not valid_blocks:
+        raise ValueError(f"No valid seasonal blocks found with the specified cutoff points per season ({cutoff_points} points).")
+
+    # Lag and vertically stack blocks 
+    n_blocks = len(valid_blocks)
+    if n_blocks > 1:
+        # In parallel preserving chronological order
+        indexed_args = [(i, block, lags) for i, block in enumerate(valid_blocks)]
+        with concurrent.futures.ProcessPoolExecutor(max_workers=config_params.MAX_WORKERS_LAGBLOCKS, mp_context=mp.get_context("spawn")) as executor:
+            futures = [executor.submit(generate_lagged_matrix_with_index, args) for args in indexed_args]
+            
+            # Collect results and sort by original index
+            results = {}
+            for future in concurrent.futures.as_completed(futures):
+                index, lagged_matrix = future.result()
+                results[index] = lagged_matrix
+     
+        # Stack in original order
+        lagged_blocks = np.vstack([results[i] for i in range(n_blocks)])
+    else:
+        # Single block case
+        lagged_blocks = [generate_lagged_matrix(valid_blocks[0], lags)[0]]
+    del valid_blocks
+
 
     # Perform EEOF analysis
     weights = broadcasted_area_weights(olr_data, "lag", lags)
     eofs, eigvals, var_frac = compute_EEOFs(lagged_blocks, weights, n_modes)
-    del blocks, lagged_blocks
+    del lagged_blocks, weights
 
     # Reshape EEOFs and adjust sign to fit to Kikuchi's paper
     n_lag, n_lat, n_lon = len(lags), len(olr_data.lat), len(olr_data.lon)
@@ -520,9 +563,11 @@ def compute_PCs(olr_data, eeofs):
     lagged_matrix, times = generate_lagged_matrix(olr_data, lags)
     weights = broadcasted_area_weights(olr_data, "lag", lags)
     lagged_wmatrix = lagged_matrix * weights[None, :]
+    del lagged_matrix, weights
 
     # Compute PCs and the corresponding amplitudes
     pc, pc_std, amp, amp_std = project_PCs(lagged_wmatrix, eeofs)
+    del lagged_wmatrix
 
     # Assign label for each time step depending on the amplitudes (1: Significant MJO, 2: Significant BSISO; 0: Insignificant)
     labels = significant_labels(amp, amp_std)
