@@ -12,10 +12,10 @@ authors = [
     {name = "Masuo Nakano", email = "masuo@jamstec.go.jp"}
 ]
 
-description = "pyhanami is a tool designed to evaluate the replicability and projection skill of Earth System Models"
+description = "pyhanami is a tool designed to evaluate the replicability and scientific skill of Earth System Models"
 readme = "README.md"
 license = {file = "LICENSES/LICENSE"}
-keywords = ["Earth System Models", "replicability", "projection skill"]
+keywords = ["Earth System Models", "replicability", "scientific skill"]
 classifiers=[
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -48,8 +48,9 @@ dependencies = [
 [tool.setuptools]
 include-package-data = true
 
-[tool.setuptools.package-data]
-"pyhanami" = ["config/*.yaml", "data/*"]
+# Changed data files definition to MANIFEST.in
+# [tool.setuptools.package-data]
+# "pyhanami" = ["config/*.yaml", "data/*"]
 
 
 [project.urls]
