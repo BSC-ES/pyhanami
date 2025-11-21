@@ -1,0 +1,3 @@
+# Data files to be included in the distributed package
+include src/pyhanami/config/*.yaml
+graft src/pyhanami/data
