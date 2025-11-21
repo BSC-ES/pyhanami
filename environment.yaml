@@ -5,6 +5,7 @@ name:
   pyhanami-env_v0.1.0
 channels:
   - conda-forge
+  - nodefaults  # To exclude the 'defaults' channel (only use explicitly listed channels)
 dependencies:
   - python>=3.7
   - tempest-extremes
