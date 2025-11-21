@@ -1,6 +1,7 @@
 # Tested using a conda environment with Python=3.11.5
 # Before using pip install -r docs_requirements.txt, we need to install cartopy using conda:
 # conda install -c conda-forge cartopy
+# This is automatically done in docs_environment.yaml
 
 cmocean
 eofs
