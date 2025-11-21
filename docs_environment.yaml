@@ -1,4 +1,8 @@
-name: docs-pyhanami-env_v0.1.0
+# Create the environment with:
+# conda env create -f docs_environment.yaml
+
+name: 
+  docs-pyhanami-env_v0.1.0
 channels:
   - conda-forge
 dependencies:
