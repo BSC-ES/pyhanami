@@ -45,4 +45,3 @@ REGIONS = {
 # Parallelization parameters
 MAX_WORKERS_VARS = None         # Used in 'pyhanami/diags/Replicability.py'
 MAX_WORKERS_GRID = None         # Used in 'pyhanami/diags/Diagnostics.py'
-MAX_WORKERS_LAGBLOCKS = None    # Used in 'pyhanami/utils/iso_metrics.py'

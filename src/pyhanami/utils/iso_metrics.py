@@ -1,12 +1,8 @@
+import xeofs
 import numpy as np
 import xarray as xr
-import concurrent.futures
-import multiprocessing as mp
 
 from functools import cache
-from eofs.standard import Eof
-
-from pyhanami.config import config_params
 
 
 def math_sinc(x):
@@ -152,13 +148,13 @@ def apply_lanczos_bandpass_filter(raw_olr_data, window=141, low_freq=1/90, high_
     if filtered_olr_data.name != "rlut":
         filtered_olr_data.name = "rlut"
 
-    return filtered_olr_data
+    return filtered_olr_data.chunk("auto")
 
 
 def extract_season_blocks(data, start_year, end_year, season, cutoff_points=90):
     """
     Extract time blocks for the given season for each year, dismissing blocks with less
-    than the specified number of points.
+    than the specified cutoff number of points.
 
     Parameters
     ----------
@@ -207,9 +203,131 @@ def extract_season_blocks(data, start_year, end_year, season, cutoff_points=90):
     return blocks
 
 
+def compute_EEOFs(data, lag, n_lags, n_modes=2):
+    """
+    Compute Extended Empirical Orthogonal Functions (EEOFs) with area weights using xeofs,
+    letting xeofs handle the lagging internally.
+    
+    Parameters
+    ----------
+    data : xarray.DataArray
+        Input data.
+    lags : int
+        Lag timesteps.
+    n_lags : int
+        Number of lag copies.
+    n_modes : int
+        Number of EEOFs modes to compute (default: 2).
+
+    Returns
+    -------
+    eofs : np.ndarray
+        Resulting EOFs.
+    eigvals : np.ndarray
+        Resulting eigenvalues.
+    var_frac : np.ndarray
+        Resulting explained variance (normalized eigenvalues).
+    """
+
+    # Create EEOF model
+    eeof_model = xeofs.single.ExtendedEOF(
+        n_modes=n_modes,
+        tau=lag,
+        embedding=n_lags,
+        use_coslat=True,
+        check_nans=False,
+        compute=False
+    )
+    
+    # Fit the model and retrieve outcome
+    eeof_model.fit(data, dim=('time'))
+    eofs = eeof_model.components().rename({'embedding':'lag'})
+    eigvals = eeof_model.explained_variance()
+    var_frac = eeof_model.explained_variance_ratio()
+
+    # Remove solver_kwargs attribute to avoid serialization issues
+    eofs.attrs.pop('solver_kwargs', None)
+    eigvals.attrs.pop('solver_kwargs', None)
+    var_frac.attrs.pop('solver_kwargs', None)
+    
+    return eofs, eigvals, var_frac
+
+
+def perform_EEOF_analysis(olr_data, start_year, end_year, season, lag=5, n_lags=3, n_modes=2, cutoff_points=90):
+    """
+    Perform Extended Empirical Orthogonal Function (EEOF) analysis to Outgoing Longwave Radiation (OLR) data
+    to identify MJO and BSISO events (boreal winter and boreal summer modes of ISO, respectively).
+
+    Parameters
+    ----------
+    olr_data : xr.DataArray
+        Input OLR data.
+    start_year : int
+        Start year for filtering.
+    end_year : int
+        End year for filtering.
+    season : str
+        Season to filter ('boreal winter' or 'boreal summer').
+    lag : int
+        Lag timesteps (default: 5).
+    n_lags : int
+        Number of lag copies (default: 3).
+    n_modes : int
+        Number of EEOFs modes to compute (default: 2).
+    cutoff_points : int
+        Minimum number of points necessary to keep a seasonal block (default: 90).
+
+    Returns
+    -------
+    eeof_analysis_data : xr.Dataset
+        Output of EEOF analysis (first 'n_modes' EEOFs, eigenvalues and explanined variances).
+    """
+
+    # Validate input
+    if not isinstance(olr_data, xr.DataArray):
+        raise TypeError("'olr_data' must be an xarray.DataArray.")
+    years = olr_data.time.dt.year.values
+    if (start_year not in years) or (end_year not in years):
+        raise ValueError("Invalid 'start_year' and/or 'end_year', years not found in the provided dataset.")
+    if not isinstance(lag, int) or not isinstance(n_lags, int) or not isinstance(n_modes, int) :
+        raise TypeError("'lag', 'n_lags', and 'n_modes' must be integers.")
+
+
+    # Generate seasonal blocks for EOF analysis
+    blocks = extract_season_blocks(olr_data, start_year, end_year, season, cutoff_points)  
+    if not blocks:
+        raise ValueError(f"No valid seasonal blocks found with the specified cutoff points per season ({cutoff_points} points).")
+    combined_blocks = xr.concat(blocks, dim='time')
+    del blocks
+
+
+    # Perform EEOF analysis 
+    eofs, eigvals, var_frac = compute_EEOFs(combined_blocks, lag, n_lags, n_modes)
+
+    # Adjust EEOFs sign to fit to Kikuchi's paper convention (no needed anymore with xeofs)
+    # if season == "boreal_winter":
+    #     eofs.loc[dict(mode=1)] *= -1
+    # elif season == "boreal_summer":
+    #     eofs.loc[dict(mode=1)] *= -1
+    #     eofs.loc[dict(mode=2)] *= -1
+    # else:
+    #     raise ValueError("Invalid 'season' provided.")
+
+    # Compile EEOF analysis output as an xr.Dataset
+    eeof_analysis_data = xr.Dataset({
+        "eeof": eofs,
+        "eigval": eigvals,
+        "var_frac": var_frac
+
+    })
+    
+    # print(f"Computed EEOFs for {season} between years {start_year} and {end_year}.", flush=True)
+    return eeof_analysis_data
+
+
 def generate_lagged_matrix(data, lags):
     """
-    Create lagged versions of the data and stack (lag, lat, lon) them into
+    Create time lagged versions of the data and stack (lag, lat, lon) them into
     a single feature dimension to generate a lagged matrix.
 
     Parameters
@@ -217,7 +335,7 @@ def generate_lagged_matrix(data, lags):
     data : xarray.Dataset
         Input data.
     lags : list[int]
-        Lag values to add.
+        Lag values to add (a value of n is equivalent to a delay of n timesteps).
 
     Returns
     -------
@@ -235,7 +353,7 @@ def generate_lagged_matrix(data, lags):
     # Create lagged versions of the season data
     lagged_list = []
     for lag in lags:
-        shifted = data.shift(time=-lag).assign_coords(time=data["time"])
+        shifted = data.shift(time=lag).assign_coords(time=data["time"])
         lagged_list.append(shifted)
     lagged = xr.concat(lagged_list, dim="lag").assign_coords(lag=lags)
 
@@ -247,12 +365,6 @@ def generate_lagged_matrix(data, lags):
     times = lagged["time"].values[valid]
 
     return lagged_matrix, times
-
-
-def generate_lagged_matrix_with_index(args):
-    """Wrapper function for 'generate_lagged_matrix' for parallel processing that preserves order."""
-    index, block, lags = args
-    return index, generate_lagged_matrix(block, lags)[0]
 
 
 def broadcasted_area_weights(data, dim_name=None, dim_values=None):
@@ -291,163 +403,6 @@ def broadcasted_area_weights(data, dim_name=None, dim_values=None):
         weights_vector = weights_broadcasted.stack(feature=(dim_name, "lat", "lon")).values
 
     return weights_vector
-
-
-def compute_EEOFs(data, weights, n_modes=2):
-    """
-    Compute Extended Empirical Orthogonal Functions (EEOFs) with area weights.
-    
-    Parameters
-    ----------
-    data : np.ndarray
-        Input data.
-    weights : np.ndarray
-        Area weights with same shape as data.
-    n_modes : int
-        Number of EEOFs to compute (default: 2).
-
-    Returns
-    -------
-    eofs : np.ndarray
-        Resulting EOFs.
-    eigvals : np.ndarray
-        Resulting eigenvalues.
-    var_frac : np.ndarray
-        Resulting explained variance (normalized eigenvalues).
-    """
-
-    solver = Eof(data, weights=weights)
-    eofs = solver.eofs(neofs=n_modes)
-    eigvals = solver.eigenvalues(neigs=n_modes)
-    var_frac = solver.varianceFraction(neigs=n_modes)
-
-    return eofs, eigvals, var_frac
-
-
-def perform_EEOF_analysis(olr_data, start_year, end_year, season, lags=[-10, -5, 0], n_modes=2, cutoff_points=90):
-    """
-    Perform Extended Empirical Orthogonal Function (EEOF) analysis to Outgoing Longwave Radiation (OLR) data
-    to identify MJO and BSISO events (boreal winter and boreal summer modes of ISO, respectively).
-
-    Parameters
-    ----------
-    olr_data : xr.DataArray
-        Input OLR data.
-    start_year : int
-        Start year for filtering.
-    end_year : int
-        End year for filtering.
-    season : str
-        Season to filter ('boreal winter' or 'boreal summer').
-    lags : list[int]
-        Lag values to consider (default: [-10, -5, 0]).
-    n_modes : int
-        Number of EEOFs modes to compute (default: 2).
-    cutoff_points : int
-        Minimum number of points necessary to keep a seasonal block (default: 90).
-
-    Returns
-    -------
-    eeof_analysis_data : xr.Dataset
-        Output of EEOF analysis (first 'n_modes' EEOFs, eigenvalues and explanined variances).
-    """
-
-    # Validate input
-    if not isinstance(olr_data, xr.DataArray):
-        raise TypeError("'olr_data' must be an xarray.DataArray.")
-    years = olr_data.time.dt.year.values
-    if (start_year not in years) or (end_year not in years):
-        raise ValueError("Invalid 'start_year' and/or 'end_year', years not found in the provided dataset.")
-    if not isinstance(lags, list) or not all(isinstance(lag, int) for lag in lags):
-        raise TypeError("'lags' must be a list of integer lag days.")
-
-
-    # Generate and vertically stack blocks for EOF analysis
-    # blocks = extract_season_blocks(olr_data, start_year, end_year, season, cutoff_points)
-    # lagged_blocks = np.vstack([generate_lagged_matrix(block, lags)[0] for block in blocks if block.time.size > 0])
-
-    # Generate sesonal blocks for EOF analysis
-    blocks = extract_season_blocks(olr_data, start_year, end_year, season, cutoff_points)  
-    valid_blocks = [block for block in blocks if block.time.size > 0]
-    del blocks
-
-    if not valid_blocks:
-        raise ValueError(f"No valid seasonal blocks found with the specified cutoff points per season ({cutoff_points} points).")
-
-    # Lag and vertically stack blocks 
-    n_blocks = len(valid_blocks)
-    if n_blocks > 1:
-        # In parallel preserving chronological order
-        indexed_args = [(i, block, lags) for i, block in enumerate(valid_blocks)]
-        with concurrent.futures.ProcessPoolExecutor(max_workers=config_params.MAX_WORKERS_LAGBLOCKS, mp_context=mp.get_context("spawn")) as executor:
-            futures = [executor.submit(generate_lagged_matrix_with_index, args) for args in indexed_args]
-            
-            # Collect results and sort by original index
-            results = {}
-            for future in concurrent.futures.as_completed(futures):
-                index, lagged_matrix = future.result()
-                results[index] = lagged_matrix
-     
-        # Stack in original order
-        lagged_blocks = np.vstack([results[i] for i in range(n_blocks)])
-    else:
-        # Single block case
-        lagged_blocks = [generate_lagged_matrix(valid_blocks[0], lags)[0]]
-    del valid_blocks
-
-
-    # Perform EEOF analysis
-    weights = broadcasted_area_weights(olr_data, "lag", lags)
-    eofs, eigvals, var_frac = compute_EEOFs(lagged_blocks, weights, n_modes)
-    del lagged_blocks, weights
-
-    # Reshape EEOFs and adjust sign to fit to Kikuchi's paper
-    n_lag, n_lat, n_lon = len(lags), len(olr_data.lat), len(olr_data.lon)
-    eof_reshaped = eofs.reshape((n_modes), n_lag, n_lat, n_lon)
-
-    if season == "boreal_winter":
-        eof_reshaped[0, ...] *= -1
-    elif season == "boreal_summer":
-        eof_reshaped[0, ...] *= -1
-        eof_reshaped[1, ...] *= -1
-    else:
-        raise ValueError("Invalid 'season' provided.")
-
-
-    # Compile EEOF analysis output as an xr.Dataset
-    eof_data = xr.DataArray(
-        eof_reshaped,
-        dims=["mode", "lag", "lat", "lon"],
-        coords={
-            "mode": np.arange(1, n_modes + 1),
-            "lag": lags,
-            "lat": olr_data.lat,
-            "lon": olr_data.lon
-        },
-        name="eeof"
-    )
-    eig_data = xr.DataArray(
-        eigvals,
-        dims=["mode"],
-        coords={"mode": np.arange(1, n_modes+1)},
-        name="eigvals"
-    )
-    var_data  = xr.DataArray(
-        var_frac,
-        dims=["mode"],
-        coords={"mode": np.arange(1, n_modes+1)},
-        name="var_frac"
-    )
-
-    eeof_analysis_data = xr.Dataset({
-        "eeof": eof_data,
-        "eigval": eig_data,
-        "var_frac": var_data
-
-    })
-
-    # print(f"Computed EEOFs for {season} between years {start_year} and {end_year}.", flush=True)
-    return eeof_analysis_data
 
 
 def project_PCs(data, eeofs):
@@ -602,7 +557,7 @@ def compute_PCs(olr_data, eeofs):
     return pcs_data
 
 
-def adjust_PCs(pcs_sim, pcs_obs):
+def adjust_PCs(pcs_sim, alpha):
     """
     Adjust simulated Principal Components (PCs) by dividing by the ratio of simulated PCs' amplitude over
     observed PCs' amplitude (alpha), in order to correct for the models' weak BSISO/MJO frequency.
@@ -611,36 +566,25 @@ def adjust_PCs(pcs_sim, pcs_obs):
     ----------
     pcs_sim : xr.Dataset
         Simulated PCs.
-    pcs_obs : xr.Dataset
-        Observed PCs.
+    alpha : float
+        Ratio between the simulated and observed PCs' amplitudes.
 
     Returns
     -------
     pcs_sim_corr : xr.Dataset
         Corrected simulated PCs.
-    alpha : float
-        Ratio between the simulated and observed PCs' amplitudes.
     """
 
     # Validate input
-    if not isinstance(pcs_sim, xr.Dataset) or not isinstance(pcs_obs, xr.Dataset):
-        raise TypeError("Both input PCs must be xarray.Datasets.")
+    if not isinstance(pcs_sim, xr.Dataset):
+        raise TypeError("Input PCs must be a xarray.Dataset.")
+    if not isinstance(alpha, (int, float)):
+        raise TypeError("Input 'alpha' must be a numeric value.")
 
 
     # Correct PCs
     pcs_sim_corr = pcs_sim.copy()
-
-    # Compute alpha (only with raw PCs' amplitudes)
-    alpha_num = pcs_sim[f'amp_MJO_raw'].mean(dim='time') + pcs_sim[f'amp_BSISO_raw'].mean(dim='time')
-    alpha_den = pcs_obs[f'amp_MJO_raw'].mean(dim='time') + pcs_obs[f'amp_BSISO_raw'].mean(dim='time')
-    alpha = ((alpha_num / alpha_den).values).item()
-
     for label in ('raw', 'std'):
-        # Compute alpha (with raw and standarized PCs' amplitudes separately)
-        # alpha_num = pcs_sim[f'amp_MJO_{label}'].mean(dim='time') + pcs_sim[f'amp_BSISO_{label}'].mean(dim='time')
-        # alpha_den = pcs_obs[f'amp_MJO_{label}'].mean(dim='time') + pcs_obs[f'amp_BSISO_{label}'].mean(dim='time')
-        # alpha = alpha_num / alpha_den
-
         # Adjust PCs and amplitudes
         for mode in ('MJO', 'BSISO'):
             pcs_sim_corr[f'PC_{mode}_{label}'] = pcs_sim[f'PC_{mode}_{label}'] / alpha
@@ -656,7 +600,7 @@ def adjust_PCs(pcs_sim, pcs_obs):
         coords={"time":pcs_sim_corr['amp_MJO_raw'].coords['time']}, name="label"
     )
 
-    return pcs_sim_corr, alpha
+    return pcs_sim_corr
 
 
 def compute_freq_ISO(events):
