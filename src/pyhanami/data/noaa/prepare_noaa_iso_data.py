@@ -27,15 +27,13 @@ data_filtered_obs = pyhanami.utils.iso_metrics.apply_lanczos_bandpass_filter(dat
 
 
 # Perform EEOF analysis
-start_year = 1975
-end_year = 2020
-
-lags = [-10, -5, 0]
+lag = 5
+n_lags = 3
 n_modes = 2
 
 data_eeof = data_filtered_obs
-eeof_summer = pyhanami.utils.iso_metrics.perform_EEOF_analysis(data_eeof, start_year, end_year, 'boreal_summer', lags, n_modes)
-eeof_winter = pyhanami.utils.iso_metrics.perform_EEOF_analysis(data_eeof, start_year, end_year, 'boreal_winter', lags, n_modes)
+eeof_summer = pyhanami.utils.iso_metrics.perform_EEOF_analysis(data_eeof, start_year, end_year, 'boreal_summer', lag, n_lags, n_modes)
+eeof_winter = pyhanami.utils.iso_metrics.perform_EEOF_analysis(data_eeof, start_year, end_year, 'boreal_winter', lag, n_lags, n_modes)
 
 # Save EEOFs
 eeof_winter.to_netcdf(pyhanami.config.config_params.NOAA_EEOF_WINTER_PATH)
@@ -50,5 +48,7 @@ pcs.to_netcdf(pyhanami.config.config_params.NOAA_PC_PATH)
 
 
 # Save reference grid
-data_grid = data_noaa.isel(time=0)
+data_grid = data_noaa.isel(time=0, drop=True).drop_vars(var_name)
 data_grid.to_netcdf(pyhanami.config.config_params.NOAA_GRID_PATH)
+
+print("NOAA ISO data preparation completed.")
