@@ -36,11 +36,13 @@ class BimodalISO:
     obs : bool
         If True, also plot observational data if available (default: False).
     correct_pc : bool
-        Whether to adjust simulated PCs by dividing by alpha (default: True).
+        Whether to adjust simulated PCs by dividing by alpha (default: False).
     lat_range : tuple
         Geographic latitude bounds (default: (-30, 30)).
-    lags : list[int]
-        Lag values to consider (default: [-10, -5, 0]).
+    lag : int
+        Lag timesteps (default: 5).
+    n_lags : int
+        Number of lag copies (default: 3).
     n_modes : int
         Number of EEOFs modes to compute (default: 2).
     window_size : int
@@ -58,6 +60,8 @@ class BimodalISO:
         Name of the observational dataset, if requested.
     obs : bool
         Whether to use observational data.
+    correct_pc : bool
+        Whether to adjust simulated PCs with observational data.
     eeof_summer : xarray.DataArray
         EEOFs for boreal summer.
     eeof_winter : xarray.DataArray
@@ -87,8 +91,8 @@ class BimodalISO:
     """
 
     def __init__(self, data_sim : SimulationData, var_name : str = 'rlut', start_year_eeof : int = None, end_year_eeof : int = None, 
-                 start_year_pc : int = None, end_year_pc : int = None, obs : bool = False, correct_pc : bool = True,
-                 lat_range : tuple = (-30, 30), lags : list[int] = [-10, -5, 0], n_modes : int = 2, window : int = 141, 
+                 start_year_pc : int = None, end_year_pc : int = None, obs : bool = False, correct_pc : bool = False,
+                 lat_range : tuple = (-30, 30), lag : int = 5, n_lags : int = 3, n_modes : int = 2, window : int = 141, 
                  low_freq : float = 1/90, high_freq : float = 1/25):
 
         # Validate input
@@ -100,6 +104,7 @@ class BimodalISO:
         self.sim_name = data_sim.name
         self.obs_name = None
         self.obs = obs
+        self.correct_pc = correct_pc
 
         # Select years for EEOF analysis and PCs computation
         years = data_sim.data.time.dt.year
@@ -130,6 +135,8 @@ class BimodalISO:
             start_year_pc = start_year
         if end_year_pc is None:
             end_year_pc = end_year
+        if start_year_pc < start_year or end_year_pc > end_year:
+            raise ValueError(f"PC years ({start_year_pc}-{end_year_pc}) must be within the available simulation data range ({start_year}-{end_year}).")
         self.start_year_pc = start_year_pc
         self.end_year_pc = end_year_pc
         
@@ -179,29 +186,31 @@ class BimodalISO:
         # Filter simulation data
         data_unfiltered_sim = data_sim.data[var_name].sortby("lat").sel(lat=slice(*lat_range)).compute()
         data_filtered_sim = iso_metrics.apply_lanczos_bandpass_filter(data_unfiltered_sim, window, low_freq, high_freq)
+        print("\tSimulation data filtered for ISO timescales.", flush=True)
         
         if not self.obs:
             # Compute EEOFs from simulation data
-            self.eeof_summer, self.eeof_winter = self._compute_EEOFs(data_filtered_sim, lags, n_modes)
+            eeof_summer, eeof_winter = self._compute_EEOFs(data_filtered_sim, lag, n_lags, n_modes)
             self.pcs_obs = None
+            self.eeof_summer = eeof_summer.compute()
+            self.eeof_winter = eeof_winter.compute()
             print(f"\tEEOF analysis completed for '{self.sim_name}' data between {self.start_year_eeof} and {self.end_year_eeof}."
                   " See attributes `eeof_summer` and `eeof_winter` for results.", flush=True)
 
 
         # Compute PCs and ISO statistics
         self.stats = {}
-        self.pcs_sim, self.stats['alpha'] = self._compute_PCs(data_filtered_sim, correct_pc)
+        self.pcs_sim, self.stats['alpha'] = self._compute_PCs(data_filtered_sim)
         print(f"\tPCs (bimodal ISO indices) computed between {self.start_year_pc} and {self.end_year_pc}."
-              " See attribute `pcs_sim` (and `pcs_obs` if obs=True) for results.", flush=True)
+              " See attribute `pcs_sim` (and `pcs_obs` if `obs=True`) for results.", flush=True)
 
         self.freq_ISO_sim, self.freq_ISO_obs, self.stats['R'], self.stats['sigma'], self.stats['TSS'] = self._compute_ISO_stats()
         print(f'\tMean monthly frequency computed between {self.start_year_pc} and {self.end_year_pc}.'
-              ' See attributes `freq_ISO_sim` (and `freq_ISO_obs` if obs=True) for results.', flush=True)
+              ' See attributes `freq_ISO_sim` (and `freq_ISO_obs` if `obs=True`) for results.', flush=True)
         
         if self.obs:
-            alpha_str = "None, as no PCs correction was applied" if self.stats['alpha'] is None else f"{self.stats['alpha']:.2f}"
             print(f"\tTaylor Skill Score (TSS) between simulations and observations computed (stored in attribute `stats`):"
-                  f"\n\t\tRatio PCs amplitudes ($\\alpha$): {alpha_str}"
+                  f"\n\t\tRatio PCs amplitudes ($\\alpha$): {self.stats['alpha']:.2f}"
                   f"\n\t\tTemporal correlation (R): {self.stats['R']:.2f}"
                   f"\n\t\tRatio standard deviations ($\\sigma$): {self.stats['sigma']:.2f}"
                   f"\n\t\tTaylor Skill Score (TSS): {self.stats['TSS']:.2f}", flush=True)
@@ -210,7 +219,7 @@ class BimodalISO:
         return
 
 
-    def _compute_EEOFs(self, data_sim, lags=[-10, -5, 0], n_modes=2):
+    def _compute_EEOFs(self, data_sim, lag=5, n_lags=3, n_modes=2):
         """
         Compute Extended Empirical Orthogonal Functions (EEOFs) from the simulation data for the requested years.
         
@@ -218,8 +227,10 @@ class BimodalISO:
         ----------
         data_sim : xarray.DataArray
             Filtered simulation data.
-        lags : list[int]
-            Lag values to consider (default: [-10, -5, 0]).
+        lag : int
+            Lag timesteps (default: 5).
+        n_lags : int
+            Number of lag copies (default: 3).
         n_modes : int
             Number of EEOFs modes to compute (default: 2).
 
@@ -232,13 +243,13 @@ class BimodalISO:
         """
 
         data_eeof_sim = data_sim.sel(time=slice(f'{self.start_year_eeof}-01-01', f'{self.end_year_eeof}-12-31'))
-        eeof_summer = iso_metrics.perform_EEOF_analysis(data_eeof_sim, self.start_year_eeof, self.end_year_eeof, 'boreal_summer', lags, n_modes)
-        eeof_winter = iso_metrics.perform_EEOF_analysis(data_eeof_sim, self.start_year_eeof, self.end_year_eeof, 'boreal_winter', lags, n_modes)
+        eeof_summer = iso_metrics.perform_EEOF_analysis(data_eeof_sim, self.start_year_eeof, self.end_year_eeof, 'boreal_summer', lag, n_lags, n_modes)
+        eeof_winter = iso_metrics.perform_EEOF_analysis(data_eeof_sim, self.start_year_eeof, self.end_year_eeof, 'boreal_winter', lag, n_lags, n_modes)
 
         return eeof_summer, eeof_winter
 
 
-    def _compute_PCs(self, data_sim, correct_pc=True):
+    def _compute_PCs(self, data_sim):
         """
         Compute Principal Components (PCs) from the simulation data for the requested years, 
         and adjust them with observational data if requested.
@@ -247,8 +258,6 @@ class BimodalISO:
         ----------
         data_sim : xarray.DataArray
             Filtered simulation data.
-        correct_pc : bool
-            Whether to adjust simulated PCs (default: True).
 
         Returns
         -------
@@ -262,12 +271,19 @@ class BimodalISO:
         pcs_sim = iso_metrics.compute_PCs(data_pcs_sim, [self.eeof_winter, self.eeof_summer])
 
         alpha = None
-        if correct_pc and self.obs:
-            pcs_sim, alpha = iso_metrics.adjust_PCs(pcs_sim, self.pcs_obs)
-            pcs_sim.attrs['alpha'] = alpha
-            print(f"\tSimulated PCs have been adjusted using the '{self.obs_name}' observations.", flush=True)
-        # elif correct_pc:
-        #     warnings.warn("Simulated PCs cannot be adjusted without observations. Continuing without modification.")
+        if self.obs: 
+            # Compute alpha (only with raw PCs' amplitudes)
+            alpha_num = pcs_sim[f'amp_MJO_raw'].mean(dim='time') + pcs_sim[f'amp_BSISO_raw'].mean(dim='time')
+            alpha_den = self.pcs_obs[f'amp_MJO_raw'].mean(dim='time') + self.pcs_obs[f'amp_BSISO_raw'].mean(dim='time')
+            alpha = ((alpha_num / alpha_den).values).item()
+
+            # Adjust PCs if requested
+            if self.correct_pc:
+                pcs_sim = iso_metrics.adjust_PCs(pcs_sim, alpha)
+                pcs_sim.attrs['alpha'] = alpha
+                print(f"\tSimulated PCs have been adjusted using the '{self.obs_name}' observations.", flush=True)
+        elif self.correct_pc:
+            warnings.warn("Simulated PCs cannot be adjusted without observations. Continuing without modification.")
 
         return pcs_sim, alpha
 
@@ -354,15 +370,15 @@ class BimodalISO:
 
         # Save frequency of ISO events
         if self.obs:
-            freq_ISO_sim_path = output_path / f"freq_ISO_{('_').join(self.sim_name.split())}_{('_').join(self.obs_name.split())}_{self.start_year_pc}-{self.end_year_pc}.nc"
+            freq_ISO_sim_path = output_path / f"freq_ISO_{('_').join(self.sim_name.split())}_projected_on_{('_').join(self.obs_name.split())}_{self.start_year_pc}-{self.end_year_pc}.nc"
             self.freq_ISO_sim.to_netcdf(freq_ISO_sim_path)
             print(f"Mean monthly frequency of ISO events computed for '{self.sim_name}' saved to '{freq_ISO_sim_path}'.", flush=True)
 
-            freq_ISO_obs_path = output_path / f"freq_ISO_{('_').join(self.obs_name.split())}_{config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}.nc"
+            freq_ISO_obs_path = output_path / f"freq_ISO_{('_').join(self.obs_name.split())}_projected_{config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}.nc"
             self.freq_ISO_obs.to_netcdf(freq_ISO_obs_path)
             print(f"Mean monthly frequency of ISO events computed for '{self.obs_name}' observations saved to '{freq_ISO_obs_path}'.", flush=True)
         else:
-            freq_ISO_sim_path = output_path / f"freq_ISO_{('_').join(self.sim_name.split())}_{self.start_year_pc}-{self.end_year_pc}.nc"
+            freq_ISO_sim_path = output_path / f"freq_ISO_{('_').join(self.sim_name.split())}_projected_{self.start_year_pc}-{self.end_year_pc}.nc"
             self.freq_ISO_sim.to_netcdf(freq_ISO_sim_path)
             print(f"Mean monthly frequency of ISO events computed for '{self.sim_name}' saved to '{freq_ISO_sim_path}'.", flush=True)
 
@@ -402,7 +418,7 @@ class BimodalISO:
             plt.show()
             print("BSISO EEOFs plot created and displayed.", flush=True)
         else:
-            eeofs_path = output_path / f"eeof_boreal_summer_{('_').join(name.split())}_{self.start_year_eeof}-{self.end_year_eeof}.png"
+            eeofs_path = output_path / f"eeof_boreal_summer_{('_').join(name.split())}_{self.start_year_eeof}-{self.end_year_eeof}_clon_{clon}.png"
 
             eeofs_plot.savefig(eeofs_path, bbox_inches='tight', dpi=150)
             print(f"BSISO EEOFs plot created and saved to '{eeofs_path}'.", flush=True)
@@ -416,7 +432,7 @@ class BimodalISO:
             plt.show()
             print("MJO EEOFs plot created and displayed.", flush=True)
         else:
-            eeofw_path = output_path / f"eeof_boreal_winter_{('_').join(name.split())}_{self.start_year_eeof}-{self.end_year_eeof}.png"
+            eeofw_path = output_path / f"eeof_boreal_winter_{('_').join(name.split())}_{self.start_year_eeof}-{self.end_year_eeof}_clon_{clon}.png"
 
             eeofw_plot.savefig(eeofw_path, bbox_inches='tight', dpi=150)
             print(f"MJO EEOFs plot created and saved to '{eeofw_path}'.", flush=True)
@@ -497,18 +513,23 @@ class BimodalISO:
             Path to save plots. If None, plots are displayed but not saved.
         """
 
-        # Plot frequency of ISO events
-        freq_plot, _ = plot.plot_freq_ISO(self.freq_ISO_sim, self.freq_ISO_obs, alpha=self.stats['alpha'], corr=self.stats['R'],
-                                           sigma=self.stats['sigma'], tss=self.stats['TSS'],
-                                           title=f'Mean monthly frequency of ISO events', sim_label=self.sim_name, obs_label=self.obs_name)
-
+        plot_title = f'Mean monthly frequency of ISO events'
         if self.obs:
             name_title = f"'{self.sim_name}'_vs_'{self.obs_name}'"
             name_file = f"{('_').join(self.sim_name.split())}_vs_{('_').join(self.obs_name.split())}"
+
+            if self.correct_pc:
+                plot_title += f' (corrected PCs)'
+                name_file += f"_corrected_PCs"
         else:
             name_title = f"'{self.sim_name}'"
             name_file = f"{('_').join(self.sim_name.split())}"
 
+        # Plot frequency of ISO events
+        freq_plot, _ = plot.plot_freq_ISO(self.freq_ISO_sim, self.freq_ISO_obs, alpha=self.stats['alpha'], corr=self.stats['R'],
+                                           sigma=self.stats['sigma'], tss=self.stats['TSS'],
+                                           title=plot_title, sim_label=self.sim_name, obs_label=self.obs_name)
+        
         if output_path is None:
             plt.show()
             print(f"Mean monthly frequency of ISO events for {name_title} plot created and displayed.", flush=True)
@@ -516,7 +537,7 @@ class BimodalISO:
             output_path = Path(output_path)
             output_path.mkdir(parents=True, exist_ok=True)
 
-            freq_path = output_path / f"freq_ISO_{name_file}_projected_{self.start_year_eeof}-{self.end_year_eeof}.png"
+            freq_path = output_path / f"freq_ISO_{name_file}_{self.start_year_pc}-{self.end_year_pc}_projected_{self.start_year_eeof}-{self.end_year_eeof}.png"
             freq_plot.savefig(freq_path, bbox_inches='tight', dpi=150)
             print(f"Mean monthly frequency of ISO events for {name_title} plot created and saved to '{freq_path}'.", flush=True)
 
@@ -586,7 +607,7 @@ class ScientificEvaluation:
     
     
     def compute_bimodal_ISO(self, data_name=None, start_year_eeof=None, end_year_eeof=None, start_year_pc=None, end_year_pc=None, obs=False, 
-                            correct_pc=True, lat_range=(-30, 30), lags=[-10, -5, 0], n_modes=2, window=141, low_freq=1/90, high_freq=1/25):
+                            correct_pc=False, lat_range=(-30, 30), lag=5, n_lags=3, n_modes=2, window=141, low_freq=1/90, high_freq=1/25):
         """
         Initialize and compute bimodal ISO indices (following (K. Kikuchi, 2020)) and derived 
         statistics (following (M. Nakano et al., 2019)) for a selected dataset.
@@ -604,11 +625,13 @@ class ScientificEvaluation:
         obs : bool
             If True, use EEOFs from observational data (default: False).
         correct_pc : bool
-            Whether to adjust simulated PCs by dividing by alpha (default: True).
+            Whether to adjust simulated PCs by dividing by alpha (default: False).
         lat_range : tuple
             Geographic latitude bounds (default: (-30, 30)).
-        lags : list[int]
-            Lag values to consider (default: [-10, -5, 0]).
+        lag : int
+            Lag timesteps (default: 5).
+        n_lags : int
+            Number of lag copies (default: 3).
         n_modes : int)
             Number of EEOFs modes to compute (default: 2).
         window_size : int
@@ -636,7 +659,7 @@ class ScientificEvaluation:
         # Create BimodalISO object and compute indices/statistics
         print(f"Performing ISO analysis for dataset '{data_name}':", flush=True)
         bimodal_indices = BimodalISO(data_ISO, start_year_eeof=start_year_eeof, end_year_eeof=end_year_eeof, start_year_pc=start_year_pc, 
-                                      end_year_pc=end_year_pc, obs=obs, correct_pc=correct_pc, lat_range=lat_range, lags=lags,
+                                      end_year_pc=end_year_pc, obs=obs, correct_pc=correct_pc, lat_range=lat_range, lag=lag, n_lags=n_lags,
                                       n_modes=n_modes, window=window, low_freq=low_freq, high_freq=high_freq)
 
         return bimodal_indices

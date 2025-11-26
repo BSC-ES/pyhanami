@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.path as mpath
 import cartopy.mpl.ticker as cticker
 
+from matplotlib import colors
 from scipy.stats import bootstrap
 from pyhanami.utils import data_general
 from pyhanami.config import config_params
@@ -637,7 +638,8 @@ def plot_eeofs(eeof, clon=0, title='ISO convection patterns', cb_label='scaled E
     Parameters
     ----------
     eeof : xarray.Dataset
-        EEOFs data.
+        EEOFs data (including variables `eeof`, `eigval` and `var_frac`, containing
+        the EEOFs, eigenvalues and variance fractions, respectively).
     clon : int
         Central longitude for the spatial maps.
     title : str
@@ -685,8 +687,8 @@ def plot_eeofs(eeof, clon=0, title='ISO convection patterns', cb_label='scaled E
                             constrained_layout=False)
     fig.subplots_adjust(wspace=0, hspace=0, top=0.86)
 
-    for j, lag in enumerate(lags):
-        eeof_lag = eeof['eeof'].sel(lag=lag)
+    for j, lag in enumerate(np.flip(lags)):
+        eeof_lag = eeof['eeof'].isel(lag=j)
         eeof_phys = eeof_lag * scale
 
         for l, mode in enumerate(modes):
@@ -697,11 +699,11 @@ def plot_eeofs(eeof, clon=0, title='ISO convection patterns', cb_label='scaled E
             cb = eeof_aux.plot.contourf(ax=ax, transform=ccrs.PlateCarree(), cmap=cmap, levels=levels,
                                        vmin=vmin, vmax=vmax, add_colorbar=False)
             ax.text(
-                0.97, 0.9, f"lag = {lag} days",
+                0.97, 0.9, f"lag = {-lag} days",
                 transform=ax.transAxes, 
                 ha="right", va="top", 
                 fontsize=6,
-                bbox=dict(facecolor="white", edgecolor="black", boxstyle="square,pad=0.4", alpha=0.9)
+                bbox=dict(facecolor=colors.to_rgba('white', alpha=1), edgecolor="black", boxstyle="square,pad=0.4")
             )
 
     
@@ -917,19 +919,12 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
         ax.add_artist(legend_bsiso)
 
         # Add Taylor Skill Score (TSS) statistics
-        if alpha is None:
-            stats_text = (
-                f"Statistics: R={f'{corr:.2f}' if corr is not None else 'N/A'}, "
-                f"$\\sigma$={f'{sigma:.2f}' if sigma is not None else 'N/A'}, "
-                f"TSS={f'{tss:.2f}'if tss is not None else 'N/A'}"
-            )
-        else:
-            stats_text = (
-                f"Statistics: $\\alpha$={f'{alpha:.2f}' if alpha is not None else 'N/A'}, "
-                f"R={f'{corr:.2f}' if corr is not None else 'N/A'}, "
-                f"$\\sigma$={f'{sigma:.2f}' if sigma is not None else 'N/A'}, "
-                f"TSS={f'{tss:.2f}'if tss is not None else 'N/A'}"
-            )
+        stats_text = (
+            f"Statistics: $\\alpha$={f'{alpha:.2f}' if alpha is not None else 'N/A'}, "
+            f"R={f'{corr:.2f}' if corr is not None else 'N/A'}, "
+            f"$\\sigma$={f'{sigma:.2f}' if sigma is not None else 'N/A'}, "
+            f"TSS={f'{tss:.2f}'if tss is not None else 'N/A'}"
+        )
         fig.text(0.5, 0.02, stats_text, ha='center', va='bottom', fontsize=10, bbox=dict(facecolor='white', edgecolor='black'))
         fig.subplots_adjust(top=0.78, bottom=0.16)
 

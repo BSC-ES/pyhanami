@@ -4,7 +4,6 @@
 # This is automatically done in docs_environment.yaml
 
 cmocean
-eofs
 matplotlib
 numpy
 pandas
@@ -14,6 +13,7 @@ pyyaml
 scipy
 tqdm
 xarray
+xeofs
 xesmf
 Sphinx==7.2.6
 Sphinx-rtd-theme==2.0.0
