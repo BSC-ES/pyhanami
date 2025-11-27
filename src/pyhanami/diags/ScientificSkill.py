@@ -513,7 +513,7 @@ class BimodalISO:
             Path to save plots. If None, plots are displayed but not saved.
         """
 
-        plot_title = f'Mean monthly frequency of ISO events'
+        plot_title = f'Mean monthly frequency of ISO events ({self.start_year_pc}-{self.end_year_pc})'
         if self.obs:
             name_title = f"'{self.sim_name}'_vs_'{self.obs_name}'"
             name_file = f"{('_').join(self.sim_name.split())}_vs_{('_').join(self.obs_name.split())}"
