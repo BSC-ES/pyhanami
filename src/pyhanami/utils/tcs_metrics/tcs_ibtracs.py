@@ -7,6 +7,7 @@ Copyright (c) 2021 Colin Zarzycki
 """
 
 import re
+import shutil
 import requests
 import numpy as np
 import xarray as xr
@@ -411,7 +412,7 @@ def convert_ibtracs_to_tempest(start_year=config_params.IBTRACS_START_YEAR, end_
 
 
     # Process each storm and save IBTrACS data in TempestExtremes format
-    ib_tempest_filename = f"ibtracs{config_params.IBTRACS_VERSION}_{start_year}-{end_year}_{min_wind:.1f}_False_1_1.0.txt"
+    ib_tempest_filename = f"ibtracs_{config_params.IBTRACS_VERSION}_{start_year}-{end_year}_{min_wind:.1f}_False_1_1.0.txt"
     output_dir = config_params.DATA_PATH
     output_path = output_dir / ib_tempest_filename
 
@@ -543,14 +544,13 @@ def check_ibtracs_date():
 
     Returns
     -------
-    ib_date : int
+    ib_date : datetime
         Last modification date.
     """
 
     # Get web parameters
     ib_url = config_params.IBTRACS_URL
-    ib_base_url = '/'.join(ib_url.split('/')[:-1])
-    ib_filename = ib_url.split('/')[-1]
+    ib_base_url, ib_filename = ib_url.rsplit('/', 1)
     ib_date = None
 
     try:
@@ -565,18 +565,19 @@ def check_ibtracs_date():
             cols = row.find_all('td')
             if cols and ib_filename in cols[0].text:
                 date_str = cols[1].text.strip()
+                print(date_str, flush=True)
                 ib_date = datetime.strptime(date_str, '%Y-%m-%d %H:%M')
                 break
 
         # Raise error if file not found
         if ib_date is None:
             raise ValueError("Issue encountered when preparing IBTrACS data for Tropical Cyclones:"
-                              f"\n\tCould not find the IBTrACS file '{ib_filename}' on the webpage {ib_url}."
+                              f"\n\tCould not find the IBTrACS file '{ib_filename}' on the webpage '{ib_url}'."
                               "\n\tPlease, check the IBTRACS_URL parameter in 'config/config_params.py'")
 
     except requests.exceptions.RequestException as e:
         raise ValueError("Issue encountered when preparing IBTrACS data for Tropical Cyclones:"
-                         f"\n\tError accessing IBTrACS webpage {ib_base_url}: {e}."
+                         f"\n\tError accessing IBTrACS webpage '{ib_base_url}': {e}."
                          "\n\tPlease, check your Internet connection and the IBTRACS_URL parameter in 'config/config_params.py'.")
 
     return ib_date
@@ -609,10 +610,12 @@ def download_ibtracs():
     return
 
 
-def check_ibtracs_file(start_year, end_year, min_wind=10.0):
+def check_ibtracs_file(start_year, end_year, output_path, min_wind=10.0):
     """
     Check, and create if not existing, .txt file with IBTrACS data for the specified 
     time period in TempestExtremes format, downloading updated IBTrACS data if necessary.
+    Then, apply minimum wind speed threshold if needed, and copy the final file to the 
+    temporary output_path.
 
     Parameters
     ----------
@@ -620,13 +623,17 @@ def check_ibtracs_file(start_year, end_year, min_wind=10.0):
         Start year for IBTrACS data.
     end_year : int
         End year for IBTrACS data.
+    output_path : str
+        Path to save temporary files.
     min_wind : float
-        minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
+        Minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
 
     Returns
     -------
-    ib_file_path : Path
+    new_ib_file_path : Path
         Path to the processed IBTrACS data file.
+    file_end_year : int
+        End year of the processed IBTrACS data file.
     """
 
     # Validate input start year
@@ -639,13 +646,13 @@ def check_ibtracs_file(start_year, end_year, min_wind=10.0):
     # Check years in existing IBTrACS files
     search_path = config_params.DATA_PATH
     current_version = config_params.IBTRACS_VERSION
-    ib_files = list(search_path.glob(f"ibtracs{current_version}_*.txt"))
+    ib_files = list(search_path.glob(f"ibtracs_{current_version}_*.txt"))
 
     ib_file_path = None
     if ib_files:
         # Get the existing file for the current version
         ib_file = ib_files[0]
-        match = re.search(rf'ibtracs{current_version}_(\d+)-(\d+)', ib_file.name)
+        match = re.search(rf'ibtracs_{current_version}_(\d+)-(\d+)', ib_file.name)
         if match:
             file_start_year = int(match.group(1))
             file_end_year = int(match.group(2))
@@ -653,13 +660,11 @@ def check_ibtracs_file(start_year, end_year, min_wind=10.0):
             # Check whether the current version covers the given period
             if file_start_year <= start_year and end_year <= file_end_year:
                 ib_file_path = ib_file
-            else:
-                ib_file.unlink() 
                 
         else:
             raise ValueError("Issue encountered when preparing IBTrACS data for Tropical Cyclones:"
-                             f"\n\tCould not parse years from existing IBTrACS file name {ib_file} in "
-                             f"the package's data directory {config_params.DATA_PATH}.")
+                             f"\n\tCould not parse years from existing IBTrACS file name '{ib_file}' in "
+                             f"the package's data directory '{config_params.DATA_PATH}'.")
 
 
     # Download new IBTrACS data if no file exists for the requested version and period
@@ -669,17 +674,24 @@ def check_ibtracs_file(start_year, end_year, min_wind=10.0):
         if web_date.year < end_year:
             raise ValueError("Issue encountered when preparing IBTrACS data for Tropical Cyclones:"
                              f"\n\tThe requested end year {end_year} is not covered by the IBTrACS data available "
-                             f"on {config_params.IBTRACS_URL}. \n\tThe latest available year is {web_date.year}."
+                             f"on '{config_params.IBTRACS_URL}'. \n\tThe latest available year is {web_date.year}."
                              "\n\tPlease, choose an earlier end year or update the IBTRACS_URL in 'config/config_params.py'.")
+        # Remove outdated IBTrACS file
+        if ib_file is not None:
+            ib_file.unlink()
 
         # Download and process new IBTrACS data
         download_ibtracs()
-        ib_file_path = convert_ibtracs_to_tempest(end_year=end_year, min_wind=10.0)
+        file_start_year = config_params.IBTRACS_START_YEAR
+        file_end_year = end_year
+        ib_file_path = convert_ibtracs_to_tempest(end_year=file_end_year, min_wind=10.0)
 
     # Apply wind threshold
     if min_wind > 10.0:
-        unfiltered_file_path = ib_file_path
-        ib_file_path = ib_file_path.parent / f'ibtracs{current_version}_{start_year}-{end_year}_{min_wind:.1f}_False_1_1.0.txt'
-        tcs_tempestextremes.filter_tracks_by_wind(unfiltered_file_path, ib_file_path, cutoff_wind=min_wind)
+        new_ib_file_path = output_path / f'ibtracs_{current_version}_{file_start_year}-{file_end_year}_{min_wind:.1f}_False_1_1.0.txt'
+        tcs_tempestextremes.filter_tracks_by_wind(ib_file_path, new_ib_file_path, cutoff_wind=min_wind)
+    else:
+        new_ib_file_path = output_path / ib_file_path.name
+        shutil.copy2(ib_file_path, new_ib_file_path)
 
-    return ib_file_path
+    return new_ib_file_path, file_end_year
