@@ -30,6 +30,7 @@ classifiers=[
 
 requires-python = ">=3.7"
 dependencies = [
+    "beautifulsoup4",
     "cartopy",
     "cftime",
     "cmocean",
@@ -40,12 +41,12 @@ dependencies = [
     "pandas",
     "pint",
     "pyyaml",
+    "requests",
     "scipy",
     "tqdm",
-    "xarray>=2023.1.0,<2024.7.0",
+    "xarray>=2023.1.0,<2025.3.0",
     "xesmf>=0.7.0,<0.9.0",
 ]
-
 
 [tool.setuptools]
 include-package-data = true

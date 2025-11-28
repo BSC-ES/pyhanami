@@ -1,6 +1,8 @@
 import warnings
 warnings.simplefilter("always")
 
+import re
+import shutil
 import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
@@ -26,7 +28,7 @@ class TCMetrics:
     ----------
     data_sim: SimulationData
         Simulation dataset to use.
-    start_year_tc, end_year_tc : int
+    start_year_tc, end_year_tc : int, optional
         Initial and end years to compute the TCs metrics for.
     obs : bool
         If True, also consider obsrvational data if available (default: False).
@@ -34,17 +36,35 @@ class TCMetrics:
         Wind speed correction factor (to normalize the provided wind to 10 m wind) for simulations (default: 1.0).
     min_wind : float
         Minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
+    bin_size : float
+        Size of the bins in degrees for computing the TCs metrics with CyMeP (default: 2.5).
 
     Attributes
     ----------
     sim_name : str
         Name of the simulation dataset.
+    obs_names : str
+        Name of the observational dataset, if requested.
     obs : bool
         Whether to use observational data.
     start_year_tc, end_year_tc : int
         Initial and end years to compute the TCs metrics for.
+    min_wind : float
+        Minimum 10 m wind speed in m/s for TCs detection.
+    config_cymep : dict
+        Dictionary with configuration parameters for each dataset (containing traj_filename,
+        short_name, unstructured, ens_members, years_per_member, wind_speed_correction),
+        necessary for the CyMeP package.
+    tracks_path : str
+        Path to save temporary files.
+    bin_size : float
+        Size of the bins in degrees for computing the TCs metrics with CyMeP.
     metrics_metadata : dict
         Metadata for the TC metrics.
+    data_cymep : xr.Dataset
+        TCs metrics computed with CyMeP.
+    model_names : list[str]
+        List of model names included in the TCs metrics dataset.
     clim_bias : np.ndarray
         Global mean climatological bias for each TC metric.
     storm_bias : np.ndarray
@@ -55,14 +75,23 @@ class TCMetrics:
         Spatial correlation for each TC metric.
     """
 
-    def __init__(self, data_sim : SimulationData, start_year_tc: int = None, end_year_tc: int = None, 
-                 obs: bool = False, wind_factor: float = 1.0, min_wind: float = 10.0):
+    def __init__(self, data_sim : SimulationData, start_year_tc: int = None, end_year_tc: int = None, obs: bool = False, 
+                 wind_factor: float = 1.0, min_wind: float = 10.0, bin_size : float = 2.5):
         
         # Validate input
         if not isinstance(data_sim, SimulationData):
             raise TypeError("'data_sim' must be an instance of SimulationData.")   
         self.sim_name = data_sim.name
+        self.obs_names = ['ERA5', 'JRA55']
         self.obs = obs
+
+
+        if not isinstance(min_wind, (int, float)) or min_wind < 10.0:
+            raise ValueError("The minimum 10 m wind speed for TCs detection 'min_wind' must be a numeric value of at least 10 m/s.")
+        self.min_wind = min_wind
+
+        self.config_cymep = {}
+        self.bin_size = bin_size
         self.metrics_metadata = data_general.load_yaml_file(config_params.TCS_METRICS_PATH)
 
 
@@ -73,10 +102,10 @@ class TCMetrics:
 
         if start_year_tc is None:
             start_year_tc = start_year
-            print(f"As no start year was provided, the first year available in the '{self.sim_name}' dataset ({start_year}) will be used.", flush=True)
+            print(f"\tAs no start year was provided, the first year available in the '{self.sim_name}' dataset ({start_year}) will be used.", flush=True)
         if end_year_tc is None:
             end_year_tc = end_year
-            print(f"As no end year was provided, the last year available in the '{self.sim_name}' dataset ({end_year}) will be used.", flush=True)
+            print(f"\tAs no end year was provided, the last year available in the '{self.sim_name}' dataset ({end_year}) will be used.", flush=True)
         if start_year_tc < start_year or end_year_tc > end_year:
             raise ValueError(f"TC years ({start_year_tc}-{end_year_tc}) must be within the available simulation data range ({start_year}-{end_year}).")
         
@@ -85,34 +114,217 @@ class TCMetrics:
         data_sim_tcs = data_sim.data.sel(time=slice(np.datetime64(f"{self.start_year_tc}-01-01"), np.datetime64(f"{self.end_year_tc}-12-31")))
 
 
+        # Prepare output folder for temporary files
+        self.tracks_path = config_params.TC_DATA_PATH / "temp_tracks"
+        self.tracks_path.mkdir(parents=True, exist_ok=True)
+
+
+        # Prepare IBTrACS data, and observational data if requested
+        self._prepare_IBTrACS_data()
+        print("\tIBTrACS TCs data preprocessed.", flush=True)
+
+        if self.obs:
+            self._prepare_obs_data()
+            print("\tObservational TCs data preprocessed.", flush=True)
+
+        # Prepare simulation data
+        self._prepare_sim_data(data_sim_tcs, wind_factor=wind_factor)
+        print(f"\tSimulation data TCs tracking completed with TempestExtremes.", flush=True)
+        
+
         # Compute TCs metrics
+        self._compute_cymep_metrics()
+        print("\tTCs metrics computed with CyMeP.", flush=True)
 
-        # Save model names!!!
-        self.models_names!
+        self._retrieve_biases()
+        print("\tBiases computation completed.", flush=True)
 
-        # Compute biases
-        clim_mean = [data_cymep[f'clim_mean_{metric}'].values for metric in self.metrics_metadata if self.metrics_metadata[metric]['temporal']==True]        
+        self._retrieve_correlations()
+        print("\tCorrelations computation completed.", flush=True)
+
+
+        # Delete intermediate files
+        shutil.rmtree(self.tracks_path)
+
+        print("\nTropical Cyclones metrics computation completed.", flush=True)
+        return
+
+
+    def _prepare_IBTrACS_data(self):
+        """
+        Prepare IBTrACS TCs data to use as a reference for the TCs metrics computation.
+        """
+
+        # Retrieve IBTrACS data metadata
+        ib_path, ib_end_year = tcs_ibtracs.check_ibtracs_file(self.start_year_tc, self.end_year_tc, output_path=self.tracks_path,
+                                                              min_wind=self.min_wind)  
+
+        # Add IBTrACS parameters to CyMeP configuration file
+        year_range = ib_end_year - config_params.IBTRACS_START_YEAR + 1
+        ib_config = [ib_path, "IBTrACS", False, 1, year_range, 1.0]
+        self.config_cymep["IBTrACS"] = ib_config
+
+        return 
+
+
+    def _prepare_obs_data(self):
+        """
+        Prepare observational TCs data for the TCs metrics computation.
+        """
+
+        data_path = config_params.TC_DATA_PATH
+        for name in self.obs_names:
+            # Look for observational data
+            obs_files = list(data_path.glob(f'{name}_*.txt'))
+            if obs_files is None:
+                raise FileNotFoundError(f"No observational TCs data found for '{name}' in '{data_path}'.")
+            obs_path = obs_files[0]
+            
+            # Check whether the current version covers the selected period
+            match = re.search(rf'{name}_(\d+)-(\d+)', obs_path.name)
+            obs_start_year = int(match.group(1))
+            obs_end_year = int(match.group(2))
+
+            if obs_start_year > self.start_year_tc or obs_end_year < self.end_year_tc:
+                warnings.warn(f"The available observational TCs data for '{name}' ({obs_start_year}-{obs_end_year}) does not "
+                              f"cover the selected period for TCs metrics computation ({self.start_year_tc}-{self.end_year_tc})."
+                              f" This dataset will not be considered for the TCs metrics computation.")
+                break
+
+            # Apply wind threshold
+            if self.min_wind > 10.0:
+                new_obs_path = self.tracks_path / f'{name}_{obs_start_year}_{obs_end_year}_{self.min_wind:.1f}_False_1_1.0.txt'
+                obs_path = tcs_tempestextremes.filter_tracks_by_wind(obs_path, new_obs_path, cutoff_wind=self.min_wind)
+            else:
+                new_obs_path = self.tracks_path / obs_path.name
+                shutil.copy(obs_path, new_obs_path)
+
+            year_range = obs_end_year - obs_start_year + 1
+            obs_config = [new_obs_path, name, False, 1, year_range, 1.0]
+            self.config_cymep[name] = obs_config
+
+        return
+
+
+    def _prepare_sim_data(self, data_sim, wind_factor=1.0):
+        """
+        Prepare simulation data for the TCs metrics computation (detect 
+        and track TCs with TempestExtremes).
+
+        Parameters
+        ----------
+        data_sim : xr.Dataset
+            Simulation data.
+        wind_factor : float
+            Wind speed correction factor (to normalize the provided wind to 10 m wind) for simulations (default: 1.0).
+        """
+
+        # Run TempestExtremes tracking on simulated data
+        tracks_sim_path = tcs_tempestextremes.run_tempestExtremes(data_sim, self.sim_name, self.tracks_path, min_wind=self.min_wind)
+
+        # Add simulation data parameters to CyMeP configuration file
+        year_range = self.end_year_tc - self.start_year_tc + 1
+        self.config_cymep[self.sim_name] = [tracks_sim_path, self.sim_name, False, 1, year_range, wind_factor]
+
+        return
+
+
+    def _compute_cymep_metrics(self):
+        """
+        Compute TCs metrics using the CyMeP package.
+        """
+
+        # Prepare CyMeP configuration file
+        config_cymep_path = self.tracks_path / "cymep_config.csv"
+        tcs_cymep_main.prepare_configs_file(self.config_cymep, output_path=config_cymep_path)
+
+        # Run CyMeP TCs metrics computation
+        self.data_cymep = tcs_cymep_main.run_cymep_pyhanami(self.start_year_tc, self.end_year_tc, output_path=self.tracks_path, 
+                                                            gridsize=self.bin_size, csvfilename=config_cymep_path)
+        self.model_names = self.data_cymep.model.values 
+
+        return
+
+
+    def _retrieve_biases(self):
+        """
+        Retrieve climatological and storm biases from CyMeP output data,
+        and define related plotting parameters.
+        """
+
+        # Retrieve biases
+        clim_mean = [self.data_cymep[f'clim_mean_{metric}'].values for metric in self.metrics_metadata if self.metrics_metadata[metric]['temporal']==True]        
         self.clim_bias = np.concatenate((clim_mean[0], clim_mean[1:] - clim_mean[0]), axis=1)
 
-        storm_mean = [data_cymep[f'storm_mean_{metric}'].values for metric in self.metrics_metadata if self.metrics_metadata[metric]['temporal']==True 
+        storm_mean = [self.data_cymep[f'storm_mean_{metric}'].values for metric in self.metrics_metadata if self.metrics_metadata[metric]['temporal']==True 
                       and metric!='count']
         self.storm_bias = np.concatenate((storm_mean[0], storm_mean[1:] - storm_mean[0]), axis=1)
 
+        # Define plotting parameters
         self.cbar_ticks_bias = ['Negative bias', 'No bias', 'Positive bias']
         self.colors_bias = ("BlueRed", ['tab:blue', 'white', 'tab:red'])
 
-        # Compute correlations
-        self.temp_corr = [data_cymep[var].values for var in data_cymep.data_vars if var.startswith('temporal_scorr_')]
-        self.spatial_corr = [data_cymep[var].values for var in data_cymep.data_vars if var.startswith('spatial_pcorr_')]
+        return
+    
 
+    def _retrieve_correlations(self):
+        """
+        Retrieve temporal and spatial correlations from CyMeP output data,
+        and define related plotting parameters.
+        """
+
+        # Retrieve correlations
+        self.temp_corr = [self.data_cymep[var].values for var in self.data_cymep.data_vars if var.startswith('temporal_scorr_')]
+        self.spatial_corr = [self.data_cymep[var].values for var in self.data_cymep.data_vars if var.startswith('spatial_pcorr_')]
+
+        # Define plotting parameters
         self.cbar_ticks_corr = ['Low correlation', '', 'High correlation']
         self.colors_corr = ("GreenOrange", ['tab:green', 'white', 'tab:orange'])
 
-        # Delete intermediate files for min_wind above 10 m/s
-        if min_wind > 10.0:
-            ib_path.unlink(missing_ok=True)
+        return
 
-        print("\nTropical Cyclones metrics computation completed.", flush=True)
+
+    def save_data(self, output_path):
+        """
+        Save computed EEOFs, PCs, and frequency of ISO events to NetCDF and Numpy files.
+
+        Parameters
+        ----------
+        output_path : str
+            Path to save the data files.
+        """
+
+        output_path = Path(output_path)
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        # Prepare dataset names for filenames
+        name = f'IBTrACS_{self.sim_name}'
+        if self.obs:
+            name += '_obs'
+
+
+        # Save all CyMeP output data to NetCDF file
+        data_cymep_path = output_path / f'tcs_metrics_{name}_{self.start_year_tc}-{self.end_year_tc}.nc'
+        self.data_cymep.to_netcdf(data_cymep_path)
+        print(f"TCs metrics computed for '{self.sim_name}' simulations saved to '{data_cymep_path}'.", flush=True)
+
+
+        # Save biases and correlations to Numpy files
+        clim_bias_path = output_path / f'tcs_clim_bias_{name}_{self.start_year_tc}-{self.end_year_tc}.npy'
+        np.save(clim_bias_path, self.clim_bias)
+        print(f"Global climatological mean bias saved to '{clim_bias_path}'.", flush=True)
+
+        storm_bias_path = output_path / f'tcs_storm_bias_{name}_{self.start_year_tc}-{self.end_year_tc}.npy'
+        np.save(storm_bias_path, self.storm_bias)
+        print(f"Global storm mean bias saved to '{storm_bias_path}'.", flush=True)
+
+        temp_corr_path = output_path / f'tcs_temp_corr_{name}_{self.start_year_tc}-{self.end_year_tc}.npy'
+        np.save(temp_corr_path, self.temp_corr)
+        print(f"Global seasonal correlation saved to '{temp_corr_path}'.", flush=True)
+
+        spatial_corr_path = output_path / f'tcs_spatial_corr_{name}_{self.start_year_tc}-{self.end_year_tc}.npy'
+        np.save(spatial_corr_path, self.spatial_corr)
+        print(f"Global spatial correlation saved to '{spatial_corr_path}'.", flush=True)
 
         return
 
@@ -228,7 +440,7 @@ class TCMetrics:
         # Create plots
         for i, name in enumerate(linear_metrics_names):
             # Create line plot for monthly cycles
-            linear_month_data = data_cymep[f'per_month_{name}'].rename({'month': 'time'})
+            linear_month_data = self.data_cymep[f'per_month_{name}'].rename({'month': 'time'})
             linear_month_data_list = [linear_month_data.sel(model=model) for model in self.models_names]
 
             plt.figure(figsize=(10, 6))
@@ -245,7 +457,7 @@ class TCMetrics:
                                    plot_filename=f"tcs_{name.lower()}_monthly_cycle_plot_{self.sim_name}_{year_range}")
 
             # Create line plot for interannual cycles
-            linear_year_data = data_cymep[f'per_year_{name}'].rename({'year': 'time'})
+            linear_year_data = self.data_cymep[f'per_year_{name}'].rename({'year': 'time'})
             linear_year_data_list = [linear_year_data.sel(model=model) for model in self.models_names]              
 
             plt.figure(figsize=(10, 6))
@@ -263,7 +475,7 @@ class TCMetrics:
         return
     
 
-    def spatial_plots(self, output_path=None, bin_size=2.5, clon=0):
+    def spatial_plots(self, output_path=None, clon=0):
         """
         Generate and save/display spatial plots comparing simulations with IBTrACS data for each TC metric.
         
@@ -271,8 +483,6 @@ class TCMetrics:
         ----------
         output_path : str, optional
             Path to save the spatial plots. If None, the plots are displayed but not saved.
-        bin_size : float
-            Size of the bins in degrees for the spatial density plots (default: 2.5).
         clon : int
             Central longitude for the spatial maps (default: 0).
         """
@@ -284,20 +494,20 @@ class TCMetrics:
 
         # Prepare labels and titles
         year_range = f"{self.start_year_tc}-{self.end_year_tc}"
-        spatial_titles = [f'TC {name} density per {bin_size}°x{bin_size}° cell ({year_range})' for name in spatial_metrics_names]
-        spatial_bias_titles = [f'TC {name} bias with respect to IBTrACS per {bin_size}°x{bin_size}° cell ({year_range})' for name in spatial_metrics_names]
+        spatial_titles = [f'TC {name} density per {self.bin_size}°x{self.bin_size}° cell ({year_range})' for name in spatial_metrics_names]
+        spatial_bias_titles = [f'TC {name} bias with respect to IBTrACS per {self.bin_size}°x{self.bin_size}° cell ({year_range})' for name in spatial_metrics_names]
         spatial_cb_labels = [f'{name} ({unit})' for name, unit in zip(spatial_metrics_names, spatial_metrics_units)]
 
 
         # Create plots
         for i, name in enumerate(spatial_metrics_names):
-            spatial_abs_data = data_cymep[f'spatial_abs_{name}']
+            spatial_abs_data = self.data_cymep[f'spatial_abs_{name}']
             spatial_abs_plot, _ = plot.two_spatial_plots(spatial_abs_data.sel(model='IBTrACS'), spatial_abs_data.sel(model=self.sim_name), clon=clon,
                                                          title_1='IBTrACS', title_2=self.sim_name, suptitle=spatial_titles[i], cb_label=spatial_cb_labels[i])
             plot.save_or_show_plot(spatial_abs_plot, output_path, plot_filename=f"tcs_{name.lower()}_spatial_abs_plot_{self.sim_name}_{year_range}",
                                     plot_name=f"Spatial plot for TC {name}")
 
-            spatial_bias_data = data_cymep[f'spatial_bias_{name}']
+            spatial_bias_data = self.data_cymep[f'spatial_bias_{name}']
             spatial_bias_plot, _ = plot.spatial_plot(spatial_bias_data.sel(model=self.sim_name), clon=clon, title=spatial_bias_titles[i],
                                                      cb_label=f'bias in {spatial_cb_labels[i]}')
             plot.save_or_show_plot(spatial_bias_plot, output_path, plot_filename=f"tcs_{name.lower()}_spatial_bias_plot_{self.sim_name}_{year_range}",
@@ -581,9 +791,10 @@ class ScientificEvaluation:
             return 
         
     
-    def compute_tc_metrics(self, data_name=None, start_year_tc=None, end_year_tc=None, obs=False, wind_factor=1.0, min_wind=10):
-                    # data_name=None, wind_factor=1.0, output_path=None, start_year=None, end_year=None, min_wind=10.0, 
-                    # full_output=False, bin_size=2.5, clon=0, obs=False, obs_path=None, obs_name=None, 
+    def compute_tc_metrics(self, data_name=None, start_year_tc=None, end_year_tc=None, obs=False, wind_factor=1.0, min_wind=10, 
+                           bin_size=2.5):
+                    # output_path=None, 
+                    # full_output=False, clon=0, obs=False, obs_path=None, obs_name=None, 
                     # obs_wind_factor=None):
         """
         Compute Tropical Cyclones (TCs) metrics following (C.M. Zarzycki et al., 2021) and plot results.
@@ -593,7 +804,7 @@ class ScientificEvaluation:
         data_name : str, optional
             Name of simulation ensemble to use. If None, the first dataset in the ScientificEvaluation 
             object is used.
-        start_year_tc, end_year_tc : int
+        start_year_tc, end_year_tc : int, optional
             Initial and end years to compute the TCs metrics for.
         obs : bool
             If True, include observational data if available (default: False).
@@ -601,15 +812,8 @@ class ScientificEvaluation:
             Wind speed correction factor (to normalize the provided wind to 10 m wind) for simulations (default: 1.0).
         min_wind : float
             Minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
-
-
-        # output_path (str): Path to save plots.
-        # full_output (bool): Whether to include spatial and linear plots from the CyMeP output (default: False).
-        # bin_size (float): Size of the bins in degrees for the spatial density plots (default: 2.5).
-        # clon (int): Central longitude for the spatial maps (default: 0).
-        # obs_path (str or list[str]): Path/s to the observations database/s.
-        # obs_name (str or list[str]): Name/s of the observational dataset/s.
-        # obs_wind_factor (float or list[float]): Wind speed correction factor/s (to normalize provided wind to 10 m wind) for observations.
+        bin_size : float
+            Size of the bins in degrees for computing the TCs metrics with CyMeP (default: 2.5).
         """
 
         # Validate input
@@ -628,14 +832,12 @@ class ScientificEvaluation:
 
         # Create a TCMetrics object and compute metrics
         print(f"Performing TCs analysis for dataset '{data_name}':", flush=True)
-        tc_metrics = TCMetrics(data_TC, start_year_tc=start_year_tc, end_year_tc=end_year_tc, obs=obs, wind_factor=wind_factor, min_wind=min_wind)
+        tc_metrics = TCMetrics(data_TC, start_year_tc=start_year_tc, end_year_tc=end_year_tc, obs=obs, wind_factor=wind_factor, min_wind=min_wind,
+                               bin_size=bin_size)
 
         return tc_metrics
 
         # input_path = data_TC.data_path
-
-        # if min_wind < 10.0:
-        #     raise ValueError("The minimum 10 m wind speed for TCs detection must be at least 10 m/s.")
 
         # if obs:
         #     if obs_path is None or obs_name is None or obs_wind_factor is None:
@@ -653,30 +855,7 @@ class ScientificEvaluation:
 
                 
 
-        # # Prepare output path
-        # if output_path is not None:
-        #     output_path = Path(output_path)
-        #     if output_path.suffix != '':  
-        #         raise ValueError("Output path must be a directory, not a file path, as multiple files may be created.")
-        #     tracks_path = output_path
-        # else:
-        #     tracks_path = input_path.parent / f"tropical_cyclones_metrics_{data_name}_output"
-        # tracks_path.mkdir(parents=True, exist_ok=True)
 
-
-
-        # # Run TempestExtremes tracking on simulated data
-        # print(f'Starting Tropical Cyclones tracking using TempestExtremes for {data_name}...', flush=True)
-        # tracks_sim_path = tcs_tempestextremes.run_tempestExtremes(data_sim_all, data_name, tracks_path, min_wind=min_wind)
-        # print(f"Tropical Cyclones tracking completed for {data_name}. Output files saved to '{tracks_path}'.", flush=True)
-
-
-        # # Prepare IBTrACS TCs data
-        # configs = {}
-        # years = end_year - start_year + 1
-        # ib_path = tcs_ibtracs.check_ibtracs_file(start_year, end_year, min_wind=min_wind)  
-        # ib_config = [ib_path, "IBTrACS", False, 1, years, 1.0]
-        # configs["IBTrACS"] = ib_config
 
 
         # # Plot TC genesis and trajectory density if requested
@@ -753,20 +932,3 @@ class ScientificEvaluation:
         #             print(f"Tropical Cyclones tracking completed for {name} observations. Output files added to '{obs_tracks_path}'.", flush=True)
 
         #             configs[name] = [tracks_obs_path, name, unstructured, ens_members, years, wind]
-
-
-        # # Create configuration file for CyMeP with the simulations parameters in the last row
-        # configs[data_name] = [tracks_sim_path, data_name, False, 1, years, wind_factor]
-        # tcs_cymep_main.prepare_read_configs(configs)
-
-        # # Compute TCs metrics with CyMeP
-        # data_cymep = tcs_cymep_main.run_cymep(start_year, end_year, output_path=tracks_path, gridsize=bin_size)
-        # model_names = data_cymep.model.values
-        # data_metrics = data_general.load_yaml_file(config_params.TCS_METRICS_PATH)
-
-
-        # # Prepare labels for table plots with scalar statistics
-        # rows = model_names
-
-
-        # return data_clim_bias, data_storm_bias, data_temp_corr, data_spatial_corr

@@ -56,7 +56,7 @@ def write_configs_line(config, output_path):
     return
 
 
-def prepare_read_configs(configs, output_path=config_params.CYMEP_CONFIGS_PATH):
+def prepare_configs_file(configs, output_path=config_params.CYMEP_CONFIGS_PATH):
     """
     Create configuration .csv file describing observations/models configurations necessary for the
     CyMeP package.
