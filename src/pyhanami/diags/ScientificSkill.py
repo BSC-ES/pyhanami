@@ -22,7 +22,7 @@ class TCMetrics:
     Compute Tropical Cyclones (TCs) metrics.
     
     This class provides functionality for computing various TC metricsfollowing (C.M. Zarzycki et al., 2021) and plotting 
-    the results comparing simulations to IBTrACS obsravtional data, as well as, several reanalysis datasets.
+    the results comparing simulations to IBTrACS observational data, as well as, several reanalysis datasets.
 
     Parameters
     ----------
