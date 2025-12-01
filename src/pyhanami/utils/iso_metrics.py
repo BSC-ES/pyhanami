@@ -221,11 +221,11 @@ def compute_EEOFs(data, lag, n_lags, n_modes=2):
 
     Returns
     -------
-    eofs : xr.DataArray
+    eofs : np.ndarray
         Resulting EOFs.
-    eigvals : xr.DataArray
+    eigvals : np.ndarray
         Resulting eigenvalues.
-    var_frac : xr.DataArray
+    var_frac : np.ndarray
         Resulting explained variance (normalized eigenvalues).
     """
 
@@ -348,12 +348,12 @@ def generate_lagged_matrix(data, lags):
     # Update attributes to avoid issues with time ranges
     if "actual_range" in data.coords["time"].attrs:
         del data.coords["time"].attrs["actual_range"]
-    data_matrix = data.copy(deep=True)
+    data = data.copy(deep=True)
 
     # Create lagged versions of the season data
     lagged_list = []
     for lag in lags:
-        shifted = data_matrix.shift(time=lag).assign_coords(time=data_matrix["time"])
+        shifted = data.shift(time=lag).assign_coords(time=data["time"])
         lagged_list.append(shifted)
     lagged = xr.concat(lagged_list, dim="lag").assign_coords(lag=lags)
 
@@ -412,7 +412,7 @@ def project_PCs(data, eeofs):
 
     Parameters
     ----------
-    data : np.ndarray
+    data : xr.Dataset
         Input data.
     eeofs : list[xr.Dataset]
         Output of EEOF analyses (EEOFs and eigenvalues).
@@ -422,11 +422,11 @@ def project_PCs(data, eeofs):
     pc : list
         Raw PCs for each set of EOFs.
     pc_std : list
-        Standardized PCs (i.e. normalized by the corresponding eigenvalues) for each set of EOFs.
+        Standarized PCs (i.e. normalized by the corresponding eigenvalues) for each set of EOFs.
     amp : list
         Raw amplitudes for each set of EOFs.
     amp_std : list
-        Standardized amplitudes (i.e. normalized by the corresponding eigenvalues) for each set of EOFs.
+        Standarized amplitudes (i.e. normalized by the corresponding eigenvalues) for each set of EOFs.
     """
 
     pc = []
@@ -438,12 +438,11 @@ def project_PCs(data, eeofs):
         eof = eeof_data["eeof"]
         eof_flat = eof.stack(feature=("lag", "lat", "lon")).values
         eig = eeof_data["eigval"].values
-        sqrt_eig = np.sqrt(eig)
 
         # Compute PCs and standarized PCs (dividing by one standard deviation during the period  
         # of the EEOF analysis, i.e. the squared root of the corresponding eigenvalue)
         pc_aux = data.dot(eof_flat.T)
-        pc_std_aux = pc_aux / sqrt_eig[None, :]
+        pc_std_aux = pc_aux / np.sqrt(eig)[None, :]
         pc.append(pc_aux)
         pc_std.append(pc_std_aux)
 
@@ -497,13 +496,13 @@ def compute_PCs(olr_data, eeofs):
     olr_data : xr.DataArray
         Input OLR data.
     eeofs : list[xr.Dataset]
-        Output of EEOF analysis (EEOFs, eigenvalues and explained variances) for boreal winter 
+        Output of EEOF analysis (EEOFs, eigenvalues and explanined variances) for boreal winter 
         and boreal summer.
 
     Returns
     -------
     pc_data : xr.Dataset
-        PCs and their corresponding amplitude (both raw and standardized, i.e. normalized by the 
+        PCs and their corresponding amplitude (both raw and standarized, i.e. normalized by the 
         eigenvalues) for each ISO mode.
     """
 
