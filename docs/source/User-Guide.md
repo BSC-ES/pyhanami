@@ -183,7 +183,7 @@ The same way as before, it is possible to save the computed data and create plot
 bimodal_indices_obs.stats
 ```
 
-By default, if `obs=True`, the simulated PCs are adjusted before computing the TSS statistics to account for amplitude differences between simulations and observations (see [Methodology](./Methodology.md#tropical-intraseasonal-oscillation-iso-bimodal-iso-indices) for more details). This correction can be turned off by passing the argument `correct_pc=False'`.
+When `obs=True`, the simulated PCs can be adjusted before computing the TSS statistics to account for amplitude differences between simulations and observations (see [Methodology](./Methodology.md#tropical-intraseasonal-oscillation-iso-bimodal-iso-indices) for more details). This correction can be turned on by passing the argument `correct_pc=True`.
 
 To summarize, the `BimodalISO` class includes methods to generate the following visualization outputs:
 1. **EEOF plots** (`BimodalISO.eeof_plots`): spatial patterns of the first two EEOFs for boreal winter and boreal summer. The central longitude for these plots is set to 0º by default, but it can be modified with the argument `clon`.

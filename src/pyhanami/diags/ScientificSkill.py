@@ -19,13 +19,13 @@ class BimodalISO:
     """
     Compute bimodal ISO indices and derived statistics.
 
-    This class provides functionality for computing bimodal ISO indices following (K. Kikuchi, 2020) and 
-    plotting results for the selected years, as well as, computing statistics comparing simulation and 
+    This class provides functionality for computing the bimodal ISO indices following (K. Kikuchi, 2020) and 
+    plotting the results for the selected years, as well as, computing statistics comparing simulation and 
     observational data following (M. Nakano et al., 2019).
 
     Parameters
     ----------
-    data : SimulationData
+    data_sim : SimulationData
         Simulation dataset to use.
     var_name : str
         Name given to the TOA Outgoing Longwave Radiation (OLR) variable (default: 'rlut').
@@ -120,8 +120,12 @@ class BimodalISO:
         else:
             if start_year_eeof is None:
                 start_year_eeof = start_year
+                print(f"\tAs no start year was provided for the EEOF analysis, the first year available in the '{self.sim_name}'",
+                      f" dataset ({start_year}) will be used.", flush=True)
             if end_year_eeof is None:
                 end_year_eeof = end_year
+                print(f"\tAs no end year was provided for the EEOF analysis, the last year available in the '{self.sim_name}'",
+                      f" dataset ({end_year}) will be used.", flush=True)
             if start_year_eeof == end_year_eeof:
                 raise ValueError("More than one year is needed for the EEOF analysis (at least 10 years is recommended, ideally ~ 30 years).")
             if start_year_eeof > end_year_eeof:
@@ -513,7 +517,7 @@ class BimodalISO:
             Path to save plots. If None, plots are displayed but not saved.
         """
 
-        plot_title = f'Mean monthly frequency of ISO events ({self.start_year_pc}-{self.end_year_pc})'
+        plot_title = f'Mean monthly frequency of ISO events'
         if self.obs:
             name_title = f"'{self.sim_name}'_vs_'{self.obs_name}'"
             name_file = f"{('_').join(self.sim_name.split())}_vs_{('_').join(self.obs_name.split())}"
