@@ -52,7 +52,7 @@ dependencies = [
 include-package-data = true
 
 [tool.setuptools.package-data]
-"pyhanami" = ["config/*.yaml", "data/*"]
+"pyhanami" = ["config/*.yaml", "data/**"]
 
 
 [project.urls]
