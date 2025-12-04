@@ -36,7 +36,7 @@ def write_configs_line(config, output_path):
 
     # Validate input
     if not isinstance(config[0], str):
-        raise ValueError("The first element of the configuration must be a string (trajectories filename).")
+        raise ValueError("The first element of the configuration must be a string (trajectories' filename).")
     if not isinstance(config[1], str):
         raise ValueError("The second element of the configuration must be a string (shortname).")
     if not isinstance(config[2], bool):
@@ -671,7 +671,7 @@ def run_cymep(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilename=confi
     globaldictvars = ["styr","enyr","stmon","enmon","gridsize","strbasin","csvfilename","truncate_years","do_defineMIbypres","do_fill_missing_pw",
                       "do_special_filter_obs", "THRESHOLD_ACE_WIND", "THRESHOLD_PACE_PRES"]
     for x in globaldictvars:
-        globaldict[x] = globals()[x]
+        globaldict[x] = locals()[x]
 
     # Write NetCDF file
     _ = tcs_cymep_funcs.write_spatial_netcdf(msdict, pmdict, pydict, taydict, strs, nyears, nmonths, denslat, denslon, globaldict)
@@ -680,8 +680,8 @@ def run_cymep(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilename=confi
 
 
 def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilename=config_params.CYMEP_CONFIGS_PATH, truncate_years=True,
-              do_defineMIbypres=False, do_fill_missing_pw=True, do_special_filter_obs=False, THRESHOLD_ACE_WIND=-1., 
-              THRESHOLD_PACE_PRES=-100., debug_level=0):
+                       do_defineMIbypres=False, do_fill_missing_pw=True, do_special_filter_obs=False, THRESHOLD_ACE_WIND=-1., 
+                       THRESHOLD_PACE_PRES=-100., debug_level=0):
     
     """
     Compute Tropical Cyclones (TCs) metrics from precomputed TCs trajectories using functions 
@@ -732,7 +732,7 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
     Returns
     -------
     data_cymep : xr.Dataset
-        xarray Dataset containing all the metrics.
+        Dataset containing all the metrics.
     """
 
     # Check output path
@@ -1166,28 +1166,27 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
             denslatwgt    = np.cos(deg2rad*denslat)
             print("Generating master spatial arrays...")
             msdict = {}
-            msvars = ['spatial_count','spatial_minpres','spatial_maxwind','spatial_gen','spatial_tcd','spatial_ace','spatial_pace',
+            msvars = ['spatial_abs_count','spatial_abs_minpres','spatial_abs_maxwind','spatial_abs_gen','spatial_abs_tcd','spatial_abs_ace','spatial_abs_pace',
                       'spatial_bias_count','spatial_bias_minpres','spatial_bias_maxwind','spatial_bias_gen','spatial_bias_tcd','spatial_bias_ace','spatial_bias_pace']
             for x in msvars:
                 msdict[x] = np.empty((nfiles, denslat.size, denslon.size))
 
         # Store this model's data in the master spatial array
-        msdict['spatial_count'][ii,:,:] = trackdens[:,:]
-        msdict['spatial_minpres'][ii,:,:] = minpres[:,:]
-        msdict['spatial_maxwind'][ii,:,:] = maxwind[:,:]
-        msdict['spatial_gen'][ii,:,:]  = gendens[:,:]
-        msdict['spatial_tcd'][ii,:,:]  = tcddens[:,:]
-        msdict['spatial_pace'][ii,:,:] = pacedens[:,:]
-        msdict['spatial_ace'][ii,:,:]  = acedens[:,:]
+        msdict['spatial_abs_count'][ii,:,:] = trackdens[:,:]
+        msdict['spatial_abs_minpres'][ii,:,:] = minpres[:,:]
+        msdict['spatial_abs_maxwind'][ii,:,:] = maxwind[:,:]
+        msdict['spatial_abs_gen'][ii,:,:]  = gendens[:,:]
+        msdict['spatial_abs_tcd'][ii,:,:]  = tcddens[:,:]
+        msdict['spatial_abs_ace'][ii,:,:]  = acedens[:,:]
+        msdict['spatial_abs_pace'][ii,:,:] = pacedens[:,:]
 
-        msdict['spatial_bias_count'][ii,:,:] = trackdens[:,:] - msdict['spatial_count'][0,:,:]
-        msdict['spatial_bias_minpres'][ii,:,:]   = minpres[:,:]   - msdict['spatial_minpres'][0,:,:]
-        msdict['spatial_bias_maxwind'][ii,:,:]  = maxwind[:,:]  - msdict['spatial_maxwind'][0,:,:]
-        msdict['spatial_bias_gen'][ii,:,:]   = gendens[:,:]   - msdict['spatial_gen'][0,:,:]
-        msdict['spatial_bias_tcd'][ii,:,:]  = tcddens[:,:]  - msdict['spatial_tcd'][0,:,:]
-        msdict['spatial_bias_ace'][ii,:,:]   = acedens[:,:]   - msdict['spatial_ace'][0,:,:]
-        msdict['spatial_bias_pace'][ii,:,:]  = pacedens[:,:]  - msdict['spatial_pace'][0,:,:]
-
+        msdict['spatial_bias_count'][ii,:,:] = trackdens[:,:] - msdict['spatial_abs_count'][0,:,:]
+        msdict['spatial_bias_minpres'][ii,:,:]   = minpres[:,:]   - msdict['spatial_abs_minpres'][0,:,:]
+        msdict['spatial_bias_maxwind'][ii,:,:]  = maxwind[:,:]  - msdict['spatial_abs_maxwind'][0,:,:]
+        msdict['spatial_bias_gen'][ii,:,:]   = gendens[:,:]   - msdict['spatial_abs_gen'][0,:,:]
+        msdict['spatial_bias_tcd'][ii,:,:]  = tcddens[:,:]  - msdict['spatial_abs_tcd'][0,:,:]
+        msdict['spatial_bias_ace'][ii,:,:]   = acedens[:,:]   - msdict['spatial_abs_ace'][0,:,:]
+        msdict['spatial_bias_pace'][ii,:,:]  = pacedens[:,:]  - msdict['spatial_abs_pace'][0,:,:]
 
     # Back to the main program
     #for zz in pydict:
@@ -1200,18 +1199,18 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
     # Spatial correlation calculations
     ## Initialize dict
     rxydict={}
-    rxyvars = ["spatial_pcorr_count","spatial_pcorr_gen","spatial_pcorr_maxwind","spatial_pcorr_minpres","spatial_pcorr_ace","spatial_pcorr_pace"]
+    rxyvars = ["spatial_pcorr_count","spatial_pcorr_gen","spatial_pcorr_maxwind","spatial_pcorr_minpres","spatial_pcorr_tcd","spatial_pcorr_ace","spatial_pcorr_pace"]
     for x in rxyvars:
         rxydict[x] = np.empty(nfiles)
 
     for ii in range(nfiles):
-        rxydict['spatial_pcorr_count'][ii] = tcs_cymep_funcs.pattern_cor(msdict['spatial_count'][0,:,:], msdict['spatial_count'][ii,:,:], denslatwgt, 0)
-        rxydict['spatial_pcorr_gen'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_gen'][0,:,:],  msdict['spatial_gen'][ii,:,:],  denslatwgt, 0)
-        rxydict['spatial_pcorr_maxwind'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_maxwind'][0,:,:], msdict['spatial_maxwind'][ii,:,:], denslatwgt, 0)
-        rxydict['spatial_pcorr_minpres'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_minpres'][0,:,:], msdict['spatial_minpres'][ii,:,:], denslatwgt, 0)
-        rxydict['spatial_pcorr_tcd'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_tcd'][0,:,:],  msdict['spatial_tcd'][ii,:,:],  denslatwgt, 0)
-        rxydict['spatial_pcorr_ace'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_ace'][0,:,:],  msdict['spatial_ace'][ii,:,:],  denslatwgt, 0)
-        rxydict['spatial_pcorr_pace'][ii]  = tcs_cymep_funcs.pattern_cor(msdict['spatial_pace'][0,:,:], msdict['spatial_pace'][ii,:,:], denslatwgt, 0)
+        rxydict['spatial_pcorr_count'][ii] = tcs_cymep_funcs.pattern_cor(msdict['spatial_abs_count'][0,:,:], msdict['spatial_abs_count'][ii,:,:], denslatwgt, 0)
+        rxydict['spatial_pcorr_gen'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_abs_gen'][0,:,:],  msdict['spatial_abs_gen'][ii,:,:],  denslatwgt, 0)
+        rxydict['spatial_pcorr_maxwind'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_abs_maxwind'][0,:,:], msdict['spatial_abs_maxwind'][ii,:,:], denslatwgt, 0)
+        rxydict['spatial_pcorr_minpres'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_abs_minpres'][0,:,:], msdict['spatial_abs_minpres'][ii,:,:], denslatwgt, 0)
+        rxydict['spatial_pcorr_tcd'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_abs_tcd'][0,:,:],  msdict['spatial_abs_tcd'][ii,:,:],  denslatwgt, 0)
+        rxydict['spatial_pcorr_ace'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_abs_ace'][0,:,:],  msdict['spatial_abs_ace'][ii,:,:],  denslatwgt, 0)
+        rxydict['spatial_pcorr_pace'][ii]  = tcs_cymep_funcs.pattern_cor(msdict['spatial_abs_pace'][0,:,:], msdict['spatial_abs_pace'][ii,:,:], denslatwgt, 0)
 
     # Temporal correlation calculations
     # Spearman Rank
@@ -1241,7 +1240,7 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
             rpdict[repStr][ii], tmp =sps.pearsonr(tmpx[~nas],tmpy[~nas])
 
 
-    # Generate Taylor dict
+    # Generate Taylor dict (not used for now)
     taydict={}
     tayvars = ["tay_pc","tay_ratio","tay_bias","tay_xmean","tay_ymean","tay_xvar","tay_yvar","tay_rmse"]
     for x in tayvars:
@@ -1249,15 +1248,15 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
 
     # Calculate Taylor stats and put into taylor dict
     for ii in range(nfiles):
-        ratio = tcs_cymep_funcs.taylor_stats(msdict['spatial_count'][ii,:,:], msdict['spatial_count'][0,:,:], denslatwgt,0)
+        ratio = tcs_cymep_funcs.taylor_stats(msdict['spatial_abs_count'][ii,:,:], msdict['spatial_abs_count'][0,:,:], denslatwgt,0)
         for ix, x in enumerate(tayvars):
-            #print(x+" "+str(ratio[ix]))
+            # print(x+" "+str(ratio[ix]))
             taydict[x][ii] = ratio[ix]
 
     # Calculate special bias for Taylor diagrams
     taydict["tay_bias2"]=np.empty(nfiles)
     for ii in range(nfiles):
-        taydict["tay_bias2"][ii] = 100. * ( (taydict['clim_mean_count'][ii] - taydict['clim_mean_count'][0]) / taydict['clim_mean_count'][0] )
+        taydict["tay_bias2"][ii] = 100. * ( (acdict['clim_mean_count'][ii] - acdict['clim_mean_count'][0]) / acdict['clim_mean_count'][0] )
 
 
     # # Save results to .csv (if requested) and .nc files
@@ -1274,7 +1273,7 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
     globaldictvars = ["styr","enyr","stmon","enmon","gridsize","strbasin","csvfilename","truncate_years","do_defineMIbypres","do_fill_missing_pw",
                       "do_special_filter_obs", "THRESHOLD_ACE_WIND", "THRESHOLD_PACE_PRES"]
     for x in globaldictvars:
-        globaldict[x] = globals()[x]
+        globaldict[x] = locals()[x]
 
     # # Write NetCDF file
     # netcdf_path = tcs_cymep_funcs.write_spatial_netcdf(msdict, pmdict, pydict, taydict, strs, nyears, nmonths, denslat, denslon, globaldict)
@@ -1335,7 +1334,7 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
         }
 
     # Create xarray Dataset with all the metrics
-    data_cymep = tcs_cymep_funcs.create_xarray_dataset(pmdict, pydict, acdict, asdict, rsdict, msdict, rxydict, strs, 
+    data_cymep = tcs_cymep_funcs.write_cymep_output_pyhanami(pmdict, pydict, acdict, asdict, rsdict, msdict, rxydict, strs, 
                                                        nyears, nmonths, denslat, denslon, globaldict, metrics_descriptions)
 
     return data_cymep

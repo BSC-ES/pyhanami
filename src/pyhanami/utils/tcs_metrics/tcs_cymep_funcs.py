@@ -1086,7 +1086,7 @@ def write_cymep_output_pyhanami(per_month_dict, per_year_dict, clim_mean_dict, s
     Returns
     -------
     data_cymep : xr.Dataset
-        xarray Dataset containing all the metrics.
+        Dataset containing all the metrics.
     """
 
     # Create coordinates dictionary
