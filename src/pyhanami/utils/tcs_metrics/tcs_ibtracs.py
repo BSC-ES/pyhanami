@@ -355,7 +355,7 @@ def convert_ibtracs_to_tempest(start_year=config_params.IBTRACS_START_YEAR, end_
     ms_to_kts = 1.94384449
 
     # Load IBTrACS data
-    print(f"Processing IBTrACS data from {start_year} to {end_year}, this may take a while...", flush=True)
+    print(f"Processing IBTrACS data from {start_year} to {end_year} with TempestExtremes...", flush=True)
     ib_file = xr.open_dataset(config_params.IBTRACS_PATH)
 
 
@@ -407,13 +407,14 @@ def convert_ibtracs_to_tempest(start_year=config_params.IBTRACS_START_YEAR, end_
         gridlon = topog.lon
                             
     # Prepare PHIS data
-    surf_geopotential = topog['topog'] * config_params.G
-    phis = surf_geopotential.to_dataset().rename({'topog': 'PHIS'}) 
+    topog_varname = config_params.TOPOG_VARNAME
+    surf_geopotential = topog[topog_varname] * config_params.G
+    phis = surf_geopotential.to_dataset().rename({topog_varname: 'PHIS'}) 
 
 
     # Process each storm and save IBTrACS data in TempestExtremes format
     ib_tempest_filename = f"ibtracs_{config_params.IBTRACS_VERSION}_{start_year}-{end_year}_{min_wind:.1f}_False_1_1.0.txt"
-    output_dir = config_params.DATA_PATH
+    output_dir = config_params.TC_DATA_PATH
     output_path = output_dir / ib_tempest_filename
 
     with open(output_path, 'w') as f:
@@ -590,6 +591,8 @@ def download_ibtracs():
 
     ib_file_path = config_params.IBTRACS_PATH
     ib_file_path.parent.mkdir(parents=True, exist_ok=True)
+    if ib_file_path.exists():
+        ib_file_path.unlink()
     ib_file_path.touch()
 
     ib_url = config_params.IBTRACS_URL
@@ -636,18 +639,22 @@ def check_ibtracs_file(start_year, end_year, output_path, min_wind=10.0):
         End year of the processed IBTrACS data file.
     """
 
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
     # Validate input start year
     if start_year < config_params.IBTRACS_START_YEAR:
         raise ValueError("Issue encountered when preparing IBTrACS data for Tropical Cyclones:"
-                         f"\n\tIBTrACS data only goes back to {config_params.IBTRACS_START_YEAR}, "
-                         f"but start_year={start_year} was requested. Please, choose a later start year.")
-
+                         f"\n\tIBTrACS data only goes back to {config_params.IBTRACS_START_YEAR}. "
+                         f"\n\tHence, the requested start year {start_year} is not covered."
+                          "\n\tPlease, choose a later start year.")
 
     # Check years in existing IBTrACS files
-    search_path = config_params.DATA_PATH
+    search_path = config_params.TC_DATA_PATH
     current_version = config_params.IBTRACS_VERSION
     ib_files = list(search_path.glob(f"ibtracs_{current_version}_*.txt"))
 
+    ib_file = None
     ib_file_path = None
     if ib_files:
         # Get the existing file for the current version
@@ -664,7 +671,7 @@ def check_ibtracs_file(start_year, end_year, output_path, min_wind=10.0):
         else:
             raise ValueError("Issue encountered when preparing IBTrACS data for Tropical Cyclones:"
                              f"\n\tCould not parse years from existing IBTrACS file name '{ib_file}' in "
-                             f"the package's data directory '{config_params.DATA_PATH}'.")
+                             f"the package's data directory '{config_params.TC_DATA_PATH}'.")
 
 
     # Download new IBTrACS data if no file exists for the requested version and period
@@ -675,7 +682,8 @@ def check_ibtracs_file(start_year, end_year, output_path, min_wind=10.0):
             raise ValueError("Issue encountered when preparing IBTrACS data for Tropical Cyclones:"
                              f"\n\tThe requested end year {end_year} is not covered by the IBTrACS data available "
                              f"on '{config_params.IBTRACS_URL}'. \n\tThe latest available year is {web_date.year}."
-                             "\n\tPlease, choose an earlier end year or update the IBTRACS_URL in 'config/config_params.py'.")
+                             "\n\tPlease, choose an earlier end year or update the IBTRACS_URL in 'config/config_params.py'"
+                             " if newer data is available on another website")
         # Remove outdated IBTrACS file
         if ib_file is not None:
             ib_file.unlink()
@@ -683,7 +691,7 @@ def check_ibtracs_file(start_year, end_year, output_path, min_wind=10.0):
         # Download and process new IBTrACS data
         download_ibtracs()
         file_start_year = config_params.IBTRACS_START_YEAR
-        file_end_year = end_year
+        file_end_year = web_date.year
         ib_file_path = convert_ibtracs_to_tempest(end_year=file_end_year, min_wind=10.0)
 
     # Apply wind threshold
