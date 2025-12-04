@@ -33,16 +33,16 @@ def save_or_show_plot(plot_obj, output_path, plot_filename, plot_name):
     """
 
     if output_path is None:
+        print(f"{plot_name} created and displayed:", flush=True)
         plt.show()
-        print(f"{plot_name} created and displayed.", flush=True)
     else:
         output_path = Path(output_path)
         output_path.mkdir(parents=True, exist_ok=True)
         
         plot_path = output_path / f"{plot_filename}.png"
         plot_obj.savefig(plot_path, bbox_inches='tight', dpi=150)
-        plt.show()
         print(f"{plot_name} created and saved to '{plot_path}'.", flush=True)
+        plt.show()
 
     plt.close(plot_obj)
     return
@@ -636,7 +636,7 @@ def two_spatial_plots(data_1, data_2, clon=0, title_1='Spatial plot 1', title_2=
 
     # Add shared colorbar if cb_label is given
     if cb_label:
-        cbar = fig.colorbar(cb, ax=axs, orientation="horizontal", fraction=0.03, pad=0.1, aspect=60)
+        cbar = fig.colorbar(cb, ax=axs, orientation="horizontal", fraction=0.03, pad=0.1, aspect=60, extend='neither')
         cbar.set_ticks(cb.levels)
         
         cbar.ax.tick_params(labelsize=7)
@@ -1171,13 +1171,14 @@ def table_plot(data, title='Climate variables', col_labels='', row_labels='', cb
     title : str
         Title of the table.
     col_labels : list
-        Column labels.
+        Column labels. Note, the row labels will be added as the first column, hence,
+        the length of col_labels must be equal to number of columns in data + 1.
     row_labels : list
         Row labels.
     cbar_ticks : list
-        Labels for the colorbar ticks.
+        Labels for the colorbar ticks (default: ['Low', '0', 'High']).
     colors : tuple
-        Colormap.
+        Colormap (default: 'RdBu_r').
 
     Returns
     -------
@@ -1194,7 +1195,7 @@ def table_plot(data, title='Climate variables', col_labels='', row_labels='', cb
         raise ValueError("The data array must be 2-dimensional.")
     if len(row_labels) != data.shape[0]:
         raise ValueError("The number of row labels must match the number of rows in the data.")
-    if len(col_labels) != data.shape[1]:
+    if len(col_labels)-1 != data.shape[1]:
         raise ValueError("The number of column labels must match the number of columns in the data.")
 
 
@@ -1208,67 +1209,53 @@ def table_plot(data, title='Climate variables', col_labels='', row_labels='', cb
     ax.axis('off')
     ax.set_title(title, fontsize=16, pad=20)
 
-    table = plt.table(cellText=np.round(data,2), rowLabels=row_labels, colLabels=col_labels, loc='center', cellLoc='center')
+    cell_text = np.column_stack((np.reshape(row_labels, (-1, 1)), np.round(data, 1)))
+    table = plt.table(cellText=cell_text, colLabels=col_labels, loc='center', cellLoc='center')
     table.auto_set_font_size(False)
     table.set_fontsize(14)
-    table.scale(1.1, 1.4)
-    
-
-    # # Calculate equal column widths to fill available space
-    # n_cols = len(col_labels)
-    # total_width_pt = 10 
-    # row_label_width_pt = 2.5
-    # print(fig.get_size_inches())
-
-    # axes_width_inches = fig.get_size_inches()[0] * ax.get_position().width
-    # total_width = total_width_pt / axes_width_inches
-    # row_label_width = row_label_width_pt / axes_width_inches
-    # data_cols_width = (total_width - row_label_width) / n_cols
+    # table.scale(1.1, 1.4)
 
 
-    # Calculate proportional column widths based on label lengths
-    # Get the length of each column label and row label for width calculation
-    col_label_lengths = [len(str(label)) for label in col_labels]
-    row_label_length = max([len(str(label)) for label in row_labels])
-    
-    # Calculate relative weights for column widths
-    total_col_length = sum(col_label_lengths)
-    row_label_width = row_label_length / (total_col_length + row_label_length)
-    
-    # Distribute remaining width proportionally among data columns
-    data_width_total = 1.0 - row_label_width
-    col_widths = [(length / total_col_length) * data_width_total for length in col_label_lengths]
+    # Automatically adjust width of first column (row labels)
+    table.auto_set_column_width(0)
+    row_label_width_inch = table.get_celld()[(0,0)].get_width()
 
-    # Convert to inches
     axes_width_inches = width * ax.get_position().width
-    row_label_width_inch = row_label_width * axes_width_inches
-    col_widths_inch = [w * axes_width_inches for w in col_widths]
+    row_label_length = row_label_width_inch / axes_width_inches
+    
+    # Calculate proportional widths for other columns based on label lengths
+    col_label_lengths = [len(str(label)) for label in col_labels[1:]]
+    total_col_length = np.sum(col_label_lengths) + row_label_length
 
+    col_widths = [(length / total_col_length) for length in col_label_lengths]
+    col_widths_inch = [w * axes_width_inches for w in col_widths]
 
     # Fix cell height in points and convert to fraction of axes height (1 point = 1/72 inch)
     cell_height_pt = 30
     axes_height_inches = height * ax.get_position().height
     cell_height_inch = (cell_height_pt / 72.0) / axes_height_inches
 
-    # Customize first column (row labels)
-    for row in range(1,n_rows+1):
-        table.get_celld()[(row, -1)].set_width(row_label_width_inch)
-        table.get_celld()[(row, -1)].set_height(cell_height_inch)
-        
 
-    # Set proportional width for each data column
-    for col in range(n_cols):
+    # Customize first column (row labels)
+    table[(0, 0)].set_facecolor('whitesmoke')
+    table.get_celld()[(0, 0)].get_text().set_fontsize(12)
+    for row in range(1, n_rows+1):
+        table[(row,0)].get_text().set_ha('left')
+    for row in range(n_rows+1):
+        table.get_celld()[(row, 0)].set_width(row_label_width_inch)
+        table.get_celld()[(row, 0)].set_height(cell_height_inch)
+
+    # Customize other columnes (data cells)
+    for col in range(1, n_cols):
         for row in range(n_rows+1): 
-            table.get_celld()[(row, col)].set_width(col_widths_inch[col])
+            table.get_celld()[(row, col)].set_width(col_widths_inch[col-1])
             table.get_celld()[(row, col)].set_height(cell_height_inch)
 
         # Paint the cells in the first row (corresponding to IBTrACS) with light gray
-        cell = table[(1, col)]
-        cell.set_facecolor('lightgray')
-
+        table[(1, col)].set_facecolor('lightgray')
 
         # Color the cells in rows 2-on
-        values = data[1:, col]
+        values = data[1:, col-1]
         vmin, vmax = values.min(), values.max()
 
         abs_max = max(abs(vmin), abs(vmax))
@@ -1276,7 +1263,7 @@ def table_plot(data, title='Climate variables', col_labels='', row_labels='', cb
         cmap = LinearSegmentedColormap.from_list(*colors)
 
         for row in range(2, n_rows+1):
-            val = data[row-1, col]
+            val = data[row-1, col-1]
             color = cmap(norm(val))
             table[(row, col)].set_facecolor(color)
 
