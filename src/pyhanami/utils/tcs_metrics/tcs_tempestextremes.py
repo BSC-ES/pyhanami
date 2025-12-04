@@ -284,7 +284,9 @@ def run_tempestExtremes(data, data_name, output_path, min_wind=10.0, tracks_hist
     """
 
     # Prepare data to be used as input for TempestExtremes
+    data_name = ('-').join(data_name.split())
     output_path = Path(output_path)
+    
     data_tempestExtremes = prepare_data_tempestExtremes(data, data_name)
     data_tempestExtremes_path = output_path / f"{data_name}_tcs_tempestExtremes_input.nc"
     data_tempestExtremes.to_netcdf(data_tempestExtremes_path)
