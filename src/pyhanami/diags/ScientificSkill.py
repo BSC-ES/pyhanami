@@ -84,7 +84,7 @@ class TCMetrics:
         if not isinstance(data_sim, SimulationData):
             raise TypeError("'data_sim' must be an instance of SimulationData.")   
         self.sim_name = data_sim.name
-        self.obs_names = None
+        self.obs_names = ['ERA5', 'JRA-55']
         self.obs = obs
 
         if not isinstance(min_wind, (int, float)) or min_wind < 10.0:
@@ -164,7 +164,7 @@ class TCMetrics:
         data_path = config_params.TC_DATA_PATH
         for name in self.obs_names:
             # Look for observational data
-            obs_files = list(data_path.glob(f'{name}_*.txt'))
+            obs_files = list(data_path.glob(f'{name.lower()}_*.txt'))
             if obs_files is None:
                 raise FileNotFoundError(f"No observational TCs data found for '{name}' in '{data_path}'.")
             obs_path = obs_files[0]
