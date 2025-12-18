@@ -1,3 +1,7 @@
+# This script prepares NOAA TOA Outgoing Longwave Radiation (rlut) data for the ISO analysis, peforms
+# an EEOF analysis (both for boreal winter and boreal summer), computes the corresponding PCs, and 
+# saves the results to the paths specified in `config_params.py`.
+
 import pyhanami
 import xarray as xr
 
