@@ -149,13 +149,11 @@ class BimodalISO:
         if self.obs:
             self.obs_name = 'NOAA'
             
-            # Load observational data 
-            noaa_grid = xr.open_dataset(config_params.NOAA_GRID_PATH)
-            self.eeof_summer = xr.open_dataset(config_params.NOAA_EEOF_SUMMER_PATH)
-            self.eeof_winter = xr.open_dataset(config_params.NOAA_EEOF_WINTER_PATH)
-            self.pcs_obs = xr.open_dataset(config_params.NOAA_PC_PATH)
-
-            print(f"\tEEOF analysis loaded for '{self.obs_name}' observations between {self.start_year_eeof} and {self.end_year_eeof}.")
+            # Load observational data grid 
+            try:
+                noaa_grid = xr.open_dataset(config_params.NOAA_GRID_PATH)
+            except FileNotFoundError:
+                raise FileNotFoundError(f"NOAA grid file not found at '{config_params.NOAA_GRID_PATH}'.")
             
             # Compute resolutions
             sim_lat_res = abs(data_sim.data.lat[1] - data_sim.data.lat[0]).values
@@ -168,24 +166,46 @@ class BimodalISO:
             
             # Regrid simulations if their resolution is higher
             if sim_resolution < obs_resolution:  
+                try: 
+                    self.eeof_summer = xr.open_dataset(config_params.NOAA_EEOF_SUMMER_PATH)
+                    self.eeof_winter = xr.open_dataset(config_params.NOAA_EEOF_WINTER_PATH)
+                    self.pcs_obs = xr.open_dataset(config_params.NOAA_PC_PATH)
+                except FileNotFoundError:   
+                    raise FileNotFoundError(f"Some or all required NOAA analysis files not found: "
+                                            f"'{config_params.NOAA_EEOF_SUMMER_PATH}', "
+                                            f"'{config_params.NOAA_EEOF_WINTER_PATH}', "
+                                            f"'{config_params.NOAA_PC_PATH}'.")
+
                 data_sim.data = data_general.regrid_data(data_sim.data, noaa_grid)
                 print(f"\tSimulation data regridded to match observations' resolution (~{obs_resolution:.2f}°).")
                 
-            # Regrid observational EEOFs if their resolution is higher
+            # Regrid observations if their resolution is higher
             elif obs_resolution < sim_resolution:
-                eeof_summer_regrid = data_general.regrid_data(self.eeof_summer, data_sim.data.sortby("lat").sel(lat=slice(*lat_range)), var='eeof')
-                eeof_winter_regrid = data_general.regrid_data(self.eeof_winter, data_sim.data.sortby("lat").sel(lat=slice(*lat_range)), var='eeof')
+                try:
+                    data_obs = xr.open_dataset(config_params.NOAA_PATH)
+                except FileNotFoundError:
+                    raise FileNotFoundError(f"NOAA observations data file not found at '{config_params.NOAA_PATH}'")
+                data_obs_regrid = data_general.regrid_data(data_obs, data_sim.data)
 
-                eeof_summer_copy = self.eeof_summer.copy()
-                eeof_winter_copy = self.eeof_winter.copy()
+                self.eeof_summer, self.eeof_winter, self.pcs_obs = iso_metrics.prepare_NOAA_iso_data(data_obs_regrid)
+                del data_obs, data_obs_regrid
 
-                eeof_summer_no_eeof = eeof_summer_copy.drop_vars('eeof').drop_dims(['lat', 'lon'])
-                eeof_winter_no_eeof = eeof_winter_copy.drop_vars('eeof').drop_dims(['lat', 'lon'])
+                # Directly regrid EEOFs (not used anymore as redoing the EEOF analysis is now computationally affordable)
+                # eeof_summer_regrid = data_general.regrid_data(self.eeof_summer, data_sim.data.sortby("lat").sel(lat=slice(*lat_range)), var='eeof')
+                # eeof_winter_regrid = data_general.regrid_data(self.eeof_winter, data_sim.data.sortby("lat").sel(lat=slice(*lat_range)), var='eeof')
 
-                self.eeof_summer = xr.merge([eeof_summer_regrid, eeof_summer_no_eeof])
-                self.eeof_winter = xr.merge([eeof_winter_regrid, eeof_winter_no_eeof])
+                # eeof_summer_copy = self.eeof_summer.copy()
+                # eeof_winter_copy = self.eeof_winter.copy()
 
-                print(f"\tObservational EEOFs regridded to match simulations resolution (~{sim_resolution:.2f}°).")
+                # eeof_summer_no_eeof = eeof_summer_copy.drop_vars('eeof').drop_dims(['lat', 'lon'])
+                # eeof_winter_no_eeof = eeof_winter_copy.drop_vars('eeof').drop_dims(['lat', 'lon'])
+
+                # self.eeof_summer = xr.merge([eeof_summer_regrid, eeof_summer_no_eeof])
+                # self.eeof_winter = xr.merge([eeof_winter_regrid, eeof_winter_no_eeof])
+
+                print(f"\tObservational data regridded to match simulations' resolution (~{sim_resolution:.2f}°).")
+
+            print(f"\tEEOF analysis loaded for '{self.obs_name}' observations between {self.start_year_eeof} and {self.end_year_eeof}.")
 
         # Filter simulation data
         data_unfiltered_sim = data_sim.data[var_name].sortby("lat").sel(lat=slice(*lat_range)).compute()
