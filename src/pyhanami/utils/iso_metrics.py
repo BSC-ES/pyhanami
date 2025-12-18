@@ -4,6 +4,8 @@ import xarray as xr
 
 from functools import cache
 
+from pyhanami.config import config_params
+
 
 def math_sinc(x):
     """ Compute mathematical sinc function, defined as sinc(x)/x."""
@@ -679,3 +681,65 @@ def compute_TSS(freq_ISO, freq_obs):
     # print(f"Computed Taylor Skill Score (TSS) between simulations and observations:\n" + 
     #         f"\tTemporal correlation (R): {corr:.2f}, Ratio standard deviations ($\\sigma$): {sigma:.2f}, TSS: {tss:.2f}\n", flush=True)
     return corr, sigma, tss
+
+
+def prepare_NOAA_iso_data(data_noaa, start_year=config_params.NOAA_START_YEAR, end_year=config_params.NOAA_END_YEAR, 
+                          lat_range=(-30,30), lag=5, n_lags=3, n_modes=2, window=141, low_freq=1/90, high_freq=1/25):
+    """
+    Preprocess NOAA data, perform an Extended Empirical Orthogonal Function (EEOF) analysis for
+    boreal winter and boreal summer and return the corresponding Principal Components (PCs).
+    
+    Parameters
+    ----------
+    data_noaa : xr.Dataset
+        NOAA OLR dataset.
+    start_year : int
+        Start year for filtering (default: config_params.NOAA_START_YEAR).
+    end_year : int
+        End year for filtering (default: config_params.NOAA_END_YEAR).
+    lat_range : tuple
+        Geographic latitude bounds (default: (-30, 30)).
+    lag : int
+        Lag timesteps (default: 5).
+    n_lags : int
+        Number of lag copies (default: 3).
+    n_modes : int
+        Number of EEOFs modes to compute (default: 2).
+    window : int
+        Length of the filter kernel (default: 141).
+    low_freq : float
+        Lower cutoff frequency (default: 1/90).
+    high_freq : float
+        Upper cutoff frequency (default: 1/25).
+
+    Returns
+    -------
+    eeof_summer : xr.Dataset
+        EEOF analysis output for boreal summer.
+    eeof_winter : xr.Dataset
+        EEOF analysis output for boreal winter.
+    pcs : xr.Dataset
+        Principal Components (PCs) computed from the EEOFs.
+    """
+
+    # Prepare data
+    var_name = 'rlut'
+    data_noaa_nans = data_noaa.sel(time=slice(f'{start_year}-01-01',f'{end_year}-12-31'))
+    data_noaa = data_noaa_nans.interpolate_na(dim='time', method='linear', fill_value='extrapolate')
+    data_noaa[var_name].attrs['units'] = 'W m**-2'
+
+    # Filter data using Lanczos bandpass filter
+    data_unfiltered_obs = data_noaa[var_name].sortby("lat").sel(lat=slice(*lat_range)).compute()
+    data_filtered_obs = apply_lanczos_bandpass_filter(data_unfiltered_obs, window, low_freq, high_freq)
+
+
+    # Perform EEOF analysis
+    data_eeof = data_filtered_obs
+    eeof_summer = perform_EEOF_analysis(data_eeof, start_year, end_year, 'boreal_summer', lag, n_lags, n_modes)
+    eeof_winter = perform_EEOF_analysis(data_eeof, start_year, end_year, 'boreal_winter', lag, n_lags, n_modes)
+
+    # Compute PCs
+    pcs = compute_PCs(data_eeof, [eeof_winter, eeof_summer])
+
+
+    return eeof_summer, eeof_winter, pcs
