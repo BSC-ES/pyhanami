@@ -178,6 +178,17 @@ class BimodalISO:
 
                 data_sim.data = data_general.regrid_data(data_sim.data, noaa_grid)
                 print(f"\tSimulation data regridded to match observations' resolution (~{obs_resolution:.2f}°).")
+
+            elif sim_resolution == obs_resolution:  
+                try: 
+                    self.eeof_summer = xr.open_dataset(config_params.NOAA_EEOF_SUMMER_PATH)
+                    self.eeof_winter = xr.open_dataset(config_params.NOAA_EEOF_WINTER_PATH)
+                    self.pcs_obs = xr.open_dataset(config_params.NOAA_PC_PATH)
+                except FileNotFoundError:   
+                    raise FileNotFoundError(f"Some or all required NOAA analysis files not found: "
+                                            f"'{config_params.NOAA_EEOF_SUMMER_PATH}', "
+                                            f"'{config_params.NOAA_EEOF_WINTER_PATH}', "
+                                            f"'{config_params.NOAA_PC_PATH}'.")
                 
             # Regrid observations if their resolution is higher
             elif obs_resolution < sim_resolution:
