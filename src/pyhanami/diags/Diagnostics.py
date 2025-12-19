@@ -444,11 +444,81 @@ class DataDiagnostics:
             print(f"{time_freq.capitalize()} mean time series plot created and saved to '{time_series_path}'.", flush=True)
             
         return
+    
 
 
-    def spatial_plots(self, var_name, data_names=None, output_path=None, clon=0, alpha=0.05, stat=ttest_ind):
+    def abs_diff_plot(self, var_name, data_names=None, output_path=None, clon=0):
         """ 
-        Generate absolute difference and effect size plots for the given datasets and variable. 
+        Generate absolute difference plot for the given datasets and variable. 
+        
+        Parameters
+        ----------
+        var_name : str
+            Climate variable name.
+        data_names : list[str], optional
+            List of names of two simulation ensembles to compare. If None, the first two datasets
+            in the diagnostics object are used.
+        output_path : str, optional
+            Path to save the spatial plots.
+        clon : int
+            Central longitude for the spatial maps.
+        """
+        
+        # Validate inputs
+        if data_names is None:
+            if len(self.datasets) < 2:
+                raise ValueError("At least two datasets are required for spatial plots. Please add more datasets.")
+            data_plot = [self.datasets[0], self.datasets[1]]
+            data_names = [ds.name for ds in data_plot]
+        elif isinstance(data_names, list) and len(data_names) == 2 \
+            and all(isinstance(name, str) for name in data_names):
+            existing_names = [ds.name for ds in self.datasets]
+            missing_names = [name for name in data_names if name not in existing_names]
+            if missing_names:
+                raise ValueError(f"The following dataset names were not found in the DataDiagnostics object: {missing_names}.")
+            
+            data_plot = [next(ds for ds in self.datasets if ds.name == name) for name in data_names]
+        else:
+            raise TypeError("'data_names' must be a list of two strings representing dataset names.")
+
+        for dataset in data_plot:
+            if var_name not in dataset.data.data_vars:
+                raise ValueError(f"Variable '{var_name}' not found in the simulated dataset {dataset.name}. "
+                                 f"Available variables: {list(dataset.data.data_vars.keys())}")
+
+        # Prepare output path if given
+        if output_path is not None:
+            output_path = Path(output_path)
+            if output_path.suffix != '':  
+                raise ValueError("Output path must be a directory, not a file path.")
+            
+            output_path.mkdir(parents=True, exist_ok=True)
+            data_names_str = "-".join([('_').join(name.split()) for name in data_names])
+            abs_diff_path = output_path / f"abs_diff_{var_name}_{data_names_str}.png"
+
+
+        # Compute and plot absolute difference
+        abs_diff = self._compute_abs_diff(var_name, data_plot)
+        limit = np.max(np.abs(abs_diff.values))
+        levels = np.linspace(-limit, limit, 13)
+        
+        abs_diff_plot, _ = plot.plot_spatial(abs_diff, clon=clon, title=f"Difference in {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
+                                          cb_label=f"difference in {var_name} ({self.variables[var_name]['units']})", cmap=cmocean.cm.thermal, levels=levels)
+        
+        if output_path is None:
+            plt.show()
+            print("Absolute difference plot created and displayed.\n", flush=True)
+        else:
+            abs_diff_plot.savefig(abs_diff_path, bbox_inches='tight', dpi=150)
+            print(f"Absolute difference plot created and saved to '{abs_diff_path}'.\n", flush=True)
+
+        return
+
+
+    def eff_size_plot(self, var_name, data_names=None, output_path=None, clon=0, alpha=0.05, stat=ttest_ind):
+        """ 
+        Generate effect size plot for the given datasets and variable marking 
+        grid points with statistically significant differences. 
         
         Parameters
         ----------
@@ -502,28 +572,11 @@ class DataDiagnostics:
         if output_path is not None:
             output_path = Path(output_path)
             if output_path.suffix != '':  
-                raise ValueError("Output path must be a directory, not a file path, as two output files will be created.")
+                raise ValueError("Output path must be a directory, not a file path.")
             
             output_path.mkdir(parents=True, exist_ok=True)
             data_names_str = "-".join([('_').join(name.split()) for name in data_names])
-            abs_diff_path = output_path / f"abs_diff_{var_name}_{data_names_str}.png"
             eff_size_path = output_path / f"eff_size_{var_name}_{data_names_str}.png"
-
-
-        # Compute and plot absolute difference
-        abs_diff = self._compute_abs_diff(var_name, data_plot)
-        limit = np.max(np.abs(abs_diff.values))
-        levels = np.linspace(-limit, limit, 13)
-        
-        abs_diff_plot, _ = plot.plot_spatial(abs_diff, title=f"Difference in {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
-                                          cb_label=f"difference in {var_name} ({self.variables[var_name]['units']})", cmap=cmocean.cm.thermal, levels=levels)
-        
-        if output_path is None:
-            plt.show()
-            print("Absolute difference plot created and displayed.\n", flush=True)
-        else:
-            abs_diff_plot.savefig(abs_diff_path, bbox_inches='tight', dpi=150)
-            print(f"Absolute difference plot created and saved to '{abs_diff_path}'.\n", flush=True)
 
 
         # Compute and plot effect size with significant differences
@@ -542,3 +595,102 @@ class DataDiagnostics:
             print(f"Effect size plot created and saved to '{eff_size_path}'.\n", flush=True)
             
         return
+
+
+    # Unused, divided into two separate methods above
+    # def spatial_plots(self, var_name, data_names=None, output_path=None, clon=0, alpha=0.05, stat=ttest_ind):
+    #     """ 
+    #     Generate absolute difference and effect size plots for the given datasets and variable. 
+        
+    #     Parameters
+    #     ----------
+    #     var_name : str
+    #         Climate variable name.
+    #     data_names : list[str], optional
+    #         List of names of two simulation ensembles to compare. If None, the first two datasets
+    #         in the diagnostics object are used.
+    #     output_path : str, optional
+    #         Path to save the spatial plots.
+    #     clon : int
+    #         Central longitude for the spatial maps.
+    #     alpha : float
+    #         Significance level for the statistical test (default: 0.05).
+    #     stat : Callable
+    #         Statistical test function to use for significance testing (default: ttest_ind).
+    #     """
+        
+    #     # Validate inputs
+    #     if data_names is None:
+    #         if len(self.datasets) < 2:
+    #             raise ValueError("At least two datasets are required for spatial plots. Please add more datasets.")
+    #         data_plot = [self.datasets[0], self.datasets[1]]
+    #         data_names = [ds.name for ds in data_plot]
+    #     elif isinstance(data_names, list) and len(data_names) == 2 \
+    #         and all(isinstance(name, str) for name in data_names):
+    #         existing_names = [ds.name for ds in self.datasets]
+    #         missing_names = [name for name in data_names if name not in existing_names]
+    #         if missing_names:
+    #             raise ValueError(f"The following dataset names were not found in the DataDiagnostics object: {missing_names}.")
+            
+    #         data_plot = [next(ds for ds in self.datasets if ds.name == name) for name in data_names]
+    #     else:
+    #         raise TypeError("'data_names' must be a list of two strings representing dataset names.")
+
+    #     for dataset in data_plot:
+    #         if var_name not in dataset.data.data_vars:
+    #             raise ValueError(f"Variable '{var_name}' not found in the simulated dataset {dataset.name}. "
+    #                              f"Available variables: {list(dataset.data.data_vars.keys())}")
+    #         if 'realization' not in dataset.data.coords:
+    #             raise ValueError(f"Dataset '{dataset.name}' must contain a 'realization' coordinate for ensemble computations.")
+    #     if not isinstance(alpha, (int, float)):
+    #         raise TypeError(f"The significance level 'alpha' must be numeric.")
+    #     if not (0 <= alpha <= 1):
+    #         raise ValueError(f"'alpha' must be between 0 and 1.")
+    #     if not callable(stat):
+    #         raise TypeError(f"'stat' must be callable.")
+        
+
+    #     # Prepare output path if given
+    #     if output_path is not None:
+    #         output_path = Path(output_path)
+    #         if output_path.suffix != '':  
+    #             raise ValueError("Output path must be a directory, not a file path, as two output files will be created.")
+            
+    #         output_path.mkdir(parents=True, exist_ok=True)
+    #         data_names_str = "-".join([('_').join(name.split()) for name in data_names])
+    #         abs_diff_path = output_path / f"abs_diff_{var_name}_{data_names_str}.png"
+    #         eff_size_path = output_path / f"eff_size_{var_name}_{data_names_str}.png"
+
+
+    #     # Compute and plot absolute difference
+    #     abs_diff = self._compute_abs_diff(var_name, data_plot)
+    #     limit = np.max(np.abs(abs_diff.values))
+    #     levels = np.linspace(-limit, limit, 13)
+        
+    #     abs_diff_plot, _ = plot.plot_spatial(abs_diff, title=f"Difference in {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
+    #                                       cb_label=f"difference in {var_name} ({self.variables[var_name]['units']})", cmap=cmocean.cm.thermal, levels=levels)
+        
+    #     if output_path is None:
+    #         plt.show()
+    #         print("Absolute difference plot created and displayed.\n", flush=True)
+    #     else:
+    #         abs_diff_plot.savefig(abs_diff_path, bbox_inches='tight', dpi=150)
+    #         print(f"Absolute difference plot created and saved to '{abs_diff_path}'.\n", flush=True)
+
+
+    #     # Compute and plot effect size with significant differences
+    #     eff_size = self._compute_eff_size_ens(var_name, data_plot)
+    #     significant = self._compute_significant_diff(var_name, data_plot, alpha, stat)
+    #     levels = [-2,-1.2,-0.8,-0.5,-0.2,-0.01,0.01,0.2,0.5,0.8,1.2,2.0]    # Use Cohen's limits for effect size
+
+    #     eff_size_plot, _ = plot.plot_spatial(eff_size, clon=clon, title=f"Cohen's effect size ($d$) for {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
+    #                                       cb_label=f"$d$ for {var_name} (-)", cmap=cmocean.cm.diff, levels=levels, significant=significant)
+
+    #     if output_path is None:
+    #         plt.show()
+    #         print("Effect size plot created and displayed.", flush=True)
+    #     else:
+    #         eff_size_plot.savefig(eff_size_path, bbox_inches='tight', dpi=150)
+    #         print(f"Effect size plot created and saved to '{eff_size_path}'.\n", flush=True)
+            
+    #     return
