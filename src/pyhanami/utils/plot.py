@@ -558,6 +558,16 @@ def two_spatial_plots(data_1, data_2, clon=0, title_1='Spatial plot 1', title_2=
     #     cbar.set_label(cb_label, fontsize=9)
 
 
+    # Calculate common vmin and vmax if not provided
+    if vmin is None or vmax is None:
+        combined_min = min(float(data_1.min()), float(data_2.min()))
+        combined_max = max(float(data_1.max()), float(data_2.max()))
+        if vmin is None:
+            vmin = combined_min
+        if vmax is None:
+            vmax = combined_max
+
+
     # Create figure
     fig, axs = plt.subplots(1,2, figsize=(12, 4.5), dpi=150, subplot_kw={'projection': ccrs.Robinson(central_longitude=clon), "aspect": 'auto'})#, gridspec_kw = {'wspace':0.01, 'hspace':0.02})
 

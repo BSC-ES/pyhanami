@@ -84,7 +84,7 @@ class TCMetrics:
         if not isinstance(data_sim, SimulationData):
             raise TypeError("'data_sim' must be an instance of SimulationData.")   
         self.sim_name = data_sim.name
-        self.obs_names = ['ERA5', 'JRA-55']
+        self.obs_names = []
         self.obs = obs
 
         if not isinstance(min_wind, (int, float)) or min_wind < 10.0:
@@ -289,7 +289,7 @@ class TCMetrics:
         output_path.mkdir(parents=True, exist_ok=True)
 
         # Prepare dataset names for filenames
-        name = f'IBTrACS_{('-').join(self.sim_name.split())}'
+        name = f"IBTrACS_{('-').join(self.sim_name.split())}"
         if self.obs:
             name += '_obs'
 
