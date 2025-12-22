@@ -676,7 +676,11 @@ def compute_TSS(freq_ISO, freq_obs):
     corr = (xr.corr(freq_diff_sim, freq_diff_obs, dim='month').values).item()
     sigma = ((freq_diff_sim.std(dim='month') / freq_diff_obs.std(dim='month')).values).item()
 
-    tss = (4 * (1+corr)**4) / ((sigma + (1/sigma))**2 * (1+corr_0)**2)
+    # Unused, Taylor Skill Score as defined in (M.Nakano et al., 2019) (kept for reference)
+    # tss = (4 * (1+corr)**4) / ((sigma + (1/sigma))**2 * (1+corr_0)**2)
+
+    # Taylor Skill Score as defined in original (K.E. Taylor, 2001) paper, Eq. 5 (taking only values between 0 and 1, and penalizing low correlation)
+    tss = (4 * (1+corr)**4) / ((sigma + (1/sigma))**2 * (1+corr_0)**4)
 
     # print(f"Computed Taylor Skill Score (TSS) between simulations and observations:\n" + 
     #         f"\tTemporal correlation (R): {corr:.2f}, Ratio standard deviations ($\\sigma$): {sigma:.2f}, TSS: {tss:.2f}\n", flush=True)

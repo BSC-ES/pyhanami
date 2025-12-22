@@ -203,6 +203,8 @@ Liebmann, B., & Smith, C.A., Description of a Complete (Interpolated) Outgoing L
 
 Nakano, M., & Kikuchi, K., Seasonality of intraseasonal variability in global climate models. Geophysical Research Letters, 46, 4441–4449 (2019). https://doi.org/10.1029/2019GL082443
 
+Taylor, K.E., Summarizing multiple aspects of model performance in a single diagram. J. Geophys. Res., 106(D7), 7183–7192, (2001). https://doi.org/10.1029/2000JD900719
+
 Walsh, K.J.E., Fiorino, M., Landsea, C.W., & McInnes, K.L., Objectively Determined Resolution-Dependent Threshold Criteria for the Detection of Tropical Cyclones in Climate Models and Reanalyses. J. Climate, 20, 2307–2314 (2007). https://doi.org/10.1175/JCLI4074.1
 
 Zarzycki, C.M., & Ullrich, P.A., Assessing sensitivities in algorithmic detection of tropical cyclones in climate data. Geophys. Res. Lett., 44, 1141–1149 (2017). https://doi.org/10.1002/2016GL071606.
