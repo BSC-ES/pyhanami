@@ -75,7 +75,13 @@ diags.time_series_plot(
 
 # Create spatial plots (absolute difference + effect size) for one climate variable 
 # ('variable_name') and save them to 'output_path'
-diags.spatial_plots(
+diags.abs_diff_plot(
+    'variable_name',
+    ['name_sim_1', 'name_sim_2'],
+    'output_path'
+)
+
+diags.eff_size_plot(
     'variable_name',
     ['name_sim_1', 'name_sim_2'],
     'output_path'

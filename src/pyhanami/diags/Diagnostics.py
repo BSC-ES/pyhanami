@@ -210,7 +210,8 @@ class DataDiagnostics:
         effect_size = np.empty(len(tasks))
 
         with concurrent.futures.ProcessPoolExecutor(max_workers=self.max_workers_grid, mp_context=mp.get_context("spawn")) as executor:
-            for idx, value in enumerate(tqdm(executor.map(statistics.cp_effect_size_bootstrap, tasks), total=len(tasks), desc=f"Computing effect sizes for variable '{var_name}'")):
+            for idx, value in enumerate(tqdm(executor.map(statistics.cp_effect_size_bootstrap, tasks), total=len(tasks), 
+                                             desc=f"Computing effect sizes for variable '{var_name}'", unit="grid points")):
                 effect_size[idx] = value
 
         # Convert to xarray.DataArray
@@ -446,7 +447,6 @@ class DataDiagnostics:
         return
     
 
-
     def abs_diff_plot(self, var_name, data_names=None, output_path=None, clon=0):
         """ 
         Generate absolute difference plot for the given datasets and variable. 
@@ -461,7 +461,7 @@ class DataDiagnostics:
         output_path : str, optional
             Path to save the spatial plots.
         clon : int
-            Central longitude for the spatial maps.
+            Central longitude for the spatial map.
         """
         
         # Validate inputs
@@ -486,18 +486,8 @@ class DataDiagnostics:
                 raise ValueError(f"Variable '{var_name}' not found in the simulated dataset {dataset.name}. "
                                  f"Available variables: {list(dataset.data.data_vars.keys())}")
 
-        # Prepare output path if given
-        if output_path is not None:
-            output_path = Path(output_path)
-            if output_path.suffix != '':  
-                raise ValueError("Output path must be a directory, not a file path.")
-            
-            output_path.mkdir(parents=True, exist_ok=True)
-            data_names_str = "-".join([('_').join(name.split()) for name in data_names])
-            abs_diff_path = output_path / f"abs_diff_{var_name}_{data_names_str}.png"
-
-
-        # Compute and plot absolute difference
+       
+       # Compute and plot absolute difference
         abs_diff = self._compute_abs_diff(var_name, data_plot)
         limit = np.max(np.abs(abs_diff.values))
         levels = np.linspace(-limit, limit, 13)
@@ -509,8 +499,17 @@ class DataDiagnostics:
             plt.show()
             print("Absolute difference plot created and displayed.\n", flush=True)
         else:
+            output_path = Path(output_path)
+            if not output_path.suffix:
+                output_path.mkdir(parents=True, exist_ok=True)
+                data_names_str = "-".join([('_').join(name.split()) for name in data_names])
+                abs_diff_path = output_path / f"abs_diff_{var_name}_{data_names_str}.png"
+            else:
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                abs_diff_path = output_path
+            
             abs_diff_plot.savefig(abs_diff_path, bbox_inches='tight', dpi=150)
-            print(f"Absolute difference plot created and saved to '{abs_diff_path}'.\n", flush=True)
+            print(f"Absolute difference plot created and saved to '{abs_diff_path}'.", flush=True)
 
         return
 
@@ -530,7 +529,7 @@ class DataDiagnostics:
         output_path : str, optional
             Path to save the spatial plots.
         clon : int
-            Central longitude for the spatial maps.
+            Central longitude for the spatial map.
         alpha : float
             Significance level for the statistical test (default: 0.05).
         stat : Callable
@@ -560,23 +559,10 @@ class DataDiagnostics:
                                  f"Available variables: {list(dataset.data.data_vars.keys())}")
             if 'realization' not in dataset.data.coords:
                 raise ValueError(f"Dataset '{dataset.name}' must contain a 'realization' coordinate for ensemble computations.")
-        if not isinstance(alpha, (int, float)):
-            raise TypeError(f"The significance level 'alpha' must be numeric.")
-        if not (0 <= alpha <= 1):
-            raise ValueError(f"'alpha' must be between 0 and 1.")
+        if not isinstance(alpha, (int, float)) or not (0 <= alpha <= 1):
+            raise TypeError(f"The significance level 'alpha' must be a numeric value between 0 and 1.")
         if not callable(stat):
-            raise TypeError(f"'stat' must be callable.")
-        
-
-        # Prepare output path if given
-        if output_path is not None:
-            output_path = Path(output_path)
-            if output_path.suffix != '':  
-                raise ValueError("Output path must be a directory, not a file path.")
-            
-            output_path.mkdir(parents=True, exist_ok=True)
-            data_names_str = "-".join([('_').join(name.split()) for name in data_names])
-            eff_size_path = output_path / f"eff_size_{var_name}_{data_names_str}.png"
+            raise TypeError(f"'stat' must be callable.")         
 
 
         # Compute and plot effect size with significant differences
@@ -591,13 +577,22 @@ class DataDiagnostics:
             plt.show()
             print("Effect size plot created and displayed.", flush=True)
         else:
+            output_path = Path(output_path)
+            if not output_path.suffix:
+                output_path.mkdir(parents=True, exist_ok=True)
+                data_names_str = "-".join([('_').join(name.split()) for name in data_names])
+                eff_size_path = output_path / f"eff_size_{var_name}_{data_names_str}.png"
+            else:
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                eff_size_path = output_path
+            
             eff_size_plot.savefig(eff_size_path, bbox_inches='tight', dpi=150)
-            print(f"Effect size plot created and saved to '{eff_size_path}'.\n", flush=True)
+            print(f"Effect size plot created and saved to '{eff_size_path}'.", flush=True)
             
         return
 
 
-    # Unused, divided into two separate methods above
+    # Unused, divided into two separate methods above (kept for reference)
     # def spatial_plots(self, var_name, data_names=None, output_path=None, clon=0, alpha=0.05, stat=ttest_ind):
     #     """ 
     #     Generate absolute difference and effect size plots for the given datasets and variable. 
@@ -642,10 +637,8 @@ class DataDiagnostics:
     #                              f"Available variables: {list(dataset.data.data_vars.keys())}")
     #         if 'realization' not in dataset.data.coords:
     #             raise ValueError(f"Dataset '{dataset.name}' must contain a 'realization' coordinate for ensemble computations.")
-    #     if not isinstance(alpha, (int, float)):
-    #         raise TypeError(f"The significance level 'alpha' must be numeric.")
-    #     if not (0 <= alpha <= 1):
-    #         raise ValueError(f"'alpha' must be between 0 and 1.")
+    #     if not isinstance(alpha, (int, float)) or not (0 <= alpha <= 1):
+    #         raise TypeError(f"The significance level 'alpha' must be a numeric value between 0 and 1.")
     #     if not callable(stat):
     #         raise TypeError(f"'stat' must be callable.")
         
