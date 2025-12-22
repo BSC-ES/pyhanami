@@ -90,13 +90,20 @@ On another not, given that if \lambda is an eigenvalue, then -\lambda is also an
 
 In order to obtain scalar metrics, we also compute the **temporal correlation (R)**, **standard deviation ratio (σ)**, and **Taylor Skill Score (TSS)** between simulations and observations using the PCs' amplitude, following [(M. Nakano et al., 2019)](https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2019GL082443). Specifically, the mean monthly frequency of MJO and BSISO events (ISO seasonality) is calculated using the amplitude of the corresponding PCs. The MJO frequency is then subtracted from the BSISO frequency, and this difference is compared between simulations and observations.
 
-The temporal correlation indicates how well the phase of the ISO seasonality is reproduced by a model. While the ratio of standard deviations (model/observations) provides information about the amplitude (MJO/BSISO contrast) of the seasonality. Finally, the $\text{TSS}$ combines both the correlation and the standard deviation, allowing to assess how well a model matches the ISO seasonality of the observations with a single score defined as
+The temporal correlation indicates how well the phase of the ISO seasonality is reproduced by a model. While the ratio of standard deviations (model/observations) provides information about the amplitude (MJO/BSISO contrast) of the seasonality. Finally, the $\text{TSS}$ combines both the correlation and the standard deviation, allowing to assess how well a model matches the ISO seasonality of the observations with a single score. We use the following definition for $\text{TSS}$ introduced in [(K.E. Taylor, 2001)](https://doi.org/10.1029/2000JD900719):
 
+<!-- Version in (M. Nakano et al., 2019)
 $$
 \text{TSS} = \frac{4(1+R)^4}{(\sigma + 1/\sigma)^2(1+R_0)^2},
 $$
+-->
 
-where $R_0$ is the maximum correlation that can be achieved by the model, taken as $R_0=1$.
+<!-- Version in (K.E. Taylor, 2001), which increases the penalty for low correlations -->
+$$
+\text{TSS} = \frac{4(1+R)^4}{(\sigma + 1/\sigma)^2(1+R_0)^4},
+$$
+
+where $R_0$ is the maximum correlation that can be achieved by the model, taken as $R_0=1$. Note that this score takes values between 0 and 1, with higher values indicating better model performance. 
 
 Since models usually underestimate the amplitude of the ISO, the PCs can be adjusted before computing the above quantities by scaling them with the **PCs' amplitude ratio** ($\alpha$) between simulations and observations, defined as
 
