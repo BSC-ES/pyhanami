@@ -89,7 +89,7 @@ This `time_series_plots` method plots **annual mean** time series by default, bu
 
 ## Spatial plots
 
-To generate **spatial plots** comparing two simulation datasets, create a `DataDiagnostics` object with the `SimulationData` objects that you want to analyze and use the `spatial_plots` method:
+To generate **spatial plots** comparing two simulation datasets, create a `DataDiagnostics` instance with the `SimulationData` objects that you want to analyze and use the `abs_diff_plot` and `eff_size_plot` methods:
 
 ```python
 # Initialize DataDiagnostics class with two SimulationData objects
