@@ -96,14 +96,21 @@ To generate **spatial plots** comparing two simulation datasets, create a `DataD
 # (If you have already added these datasets to an existing DataDiagnostics object, you can skip this step)
 diags = pyhanami.DataDiagnostics([sim_1, sim_2])
 
-# Plot spatial plots comparing both datasets
-diags.spatial_plots(
-    'var_name', 
-    ['name_sim_1','name_sim_2'], 
+# Plot spatial absolute difference between both datasets
+diags.abs_diff_plot(
+    'var_name',
+    ['name_sim_1', 'name_sim_2'],
+    'output_path'
+)
+
+# Plot spatial effect size between both datasets
+diags.eff_size_plot(
+    'var_name',
+    ['name_sim_1', 'name_sim_2'],
     'output_path'
 )
 ```
-The `spatial_plots` method generates the following visualization outputs:
+The `abs_diff_plot` and `eff_size_plot` methods generate the following visualization outputs, respectively:
 1. **Absolute difference plot**: spatial plot displaying the absolute average difference between two simulation datasets for the given variable at the grid point level. 
 2. **Effect size plot**: spatial plot showing the effect size (Cohen's _d_) between two simulation datasets for the given variable at the grid point level. Grid points in which the difference between the datasets is statistically significant (based on the _t_-test) are highlighted in the plot.
 
