@@ -1,0 +1,38 @@
+# Test Plan: TCs TempestExtremes functions (all functions in utils/tcs_metrics/tcs_tempestextremes.py)
+
+## Purpose 
+Verify that the TempestExtremes wrapper functions correctly execute TempestExtremes binaries for 
+TCs detection and tracking, and process the resulting trajectory data.
+
+## Inputs to test
+- Normal case:
+    - xarray.Dataset with required variables
+    - Complete temporal coverage with proper 6-hourly intervals
+    - Valid topography data for surface geopotential calculation
+    - TempestExtremes binaries properly installed and accessible
+- Edge cases:
+    - Different wind speed thresholds, trajectory parameters and bin sizes
+    - Time periods with sparse or irregular storm activity
+- Invalid inputs:
+    - Wrong data type (not xarray.DataArray)
+    - Missing or incorrect variables/dimensions
+    - TempestExtremes binaries not installed or not in PATH
+
+## Expected behaviour
+- For valid inputs:
+    - Data preparation correctly renames variables and adds surface geopotential
+    - TempestExtremes binaries execute successfully without errors
+    - The analysis returns trajectory files with proper header format and data columns
+- For edge cases:
+    - Apply different detection thresholds appropriately
+    - Wind filtering removes appropriate low-intensity systems
+    - Manage varying time periods and storm frequencies
+- For invalid inputs:
+    - Function should fail with meaningful error messages
+    - Missing TempestExtremes installation should raise clear environment errors
+
+## Status
+- [x] Not Started (placeholder)
+- [ ] In Progress (corresponding .py script in progress)
+- [ ] Ready for Implementation (ready to merge into `develop` branch)
+- [ ] Completed (tested with corresponding functions in `develop` branch)

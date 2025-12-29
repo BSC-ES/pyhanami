@@ -1,0 +1,36 @@
+# Test Plan: TCs CyMeP functions (all functions in utils/tcs_metrics/tcs_cymep_main.py and utils/tcs_metrics/tcs_cymep_funcs.py)
+
+## Purpose 
+Verify that the TCs metrics functions correctly process and analyze TC trajectory data with 
+TempestExtremes format, including computation of scalar metrics and related statistics.
+
+## Inputs to test
+- Normal case:
+    - TempestExtremes trajectory files with proper header format and data columns
+    - Configuration CSV files with valid dataset parameters
+- Edge cases:
+    - Different wind speed correction factors, gridsize and basin selections
+    - Different time periods between model and observations
+- Invalid inputs:
+    - Malformed trajectory files or missing header delimiters
+    - Configuration files with incorrect column counts
+    - Invalid basin codes or coordinate ranges
+    - Inconsistent temporal resolution
+
+## Expected behaviour
+- For valid inputs:
+    - Trajectory parsing returns correct storm counts and track points
+    - Metrics calculations produce physically reasonable values
+    - Correlations fall within valid ranges [-1,1]
+    - Basin masking properly filters storms by genesis location
+- For edge cases:
+    - Manage missing values without crashing
+    - Adjust for different temporal coverages
+- For invalid inputs:
+    - Function should fail with meaningful error messages
+
+## Status
+- [x] Not Started (placeholder)
+- [ ] In Progress (corresponding .py script in progress)
+- [ ] Ready for Implementation (ready to merge into `develop` branch)
+- [ ] Completed (tested with corresponding functions in `develop` branch)
