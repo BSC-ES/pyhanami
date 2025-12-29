@@ -69,7 +69,7 @@ def prepare_data_tempestExtremes(data, data_name):
     else:
         topog_varname = config_params.TOPOG_VARNAME
         topog_original = xr.open_dataset(config_params.TOPOG_PATH)
-        topog_regridded = data_general.regrid_data(topog_original, data, var=topog_varname)
+        topog_regridded = data_general.regrid_data(topog_original, data[['psl']].isel(time=0), var=topog_varname, method='bilinear')
 
         surf_geopotential = topog_regridded[topog_varname] * config_params.G
         phis = surf_geopotential.to_dataset().rename({topog_varname: 'PHIS'})
