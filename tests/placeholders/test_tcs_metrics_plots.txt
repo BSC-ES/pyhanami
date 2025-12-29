@@ -1,0 +1,42 @@
+# Test Plan: TCs metrics plot functions (two_spatial_plots, table_plot in utils/plot.py)
+
+## Purpose
+Verify that the TCs-related plotting functions correctly visualize metrics' spatial distributions 
+and display the resulting statistics in properly-colored tables.
+
+## Inputs to test
+- Normal case:
+    - xarray.Dataset or numpy.ndarray with proper dimensions
+    - Matching row and column labels
+- Edge cases:
+    - Data with missing values
+    - Different data ranges between spatial plots
+    - Different central longitudes for map projections
+    - Single row/column tables
+    - Different data ranges (positive, negative, mixed)
+    - Custom colorbar ticks and colors
+- Invalid inputs:
+    - Wrong data dimensions or coordinates
+    - Invalid data types
+    - Wrong label count vs data dimensions
+
+## Expected behaviour
+- For valid inputs:
+    - Return a Matplotlib `Figure` object
+    - Add title if provided
+    - Show proper spatial patterns and include coastlines and gridlines in sptaial plots
+    - Display proper color for comparing datasets in the table plots
+    - Handle cell sizing and font formatting appropriately
+    - Place colorbar below the plot/s with appropriate label and tick marks
+- For edge cases:
+    - Adjust to custom plot parameters
+    - Not crash when NaN values appear and handle missing data gracefully
+    - Plot is still created with reasonable defaults or no contours even for missing title/levels
+- For invalid inputs:
+    - Function should fail with meaningful error messages
+    
+## Status
+- [x] Not Started (placeholder)
+- [ ] In Progress (corresponding .py script in progress)
+- [ ] Ready for Implementation (ready to merge into `develop` branch)
+- [ ] Completed (tested with corresponding functions in `develop` branch)
