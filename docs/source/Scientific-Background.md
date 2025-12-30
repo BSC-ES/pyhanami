@@ -17,3 +17,7 @@ Currently, evaluation of the following phenomena is available within _pyhanami_:
     - The **Boreal Summer ISO (BSISO)** mode during boreal summer with not only eastward but also northward/northwestward propagation over the northern Indian Ocean and the western North Pacific.
 
 - **Tropical Cyclones (TCs):** warm-core, cyclonic storms characterized by heavy precipitation and strong winds that begin over tropical oceans. They can vary in speed, size, and intensity.
+
+<!-- TO ADD:
+- Storm genesis: first entry for each individual storm's lifetime (C.M. Zarzycki et al. 2021). Our definition (CEMA's): first point in the storm's lifetime with a wind above the cut-off wind.
+- Define: TCD, ACE, PACE, LMI -->

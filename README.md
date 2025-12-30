@@ -44,6 +44,7 @@ pip install .
 -->
 
 
+
 ## Basic Usage
 
 The following example demonstrates the main functionalities of _pyhanami_. For detailed usage instructions, see the project's documentation in [https://pyhanami.readthedocs.io/](https://pyhanami.readthedocs.io/)
@@ -124,8 +125,25 @@ bimodal_indices.freq_ISO_plot('output_path')
 # Display computed statistics (scalar values measuring how well simulations match 
 # observations)
 bimodal_indices.stats
-```
 
+# Assess simulation of Tropical Cyclones (TC) by computing TC metrics statistics 
+# for one simulation dataset comparing to observations and reanalyses
+tc_metrics= sciskill.compute_tc_metrics(
+    'name_sim_1',
+    start_year_tc=year_init_tc,
+    end_year_tc=year_end_tc
+)
+
+# Save results of the analysis to 'output_path'
+tc_metrics.save_data('output_path')
+
+# Create table plots summarizing biases, and temporal and spatial correlations for
+# the computed TC metrics and save them to 'output_path'
+tc_metrics.clim_bias_table('output_path')
+tc_metrics.storm_bias_table('output_path')
+tc_metrics.temp_corr_table('output_path')
+tc_metrics.spatial_corr_table('output_path')
+```
 
 
 ## License
@@ -155,7 +173,7 @@ This project includes code and resources from the following sources:
     - Used for: computing surface geopotential in `src/pyhanami/utils/tcs_tempestextremes.py`
     - Reference: GEBCO Compilation Group (2025) GEBCO 2025 Grid (doi:10.5285/ 37c52e96-24ea-67ce-e063-7086abc05f29)
 - [IBTrACS Version 4.01](https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C01552):
-    - Used for: reference Tropical Cyclone data in `src/pyhanami/utils/tcs_ibtracs.py`
+    - Used for: reference Tropical Cyclone data in `src/pyhanami/utils/tcs_metrics/tcs_ibtracs.py`
     - Reference: NCEI DSI 9637_02 (doi:10.25921/82ty-9e16)
 
 For full license files, see the [LICENSES](./LICENSES) directory.

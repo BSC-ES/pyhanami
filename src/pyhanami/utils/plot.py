@@ -8,6 +8,7 @@ import matplotlib.path as mpath
 import cartopy.mpl.ticker as cticker
 
 from pathlib import Path
+from matplotlib import colors
 from scipy.stats import bootstrap
 from pyhanami.utils import data_general
 from pyhanami.config import config_params
@@ -48,8 +49,7 @@ def save_or_show_plot(plot_obj, output_path, plot_filename, plot_name):
     return
 
 
-def time_series_plot(time_series, title='Mean time series', y_label='', x_label='time', labels=None, 
-                     time_freq='annual', start_year=None, end_year=None, plot_ens=False):
+def plot_time_series(time_series, title='Mean time series', y_label='', labels=None, time_freq='annual', start_year=None, end_year=None, plot_ens=False):
     """ 
     Generate time series plot of one or more ensembles, including the 2.5th, 5th, 75th and 97.5th percentiles.
 
@@ -176,7 +176,7 @@ def time_series_plot(time_series, title='Mean time series', y_label='', x_label=
     ax.set_xticklabels(x_labels, rotation=45, ha='right')
 
     # Plot formatting
-    ax.set_xlabel(x_label, fontsize=14)
+    ax.set_xlabel('time', fontsize=14)
     ax.set_ylabel(y_label, fontsize=14)
 
     ax.tick_params(axis='both', labelsize=12)
@@ -660,7 +660,7 @@ def two_spatial_plots(data_1, data_2, clon=0, title_1='Spatial plot 1', title_2=
     return fig, axs
 
 
-def matrix_plot(eff_sizes, test_results, test=4, title='Effect sizes replicability test', variables=None, 
+def plot_matrix(eff_sizes, test_results, test=4, title='Effect sizes replicability test', variables=None, 
                 seasons=None, regions=None):
     """ 
     Generate a matrix plot with effect sizes and results of the replicability test for the selected statistical test/s.

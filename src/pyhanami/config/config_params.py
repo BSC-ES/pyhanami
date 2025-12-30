@@ -11,9 +11,13 @@ VARIABLES_PATH = Path(__file__).parent / "variables.yaml"
 # Path to TCs metrics and metadata
 TCS_METRICS_PATH = Path(__file__).parent / "tc_metrics.yaml"
 
+
+# General parameters
+
 # Available datasets parameters
 DATA_PATH = Path(__file__).parent.parent / "data"
 
+# Related to NOAA data
 NOAA_PATH = DATA_PATH / "noaa/data_obs_noaa_1974-2022_rlut.nc"
 NOAA_GRID_PATH = DATA_PATH / "noaa/noaa_grid.nc"
 NOAA_EEOF_SUMMER_PATH = DATA_PATH / "noaa/eeof_boreal_summer_noaa_1975-2020.nc"
@@ -21,12 +25,6 @@ NOAA_EEOF_WINTER_PATH = DATA_PATH / "noaa/eeof_boreal_winter_noaa_1975-2020.nc"
 NOAA_PC_PATH = DATA_PATH / "noaa/pc_noaa_1975-2020.nc"
 NOAA_START_YEAR = 1975
 NOAA_END_YEAR = 2020
-
-
-# General parameters
-
-# Available datasets parameters
-DATA_PATH = Path(__file__).parent.parent / "data"
 
 # Related to Tropical Cyclones data
 TC_DATA_PATH = DATA_PATH / "tropical_cyclones"

@@ -76,7 +76,6 @@ This visualization allows for a quick assessment of the replicability, helping i
 
 ## Scientific skill
 
-<<<<<<< HEAD
 The `ScientificEvaluation` class implements various plots and scalar metrics to analyze how well ESMs reproduce key climate phenomena. These metrics compare model output against observational data to quantify the models' skill in capturing specific features of the Earth's climate system.
 
 This section explains the approach used to evaluate several climate phenomena. Currently, the package includes the following scientific skill metrics:
@@ -106,11 +105,7 @@ $$
 
 where $R_0$ is the maximum correlation that can be achieved by the model, taken as $R_0=1$. Note that this score takes values between 0 and 1, with higher values indicating better model performance. 
 
-<<<<<<< HEAD
-Since models usually underestimate the amplitude of the ISO, the PCs can be adjusted before computing the above quantities by scaling them with the **PCs' amplitude ratio** ($\alpha$) between simulations and observations, defined as
-=======
 Since models usually underestimate the amplitude of the ISO, the PCs can be adjusted before computing the above quantities by scaling them with the **PCs' amplitude ratio ($\alpha$)** between simulations and observations, defined as
->>>>>>> c3d1b65c3f4cd07114037ea5eb03d2ca6ac32b12
 
 $$
 \alpha = \frac{\overline{\lVert\text{PC}_{\text{MJO}}^{\text{sim}}\rVert} + \overline{\lVert\text{PC}_{\text{BSISO}}^{\text{sim}}\rVert}}{\overline{\lVert\text{PC}_{\text{MJO}}^{\text{obs}}\rVert} + \overline{\lVert\text{PC}_{\text{BSISO}}^{\text{obs}}\rVert}}.
@@ -143,17 +138,12 @@ where $R_0$ is the maximum correlation that can be achieved by the model, taken 
 
 The implementation of the analysis described above produces three types of diagnostic plots:
 - **EEOFs**: multiple spatial plots showing the first two EEOFs for boreal winter (during DJFMA) and for boreal summer (during JJASO). The EEOFs are scaled before plotting using the corresponding eigenvalues, and each of them is plotted separately for three different time lags (-10, -5 and 0 days).
-    - **PCs**: two time series plots displaying the temporal evolution of the first two normalized PCs for MJO and BSISO, along with a third plot showing the evolution of the amplitude ( $\scriptsize{\sqrt{\text{PC}_1^2 + \text{PC}_2^2}}$ ) of each set of PCs.
->>>>>>> tc_metrics
+- **PCs**: two time series plots displaying the temporal evolution of the first two normalized PCs for MJO and BSISO, along with a third plot showing the evolution of the amplitude ( $\scriptsize{\sqrt{\text{PC}_1^2 + \text{PC}_2^2}}$ ) of each set of PCs.
 - **ISO seasonality**: mean monthly distribution of ISO events separating MJO and BSISO, with comparison between simulations and observations available (including the values for the scalar metrics $R$, $\sigma$ and $\text{TSS}$).
 
 In all cases, a colormap with a blue to red gradient is used for boreal winter (or MJO), while a green to orange gradient is used for boreal summer (or BSISO).
 
-<<<<<<< HEAD
 ### Tropical Cyclones (TCs): TC metrics
-=======
-### TC metrics
->>>>>>> tc_metrics
 
 TC trajectories are detected and tracked using the [TempestExtremes package](https://github.com/ClimateGlobalChange/tempestextremes). The default criteria for TC detection is taken from [(C.M. Zarzycki & P.A. Ullrich, 2017)](https://doi.org/10.1002/2016GL071606). However, we recommend adjusting the `min_wind` parameter (i.e. 10 m wind speed detection threshold) according to the model's (or reanalysis') horizontal resolution following the criteria established in [(K.J.E. Walsh et al., 2007)](https://doi.org/10.1175/JCLI4074.1) (see Fig. 2 in the paper for guidance). Moreover, the TempestExtremes package requires **surface geopotential** (`phis`) data to track TCs. In here, this is computed from topography data taken from the [GEBCO_2024 Grid](https://www.gebco.net/data-products-gridded-bathymetry-data/gebco2024-grid), a global terrain model for ocean and land which provides elevation data with a horizontal resolution of 15 arc-seconds (~ 0.5 km). Using this data, `phis` is computed by multiplying the topography (in meters) by the standard gravity (9.80665 m/s²). Then, before using it, `phis` is regridded to match the horizontal resolution of the input dataset. 
 
@@ -170,11 +160,7 @@ From these, we generate monthly/yearly global time series that allow computing t
 - **Global storm mean values** (dividing by the counts) over a given period ($\bar{b}_{storm}$).
 - **Global Spearman rank correlation** coefficient ($\rho_s$) over a given period.
 
-<<<<<<< HEAD
-Moreover, we generate spatial plots of the absolute values and biases with respect to an observational reference for the aforementioned metrics (except for LMI) together with the minimum sea level pressure, the maximum 10 m wind and the TC genesis. From these, we compute the following scalar spatial statistics:
-=======
 Moreover, we generate spatial plots of the absolute values and biases with respect to a observational reference for the aforementioned metrics (except for LMI) together with the minimum sea level pressure, the maximum 10 m wind and the TC genesis. From these, we compute the following scalar spatial statistics:
->>>>>>> tc_metrics
 - **Global Pearson correlation** coefficient ($r_{xy}$).
 
 Note that the TC genesis is defined as the first tracked point of each storm's lifetime.
@@ -187,8 +173,4 @@ Finally, the [International Best Track Archive for Climate Stewardship (IBTrACS)
 <!--TO DO: add examples of the plots.
 
 TO ADD:
-<<<<<<< HEAD
-- TCs: 'per_month', 'per_year', 'climo_mean', 'storm_mean', 'temp_scorr', 'spatial', 'spatial_pcorr' for each metric (counts, tcd, ace, pace, lmi). -->
-=======
 - TCs: 'per_month', 'per_year', 'climo_mean', 'storm_mean', 'temp_scorr', 'spatial', 'spatial_pcorr' for each metric (counts, tcd, ace, pace, lmi). NOTE: no spatial metrics for lmi as it is a latitude. -->
->>>>>>> tc_metrics

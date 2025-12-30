@@ -2,6 +2,7 @@
 
 This guide provides detailed instructions and examples for using _pyhanami_ to evaluate several features of ESMs. 
 
+
  ## Set up configuration files
 
 Before using _pyhanami_, ensure that the configuration files explained in the [Configuration](./Configuration.md) guide are properly set up. In particular, pay attention to the following aspects:
@@ -9,6 +10,7 @@ Before using _pyhanami_, ensure that the configuration files explained in the [C
 - **Variables:** for each variable to be analyzed, ensure it is defined in `src/pyhanami/config/variables.yaml` following CMIP conventions (see [Configuration](./Configuration.md#variables.yaml)). It is required that each variable (as a xarray.DataArray) has as attribute the corresponding `units`.
 
 <!-- TO DO: finish explanation of configuration files.-->
+
 
 ## Load simulation data
 
@@ -148,7 +150,7 @@ The following snippet creates a `BimodalISO` instance that:
 # Initialize ScientificEvaluation class with a SimulationData object
 sciskill = pyhanami.ScientificEvaluation(sim_1)
 
-# Compute and plot bimodal ISO indices performing an EEOF analysis on simulated data
+# Compute bimodal ISO indices performing an EEOF analysis on simulated data
 bimodal_indices = sciskill.compute_bimodal_ISO(
     'name_sim_1',
     start_year_eeof=year_init_eeof,
@@ -200,12 +202,15 @@ To summarize, the `BimodalISO` class includes methods to generate the following 
 
 ## Tropical Cyclones (TCs) evaluation
 
-To evaluate the simulation of TCs, create a `ScientificEvaluation` object with the `SimulationData` object that you want to analyze and use the `tc_metrics` method. This method computes several **TC metrics** (see [Methodology](./Methodology.md#tropical-cyclones-tcs-tc-metrics)) and requires the following variables with a 6-hourly frequency:
+To evaluate the simulation of TCs, create a `ScientificEvaluation` object with the `SimulationData` object that you want to analyze and use the `compute_tc_metrics` method. This method computes several **TC metrics** (see [Methodology](./Methodology.md#tropical-cyclones-tcs-tc-metrics)) and requires the following variables with a 6-hourly frequency:
 - **Sea level pressure** (`psl`)
 - **Zonal and meridional wind at 10 m** (`uas` and `vas`)
 - **Geopotential height at 300 hPa and 500 hPa** (`zg300` and `zg500`)
 
-With the following, the `tc_metrics` method will detect and track TCs between `year_init` and `year_end`, and compute various global temporal and spatial statistics for several TC metrics for both the provided simulation data and IBTrACS data. Apart from the scalar values, it will also output summary tables with the computed statistics:
+The following snippet creates a `TCMetrics` instance that:
+1. Detects and tracks TCs between `year_init` and `year_end`.
+2. Computes several TC metrics, including number of TCs, intensity, lifetime, genesis location, and track density.
+3. Computes various global temporal and spatial scalar statistics from the TC metrics for both the provided simulation data and IBTrACS data.
 
 ```python
 # Initialize ScientificEvaluation class with a SimulationData object
@@ -213,45 +218,37 @@ With the following, the `tc_metrics` method will detect and track TCs between `y
 sciskill = pyhanami.ScientificEvaluation(sim_1)
 
 # Compute TC metrics statistics for one simulation dataset
-clim_bias, storm_bias, seas_corr, spat_corr = sciskill.tc_metrics(
+tc_metrics= sciskill.compute_tc_metrics(
     'name_sim_1',
-    'output_path',
-    start_year=year_init,
-    end_year=year_end
+    start_year_tc=year_init_tc,
+    end_year_tc=year_end_tc
 )
 ```
-Besides, it is possible to include observational values in the tables by adding the following arguments:
+
+Moreover, the `TCMetrics` class includes methods to visualize and save the results of the analysis. The following shows how to save the computed data, create linear and spatial plots displaying the computed TC metrics, and create table plots summarizing the statistics for each TC metric:
 
 ```python
-# Compute TC metrics statistics for one simulation dataset together with observations
-clim_bias, storm_bias, seas_corr, spat_corr = sciskill.tc_metrics(
-    'name_sim_1',
-    'output_path',
-    start_year=year_init,
-    end_year=year_end,
-    obs=True, 
-    obs_path='path_obs', 
-    obs_name='name_obs'
-)
-```
+# Save outcome of the TC metrics analysis
+tc_metrics.save_data('output_path')
 
-Finally, by passing the argument `full_output=True`, it will also generate spatial plots of the absolute values and biases with respect to an observational reference (by default, IBTrACS) for the TC metrics.
+# Plot the resulting TC metrics
+tc_metrics.linear_plots('output_path')
+tc_metrics.spatial_plots('output_path')
+
+# Plot summary tables of the TC metrics statistics
+tc_metrics.clim_bias_table('output_path')
+tc_metrics.storm_bias_table('output_path')
+tc_metrics.temp_corr_table('output_path')
+tc_metrics.spatial_corr_table('output_path')
+```
 
 Considerations regarding the 10 m wind speed:
 - By default, a threshold of 10 m/s is used for TC detection. However, we recommend adjusting it according to the model's (or reanalysis') horizontal 
-resolution following the criteria established in [(K.J.E. Walsh et al., 2007)](https://doi.org/10.1175/JCLI4074.1). This can be done by passing the argument `min_wind` when calling the `tc_metrics` method.
-- By default, it is assumed that the wind passed is at 10 m height. If the wind data corresponds to a different height, it can still be used by passing the argument `wind_factor` when calling the `tc_metrics` method. This factor will be used to scale the wind data to approximate the 10 m wind speed. 
+resolution following the criteria established in [(K.J.E. Walsh et al., 2007)](https://doi.org/10.1175/JCLI4074.1). This can be done by passing the argument `min_wind` when calling the `compute_tc_metrics` method.
+- By default, it is assumed that the wind passed is at 10 m height. If the wind data corresponds to a different height, it can still be used by passing the argument `wind_factor` when calling the `compute_tc_metrics` method. This factor will be used to scale the wind data to approximate the 10 m wind speed. 
 
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 ## General considerations:  
-=======
-## General considerations
->>>>>>> c3d1b65c3f4cd07114037ea5eb03d2ca6ac32b12
-=======
-## General considerations:  
->>>>>>> tc_metrics
 - The `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes can all be initialized without providing any `SimulationData` objects; datasets can be added later with the `add_datasets` method.
 - The climate variable name `var_name` must be listed in the configuration file `src/pyhanami/config/variables.yaml`.  
 - `output_path` can be either a directory or a full file path including the file name. If `output_path` is not provided, the plots are displayed interactively.  
