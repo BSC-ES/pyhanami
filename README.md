@@ -14,7 +14,9 @@ Key features of the package include:
 - **Diagnostics plotting:** generate visualizations comparing two previously loaded simulation ensembles for selected variables using the `DataDiagnostics` class. 
 These include time series plots (with the `time_series_plot` method) and spatial plots (with the `spatial_plots` method). The latter generates two plots, one for the absolute difference and another for the effect size (Cohen's _d)_ between both ensembles.
 - **Replicability testing:** perform a replicability test checking the statistical indistinguishability between two previously loaded simulation ensembles using the `ReplicabilityTest` class.
-- **Scientific skill evaluation:** compute metrics evaluating the Tropical IntraSeasonal Oscillation (ISO) using the `ScientificEvaluation` class. These include the computation of the bimodal ISO indices (for MJO and BSISO), as well as the calculation of related statistics comparing the indices between simulations and observations (temporal correlation (R), standard deviation ratio (σ), and Taylor Skill Score (TSS)).
+- **Scientific skill evaluation:** compute metrics evaluating the following phenomena using the `ScientificEvaluation` class:
+    - Tropical IntraSeasonal Oscillation (ISO): this includes the computation of the bimodal ISO indices (for MJO and BSISO), as well as the calculation of related statistics comparing the indices between simulations and observations (temporal correlation ($R$), standard deviation ratio ($\sigma$), and Taylor Skill Score (TSS)).
+    - Tropical Cyclones (TCs): this includes the computation of various scalar statistics (bias ($\bar{b}$), spatial Pearson correlation ($r_{xy}$), and temporal Spearman rank correlation ($\rho_s$)) for several TC metrics (counts, TC days (TCD), accumulated cyclone energy (ACE), pressure ACE (PACE), and latitude of lifetime-maximum intensity (LMI)).
 - **Flexible data management:** add and compare datasets in the `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes even after initialization.
 
 Future releases will include:
@@ -135,13 +137,13 @@ This project includes code and resources from the following sources:
 
 #### Adapted code:
 - [CyMeP package](https://github.com/zarzycki/cymep):
-    - Used in: `src/pyhanami/utils/tcs_cymep.py`, `src/pyhanami/utils/tcs_cymep_funcs.py`
+    - Used in: `src/pyhanami/utils/tcs_metrics/tcs_cymep_main.py`, `src/pyhanami/utils/tcs_metrics/tcs_cymep_funcs.py`
     - License: MIT License
     - Copyright (c) 2021 Colin Zarzycki
 
 #### Code dependencies:
 - [TempestExtremes package](https://github.com/ClimateGlobalChange/tempestextremes):
-    - Used in: `src/pyhanami/utils/tcs_tempestextremes.py`
+    - Used in: `src/pyhanami/utils/tcs_metrics/tcs_tempestextremes.py`
     - License: BSD 2-Clause License
     - Copyright (c) 2025, Paul Ullrich
 
@@ -149,9 +151,6 @@ This project includes code and resources from the following sources:
 - [GSV-Interface/gsv/dqc/profiles/config/variables.yaml](https://github.com/DestinE-Climate-DT/GSV-Interface/blob/master/gsv/dqc/profiles/config/variables.yaml):
     - Used for: data ranges and boundaries for plausibility checks in `src/pyhanami/config/variables.yaml`
     - License: Apache License, Version 2.0, January 2004
-- [NOAA Interpolated Outgoing Longwave Radiation (OLR) data](https://psl.noaa.gov/data/gridded/data.olrcdr.interp.html):
-    - Used for: ISO evaluation in `src/pyhanami/diags/ScientificSkill.py`
-    - Reference: NOAA PSL, Boulder, Colorado, USA ([https://psl.noaa.gov/](https://psl.noaa.gov/))
 - [GEBCO_2024 Grid](https://www.gebco.net/data-products-gridded-bathymetry-data/gebco2024-grid):
     - Used for: computing surface geopotential in `src/pyhanami/utils/tcs_tempestextremes.py`
     - Reference: GEBCO Compilation Group (2025) GEBCO 2025 Grid (doi:10.5285/ 37c52e96-24ea-67ce-e063-7086abc05f29)

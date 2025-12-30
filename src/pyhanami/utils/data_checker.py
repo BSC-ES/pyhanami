@@ -1,3 +1,4 @@
+import cftime 
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -108,19 +109,22 @@ class DataChecker:
         """
 
         time = data['time']
-        time_type = type(time.values[0])
+        time_value = time.values[0]
 
         errors = []
         warnings = []
 
         try:
-            # Check calendar type
-            if not np.issubdtype(time_type, np.datetime64):
-                datetimeindex = data.indexes['time'].to_datetimeindex(time_unit='ns')
-                data = data.assign_coords(time=("time", datetimeindex.values))
+            # Check calendar type and convert to np.datetime64 if needed
+            if not isinstance(time_value, np.datetime64):
+                if isinstance(time_value, (cftime.DatetimeNoLeap, cftime.DatetimeGregorian, cftime.DatetimeProlepticGregorian)):
+                    datetimeindex = pd.to_datetime([t.strftime("%Y-%m-%d %H:%M:%S") for t in time.values]).to_numpy()
+                else:
+                    datetimeindex = data.indexes['time'].to_datetimeindex(time_unit='ns').values
+                data = data.assign_coords(time=("time", datetimeindex))
                 warnings.append(
-                    f"Data 'time' coordinate was not in 'np.datetime64' format but '{time_type}' instead. " 
-                    f" It has been converted automatically but better to provide it in the correct format from the beginning."
+                    f"Data 'time' coordinate was not in 'np.datetime64' format but '{type(time_value)}' instead. " 
+                    f"It has been converted automatically but better to provide it in the correct format from the beginning."
                 )
             else:
                 # Check if the data frequency is daily or coarser

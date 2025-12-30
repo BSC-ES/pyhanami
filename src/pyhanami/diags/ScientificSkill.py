@@ -1,17 +1,23 @@
 import warnings
 warnings.simplefilter("always")
 
+import os
+import re
+import shutil
+import cmocean
+import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
 
 from pathlib import Path
 from collections.abc import Iterable
-from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 
 from pyhanami.config import config_params
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
 from pyhanami.utils import data_general, iso_metrics, plot
+from pyhanami.utils.tcs_metrics import tcs_tempestextremes, tcs_ibtracs, tcs_cymep_main
 
 VARIABLES = data_general.load_yaml_file(config_params.VARIABLES_PATH)
 

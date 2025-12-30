@@ -1,0 +1,37 @@
+# Test Plan: TCs IBTrACS functions (all functions in utils/tcs_metrics/tcs_ibtracs.py)
+
+## Purpose 
+Verify that the IBTrACS processing functions correctly download, convert, and preprocess TCs
+observational data from IBTrACS format to TempestExtremes format.
+
+## Inputs to test
+- Normal case:
+    - Valid IBTrACS NetCDF files with complete storm trajectory data
+    - Proper topography files to extract surface geopotential
+- Edge cases:
+    - Different IBTrACS versions (v3 vs v4) and dataset selections
+    - Different minimum wind
+    - Missing pressure or wind data requiring K&Z 07 corrections
+- Invalid inputs:
+    - Malformed IBTrACS files
+    - Invalid year ranges outside IBTrACS coverage
+    - Wrong data type for the topography data (not xarray.DataArray)
+    - Network connectivity issues during data download
+
+## Expected behaviour
+- For valid inputs:
+    - IBTrACS data downloads successfully from NOAA servers
+    - Storm trajectories convert accurately to TempestExtremes format  
+- For edge cases:
+    - Correctly process different IBTrACS versions
+    - Wind speed filtering removes appropriate storms
+    - Pressure-wind corrections follow K&Z 07 relationships physically
+- For invalid inputs:
+    - Functions should fail with meaningful error messages
+    - Network errors should provide clear diagnostic messages
+
+## Status
+- [x] Not Started (placeholder)
+- [ ] In Progress (corresponding .py script in progress)
+- [ ] Ready for Implementation (ready to merge into `develop` branch)
+- [ ] Completed (tested with corresponding functions in `develop` branch)

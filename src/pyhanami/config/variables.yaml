@@ -33,6 +33,20 @@ phis:
   units: "m**2 s**-2"
   boundaries: null
 
+orog:
+  check_enabled: True
+  long_name: Surface altitude
+  mask: atm # what goes here??
+  units: "m"
+  boundaries: null
+
+phis: # check this one??
+  check_enabled: True
+  long_name: Surface geopotential
+  mask: atm # what goes here??
+  units: "m**2 s**-2"
+  boundaries: null
+
 pr:
   check_enabled: True
   long_name: Precipitation

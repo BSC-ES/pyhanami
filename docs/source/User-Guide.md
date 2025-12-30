@@ -244,10 +244,14 @@ resolution following the criteria established in [(K.J.E. Walsh et al., 2007)](h
 
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 ## General considerations:  
 =======
 ## General considerations
 >>>>>>> c3d1b65c3f4cd07114037ea5eb03d2ca6ac32b12
+=======
+## General considerations:  
+>>>>>>> tc_metrics
 - The `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes can all be initialized without providing any `SimulationData` objects; datasets can be added later with the `add_datasets` method.
 - The climate variable name `var_name` must be listed in the configuration file `src/pyhanami/config/variables.yaml`.  
 - `output_path` can be either a directory or a full file path including the file name. If `output_path` is not provided, the plots are displayed interactively.  
