@@ -117,7 +117,7 @@ bimodal_indices.save_data('output_path')
 # save them to 'output_path'
 bimodal_indices.eeof_plots('output_path')
 bimodal_indices.pc_plots('output_path', years=[year_1, year_2, year_3])
-bimodal_indices.plot_freq_ISO('output_path')
+bimodal_indices.freq_ISO_plot('output_path')
 
 # Display computed statistics (scalar values measuring how well simulations match 
 # observations)
