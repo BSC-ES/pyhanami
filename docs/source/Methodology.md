@@ -116,29 +116,6 @@ After applying this correction, the average number of ISO events per year become
 The implementation of the analysis described above produces three types of diagnostic plots:
 - **EEOFs**: multiple spatial plots showing the first two EEOFs for boreal winter (during DJFMA) and for boreal summer (during JJASO). The EEOFs are scaled before plotting using the corresponding eigenvalues, and each of them is plotted separately for three different time lags (-10, -5 and 0 days).
 - **PCs**: two time series plots displaying the temporal evolution of the first two normalized PCs for MJO and BSISO, along with a third plot showing the evolution of the amplitude ( $\scriptsize{\sqrt{\text{PC}_1^2 + \text{PC}_2^2}}$ ) of each set of PCs.
-=======
-The `ScientificEvaluation` class implements various scalar metrics to analyze how well ESMs reproduce key climate phenomena. These metrics compare model output against observational data to quantify the models' skill in capturing specific features of the Earth's climate system.
-
-Currently, the package includes the following scientific skill metrics:
-
-### Bimodal ISO indices
-
-Two separate indices are defined for the MJO and the BSISO, following [(K. Kikuchi, 2020)](https://link.springer.com/article/10.1007/s00382-019-05037-z). These indices capture the ISO behavior during boreal winter and boreal summer, respectively. They are computed by performing an Extended Empirical Orthogonal Function (EEOF) analysis using TOA Outgoing Longwave Radiation (OLR) data, and then projecting the OLR data onto the first two EEOFs. This results in two Principal Components (PCs) for MJO and two for BSISO, which together represent the bimodal ISO indices. Note that the indices are normalized by dividing by one standard deviation during the period taken for the EEOF analysis, i.e. the squared root of the corresponding eigenvalue.
-
-
-In order to obtain scalar metrics, we also compute the **temporal correlation (R)**, **standard deviation ratio (σ)**, and **Taylor Skill Score (TSS)** between simulations and observations using the PCs' amplitude, following [(M. Nakano et al., 2019)](https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2019GL082443). Specifically, the mean monthly frequency of MJO and BSISO events (ISO seasonality) is calculated using the amplitude of the corresponding PCs. The MJO frequency is then subtracted from the BSISO frequency, and this difference is compared between simulations and observations.
-
-The temporal correlation indicates how well the phase of the ISO seasonality is reproduced by a model. While the ratio of standard deviations (model/observations) provides information about the amplitude (MJO/BSISO contrast) of the seasonality. Finally, the $\text{TSS}$ combines both the correlation and the standard deviation, allowing to assess how well a model matches the ISO seasonality of the observations with a single score defined as
-
-$$
-\text{TSS} = \frac{4(1+R)^4}{(\sigma + 1/\sigma)^2(1+R_0)^2},
-$$
-
-where $R_0$ is the maximum correlation that can be achieved by the model, taken as $R_0=1$.
-
-The implementation of the analysis described above produces three types of diagnostic plots:
-- **EEOFs**: multiple spatial plots showing the first two EEOFs for boreal winter (during DJFMA) and for boreal summer (during JJASO). The EEOFs are scaled before plotting using the corresponding eigenvalues, and each of them is plotted separately for three different time lags (-10, -5 and 0 days).
-- **PCs**: two time series plots displaying the temporal evolution of the first two normalized PCs for MJO and BSISO, along with a third plot showing the evolution of the amplitude ( $\scriptsize{\sqrt{\text{PC}_1^2 + \text{PC}_2^2}}$ ) of each set of PCs.
 - **ISO seasonality**: mean monthly distribution of ISO events separating MJO and BSISO, with comparison between simulations and observations available (including the values for the scalar metrics $R$, $\sigma$ and $\text{TSS}$).
 
 In all cases, a colormap with a blue to red gradient is used for boreal winter (or MJO), while a green to orange gradient is used for boreal summer (or BSISO).
@@ -160,7 +137,7 @@ From these, we generate monthly/yearly global time series that allow computing t
 - **Global storm mean values** (dividing by the counts) over a given period ($\bar{b}_{storm}$).
 - **Global Spearman rank correlation** coefficient ($\rho_s$) over a given period.
 
-Moreover, we generate spatial plots of the absolute values and biases with respect to a observational reference for the aforementioned metrics (except for LMI) together with the minimum sea level pressure, the maximum 10 m wind and the TC genesis. From these, we compute the following scalar spatial statistics:
+Moreover, we generate spatial plots of the absolute values and biases with respect to an observational reference for the aforementioned metrics (except for LMI) together with the minimum sea level pressure, the maximum 10 m wind and the TC genesis. From these, we compute the following scalar spatial statistics:
 - **Global Pearson correlation** coefficient ($r_{xy}$).
 
 Note that the TC genesis is defined as the first tracked point of each storm's lifetime.

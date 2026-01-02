@@ -35,6 +35,7 @@ myst_enable_extensions = [
 
 # Mock imports for packages that might not be available during doc building
 autodoc_mock_imports = [
+    'beautifulsoup4',
     'cartopy',
     'cftime',
     'cmocean',
@@ -49,6 +50,7 @@ autodoc_mock_imports = [
     'netCDF4',
     'numpy',
     'pandas',
+    'requests',
     'scipy',
     'seaborn',
     'sklearn',

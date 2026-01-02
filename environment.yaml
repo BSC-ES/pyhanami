@@ -9,14 +9,17 @@ channels:
 dependencies:
   - python>=3.7
   - tempest-extremes
+  - beautifulsoup4
   - cartopy
   - cmocean
   - matplotlib
+  - netCDF4
   - numpy
   - pandas
   - pint
   - pip
   - pyyaml
+  - requests
   - scipy
   - tqdm
   - xarray>=2023.1.0,<2025.3.0

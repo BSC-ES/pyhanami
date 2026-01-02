@@ -3,13 +3,16 @@
 # conda install -c conda-forge cartopy
 # This is automatically done in docs_environment.yaml
 
+beautifulsoup4
 cmocean
 matplotlib
+netCDF4
 numpy
 pandas
 pint
 pyproj
 pyyaml
+requests
 scipy
 tqdm
 xarray
