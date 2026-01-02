@@ -8,10 +8,16 @@ from scipy.stats import ks_2samp, ttest_ind, mannwhitneyu
 # Path to available variables and metadata
 VARIABLES_PATH = Path(__file__).parent / "variables.yaml"
 
+# Path to TCs metrics and metadata
+TCS_METRICS_PATH = Path(__file__).parent / "tc_metrics.yaml"
+
+
+# General parameters
 
 # Available datasets parameters
 DATA_PATH = Path(__file__).parent.parent / "data"
 
+# Related to NOAA data
 NOAA_PATH = DATA_PATH / "noaa/data_obs_noaa_1974-2022_rlut.nc"
 NOAA_GRID_PATH = DATA_PATH / "noaa/noaa_grid.nc"
 NOAA_EEOF_SUMMER_PATH = DATA_PATH / "noaa/eeof_boreal_summer_noaa_1975-2020.nc"
@@ -20,8 +26,25 @@ NOAA_PC_PATH = DATA_PATH / "noaa/pc_noaa_1975-2020.nc"
 NOAA_START_YEAR = 1975
 NOAA_END_YEAR = 2020
 
+# Related to Tropical Cyclones data
+TC_DATA_PATH = DATA_PATH / "tropical_cyclones"
 
-# General parameters
+IBTRACS_URL = "https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/v04r01/access/netcdf/IBTrACS.since1980.v04r01.nc"
+# NOTE: when updating the URL above, please also update the version, start year and path below
+IBTRACS_VERSION = "v4"
+IBTRACS_START_YEAR = 1980
+IBTRACS_PATH = TC_DATA_PATH / "IBTrACS.since1980.v04r01.nc"
+IBTRACS_DATASET = 'wmo'
+
+TOPOG_URL = "https://www.gebco.net/data-products-gridded-bathymetry-data/gebco2024-grid"
+TOPOG_PATH = TC_DATA_PATH / "topog_GEBCO.nc"
+TOPOG_VARNAME = 'elevation'
+G = 9.80665
+
+CYMEP_CONFIGS_PATH = TC_DATA_PATH / "cymep_configs.csv"
+
+
+# General parameters replicability test
 METRICS = np.array([
         ('RK08', [statistics.exp_RK_index], True),
         ('Bias', [statistics.ilamb_weighted_bias], True), 

@@ -1,0 +1,55 @@
+count:
+  short_name: Storms
+  long_name: number of tropical cyclones
+  units: '#'
+  temporal: True
+  spatial: True
+
+tcd:
+  short_name: TCD
+  long_name: tropical cyclone days (TCD)
+  units: days
+  temporal: True
+  spatial: True
+
+ace:
+  short_name: ACE
+  long_name: accumulated cyclone energy (ACE)
+  units: 10⁻⁴ kn²
+  temporal: True
+  spatial: True
+
+pace:
+  short_name: PACE
+  long_name: pressure accumulated cyclone energy (PACE)
+  units: 10⁻⁴ kn²
+  temporal: True
+  spatial: True
+
+lmi:
+  short_name: LMI
+  long_name: latitude of lifetime-maximum intensity (LMI)
+  units: ° lat.
+  temporal: True
+  spatial: False
+
+minpres:
+  short_name: MinPres
+  long_name: minimum sea level pressure
+  units: hPa
+  temporal: False
+  spatial: True
+
+maxwind:
+  short_name: MaxWind
+  long_name: maximum 10 m wind speed
+  units: m/s
+  temporal: False
+  spatial: True
+
+gen:
+  short_name: Genesis
+  long_name: tropical cyclone genesis points
+  units: '#'
+  temporal: False
+  spatial: True

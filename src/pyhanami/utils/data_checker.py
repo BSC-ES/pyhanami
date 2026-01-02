@@ -442,5 +442,3 @@ class DataChecker:
             raise RuntimeError(error_message)
 
         return data
-
-

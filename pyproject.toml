@@ -30,13 +30,17 @@ classifiers=[
 
 requires-python = ">=3.7"
 dependencies = [
+    "beautifulsoup4",
     "cartopy",
+    "cftime",
     "cmocean",
     "matplotlib",
+    "netCDF4",
     "numpy",
     "pandas",
     "pint",
     "pyyaml",
+    "requests",
     "scipy",
     "tqdm",
     "xarray>=2023.1.0,<2025.3.0",
