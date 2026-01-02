@@ -105,11 +105,7 @@ $$
 
 where $R_0$ is the maximum correlation that can be achieved by the model, taken as $R_0=1$. Note that this score takes values between 0 and 1, with higher values indicating better model performance. 
 
-<<<<<<< HEAD
-Since models usually underestimate the amplitude of the ISO, the PCs can be adjusted before computing the above quantities by scaling them with the **PCs' amplitude ratio** ($\alpha$) between simulations and observations, defined as
-=======
 Since models usually underestimate the amplitude of the ISO, the PCs can be adjusted before computing the above quantities by scaling them with the **PCs' amplitude ratio ($\alpha$)** between simulations and observations, defined as
->>>>>>> c3d1b65c3f4cd07114037ea5eb03d2ca6ac32b12
 
 $$
 \alpha = \frac{\overline{\lVert\text{PC}_{\text{MJO}}^{\text{sim}}\rVert} + \overline{\lVert\text{PC}_{\text{BSISO}}^{\text{sim}}\rVert}}{\overline{\lVert\text{PC}_{\text{MJO}}^{\text{obs}}\rVert} + \overline{\lVert\text{PC}_{\text{BSISO}}^{\text{obs}}\rVert}}.
