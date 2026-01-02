@@ -20,7 +20,7 @@ These include time series plots (with the `time_series_plot` method) and spatial
 - **Flexible data management:** add and compare datasets in the `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes even after initialization.
 
 Future releases will include:
-- **Additional scientific skill evaluation:** compute additional metrics evaluating several climate phenomena, such as TCs and precipitation.
+- **Additional scientific skill evaluation:** compute additional metrics evaluating several climate phenomena, such as precipitation.
 - **Automated report generation:** produce reports including plots and statistics summary.
 
 
@@ -47,8 +47,9 @@ pip install .
 
 ## Basic Usage
 
-The following example demonstrates the main functionalities of _pyhanami_. For detailed usage instructions, see the project's documentation in [https://pyhanami.readthedocs.io/](https://pyhanami.readthedocs.io/)
+The following examples demonstrate the main functionalities of _pyhanami_. For detailed usage instructions, see the project's documentation in [https://pyhanami.readthedocs.io/](https://pyhanami.readthedocs.io/)
 
+### Load simulation data
 ```python
 import pyhanami
 
@@ -57,8 +58,10 @@ import pyhanami
 # them ('name_sim_1' and 'name_sim_2')
 sim_1 = pyhanami.SimulationData('source_simulation_1', name='name_sim_1')
 sim_2 = pyhanami.SimulationData('source_simulation_2', name='name_sim_2')
+```
 
-
+### Generate visualization diagnostics (time series and spatial plots)
+```python
 # Generate diagnostics plots comparing both simulation datasets
 diags = pyhanami.DataDiagnostics([sim_1, sim_2])
 
@@ -89,9 +92,11 @@ diags.eff_size_plot(
     ['name_sim_1', 'name_sim_2'],
     'output_path'
 )
+```
 
-
-# Perform replicability test comparing the two simulation datasets and save results 
+### Perform replicability test
+```python
+# Perform a replicability test comparing the two simulation datasets and save results 
 # to 'output_path'
 tester = pyhanami.ReplicabilityTest([sim_1, sim_2], obs_path='path_obs')
 
@@ -99,9 +104,11 @@ tester.matrix_plot(
     ['name_sim_1', 'name_sim_2'],
     'output_path'
 )
+```
 
-
-# Evaluate scientific skill (climate phenomena simulation) for one simulation dataset
+### Evaluate scientific skill
+```python
+# Evaluate the scientific skill (climate phenomena simulation) of one simulation dataset
 sciskill = pyhanami.ScientificEvaluation(sim_1)
 
 # Assess simulation of the Tropical IntraSeasonal Oscillation (ISO) by computing the 
