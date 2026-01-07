@@ -10,12 +10,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 ### Added
-- Data checker: standard compliance, spatial and temporal completeness, physical plausibility, and consistency of variables and coordinates checks when loading new datasets.
-- Scientific skill metrics: bimodal ISO indices Tropical IntraSeasonal Oscillation (ISO) evaluation and Tropical Cyclones (TCs) metrics.
-- Documentation 
-
+- Data checker: automatically run standard compliance, spatial and temporal completeness, physical plausibility, and consistency of variables and coordinates checks when loading new datasets.
+- Scientific skill metrics: implemented Tropical IntraSeasonal Oscillation (ISO) evaluation and Tropical Cyclones (TCs) metrics comparing simulations with observations.
+- Configuration files: created default configuration files for parameters and variables.
+- Flexible data management: included option to add and compare datasets in the `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes even after initialization.
+- Documentation: 
+    - Added licenses and references sections to README.
+    - Created a project in Read the Docs for the package's documentation.
 
 ### Changed
+
+- Visualization diagnostics: 
+    - Added options for different frequency and observations in time series plots.
+    - Separated absolute difference and effect size plots into individual functions for more flexibility.
+- Installation: smoothed installation process with conda `environment.yaml` file including all dependencies.
 
 ### Removed
 
