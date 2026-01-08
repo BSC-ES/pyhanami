@@ -455,28 +455,17 @@ class BimodalISO:
         # Plot EEOFs for borean summer
         eeofs_plot, _ = plot.plot_eeofs(self.eeof_summer, clon=clon, title=f"BSISO convective pattern '{name}' (JJASO {self.start_year_eeof}-{self.end_year_eeof})",
                                 cb_label=f"scaled EEOF ({VARIABLES[var_name]['units']})", cmap=LinearSegmentedColormap.from_list("GreenOrange", ['tab:green', 'white', 'tab:orange']))       
-        if output_path is None:
-            plt.show()
-            print("BSISO EEOFs plot created and displayed.", flush=True)
-        else:
-            eeofs_path = output_path / f"eeof_boreal_summer_{('_').join(name.split())}_{self.start_year_eeof}-{self.end_year_eeof}_clon_{clon}.png"
-
-            eeofs_plot.savefig(eeofs_path, bbox_inches='tight', dpi=150)
-            print(f"BSISO EEOFs plot created and saved to '{eeofs_path}'.", flush=True)
+        
+        plot.save_or_show_plot(eeofs_plot, output_path, plot_filename=f"eeof_boreal_summer_{('_').join(name.split())}_{self.start_year_eeof}-{self.end_year_eeof}_clon_{clon}",
+                               plot_name="BSISO EEOFs plot")
 
 
         # Plot EEOFs for borean winter
         eeofw_plot, _ = plot.plot_eeofs(self.eeof_winter, clon=clon, title=f"MJO convective pattern '{name}' (DJFMA {self.start_year_eeof}-{self.end_year_eeof})",
                                         cb_label=f"scaled EEOF ({VARIABLES[var_name]['units']})", cmap=LinearSegmentedColormap.from_list("BlueRed", ['tab:blue', 'white', 'tab:red']))
         
-        if output_path is None:
-            plt.show()
-            print("MJO EEOFs plot created and displayed.", flush=True)
-        else:
-            eeofw_path = output_path / f"eeof_boreal_winter_{('_').join(name.split())}_{self.start_year_eeof}-{self.end_year_eeof}_clon_{clon}.png"
-
-            eeofw_plot.savefig(eeofw_path, bbox_inches='tight', dpi=150)
-            print(f"MJO EEOFs plot created and saved to '{eeofw_path}'.", flush=True)
+        plot.save_or_show_plot(eeofw_plot, output_path, plot_filename=f"eeof_boreal_winter_{('_').join(name.split())}_{self.start_year_eeof}-{self.end_year_eeof}_clon_{clon}",
+                               plot_name="MJO EEOFs plot")
 
         return
 
@@ -530,15 +519,8 @@ class BimodalISO:
             pcs_year = pcs_data.sel(time=slice(f'{year}-01-01', f'{year}-12-31'))
             pcs_plot, _ = plot.plot_pcs(pcs_year, title=f"Bimodal ISO indices {name_title} ({year})")
 
-            if output_path is None:
-                plt.show()
-                print(f"PCs (bimodal ISO indices) for year {year} plot created and displayed.", flush=True)
-            else:
-                pcs_path = output_path / f"pcs_{name_file}_{year}_projected{name_projected}_{self.start_year_eeof}-{self.end_year_eeof}.png"
-
-                # pcs_year.to_netcdf(pcs_path.with_suffix('.nc'))
-                pcs_plot.savefig(pcs_path, bbox_inches='tight', dpi=150)
-                print(f"PCs (bimodal ISO indices) plot for year {year} created and saved to '{pcs_path}'.", flush=True)
+            plot.save_or_show_plot(pcs_plot, output_path, plot_filename=f"pcs_{name_file}_{year}_projected{name_projected}_{self.start_year_eeof}-{self.end_year_eeof}",
+                                   plot_name=f"PCs (bimodal ISO indices) for year {year} plot")  
 
         return
 
@@ -570,17 +552,9 @@ class BimodalISO:
         freq_plot, _ = plot.plot_freq_ISO(self.freq_ISO_sim, self.freq_ISO_obs, alpha=self.stats['alpha'], corr=self.stats['R'],
                                            sigma=self.stats['sigma'], tss=self.stats['TSS'],
                                            title=plot_title, sim_label=self.sim_name, obs_label=self.obs_name)
-        
-        if output_path is None:
-            plt.show()
-            print(f"Mean monthly frequency of ISO events for {name_title} plot created and displayed.", flush=True)
-        else:
-            output_path = Path(output_path)
-            output_path.mkdir(parents=True, exist_ok=True)
 
-            freq_path = output_path / f"freq_ISO_{name_file}_{self.start_year_pc}-{self.end_year_pc}_projected_{self.start_year_eeof}-{self.end_year_eeof}.png"
-            freq_plot.savefig(freq_path, bbox_inches='tight', dpi=150)
-            print(f"Mean monthly frequency of ISO events for {name_title} plot created and saved to '{freq_path}'.", flush=True)
+        plot.save_or_show_plot(freq_plot, output_path, plot_filename=f"freq_ISO_{name_file}_{self.start_year_pc}-{self.end_year_pc}_projected_{self.start_year_eeof}-{self.end_year_eeof}",
+                               plot_name=f"Mean monthly frequency of ISO events for {name_title} plot")
 
         return
 
@@ -740,7 +714,7 @@ class TCMetrics:
             obs_start_year = int(match.group(1))
             obs_end_year = int(match.group(2))
 
-            if obs_start_year > self.start_year_tc or obs_end_year < self.end_year_tc:
+            if self.start_year_tc < obs_start_year  or obs_end_year < self.end_year_tc:
                 warnings.warn(f"The available observational TCs data for '{name}' ({obs_start_year}-{obs_end_year}) does not "
                               f"cover the selected period for TCs metrics computation ({self.start_year_tc}-{self.end_year_tc})."
                               f" This dataset will not be considered for the TCs metrics computation.")

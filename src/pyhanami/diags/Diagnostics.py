@@ -428,22 +428,10 @@ class DataDiagnostics:
                                                  start_year=start_year, end_year=end_year, plot_ens=plot_ens)
         
         # Save plot to path if given
-        if output_path is None:
-            plt.show()
-            print(f"{time_freq.capitalize()} mean time series plot created and displayed.", flush=True)
-        else:
-            output_path = Path(output_path)
-            if not output_path.suffix:
-                output_path.mkdir(parents=True, exist_ok=True)
-                data_names_str = "-".join([('_').join(name.split()) for name in data_names])
-                time_series_path = output_path / f"{time_freq}_time_series_{var_name}_{data_names_str}_{start_year}-{end_year}.png"
-            else:
-                output_path.parent.mkdir(parents=True, exist_ok=True)
-                time_series_path = output_path
-            
-            time_series_plot.savefig(time_series_path, bbox_inches='tight', dpi=150)
-            print(f"{time_freq.capitalize()} mean time series plot created and saved to '{time_series_path}'.", flush=True)
-            
+        data_names_str = "-".join([('_').join(name.split()) for name in data_names])
+        plot.save_or_show_plot(time_series_plot, output_path, plot_filename=f"{time_freq}_time_series_{var_name}_{data_names_str}_{start_year}-{end_year}",
+                               plot_name=f"{time_freq.capitalize()} mean time series plot ")
+
         return
     
 
@@ -487,29 +475,18 @@ class DataDiagnostics:
                                  f"Available variables: {list(dataset.data.data_vars.keys())}")
 
        
-       # Compute and plot absolute difference
+        # Compute and plot absolute difference
         abs_diff = self._compute_abs_diff(var_name, data_plot)
         limit = np.max(np.abs(abs_diff.values))
         levels = np.linspace(-limit, limit, 13)
         
         abs_diff_plot, _ = plot.plot_spatial(abs_diff, clon=clon, title=f"Difference in {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
                                           cb_label=f"difference in {var_name} ({self.variables[var_name]['units']})", cmap=cmocean.cm.thermal, levels=levels)
-        
-        if output_path is None:
-            plt.show()
-            print("Absolute difference plot created and displayed.\n", flush=True)
-        else:
-            output_path = Path(output_path)
-            if not output_path.suffix:
-                output_path.mkdir(parents=True, exist_ok=True)
-                data_names_str = "-".join([('_').join(name.split()) for name in data_names])
-                abs_diff_path = output_path / f"abs_diff_{var_name}_{data_names_str}.png"
-            else:
-                output_path.parent.mkdir(parents=True, exist_ok=True)
-                abs_diff_path = output_path
-            
-            abs_diff_plot.savefig(abs_diff_path, bbox_inches='tight', dpi=150)
-            print(f"Absolute difference plot created and saved to '{abs_diff_path}'.", flush=True)
+
+        # Save plot to path if given
+        data_names_str = "-".join([('_').join(name.split()) for name in data_names])
+        plot.save_or_show_plot(abs_diff_plot, output_path, plot_filename=f"abs_diff_{var_name}_{data_names_str}",
+                               plot_name="Absolute difference plot")
 
         return
 
@@ -573,21 +550,10 @@ class DataDiagnostics:
         eff_size_plot, _ = plot.plot_spatial(eff_size, clon=clon, title=f"Cohen's effect size ($d$) for {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
                                           cb_label=f"$d$ for {var_name} (-)", cmap=cmocean.cm.diff, levels=levels, significant=significant)
 
-        if output_path is None:
-            plt.show()
-            print("Effect size plot created and displayed.", flush=True)
-        else:
-            output_path = Path(output_path)
-            if not output_path.suffix:
-                output_path.mkdir(parents=True, exist_ok=True)
-                data_names_str = "-".join([('_').join(name.split()) for name in data_names])
-                eff_size_path = output_path / f"eff_size_{var_name}_{data_names_str}.png"
-            else:
-                output_path.parent.mkdir(parents=True, exist_ok=True)
-                eff_size_path = output_path
-            
-            eff_size_plot.savefig(eff_size_path, bbox_inches='tight', dpi=150)
-            print(f"Effect size plot created and saved to '{eff_size_path}'.", flush=True)
+        # Save plot to path if given
+        data_names_str = "-".join([('_').join(name.split()) for name in data_names])
+        plot.save_or_show_plot(eff_size_plot, output_path, plot_filename=f"eff_size_{var_name}_{data_names_str}",
+                               plot_name="Effect size plot")
             
         return
 
