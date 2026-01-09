@@ -113,10 +113,6 @@ class BimodalISO:
         self.correct_pc = correct_pc
 
         # Select years for EEOF analysis and PCs computation
-        years = data_sim.data.time.dt.year
-        start_year = int(years.min())
-        end_year = int(years.max())
-
         if self.obs:
             if start_year_eeof is not None or end_year_eeof is not None:
                 warnings.warn("\t'start_year_eeof' and 'end_year_eeof' are ignored when `obs=True`. "
@@ -124,104 +120,17 @@ class BimodalISO:
             self.start_year_eeof = config_params.NOAA_START_YEAR
             self.end_year_eeof = config_params.NOAA_END_YEAR
         else:
-            if start_year_eeof is None:
-                start_year_eeof = start_year
-                print(f"\tAs no start year was provided for the EEOF analysis, the first year available in the '{self.sim_name}'",
-                      f" dataset ({start_year}) will be used.", flush=True)
-            if end_year_eeof is None:
-                end_year_eeof = end_year
-                print(f"\tAs no end year was provided for the EEOF analysis, the last year available in the '{self.sim_name}'",
-                      f" dataset ({end_year}) will be used.", flush=True)
-            if start_year_eeof == end_year_eeof:
+            self.start_year_eeof, self.end_year_eeof = data_general.validate_year_range(data_sim, start_year_eeof, end_year_eeof, process_name="EEOF")
+            if self.start_year_eeof == self.end_year_eeof:
                 raise ValueError("More than one year is needed for the EEOF analysis (at least 10 years is recommended, ideally ~ 30 years).")
-            if start_year_eeof > end_year_eeof:
-                raise ValueError(f"'start_year_eeof' ({start_year_eeof}) must be less than 'end_year_eeof' ({end_year_eeof}).")
-            if start_year_eeof < start_year or end_year_eeof > end_year:
-                raise ValueError(f"EEOF years ({start_year_eeof}-{end_year_eeof}) must be within the available simulation data range ({start_year}-{end_year}).")
-            self.start_year_eeof = start_year_eeof
-            self.end_year_eeof = end_year_eeof
 
-        if start_year_pc is None:
-            start_year_pc = start_year
-        if end_year_pc is None:
-            end_year_pc = end_year
-        if start_year_pc < start_year or end_year_pc > end_year:
-            raise ValueError(f"PC years ({start_year_pc}-{end_year_pc}) must be within the available simulation data range ({start_year}-{end_year}).")
-        self.start_year_pc = start_year_pc
-        self.end_year_pc = end_year_pc
+        self.start_year_pc, self.end_year_pc = data_general.validate_year_range(data_sim, start_year_pc, end_year_pc, process_name="PC")
         
 
         # Compute/load EEOFs
         if self.obs:
             self.obs_name = 'NOAA'
-            
-            # Load observational data grid 
-            try:
-                noaa_grid = xr.open_dataset(config_params.NOAA_GRID_PATH)
-            except FileNotFoundError:
-                raise FileNotFoundError(f"NOAA grid file not found at '{config_params.NOAA_GRID_PATH}'.")
-            
-            # Compute resolutions
-            sim_lat_res = abs(data_sim.data.lat[1] - data_sim.data.lat[0]).values
-            sim_lon_res = abs(data_sim.data.lon[1] - data_sim.data.lon[0]).values
-            obs_lat_res = abs(noaa_grid.lat[1] - noaa_grid.lat[0]).values
-            obs_lon_res = abs(noaa_grid.lon[1] - noaa_grid.lon[0]).values
-            
-            sim_resolution = (sim_lat_res + sim_lon_res) / 2
-            obs_resolution = (obs_lat_res + obs_lon_res) / 2
-            
-            # Regrid simulations if their resolution is higher
-            if sim_resolution < obs_resolution:  
-                try: 
-                    self.eeof_summer = xr.open_dataset(config_params.NOAA_EEOF_SUMMER_PATH)
-                    self.eeof_winter = xr.open_dataset(config_params.NOAA_EEOF_WINTER_PATH)
-                    self.pcs_obs = xr.open_dataset(config_params.NOAA_PC_PATH)
-                except FileNotFoundError:   
-                    raise FileNotFoundError(f"Some or all required NOAA analysis files not found: "
-                                            f"'{config_params.NOAA_EEOF_SUMMER_PATH}', "
-                                            f"'{config_params.NOAA_EEOF_WINTER_PATH}', "
-                                            f"'{config_params.NOAA_PC_PATH}'.")
-
-                data_sim.data = data_general.regrid_data(data_sim.data, noaa_grid)
-                print(f"\tSimulation data regridded to match observations' resolution (~{obs_resolution:.2f}°).")
-
-            elif sim_resolution == obs_resolution:  
-                try: 
-                    self.eeof_summer = xr.open_dataset(config_params.NOAA_EEOF_SUMMER_PATH)
-                    self.eeof_winter = xr.open_dataset(config_params.NOAA_EEOF_WINTER_PATH)
-                    self.pcs_obs = xr.open_dataset(config_params.NOAA_PC_PATH)
-                except FileNotFoundError:   
-                    raise FileNotFoundError(f"Some or all required NOAA analysis files not found: "
-                                            f"'{config_params.NOAA_EEOF_SUMMER_PATH}', "
-                                            f"'{config_params.NOAA_EEOF_WINTER_PATH}', "
-                                            f"'{config_params.NOAA_PC_PATH}'.")
-                
-            # Regrid observations if their resolution is higher
-            elif obs_resolution < sim_resolution:
-                try:
-                    data_obs = xr.open_dataset(config_params.NOAA_PATH)
-                except FileNotFoundError:
-                    raise FileNotFoundError(f"NOAA observations data file not found at '{config_params.NOAA_PATH}'")
-                data_obs_regrid = data_general.regrid_data(data_obs, data_sim.data)
-
-                self.eeof_summer, self.eeof_winter, self.pcs_obs = iso_metrics.prepare_NOAA_iso_data(data_obs_regrid)
-                del data_obs, data_obs_regrid
-
-                # Directly regrid EEOFs (not used anymore as redoing the EEOF analysis is now computationally affordable)
-                # eeof_summer_regrid = data_general.regrid_data(self.eeof_summer, data_sim.data.sortby("lat").sel(lat=slice(*lat_range)), var='eeof')
-                # eeof_winter_regrid = data_general.regrid_data(self.eeof_winter, data_sim.data.sortby("lat").sel(lat=slice(*lat_range)), var='eeof')
-
-                # eeof_summer_copy = self.eeof_summer.copy()
-                # eeof_winter_copy = self.eeof_winter.copy()
-
-                # eeof_summer_no_eeof = eeof_summer_copy.drop_vars('eeof').drop_dims(['lat', 'lon'])
-                # eeof_winter_no_eeof = eeof_winter_copy.drop_vars('eeof').drop_dims(['lat', 'lon'])
-
-                # self.eeof_summer = xr.merge([eeof_summer_regrid, eeof_summer_no_eeof])
-                # self.eeof_winter = xr.merge([eeof_winter_regrid, eeof_winter_no_eeof])
-
-                print(f"\tObservational data regridded to match simulations' resolution (~{sim_resolution:.2f}°).")
-
+            data_sim.data = self._load_and_regrid_obs_data(data_sim.data)
             print(f"\tEEOF analysis loaded for '{self.obs_name}' observations between {self.start_year_eeof} and {self.end_year_eeof}.")
 
         # Filter simulation data
@@ -258,6 +167,94 @@ class BimodalISO:
         print("\nBimodal ISO indices computation completed.", flush=True)
 
         return
+
+
+    def _load_and_regrid_obs_data(self, data_sim):
+        """
+        Load observational data and regrid simulation or observational data if needed
+        to match resolutions.
+
+        Parameters
+        ----------
+        data_sim : xr.Dataset
+            Simulation data.
+
+        Returns
+        -------
+        data_sim : xr.Dataset
+            Regridded simulation data if regridding was necessary, otherwise the original data.
+        """
+
+        # Load observational data grid 
+        try:
+            noaa_grid = xr.open_dataset(config_params.NOAA_GRID_PATH)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"NOAA grid file not found at '{config_params.NOAA_GRID_PATH}'.")
+
+        # Compute resolutions
+        sim_lat_res = abs(data_sim.lat[1] - data_sim.lat[0]).values
+        sim_lon_res = abs(data_sim.lon[1] - data_sim.lon[0]).values
+        obs_lat_res = abs(noaa_grid.lat[1] - noaa_grid.lat[0]).values
+        obs_lon_res = abs(noaa_grid.lon[1] - noaa_grid.lon[0]).values
+        
+        sim_resolution = (sim_lat_res + sim_lon_res) / 2
+        obs_resolution = (obs_lat_res + obs_lon_res) / 2
+            
+            
+        # Regrid simulations if their resolution is higher
+        if sim_resolution < obs_resolution:  
+            try: 
+                self.eeof_summer = xr.open_dataset(config_params.NOAA_EEOF_SUMMER_PATH)
+                self.eeof_winter = xr.open_dataset(config_params.NOAA_EEOF_WINTER_PATH)
+                self.pcs_obs = xr.open_dataset(config_params.NOAA_PC_PATH)
+            except FileNotFoundError:   
+                raise FileNotFoundError(f"Some or all required NOAA analysis files not found: "
+                                        f"'{config_params.NOAA_EEOF_SUMMER_PATH}', "
+                                        f"'{config_params.NOAA_EEOF_WINTER_PATH}', "
+                                        f"'{config_params.NOAA_PC_PATH}'.")
+
+            data_sim = data_general.regrid_data(data_sim, noaa_grid)
+            print(f"\tSimulation data regridded to match observations' resolution (~{obs_resolution:.2f}°).")
+
+        # Keep original grids if both resolutions are equal
+        elif sim_resolution == obs_resolution:  
+            try: 
+                self.eeof_summer = xr.open_dataset(config_params.NOAA_EEOF_SUMMER_PATH)
+                self.eeof_winter = xr.open_dataset(config_params.NOAA_EEOF_WINTER_PATH)
+                self.pcs_obs = xr.open_dataset(config_params.NOAA_PC_PATH)
+            except FileNotFoundError:   
+                raise FileNotFoundError(f"Some or all required NOAA analysis files not found: "
+                                        f"'{config_params.NOAA_EEOF_SUMMER_PATH}', "
+                                        f"'{config_params.NOAA_EEOF_WINTER_PATH}', "
+                                        f"'{config_params.NOAA_PC_PATH}'.")
+        
+        # Regrid observations if their resolution is higher
+        elif obs_resolution < sim_resolution:
+            try:
+                data_obs = xr.open_dataset(config_params.NOAA_PATH)
+            except FileNotFoundError:
+                raise FileNotFoundError(f"NOAA observations data file not found at '{config_params.NOAA_PATH}'")
+            data_obs_regrid = data_general.regrid_data(data_obs, data_sim)
+
+            self.eeof_summer, self.eeof_winter, self.pcs_obs = iso_metrics.prepare_NOAA_iso_data(data_obs_regrid)
+            del data_obs, data_obs_regrid
+
+            # Directly regrid EEOFs (not used anymore as redoing the EEOF analysis is now computationally affordable)
+            # eeof_summer_regrid = data_general.regrid_data(self.eeof_summer, data_sim.sortby("lat").sel(lat=slice(*lat_range)), var='eeof')
+            # eeof_winter_regrid = data_general.regrid_data(self.eeof_winter, data_sim.sortby("lat").sel(lat=slice(*lat_range)), var='eeof')
+
+            # eeof_summer_copy = self.eeof_summer.copy()
+            # eeof_winter_copy = self.eeof_winter.copy()
+
+            # eeof_summer_no_eeof = eeof_summer_copy.drop_vars('eeof').drop_dims(['lat', 'lon'])
+            # eeof_winter_no_eeof = eeof_winter_copy.drop_vars('eeof').drop_dims(['lat', 'lon'])
+
+            # self.eeof_summer = xr.merge([eeof_summer_regrid, eeof_summer_no_eeof])
+            # self.eeof_winter = xr.merge([eeof_winter_regrid, eeof_winter_no_eeof])
+
+            print(f"\tObservational data regridded to match simulations' resolution (~{sim_resolution:.2f}°).")
+
+        return data_sim
 
 
     def _compute_EEOFs(self, data_sim, lag=5, n_lags=3, n_modes=2):
@@ -457,7 +454,7 @@ class BimodalISO:
                                 cb_label=f"scaled EEOF ({VARIABLES[var_name]['units']})", cmap=LinearSegmentedColormap.from_list("GreenOrange", ['tab:green', 'white', 'tab:orange']))       
         
         plot.save_or_show_plot(eeofs_plot, output_path, plot_filename=f"eeof_boreal_summer_{('_').join(name.split())}_{self.start_year_eeof}-{self.end_year_eeof}_clon_{clon}",
-                               plot_name="BSISO EEOFs plot")
+                               plot_name="BSISO EEOFs plot", custom_name=False)
 
 
         # Plot EEOFs for borean winter
@@ -465,7 +462,7 @@ class BimodalISO:
                                         cb_label=f"scaled EEOF ({VARIABLES[var_name]['units']})", cmap=LinearSegmentedColormap.from_list("BlueRed", ['tab:blue', 'white', 'tab:red']))
         
         plot.save_or_show_plot(eeofw_plot, output_path, plot_filename=f"eeof_boreal_winter_{('_').join(name.split())}_{self.start_year_eeof}-{self.end_year_eeof}_clon_{clon}",
-                               plot_name="MJO EEOFs plot")
+                               plot_name="MJO EEOFs plot", custom_name=False)
 
         return
 
@@ -515,12 +512,13 @@ class BimodalISO:
             raise ValueError(f"Some years are missing in the PCs data.")
 
         # Plot PCs for selected years
+        custom_name = True if len(years)==1 else False
         for year in years:
             pcs_year = pcs_data.sel(time=slice(f'{year}-01-01', f'{year}-12-31'))
             pcs_plot, _ = plot.plot_pcs(pcs_year, title=f"Bimodal ISO indices {name_title} ({year})")
 
             plot.save_or_show_plot(pcs_plot, output_path, plot_filename=f"pcs_{name_file}_{year}_projected{name_projected}_{self.start_year_eeof}-{self.end_year_eeof}",
-                                   plot_name=f"PCs (bimodal ISO indices) for year {year} plot")  
+                                   plot_name=f"PCs (bimodal ISO indices) for year {year} plot", custom_name=custom_name)  
 
         return
 
@@ -992,7 +990,8 @@ class TCMetrics:
             plt.legend()
 
             plot.save_or_show_plot(plt.gcf(), output_path, plot_name=f"Linear monthly cycle plot for TC {name}",
-                                   plot_filename=f"tcs_{name.lower()}_monthly_cycle_plot_{self.sim_name}_{year_range}")
+                                   plot_filename=f"tcs_{name.lower()}_monthly_cycle_plot_{self.sim_name}_{year_range}", 
+                                   custom_name=False)
 
             # Create line plot for interannual cycles
             linear_year_data = self.data_cymep[f'per_year_{temporal_metrics[i]}'].rename({'year': 'time'})
@@ -1008,7 +1007,8 @@ class TCMetrics:
             plt.legend()
 
             plot.save_or_show_plot(plt.gcf(), output_path, plot_name=f"Linear interannual cycle plot for TC {name}",
-                                   plot_filename=f"tcs_{name.lower()}_interannual_cycle_plot_{('-').join(self.sim_name.split())}_{year_range}")
+                                   plot_filename=f"tcs_{name.lower()}_interannual_cycle_plot_{('-').join(self.sim_name.split())}_{year_range}", 
+                                   custom_name=False)
 
         return
     
@@ -1051,7 +1051,7 @@ class TCMetrics:
                                                          title_1='IBTrACS', title_2=self.sim_name, suptitle=spatial_titles[i], cb_label=spatial_cb_labels[i],
                                                          cmap=cmap_modified)
             plot.save_or_show_plot(spatial_abs_plot, output_path, plot_filename=f"tcs_{name.lower()}_spatial_abs_plot_{('-').join(self.sim_name.split())}_{year_range}_clon_{clon}",
-                                    plot_name=f"Spatial plot for TC {name}")
+                                    plot_name=f"Spatial plot for TC {name}", custom_name=False)
 
             spatial_bias_data = self.data_cymep[f'spatial_bias_{spatial_metrics[i]}'].sel(model=self.sim_name)
             limit = np.ceil(np.nanmax(np.abs(spatial_bias_data.values)))
@@ -1060,7 +1060,7 @@ class TCMetrics:
                                                      cmap=LinearSegmentedColormap.from_list(*self.colors_bias), levels=levels)
                                                      #cmap=cmocean.cm.diff)
             plot.save_or_show_plot(spatial_bias_plot, output_path, plot_filename=f"tcs_{name.lower()}_spatial_bias_plot_{('-').join(self.sim_name.split())}_{year_range}_clon_{clon}",
-                                   plot_name=f"Spatial bias plot for TC {name}")
+                                   plot_name=f"Spatial bias plot for TC {name}", custom_name=False)
             
         return
     

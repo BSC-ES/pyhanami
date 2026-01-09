@@ -248,7 +248,7 @@ resolution following the criteria established in [(K.J.E. Walsh et al., 2007)](h
 - By default, it is assumed that the wind passed is at 10 m height. If the wind data corresponds to a different height, it can still be used by passing the argument `wind_factor` when calling the `compute_tc_metrics` method. This factor will be used to scale the wind data to approximate the 10 m wind speed. 
 
 
-## General considerations:  
+## General considerations
 - The `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes can all be initialized without providing any `SimulationData` objects; datasets can be added later with the `add_datasets` method.
 - The climate variable name `var_name` must be listed in the configuration file `src/pyhanami/config/variables.yaml`.  
 - `output_path` can be either a directory or a full file path including the file name. If `output_path` is not provided, the plots are displayed interactively.  

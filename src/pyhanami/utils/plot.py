@@ -17,7 +17,7 @@ from matplotlib.patches import Polygon, Circle
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap, BoundaryNorm
 
 
-def save_or_show_plot(plot_obj, output_path, plot_filename, plot_name):
+def save_or_show_plot(plot_obj, output_path, plot_filename, plot_name, custom_name=True):
     """
     Either saves a plot to file or displays it based on output path.
     
@@ -31,6 +31,9 @@ def save_or_show_plot(plot_obj, output_path, plot_filename, plot_name):
         Base name for the plot file.
     plot_name : str
         Name of the plot for display messages.
+    custom_name : bool
+        Whether a custom name can be provided for the output file or a 
+        directory should be provided instead (default: True).
     """
 
     if output_path is None:
@@ -42,6 +45,8 @@ def save_or_show_plot(plot_obj, output_path, plot_filename, plot_name):
             output_path.mkdir(parents=True, exist_ok=True)
             plot_path = output_path / f"{plot_filename}.png"
         else:
+            if not custom_name:
+                raise ValueError(f"More than one plot cannot be saved to the same file '{output_path}'. Please provide a directory path instead.")
             output_path.parent.mkdir(parents=True, exist_ok=True)
             plot_path = output_path
             

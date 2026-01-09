@@ -228,11 +228,11 @@ def validate_year_range(data_sim, start_year=None, end_year=None, process_name=N
     # Set default years if not provided
     if start_year is None:
         start_year = start_year_data
-        print(f"\tAs no start year was provided for the {process_name} analysis, the first year available" +
+        print(f"Warning: As no start year was provided for the {process_name} analysis, the first year available" +
               f" in the '{sim_name}' dataset ({start_year_data}) will be used.", flush=True)
     if end_year is None:
         end_year = end_year_data
-        print(f"\tAs no end year was provided for the {process_name} analysis, the last year available" +
+        print(f"Warning: As no end year was provided for the {process_name} analysis, the last year available" +
               f" in the '{sim_name}' dataset ({end_year_data}) will be used.", flush=True)
     
     # Validate year range
@@ -240,7 +240,7 @@ def validate_year_range(data_sim, start_year=None, end_year=None, process_name=N
         raise ValueError(f"For the {process_name} analysis, the start year ({start_year}) must be less than" +
                          f" the end year ({end_year}).")
     if start_year < start_year_data or end_year_data < end_year:
-        raise ValueError(f"The year range for the {process_name} analysis ({start_year}-{end_year}) must be" + 
-                         f" within the available simulation data range ({start_year_data}-{end_year_data}).")
+        raise ValueError(f"The year range for the {process_name} analysis ({start_year}-{end_year}) must be within the" + 
+                         f" available simulation data range for '{sim_name}' ({start_year_data}-{end_year_data}).")
 
     return start_year, end_year
