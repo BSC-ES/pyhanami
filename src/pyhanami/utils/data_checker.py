@@ -119,7 +119,7 @@ class DataChecker:
                 datetimeindex = data.indexes['time'].to_datetimeindex(time_unit='ns')
                 data = data.assign_coords(time=("time", datetimeindex.values))
                 warnings.append(
-                    f"Data 'time' coordinate was not in 'np.datetime64' format but '{time_type}' instead. " 
+                    f"Data 'time' coordinate was not in 'np.datetime64' format but '{time_type}' instead." 
                     f" It has been converted automatically but better to provide it in the correct format from the beginning."
                 )
             else:
@@ -136,7 +136,7 @@ class DataChecker:
                     if not already_midnight:
                         data = data.assign_coords(time=idxs_floor)
                         warnings.append(
-                            f"Data 'time' coordinate was not in 'YYYY-MM-DDT00:00:00' format (hours were not set to midnight). " 
+                            f"Data 'time' coordinate was not in 'YYYY-MM-DDT00:00:00' format (hours were not set to midnight)." 
                             f" It has been changed automatically but better to provide it in the correct format from the beginning."
                         )
         except Exception as e:
@@ -381,7 +381,7 @@ class DataChecker:
 
                         if min_ref > min_value:
                             self.error_msg.append(
-                                f"Physically unlikely value for variable '{var}': {min_value}.  "
+                                f"Physically unlikely value for variable '{var}': {min_value}. "
                                 f"Smaller than lower bound {min_ref}."
                             ) 
 

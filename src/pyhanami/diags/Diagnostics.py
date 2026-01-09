@@ -1,3 +1,4 @@
+import copy
 import cmocean
 import warnings
 warnings.simplefilter("always")
@@ -130,6 +131,7 @@ class DataDiagnostics:
                 raise ValueError(f"Variable '{var_name}' not found in the simulated dataset '{dataset.name}'. "
                             f"Available variables: {list(dataset.data.data_vars.keys())}")
             
+        # Validate time coordinates match
         data_sim_1 = data_plot[0].data.persist()
         data_sim_2 = data_plot[1].data.persist()
         if not data_sim_1.time.equals(data_sim_2.time):
@@ -189,6 +191,7 @@ class DataDiagnostics:
             if 'realization' not in dataset.data.coords:
                 raise ValueError(f"Dataset '{dataset.name}' must contain a 'realization' coordinate for ensemble computations.")
             
+        # Validate time coordinates match
         data_sim_1 = data_plot[0].data.persist()
         data_sim_2 = data_plot[1].data.persist()
         if not data_sim_1.time.equals(data_sim_2.time):
@@ -211,7 +214,7 @@ class DataDiagnostics:
 
         with concurrent.futures.ProcessPoolExecutor(max_workers=self.max_workers_grid, mp_context=mp.get_context("spawn")) as executor:
             for idx, value in enumerate(tqdm(executor.map(statistics.cp_effect_size_bootstrap, tasks), total=len(tasks), 
-                                             desc=f"Computing effect sizes for variable '{var_name}'", unit="grid points")):
+                                             desc=f"Computing effect sizes for variable '{var_name}'", unit=" grid points")):
                 effect_size[idx] = value
 
         # Convert to xarray.DataArray
@@ -409,8 +412,12 @@ class DataDiagnostics:
             data_plot.extend(data_obs)
             data_names.extend(obs_names)
 
-        if start_year is None or end_year is None:
-            raise TypeError("'start_year' and 'end_year' must be non-empty.")
+        # Validate year range
+        for dataset in data_plot:
+            start_year, end_year = data_general.validate_year_range(dataset, start_year, end_year, process_name='time series')
+        data_plot_filtered = copy.deepcopy(data_plot)
+        for i, dataset in enumerate(data_plot):
+             data_plot_filtered[i].data = dataset.data.sel(time=slice(str(start_year), str(end_year)))
 
         if time_freq == 'annual':
             time_freq_unit = '1YS'
@@ -422,32 +429,21 @@ class DataDiagnostics:
             raise ValueError("Incorrect time frequency, supported values are 'annual', 'monthly' and 'daily'")
             
         # Compute and plot time series
-        time_series = self._compute_time_series(var_name, data_plot, time_freq_unit)
+        time_series = self._compute_time_series(var_name, data_plot_filtered, time_freq_unit)
         time_series_plot, _ = plot.plot_time_series(time_series, title=f"{time_freq.capitalize()} mean time series of {self.variables[var_name]['long_name']}",
                                                  y_label=f"{var_name} ({self.variables[var_name]['units']})", labels=data_names, time_freq=time_freq,
                                                  start_year=start_year, end_year=end_year, plot_ens=plot_ens)
         
         # Save plot to path if given
-        if output_path is None:
-            plt.show()
-            print(f"{time_freq.capitalize()} mean time series plot created and displayed.", flush=True)
-        else:
-            output_path = Path(output_path)
-            if not output_path.suffix:
-                output_path.mkdir(parents=True, exist_ok=True)
-                data_names_str = "-".join([('_').join(name.split()) for name in data_names])
-                time_series_path = output_path / f"{time_freq}_time_series_{var_name}_{data_names_str}_{start_year}-{end_year}.png"
-            else:
-                output_path.parent.mkdir(parents=True, exist_ok=True)
-                time_series_path = output_path
-            
-            time_series_plot.savefig(time_series_path, bbox_inches='tight', dpi=150)
-            print(f"{time_freq.capitalize()} mean time series plot created and saved to '{time_series_path}'.", flush=True)
-            
+        data_names_str = "-".join([('_').join(name.split()) for name in data_names])
+        ens_suffix = "_all_members" if plot_ens else ""
+        plot.save_or_show_plot(time_series_plot, output_path, plot_filename=f"{time_freq}_time_series_{var_name}_{data_names_str}_{start_year}-{end_year}{ens_suffix}",
+                               plot_name=f"{time_freq.capitalize()} mean time series plot")
+
         return
     
 
-    def abs_diff_plot(self, var_name, data_names=None, output_path=None, clon=0):
+    def abs_diff_plot(self, var_name, data_names=None, output_path=None, start_year=None, end_year=None,clon=0):
         """ 
         Generate absolute difference plot for the given datasets and variable. 
         
@@ -460,6 +456,10 @@ class DataDiagnostics:
             in the diagnostics object are used.
         output_path : str, optional
             Path to save the spatial plots.
+        start_year : int
+            Start year to plot.
+        end_year : int 
+            End year to plot.
         clon : int
             Central longitude for the spatial map.
         """
@@ -486,35 +486,31 @@ class DataDiagnostics:
                 raise ValueError(f"Variable '{var_name}' not found in the simulated dataset {dataset.name}. "
                                  f"Available variables: {list(dataset.data.data_vars.keys())}")
 
-       
-       # Compute and plot absolute difference
-        abs_diff = self._compute_abs_diff(var_name, data_plot)
+        # Validate year range
+        for dataset in data_plot:
+            start_year, end_year = data_general.validate_year_range(dataset, start_year, end_year, process_name='absolute difference')   
+        data_plot_filtered = copy.deepcopy(data_plot)
+        for i, dataset in enumerate(data_plot):
+             data_plot_filtered[i].data = dataset.data.sel(time=slice(str(start_year), str(end_year)))
+
+        # Compute and plot absolute difference
+        abs_diff = self._compute_abs_diff(var_name, data_plot_filtered)
         limit = np.max(np.abs(abs_diff.values))
         levels = np.linspace(-limit, limit, 13)
         
-        abs_diff_plot, _ = plot.plot_spatial(abs_diff, clon=clon, title=f"Difference in {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
+        abs_diff_plot, _ = plot.plot_spatial(abs_diff, clon=clon, title=f"Difference in {self.variables[var_name]['long_name']} ({data_plot_filtered[0].name} - {data_plot_filtered[1].name}) for {start_year}-{end_year}",
                                           cb_label=f"difference in {var_name} ({self.variables[var_name]['units']})", cmap=cmocean.cm.thermal, levels=levels)
-        
-        if output_path is None:
-            plt.show()
-            print("Absolute difference plot created and displayed.\n", flush=True)
-        else:
-            output_path = Path(output_path)
-            if not output_path.suffix:
-                output_path.mkdir(parents=True, exist_ok=True)
-                data_names_str = "-".join([('_').join(name.split()) for name in data_names])
-                abs_diff_path = output_path / f"abs_diff_{var_name}_{data_names_str}.png"
-            else:
-                output_path.parent.mkdir(parents=True, exist_ok=True)
-                abs_diff_path = output_path
-            
-            abs_diff_plot.savefig(abs_diff_path, bbox_inches='tight', dpi=150)
-            print(f"Absolute difference plot created and saved to '{abs_diff_path}'.", flush=True)
+
+        # Save plot to path if given
+        data_names_str = "-".join([('_').join(name.split()) for name in data_names])
+        plot.save_or_show_plot(abs_diff_plot, output_path, plot_filename=f"abs_diff_{var_name}_{data_names_str}_{start_year}-{end_year}_clon_{clon}",
+                               plot_name="Absolute difference plot")
 
         return
 
 
-    def eff_size_plot(self, var_name, data_names=None, output_path=None, clon=0, alpha=0.05, stat=ttest_ind):
+    def eff_size_plot(self, var_name, data_names=None, output_path=None, start_year=None, end_year=None, clon=0, 
+                      alpha=0.05, stat=ttest_ind):
         """ 
         Generate effect size plot for the given datasets and variable marking 
         grid points with statistically significant differences. 
@@ -528,6 +524,10 @@ class DataDiagnostics:
             in the diagnostics object are used.
         output_path : str, optional
             Path to save the spatial plots.
+        start_year : int
+            Start year to plot.
+        end_year : int 
+            End year to plot.
         clon : int
             Central longitude for the spatial map.
         alpha : float
@@ -562,32 +562,28 @@ class DataDiagnostics:
         if not isinstance(alpha, (int, float)) or not (0 <= alpha <= 1):
             raise TypeError(f"The significance level 'alpha' must be a numeric value between 0 and 1.")
         if not callable(stat):
-            raise TypeError(f"'stat' must be callable.")         
+            raise TypeError(f"'stat' must be callable.")       
+
+        # Validate year range
+        for dataset in data_plot:
+            start_year, end_year = data_general.validate_year_range(dataset, start_year, end_year, process_name='effect size') 
+        data_plot_filtered = copy.deepcopy(data_plot)
+        for i, dataset in enumerate(data_plot):
+             data_plot_filtered[i].data = dataset.data.sel(time=slice(str(start_year), str(end_year)))
 
 
         # Compute and plot effect size with significant differences
-        eff_size = self._compute_eff_size_ens(var_name, data_plot)
-        significant = self._compute_significant_diff(var_name, data_plot, alpha, stat)
+        eff_size = self._compute_eff_size_ens(var_name, data_plot_filtered)
+        significant = self._compute_significant_diff(var_name, data_plot_filtered, alpha, stat)
         levels = [-2,-1.2,-0.8,-0.5,-0.2,-0.01,0.01,0.2,0.5,0.8,1.2,2.0]    # Use Cohen's limits for effect size
 
-        eff_size_plot, _ = plot.plot_spatial(eff_size, clon=clon, title=f"Cohen's effect size ($d$) for {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
+        eff_size_plot, _ = plot.plot_spatial(eff_size, clon=clon, title=f"Effect size ($d$) for {self.variables[var_name]['long_name']} ({data_plot_filtered[0].name} - {data_plot_filtered[1].name}) for {start_year}-{end_year}",
                                           cb_label=f"$d$ for {var_name} (-)", cmap=cmocean.cm.diff, levels=levels, significant=significant)
 
-        if output_path is None:
-            plt.show()
-            print("Effect size plot created and displayed.", flush=True)
-        else:
-            output_path = Path(output_path)
-            if not output_path.suffix:
-                output_path.mkdir(parents=True, exist_ok=True)
-                data_names_str = "-".join([('_').join(name.split()) for name in data_names])
-                eff_size_path = output_path / f"eff_size_{var_name}_{data_names_str}.png"
-            else:
-                output_path.parent.mkdir(parents=True, exist_ok=True)
-                eff_size_path = output_path
-            
-            eff_size_plot.savefig(eff_size_path, bbox_inches='tight', dpi=150)
-            print(f"Effect size plot created and saved to '{eff_size_path}'.", flush=True)
+        # Save plot to path if given
+        data_names_str = "-".join([('_').join(name.split()) for name in data_names])
+        plot.save_or_show_plot(eff_size_plot, output_path, plot_filename=f"eff_size_{var_name}_{data_names_str}_{start_year}-{end_year}_clon_{clon}",
+                               plot_name="Effect size plot")
             
         return
 

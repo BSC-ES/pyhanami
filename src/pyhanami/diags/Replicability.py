@@ -474,20 +474,8 @@ class ReplicabilityTest:
         # Plot results and save to path if given
         matrix, _ = plot.plot_matrix(eff_sizes, test_results, title=f"Effect size replicability test ({data_names[0]} vs {data_names[1]})", variables=self.variables)
 
-        if output_path is None:
-            plt.show()
-            print("Matrix plot created and displayed.", flush=True)
-        else:
-            output_path = Path(output_path)
-            if not output_path.suffix:
-                output_path.mkdir(parents=True, exist_ok=True)
-                data_names_str = "-".join(data_names)
-                matrix_path = output_path / f"matrix_{data_names_str}.png"
-            else:
-                output_path.parent.mkdir(parents=True, exist_ok=True)
-                matrix_path = output_path
-            matrix.savefig(matrix_path, bbox_inches='tight', dpi=100)
-            print(f"Matrix plot created and saved to '{matrix_path}'.", flush=True)
+        data_names_str = "-".join([('_').join(name.split()) for name in data_names])
+        plot.save_or_show_plot(matrix, output_path, plot_filename=f"matrix_{data_names_str}", plot_name=f"Matrix plot")
 
         return
     
