@@ -86,12 +86,15 @@ diags.time_series_plot(
 )
 ```
 
-This `time_series_plots` method plots **annual mean** time series by default, but it also supports **monthly and daily mean** time series by passing the argument `time_freq='monthly'` and `time_freq='daily'`, respectively. Besides, it is possible to include in the plot the trajectories of **individual ensemble members** together with the mean by passing the argument `plot_ens=True`.
+To take into account when using this `time_series_plot` method:
+- It plots **annual mean** time series by default, but it also supports **monthly and daily mean** time series by passing the argument `time_freq='monthly'` and `time_freq='daily'`, respectively. 
+- It is possible to include in the plot the trajectories of **individual ensemble members** together with the mean by passing the argument `plot_ens=True`.
+- If no `start_year` and `end_year` are specified, the whole period covered by the dataset(s) is used by default. In this case, when plotting for multiple datasets, they must have overlapping time periods.
 
 
 ## Spatial plots
 
-To generate **spatial plots** comparing two simulation datasets, create a `DataDiagnostics` instance with the `SimulationData` objects that you want to analyze and use the `abs_diff_plot` and `eff_size_plot` methods:
+To generate **spatial plots** comparing two simulation datasets between `year_init` and `year_end`, create a `DataDiagnostics` instance with the `SimulationData` objects that you want to analyze and use the `abs_diff_plot` and `eff_size_plot` methods:
 
 ```python
 # Initialize DataDiagnostics class with two SimulationData objects
@@ -102,21 +105,27 @@ diags = pyhanami.DataDiagnostics([sim_1, sim_2])
 diags.abs_diff_plot(
     'var_name',
     ['name_sim_1', 'name_sim_2'],
-    'output_path'
+    'output_path', 
+    start_year=year_init, 
+    end_year=year_end
 )
 
 # Plot spatial effect size between both datasets
 diags.eff_size_plot(
     'var_name',
     ['name_sim_1', 'name_sim_2'],
-    'output_path'
+    'output_path', 
+    start_year=year_init, 
+    end_year=year_end
 )
 ```
 The `abs_diff_plot` and `eff_size_plot` methods generate the following visualization outputs, respectively:
 1. **Absolute difference plot**: spatial plot displaying the absolute average difference between two simulation datasets for the given variable at the grid point level. 
 2. **Effect size plot**: spatial plot showing the effect size (Cohen's _d_) between two simulation datasets for the given variable at the grid point level. Grid points in which the difference between the datasets is statistically significant (based on the _t_-test) are highlighted in the plot.
 
-Note that the central longitude for these plots is set to 0º by default, but it can be modified with the argument `clon`.
+To take into account when using these methods:
+- The central longitude in the plots is set to 0º by default, but it can be modified with the argument `clon` (e.g. `clon=180`).
+- If no `start_year` and `end_year` are specified, the whole period covered by the datasets is used by default. In this case, both datasets must have overlapping time periods.
 
 
 ## Replicability test
@@ -139,7 +148,7 @@ This `matrix_plot` method uses all variables from the simulation datasets that a
 
 ## Tropical IntraSeasonal Oscillation (ISO) evaluation
 
-To evaluate the simulation of ISOs, create a `ScientificEvaluation` object with the `SimulationData` object that you want to analyze and use the `compute_bimodal_ISO` method. This method computes the **bimodal ISO indices** and requires **daily TOA outgoing longwave radiation** (`rlut`) data, preferably covering a period of 10 years or more (ideally, at least 30 years).
+To evaluate the simulation of ISOs, create a `ScientificEvaluation` object with the `SimulationData` object that you want to analyze and use the `compute_bimodal_iso` method. This method computes the **bimodal ISO indices** and requires **daily TOA outgoing longwave radiation** (`rlut`) data, preferably covering a period of 10 years or more (ideally, at least 30 years).
 
 The following snippet creates a `BimodalISO` instance that:
 1. Performs an Extended Empirical Orthogonal Function (EEOF) analysis between `year_init_eeof` and `year_end_eeof`
@@ -151,7 +160,7 @@ The following snippet creates a `BimodalISO` instance that:
 sciskill = pyhanami.ScientificEvaluation(sim_1)
 
 # Compute bimodal ISO indices performing an EEOF analysis on simulated data
-bimodal_indices = sciskill.compute_bimodal_ISO(
+bimodal_indices = sciskill.compute_bimodal_iso(
     'name_sim_1',
     start_year_eeof=year_init_eeof,
     end_year_eeof=year_end_eeof,
@@ -168,7 +177,7 @@ Moreover, the `BimodalISO` class includes methods to visualize and save the resu
 bimodal_indices.save_data('output_path')
 bimodal_indices.eeof_plots('output_path')
 bimodal_indices.pc_plots('output_path', years=[year_1, year_2, year_3])
-bimodal_indices.freq_ISO_plot('output_path')
+bimodal_indices.freq_iso_plot('output_path')
 ```
 
 By passing the argument `obs=True`, the `BimodalISO` class performs the same analysis as above but using precomputed EEOFs from NOAA data ([NOAA Interpolated OLR dataset](https://psl.noaa.gov/data/gridded/data.olrcdr.interp.html)) to generate the PCs and the frequency of ISO events for the simulation data: 
@@ -176,7 +185,7 @@ By passing the argument `obs=True`, the `BimodalISO` class performs the same ana
 
 ```python
 # Compute bimodal ISO indices and related statistics comparing to observations
-bimodal_indices_obs = sciskill.compute_bimodal_ISO(
+bimodal_indices_obs = sciskill.compute_bimodal_iso(
     'name_sim_1',
     start_year_pc=year_init_pc,
     end_year_pc=year_end_pc,
@@ -195,9 +204,9 @@ bimodal_indices_obs.stats
 When `obs=True`, the simulated PCs can be adjusted before computing the TSS statistics to account for amplitude differences between simulations and observations (see [Methodology](./Methodology.md#tropical-intraseasonal-oscillation-iso-bimodal-iso-indices) for more details). This correction can be turned on by passing the argument `correct_pc=True`.
 
 To summarize, the `BimodalISO` class includes methods to generate the following visualization outputs:
-1. **EEOF plots** (`BimodalISO.eeof_plots`): spatial patterns of the first two EEOFs for boreal winter and boreal summer. The central longitude for these plots is set to 0º by default, but it can be modified with the argument `clon`.
+1. **EEOF plots** (`BimodalISO.eeof_plots`): spatial patterns of the first two EEOFs for boreal winter and boreal summer. The central longitude for these plots is set to 0º by default, but it can be modified with the argument `clon` (e.g. `clon=180`).
 2. **PC plots** (`BimodalISO.pc_plots`, passing one year or a list of years): time series of the first two PCs and their amplitude for both MJO and BSISO for the specified years.
-3. **Frequency plot** (`BimodalISO.freq_ISO_plot`): mean monthly frequency (seasonality) of ISO events for both MJO and BSISO, computed over the entire period covered by the dataset. If observations are set to `True`, these are included in the  frequency plot, which also shows the TSS statistics (R, σ and TSS) comparing simulations and observations.
+3. **Frequency plot** (`BimodalISO.freq_iso_plot`): mean monthly frequency (seasonality) of ISO events for both MJO and BSISO, computed over the entire period covered by the dataset. If observations are set to `True`, these are included in the  frequency plot, which also shows the TSS statistics (R, σ and TSS) comparing simulations and observations.
 
 
 ## Tropical Cyclones (TCs) evaluation
@@ -245,12 +254,12 @@ tc_metrics.spatial_corr_table('output_path')
 Considerations regarding the 10 m wind speed:
 - By default, a threshold of 10 m/s is used for TC detection. However, we recommend adjusting it according to the model's (or reanalysis') horizontal 
 resolution following the criteria established in [(K.J.E. Walsh et al., 2007)](https://doi.org/10.1175/JCLI4074.1). This can be done by passing the argument `min_wind` when calling the `compute_tc_metrics` method.
-- By default, it is assumed that the wind passed is at 10 m height. If the wind data corresponds to a different height, it can still be used by passing the argument `wind_factor` when calling the `compute_tc_metrics` method. This factor will be used to scale the wind data to approximate the 10 m wind speed. 
+- By default, it is assumed that the wind provided is at 10 m height. If the wind data corresponds to a different height, it can still be used by passing the argument `wind_factor` when calling the `compute_tc_metrics` method. This factor will be used to scale the wind data to approximate the 10 m wind speed. 
 
 
 ## General considerations
 - The `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes can all be initialized without providing any `SimulationData` objects; datasets can be added later with the `add_datasets` method.
 - The climate variable name `var_name` must be listed in the configuration file `src/pyhanami/config/variables.yaml`.  
-- `output_path` can be either a directory or a full file path including the file name. If `output_path` is not provided, the plots are displayed interactively.  
+- `output_path` for functions that generate a single plot can be either a directory path or a full file path including the filename. For functions that generate multiple plots, `output_path` must be a directory path. If `output_path` is not provided, the plots are displayed interactively.
 - `path_obs` must be a path to a directory containing observation datasets, with files named following the pattern `data_obs*_{var_name}.nc`, where `var_name` matches the corresponding variable name in `src/pyhanami/config/variables.yaml`. 
-- For all the spatial plots, the central longitude is set to 0º by default, but it can be modified with the argument `clon`.
+- For all the spatial plots, the central longitude is set to 0º by default, but it can be modified with the argument `clon` (e.g. `clon=180`).

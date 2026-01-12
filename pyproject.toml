@@ -47,6 +47,8 @@ dependencies = [
     "xeofs",
     "xesmf>=0.7.0,<0.9.0",
 ]
+# When adding a new dependency, remember to also update: environment.yaml, 
+# docs_requirements.txt, and docs/source/conf.py
 
 
 [tool.setuptools]
