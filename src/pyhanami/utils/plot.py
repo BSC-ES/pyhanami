@@ -1179,7 +1179,7 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
     return fig, ax
 
 
-def table_plot(data, title='Climate variables', col_labels='', row_labels='', cbar_ticks=['Low', '0', 'High'], colors=('RdBu_r')):
+def plot_table(data, title='Climate variables', col_labels='', row_labels='', cbar_ticks=['Low', '0', 'High'], colors=('RdBu_r')):
     """ 
     Generate a table plot with climate data.
 

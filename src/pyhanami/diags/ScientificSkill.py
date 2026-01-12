@@ -481,10 +481,6 @@ class BimodalISO:
             Whether to plot 'sim' (simulation) or 'obs' (observations) PCs (default: 'sim').
         """
 
-        if output_path is not None:
-            output_path = Path(output_path)
-            output_path.mkdir(parents=True, exist_ok=True)
-
         # Determine dataset to plot
         if data == 'sim':
             pcs_data = self.pcs_sim
@@ -508,7 +504,7 @@ class BimodalISO:
             raise ValueError(f"Provide at least one year to plot the PCs for.")
         if isinstance(years, int):
             years = [years]
-        if not any(year in pcs_data.time.dt.year for year in years):
+        if not all(year in pcs_data.time.dt.year for year in years):
             raise ValueError(f"Some years are missing in the PCs data.")
 
         # Plot PCs for selected years
@@ -523,7 +519,7 @@ class BimodalISO:
         return
 
 
-    def freq_ISO_plot(self, output_path=None):
+    def freq_iso_plot(self, output_path=None):
         """
         Generate and save/display plots of the mean monthly frequency of ISO events
         for the simulation data or, if `obs=True`, for the observational data.
@@ -871,7 +867,7 @@ class TCMetrics:
         year_range = f"{self.start_year_tc}-{self.end_year_tc}"
         cols_clim_bias = np.append([f'{self.bin_size}° x {self.bin_size}°'], [fr'$\overline{{b}}_{{clim,{metric}}}$ ({self.metrics_metadata[metric]["units"]})' 
                                                                             for metric in self.metrics_metadata if self.metrics_metadata[metric]['temporal']==True])
-        clim_bias_table_plot, _ = plot.table_plot(self.clim_bias, title=f'Global climatological mean bias ({year_range})', col_labels=cols_clim_bias, 
+        clim_bias_table_plot, _ = plot.plot_table(self.clim_bias, title=f'Global climatological mean bias ({year_range})', col_labels=cols_clim_bias, 
                                                   row_labels=self.model_names, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias)
         
         plot.save_or_show_plot(clim_bias_table_plot, output_path, plot_filename=f"tcs_climatological_bias_table_{('-').join(self.sim_name.split())}_{year_range}",
@@ -894,7 +890,7 @@ class TCMetrics:
         cols_storm_bias = np.append([f'{self.bin_size}° x {self.bin_size}°'], [fr'$\overline{{b}}_{{storm,{metric}}}$ ({self.metrics_metadata[metric]["units"]})' 
                                                                                for metric in self.metrics_metadata if self.metrics_metadata[metric]['temporal']==True 
                                                                                and metric!='count'])
-        storm_bias_table_plot, _ = plot.table_plot(self.storm_bias, title=f'Global storm mean bias ({year_range})', col_labels=cols_storm_bias, 
+        storm_bias_table_plot, _ = plot.plot_table(self.storm_bias, title=f'Global storm mean bias ({year_range})', col_labels=cols_storm_bias, 
                                                    row_labels=self.model_names, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias)
         
         plot.save_or_show_plot(storm_bias_table_plot, output_path, plot_filename=f"tcs_storm_bias_table_{('-').join(self.sim_name.split())}_{year_range}",
@@ -916,7 +912,7 @@ class TCMetrics:
         year_range = f"{self.start_year_tc}-{self.end_year_tc}"
         cols_temp_corr = np.append([f'{self.bin_size}° x {self.bin_size}°'], [fr'$\rho_{{s,{metric}}}$' for metric in self.metrics_metadata 
                                                                               if self.metrics_metadata[metric]['temporal']==True])
-        temp_corr_table_plot, _ = plot.table_plot(self.temp_corr, title=f'Global seasonal correlation ({year_range})', col_labels=cols_temp_corr, 
+        temp_corr_table_plot, _ = plot.plot_table(self.temp_corr, title=f'Global seasonal correlation ({year_range})', col_labels=cols_temp_corr, 
                                                   row_labels=self.model_names, cbar_ticks=self.cbar_ticks_corr, colors=self.colors_corr)
         
         plot.save_or_show_plot(temp_corr_table_plot, output_path, plot_filename=f"tcs_seasonal_corr_table_{('-').join(self.sim_name.split())}_{year_range}",
@@ -938,7 +934,7 @@ class TCMetrics:
         year_range = f"{self.start_year_tc}-{self.end_year_tc}"
         cols_spatial_corr = np.append([f'{self.bin_size}° x {self.bin_size}°'], [fr'$r_{{xy,{metric}}}$' for metric in self.metrics_metadata 
                                                                                  if self.metrics_metadata[metric]['spatial']==True])
-        spatial_corr_table_plot, _ = plot.table_plot(self.spatial_corr, title=f'Global spatial correlation ({year_range})', col_labels=cols_spatial_corr,
+        spatial_corr_table_plot, _ = plot.plot_table(self.spatial_corr, title=f'Global spatial correlation ({year_range})', col_labels=cols_spatial_corr,
                                                      row_labels=self.model_names, cbar_ticks=self.cbar_ticks_corr, colors=self.colors_corr)
         
         plot.save_or_show_plot(spatial_corr_table_plot, output_path, plot_filename=f"tcs_spatial_corr_table_{('-').join(self.sim_name.split())}_{year_range}",
@@ -989,8 +985,8 @@ class TCMetrics:
             plt.grid(True)
             plt.legend()
 
-            plot.save_or_show_plot(plt.gcf(), output_path, plot_name=f"Linear monthly cycle plot for TC {name}",
-                                   plot_filename=f"tcs_{name.lower()}_monthly_cycle_plot_{self.sim_name}_{year_range}", 
+            plot.save_or_show_plot(plt.gcf(), output_path, plot_name=f"Linear seasonal cycle plot for TC {name}",
+                                   plot_filename=f"tcs_{name.lower()}_seasonal_cycle_plot_{self.sim_name}_{year_range}", 
                                    custom_name=False)
 
             # Create line plot for interannual cycles
@@ -1056,7 +1052,7 @@ class TCMetrics:
             spatial_bias_data = self.data_cymep[f'spatial_bias_{spatial_metrics[i]}'].sel(model=self.sim_name)
             limit = np.ceil(np.nanmax(np.abs(spatial_bias_data.values)))
             levels = np.linspace(-limit, limit, 13)
-            spatial_bias_plot, _ = plot.spatial_plot(spatial_bias_data, clon=clon, title=spatial_bias_titles[i], cb_label=f'bias in {spatial_cb_labels[i]}', 
+            spatial_bias_plot, _ = plot.plot_spatial(spatial_bias_data, clon=clon, title=spatial_bias_titles[i], cb_label=f'bias in {spatial_cb_labels[i]}', 
                                                      cmap=LinearSegmentedColormap.from_list(*self.colors_bias), levels=levels)
                                                      #cmap=cmocean.cm.diff)
             plot.save_or_show_plot(spatial_bias_plot, output_path, plot_filename=f"tcs_{name.lower()}_spatial_bias_plot_{('-').join(self.sim_name.split())}_{year_range}_clon_{clon}",
@@ -1127,7 +1123,7 @@ class ScientificEvaluation:
         return
     
     
-    def compute_bimodal_ISO(self, data_name=None, start_year_eeof=None, end_year_eeof=None, start_year_pc=None, end_year_pc=None, obs=False, 
+    def compute_bimodal_iso(self, data_name=None, start_year_eeof=None, end_year_eeof=None, start_year_pc=None, end_year_pc=None, obs=False, 
                             correct_pc=False, lat_range=(-30, 30), lag=5, n_lags=3, n_modes=2, window=141, low_freq=1/90, high_freq=1/25):
         """
         Initialize and compute bimodal ISO indices (following (K. Kikuchi, 2020)) and derived 
@@ -1184,6 +1180,7 @@ class ScientificEvaluation:
                                       n_modes=n_modes, window=window, low_freq=low_freq, high_freq=high_freq)
 
         return bimodal_indices
+
 
     def compute_tc_metrics(self, data_name=None, start_year_tc=None, end_year_tc=None, obs=False, wind_factor=1.0, min_wind=10, 
                            bin_size=2.5):

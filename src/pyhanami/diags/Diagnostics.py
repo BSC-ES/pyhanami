@@ -498,7 +498,7 @@ class DataDiagnostics:
         limit = np.max(np.abs(abs_diff.values))
         levels = np.linspace(-limit, limit, 13)
         
-        abs_diff_plot, _ = plot.plot_spatial(abs_diff, clon=clon, title=f"Difference in {self.variables[var_name]['long_name']} ({data_plot_filtered[0].name} - {data_plot_filtered[1].name}) for {start_year}-{end_year}",
+        abs_diff_plot, _ = plot.plot_spatial(abs_diff, clon=clon, title=f"Difference in {self.variables[var_name]['long_name']} for {start_year}-{end_year} ({data_plot_filtered[0].name} - {data_plot_filtered[1].name})",
                                           cb_label=f"difference in {var_name} ({self.variables[var_name]['units']})", cmap=cmocean.cm.thermal, levels=levels)
 
         # Save plot to path if given
@@ -577,7 +577,7 @@ class DataDiagnostics:
         significant = self._compute_significant_diff(var_name, data_plot_filtered, alpha, stat)
         levels = [-2,-1.2,-0.8,-0.5,-0.2,-0.01,0.01,0.2,0.5,0.8,1.2,2.0]    # Use Cohen's limits for effect size
 
-        eff_size_plot, _ = plot.plot_spatial(eff_size, clon=clon, title=f"Effect size ($d$) for {self.variables[var_name]['long_name']} ({data_plot_filtered[0].name} - {data_plot_filtered[1].name}) for {start_year}-{end_year}",
+        eff_size_plot, _ = plot.plot_spatial(eff_size, clon=clon, title=f"Effect size ($d$) for {self.variables[var_name]['long_name']} for {start_year}-{end_year} ({data_plot_filtered[0].name} - {data_plot_filtered[1].name})",
                                           cb_label=f"$d$ for {var_name} (-)", cmap=cmocean.cm.diff, levels=levels, significant=significant)
 
         # Save plot to path if given
