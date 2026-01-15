@@ -4,6 +4,7 @@
 # This is automatically done in docs_environment.yaml
 
 beautifulsoup4
+cftime
 cmocean
 matplotlib
 netCDF4
