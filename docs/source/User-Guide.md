@@ -148,7 +148,7 @@ This `matrix_plot` method uses all variables from the simulation datasets that a
 
 ## Tropical IntraSeasonal Oscillation (ISO) evaluation
 
-To evaluate the simulation of ISOs, create a `ScientificEvaluation` object with the `SimulationData` object that you want to analyze and use the `compute_bimodal_iso` method. This method computes the **bimodal ISO indices** and requires **daily TOA outgoing longwave radiation** (`rlut`) data, preferably covering a period of 10 years or more (ideally, at least 30 years).
+To evaluate the simulation of ISOs, create a `ScientificEvaluation` object with the `SimulationData` object that you want to analyze and use the `compute_bimodal_iso` method. This method computes the **bimodal ISO indices** and requires **daily Top of Atmosphere Outgoing Longwave Radiation** (`rlut`) data, preferably covering a period of 10 years or more (ideally, at least 30 years).
 
 The following snippet creates a `BimodalISO` instance that:
 1. Performs an Extended Empirical Orthogonal Function (EEOF) analysis between `year_init_eeof` and `year_end_eeof`
@@ -180,8 +180,7 @@ bimodal_indices.pc_plots('output_path', years=[year_1, year_2, year_3])
 bimodal_indices.freq_iso_plot('output_path')
 ```
 
-By passing the argument `obs=True`, the `BimodalISO` class performs the same analysis as above but using precomputed EEOFs from NOAA data ([NOAA Interpolated OLR dataset](https://psl.noaa.gov/data/gridded/data.olrcdr.interp.html)) to generate the PCs and the frequency of ISO events for the simulation data: 
-<!-- Mention that either the NOAA EEOFs or the simulated data is regridded based on the relative resolutions. -->
+By passing the argument `obs=True`, simulations are compared against observations to compute several scalar metrics:
 
 ```python
 # Compute bimodal ISO indices and related statistics comparing to observations
@@ -192,7 +191,7 @@ bimodal_indices_obs = sciskill.compute_bimodal_iso(
     obs = True
 )
 ```
-Note that, in this case, it is not necessary to specify `start_year_eeof`and `end_year_eeof`, as the ones used for the NOAA dataset will be applied automatically.
+Note that, in this case, it is not necessary to specify `start_year_eeof`and `end_year_eeof`, as the ones used for the reference observational dataset ([NOAA](https://psl.noaa.gov/data/gridded/data.olrcdr.interp.html) by default) are applied automatically.
 
 The same way as before, it is possible to save the computed data and create plots for the EEOFs, the PCs (bimodal indices) for the selected years (`[year_1, year_2, year_3]`), and the frequency of ISO events. In this case, the mean monthly frequency (seasonality) of ISO events is compared between simulations and observations, and plotted together with the **TSS statistics**. The statistics can also be retrieved with the `BimodalISO.stats` attribute:
 
@@ -218,8 +217,8 @@ To evaluate the simulation of TCs, create a `ScientificEvaluation` object with t
 
 The following snippet creates a `TCMetrics` instance that:
 1. Detects and tracks TCs between `year_init` and `year_end`.
-2. Computes several TC metrics, including number of TCs, intensity, lifetime, genesis location, and track density.
-3. Computes various global temporal and spatial scalar statistics from the TC metrics for both the provided simulation data and IBTrACS data.
+2. Computes several TC metrics, including number of TCs, their lifetime and intensity.
+3. Computes various global temporal and spatial scalar statistics from the TC metrics for both the provided simulation data and the reference observational data ([IBTrACS](https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C01552) by default).
 
 ```python
 # Initialize ScientificEvaluation class with a SimulationData object

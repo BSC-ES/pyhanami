@@ -176,12 +176,16 @@ This project includes code and resources from the following sources:
 - [GSV-Interface/gsv/dqc/profiles/config/variables.yaml](https://github.com/DestinE-Climate-DT/GSV-Interface/blob/master/gsv/dqc/profiles/config/variables.yaml):
     - Used for: data ranges and boundaries for plausibility checks in `src/pyhanami/config/variables.yaml`
     - License: Apache License, Version 2.0, January 2004
+- [NOAA Interpolated Outgoing Longwave Radiation (OLR)](https://psl.noaa.gov/data/gridded/data.olrcdr.interp.html):
+    - Used for: reference Tropical IntraSeasonal Oscillation data in `src/pyhanami/diags/ScientificSkill.py`
+    - Reference: Liebmann, B., & Smith, C.A., Description of a Complete (Interpolated) Outgoing Longwave Radiation Dataset. Bulletin of the American Meteorological Society, 77, 1275-1277 (1996)
+    - Acknowledgment: NOAA Interpolated Outgoing Longwave Radiation (OLR) data provided by the NOAA PSL, Boulder, Colorado, USA, from their website at https://psl.noaa.gov
+- [IBTrACS Version 4.01](https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C01552):
+    - Used for: reference Tropical Cyclones data in `src/pyhanami/diags/ScientificSkill.py`
+    - Reference: NCEI DSI 9637_02 (doi:10.25921/82ty-9e16)
 - [GEBCO_2024 Grid](https://www.gebco.net/data-products-gridded-bathymetry-data/gebco2024-grid):
     - Used for: computing surface geopotential in `src/pyhanami/utils/tcs_tempestextremes.py`
-    - Reference: GEBCO Compilation Group (2025) GEBCO 2025 Grid (doi:10.5285/ 37c52e96-24ea-67ce-e063-7086abc05f29)
-- [IBTrACS Version 4.01](https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C01552):
-    - Used for: reference Tropical Cyclone data in `src/pyhanami/utils/tcs_metrics/tcs_ibtracs.py`
-    - Reference: NCEI DSI 9637_02 (doi:10.25921/82ty-9e16)
+    - Reference: GEBCO Compilation Group (2024) GEBCO 2024 Grid (doi:10.5285/1c44ce99-0a0d-5f4f-e063-7086abc0ea0f)
 
 For full license files, see the [LICENSES](./LICENSES) directory.
 
@@ -224,6 +228,7 @@ Kikuchi, K., Extension of the bimodal intraseasonal oscillation index using JRA-
 Knapp, K.R., Kruk, M.C., Levinson, D.H., Diamond, H.J., & Neumann, C.J., The International Best Track Archive for Climate Stewardship (IBTrACS): Unifying tropical cyclone best track data. Bulletin of the American Meteorological Society, 91, 363-376 (2010). https://doi.org/10.1175/2009BAMS2755.1
 
 Liebmann, B., & Smith, C.A., Description of a Complete (Interpolated) Outgoing Longwave Radiation Dataset. Bulletin of the American Meteorological Society, 77, 1275-1277 (1996).
+<!-- No DOI found for this paper??? -->
 
 Nakano, M., & Kikuchi, K., Seasonality of intraseasonal variability in global climate models. Geophysical Research Letters, 46, 4441–4449 (2019). https://doi.org/10.1029/2019GL082443
 

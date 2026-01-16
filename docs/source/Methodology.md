@@ -82,15 +82,15 @@ This section explains the approach used to evaluate several climate phenomena. C
 
 ### Tropical IntraSeasonal Oscillation (ISO): Bimodal ISO indices
 
-Two separate indices are defined for the Madden-Julian Oscillation (MJO) and the Boreal Summer ISO (BSISO), following [(K. Kikuchi, 2020)](https://link.springer.com/article/10.1007/s00382-019-05037-z). These indices capture the ISO behavior during boreal winter and boreal summer, respectively. They are computed by performing an Extended Empirical Orthogonal Function (EEOF) analysis using TOA Outgoing Longwave Radiation (OLR) data, and then projecting the OLR data onto the first two EEOFs. This results in two Principal Components (PCs) for MJO and two for BSISO, which together represent the **bimodal ISO indices**. These indices are normalized by dividing by one standard deviation during the period taken for the EEOF analysis, i.e. the squared root of the corresponding eigenvalue.
+Two separate indices are defined for the Madden-Julian Oscillation (MJO) and the Boreal Summer ISO (BSISO), following [(K. Kikuchi, 2020)](https://link.springer.com/article/10.1007/s00382-019-05037-z). These indices capture the ISO behavior during boreal winter and boreal summer, respectively. They are constructed using an Extended Empirical Orthogonal Function (EEOF) analysis of Top of Atmosphere (TOA) Outgoing Longwave Radiation (OLR) data. Projecting the OLR data onto the first two EEOFs results in two Principal Components (PCs) for MJO and two for BSISO, which together represent the **bimodal ISO indices**. The PCs are normalized by one standard deviation of the EEOF analysis period, corresponding to the squared root of the associated eigenvalue. Based on the PCs amplitudes, the mean monthly frequency of MJO and BSISO events (ISO seasonality) is computed. 
 
 <!-- EOFs are spatial patterns showing where things tend to vary together, and they look for the simplest explanation of the most variance (if a dataset could be described with just one pattern, what pattern would capture the most?). The 2nd EOF explains the second-most, and so on, and they are mathematically independent (orthogonal). The whole dataset can be reconstructed by adding a weighted combination of a few EOF pattern. Moreover, each one has an associated time series (PC) which shows when the pattern was active and how strongly. When a dataset contains an oscillatory phenomenon, EOF1 + EOF2 together represent a physical mode, being EOF1 like 'phase 1' and EOF2 like 'phase 2' (90º out of phase); hence, combining them gives a rotating or propagating structure. In this case, the physical meaning is in the pair EOF1 + EOF2, not in each EOF individually. This is very common when both eigenvalues are nearly equal and EOF1 and EOF2 look like the same map but shifted in space, however, for other phenomena, they can also represent two different independent physical modes (ex. global temperature, where EOF1 is the overall warming pattern and EOF2 is the ENSO pattern?). 
 
 On another note, given that if \lambda is an eigenvalue, then -\lambda is also an eigenvalue, the sign of an EOF does not have a physical meaning by itself. It might change depending on the algorithm used. Nevertheless, it is important to note that there is meaningful information in the relative sign struture (i.e. which regions vary together or oppositely). -->
 
-In order to obtain scalar metrics, we also compute the **temporal correlation (R)**, **standard deviation ratio (σ)**, and **Taylor Skill Score (TSS)** between simulations and observations using the PCs' amplitude, following [(M. Nakano et al., 2019)](https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2019GL082443). Specifically, the mean monthly frequency of MJO and BSISO events (ISO seasonality) is calculated using the amplitude of the corresponding PCs. The MJO frequency is then subtracted from the BSISO frequency, and this difference is compared between simulations and observations.
+In order to derive scalar metrics, the simulated ISO seasonality is compared with observations. To do so, the EEOF analysis is first performed on observational OLR data to obtain the reference EEOFs. Then, both simulated and observed OLR data are projected onto these EEOFs to calculate the PCs and the frequency of events (ISO seasonality) for each dataset. The difference between MJO and BSISO frequencies is subsequently computed and compared  between simulations and observations. Following [(M. Nakano et al., 2019)](https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2019GL082443), this comparison is performed by computing the **temporal correlation (R)**, **standard deviation ratio (σ)**, and **Taylor Skill Score (TSS)** of the ISO seasonality between simulations and observations. 
 
-The temporal correlation indicates how well the phase of the ISO seasonality is reproduced by a model. While the ratio of standard deviations (model/observations) provides information about the amplitude (MJO/BSISO contrast) of the seasonality. Finally, the $\text{TSS}$ combines both the correlation and the standard deviation, allowing to assess how well a model matches the ISO seasonality of the observations with a single score. We use the following definition for $\text{TSS}$ introduced in [(K.E. Taylor, 2001)](https://doi.org/10.1029/2000JD900719):
+The temporal correlation indicates how well the phase of the ISO seasonality is reproduced by a model, while the standard deviation ratio (model/observations) quantifies the amplitude (MJO/BSISO contrast) of the seasonality. Finally, the $\text{TSS}$ combines both aspects into a single metric, providing an overall measure on how well a model matches the observed ISO seasonality. We use the following definition for $\text{TSS}$ introduced in [(K.E. Taylor, 2001)](https://doi.org/10.1029/2000JD900719):
 
 <!-- Version in (M. Nakano et al., 2019)
 $$
@@ -105,7 +105,7 @@ $$
 
 where $R_0$ is the maximum correlation that can be achieved by the model, taken as $R_0=1$. Note that this score takes values between 0 and 1, with higher values indicating better model performance. 
 
-Since models usually underestimate the amplitude of the ISO, the PCs can be adjusted before computing the above quantities by scaling them with the **PCs' amplitude ratio ($\alpha$)** between simulations and observations, defined as
+Since models usually underestimate the ISO amplitude, the PCs can be adjusted before computing the above quantities by scaling them with the **PCs' amplitude ratio ($\alpha$)** between simulations and observations, defined as
 
 $$
 \alpha = \frac{\overline{\lVert\text{PC}_{\text{MJO}}^{\text{sim}}\rVert} + \overline{\lVert\text{PC}_{\text{BSISO}}^{\text{sim}}\rVert}}{\overline{\lVert\text{PC}_{\text{MJO}}^{\text{obs}}\rVert} + \overline{\lVert\text{PC}_{\text{BSISO}}^{\text{obs}}\rVert}}.
@@ -119,6 +119,8 @@ The implementation of the analysis described above produces three types of diagn
 - **ISO seasonality**: mean monthly distribution of ISO events separating MJO and BSISO, with comparison between simulations and observations available (including the values for the scalar metrics $R$, $\sigma$ and $\text{TSS}$).
 
 In all cases, a colormap with a blue to red gradient is used for boreal winter (or MJO), while a green to orange gradient is used for boreal summer (or BSISO).
+
+Finally, by default, NOAA data ([NOAA Interpolated OLR dataset](https://psl.noaa.gov/data/gridded/data.olrcdr.interp.html)) is taken as the observational reference when computing these statistics.
 
 ### Tropical Cyclones (TCs): TC metrics
 
@@ -142,7 +144,7 @@ Moreover, we generate spatial plots of the absolute values and biases with respe
 
 Note that the TC genesis is defined as the first tracked point of each storm's lifetime.
 
-Finally, the [International Best Track Archive for Climate Stewardship (IBTrACS)](https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C01552) is used as the default observational TCs dataset when computing these statistics.
+Finally, the [International Best Track Archive for Climate Stewardship (IBTrACS)](https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C01552) is used as the default observational TCs reference when computing these statistics.
 
 
 
