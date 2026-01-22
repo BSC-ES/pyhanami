@@ -108,12 +108,12 @@ tester.matrix_plot(
 
 ### Evaluate scientific skill
 ```python
-# Evaluate the scientific skill (climate phenomena simulation) of one simulation dataset
+# Evaluate the scientific skill of one simulation dataset
 sciskill = pyhanami.ScientificEvaluation(sim_1)
 
 # Assess simulation of the Tropical IntraSeasonal Oscillation (ISO) by computing the 
-# bimodal ISO indices and related statistics comparing to observations
-bimodal_indices = sciskill.compute_bimodal_ISO(
+# bimodal ISO indices and related scalar scores comparing to observations
+iso_analysis = sciskill.compute_iso_scores(
     'name_sim_1',
     start_year_pc=year_init_pc,
     end_year_pc=year_end_pc,
@@ -121,35 +121,35 @@ bimodal_indices = sciskill.compute_bimodal_ISO(
 )
 
 # Save results of the analysis to 'output_path'
-bimodal_indices.save_data('output_path')
+iso_analysis.save_data('output_path')
 
 # Create plots for EEOFs, PCs (bimodal ISO indices) and frequency of ISO events and
 # save them to 'output_path'
-bimodal_indices.eeof_plots('output_path')
-bimodal_indices.pc_plots('output_path', years=[year_1, year_2, year_3])
-bimodal_indices.freq_ISO_plot('output_path')
+iso_analysis.eeof_plots('output_path')
+iso_analysis.pc_plots('output_path', years=[year_1, year_2, year_3])
+iso_analysis.freq_plot('output_path')
 
-# Display computed statistics (scalar values measuring how well simulations match 
+# Display computed scores (scalar values measuring how well simulations match 
 # observations)
-bimodal_indices.stats
+iso_analysis.scores
 
-# Assess simulation of Tropical Cyclones (TC) by computing TC metrics statistics 
-# for one simulation dataset comparing to observations and reanalyses
-tc_metrics= sciskill.compute_tc_metrics(
+# Assess simulation of Tropical Cyclones (TCs) by computing TC metrics and derived 
+# scalar scores for one simulation dataset comparing to observations and reanalyses
+tc_analysis = sciskill.compute_tc_scores(
     'name_sim_1',
     start_year_tc=year_init_tc,
     end_year_tc=year_end_tc
 )
 
 # Save results of the analysis to 'output_path'
-tc_metrics.save_data('output_path')
+tc_analysis.save_data('output_path')
 
-# Create table plots summarizing biases, and temporal and spatial correlations for
-# the computed TC metrics and save them to 'output_path'
-tc_metrics.clim_bias_table('output_path')
-tc_metrics.storm_bias_table('output_path')
-tc_metrics.temp_corr_table('output_path')
-tc_metrics.spatial_corr_table('output_path')
+# Create table plots summarizing the computed scores (biases, and temporal and 
+# spatial correlations) and save them to 'output_path'
+tc_analysis.clim_bias_table('output_path')
+tc_analysis.storm_bias_table('output_path')
+tc_analysis.temp_corr_table('output_path')
+tc_analysis.spatial_corr_table('output_path')
 ```
 
 

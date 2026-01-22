@@ -98,7 +98,8 @@ To generate **spatial plots** comparing two simulation datasets between `year_in
 
 ```python
 # Initialize DataDiagnostics class with two SimulationData objects
-# (If you have already added these datasets to an existing DataDiagnostics object, you can skip this step)
+# (If you have already added these datasets to an existing DataDiagnostics object, 
+# you can skip this step)
 diags = pyhanami.DataDiagnostics([sim_1, sim_2])
 
 # Plot spatial absolute difference between both datasets
@@ -146,21 +147,21 @@ tester.matrix_plot(
 This `matrix_plot` method uses all variables from the simulation datasets that are listed in `src/pyhanami/config/variables.yaml` to perform the replicability test.
 
 
-## Tropical IntraSeasonal Oscillation (ISO) evaluation
+## Tropical IntraSeasonal Oscillation (ISO) analysis
 
-To evaluate the simulation of ISOs, create a `ScientificEvaluation` object with the `SimulationData` object that you want to analyze and use the `compute_bimodal_iso` method. This method computes the **bimodal ISO indices** and requires **daily Top of Atmosphere Outgoing Longwave Radiation** (`rlut`) data, preferably covering a period of 10 years or more (ideally, at least 30 years).
+To evaluate the simulation of the ISO, initialize the `ScientificEvaluation` class with the `SimulationData` object that you want to analyze and use the `compute_iso_scores` method. This method computes scalar scores related to ISO and requires **daily Top of Atmosphere Outgoing Longwave Radiation** (`rlut`) data, preferably covering a period of 10 years or more (ideally, at least 30 years).
 
-The following snippet creates a `BimodalISO` instance that:
-1. Performs an Extended Empirical Orthogonal Function (EEOF) analysis between `year_init_eeof` and `year_end_eeof`
-2. Uses the EEOFs to compute bimodal ISO indices (first two Principal Components (PCs)) between `year_init_pc` and `year_end_pc`
-3. Calculates mean monthly frequency of ISO events using all the bimodal ISO indices computed in step 2
+The following snippet creates an `ISOEvaluation` instance that:
+1. Performs an **Extended Empirical Orthogonal Function (EEOF)** analysis between `year_init_eeof` and `year_end_eeof`
+2. Uses the EEOFs to compute the **first two Principal Components (PCs) (bimodal ISO indices)** between `year_init_pc` and `year_end_pc`
+3. Calculates the **mean monthly frequency (seasonality)** of ISO events using all the bimodal ISO indices computed in step 2
 
 ```python
 # Initialize ScientificEvaluation class with a SimulationData object
 sciskill = pyhanami.ScientificEvaluation(sim_1)
 
 # Compute bimodal ISO indices performing an EEOF analysis on simulated data
-bimodal_indices = sciskill.compute_bimodal_iso(
+iso_analysis = sciskill.compute_iso_scores(
     'name_sim_1',
     start_year_eeof=year_init_eeof,
     end_year_eeof=year_end_eeof,
@@ -170,21 +171,21 @@ bimodal_indices = sciskill.compute_bimodal_iso(
 ```
 If no years are passed for the EEOFs or the PCs computation, the whole period covered by the simulation dataset is used by default.
 
-Moreover, the `BimodalISO` class includes methods to visualize and save the results of the analysis. The following shows how to save the computed data and create plots for the EEOFs, the PCs (bimodal indices) for the selected years (`[year_1, year_2, year_3]`), and the frequency of ISO events:
+Moreover, the `ISOEvaluation` class includes methods to visualize and save the results of the analysis. The following shows how to save the computed data and create plots for the EEOFs, the PCs (bimodal indices) for the selected years (`[year_1, year_2, year_3]`), and the mean monthly frequency (seasonality) of ISO events:
 
 ```python
-# Save and plot outcome of the bimodal ISO analysis
-bimodal_indices.save_data('output_path')
-bimodal_indices.eeof_plots('output_path')
-bimodal_indices.pc_plots('output_path', years=[year_1, year_2, year_3])
-bimodal_indices.freq_iso_plot('output_path')
+# Save and plot outcome of the ISO analysis
+iso_analysis.save_data('output_path')
+iso_analysis.eeof_plots('output_path')
+iso_analysis.pc_plots('output_path', years=[year_1, year_2, year_3])
+iso_analysis.freq_plot('output_path')
 ```
 
-By passing the argument `obs=True`, simulations are compared against observations to compute several scalar metrics:
+By passing the argument `obs=True`, simulations are compared against observations to compute several scalar scores:
 
 ```python
-# Compute bimodal ISO indices and related statistics comparing to observations
-bimodal_indices_obs = sciskill.compute_bimodal_iso(
+# Compute bimodal ISO indices and related scalar scores comparing to observations
+iso_analysis_obs = sciskill.compute_iso_scores(
     'name_sim_1',
     start_year_pc=year_init_pc,
     end_year_pc=year_end_pc,
@@ -193,67 +194,68 @@ bimodal_indices_obs = sciskill.compute_bimodal_iso(
 ```
 Note that, in this case, it is not necessary to specify `start_year_eeof`and `end_year_eeof`, as the ones used for the reference observational dataset ([NOAA](https://psl.noaa.gov/data/gridded/data.olrcdr.interp.html) by default) are applied automatically.
 
-The same way as before, it is possible to save the computed data and create plots for the EEOFs, the PCs (bimodal indices) for the selected years (`[year_1, year_2, year_3]`), and the frequency of ISO events. In this case, the mean monthly frequency (seasonality) of ISO events is compared between simulations and observations, and plotted together with the **TSS statistics**. The statistics can also be retrieved with the `BimodalISO.stats` attribute:
+The same way as before, it is possible to save the computed data and create plots for the EEOFs, the PCs (bimodal indices) for the selected years (`[year_1, year_2, year_3]`), and the mean monthly frequency (seasonality) of ISO events. In this case, the monthly frequency is compared between simulations and observations, and plotted together with the **scalar scores**. The scores can also be retrieved with the `ISOEvaluation.scores` attribute:
 
 ```python
-# Check computed statistics
-bimodal_indices_obs.stats
+# Check computed scalar scores
+iso_analysis_obs.scores
 ```
 
-When `obs=True`, the simulated PCs can be adjusted before computing the TSS statistics to account for amplitude differences between simulations and observations (see [Methodology](./Methodology.md#tropical-intraseasonal-oscillation-iso-bimodal-iso-indices) for more details). This correction can be turned on by passing the argument `correct_pc=True`.
+When `obs=True`, the simulated PCs can be adjusted before computing the scores to account for amplitude differences between simulations and observations (see [Methodology](./Methodology.md#tropical-intraseasonal-oscillation-iso) for more details). This correction can be turned on by passing the argument `correct_pc=True`.
 
-To summarize, the `BimodalISO` class includes methods to generate the following visualization outputs:
-1. **EEOF plots** (`BimodalISO.eeof_plots`): spatial patterns of the first two EEOFs for boreal winter and boreal summer. The central longitude for these plots is set to 0º by default, but it can be modified with the argument `clon` (e.g. `clon=180`).
-2. **PC plots** (`BimodalISO.pc_plots`, passing one year or a list of years): time series of the first two PCs and their amplitude for both MJO and BSISO for the specified years.
-3. **Frequency plot** (`BimodalISO.freq_iso_plot`): mean monthly frequency (seasonality) of ISO events for both MJO and BSISO, computed over the entire period covered by the dataset. If observations are set to `True`, these are included in the  frequency plot, which also shows the TSS statistics (R, σ and TSS) comparing simulations and observations.
+To summarize, the `ISOEvaluation` class includes methods to generate the following visualization outputs:
+1. **EEOF plots** (`ISOEvaluation.eeof_plots`): spatial patterns of the first two EEOFs for boreal winter and boreal summer. The central longitude for these plots is set to 0º by default, but it can be modified with the argument `clon` (e.g. `clon=180`).
+2. **PC plots** (`ISOEvaluation.pc_plots`, passing one year or a list of years): time series of the first two PCs and their amplitude for both MJO and BSISO for the specified years.
+3. **Frequency plot** (`ISOEvaluation.freq_plot`): mean monthly frequency (seasonality) of ISO events for both MJO and BSISO, computed over the entire period covered by the dataset. If observations are set to `True`, these are included in the  frequency plot, which also shows the scalar scores ($\alpha$, $R$, $\sigma$ and $\text{TSS}$) comparing simulations and observations.
 
 
-## Tropical Cyclones (TCs) evaluation
+## Tropical Cyclones (TCs) analysis
 
-To evaluate the simulation of TCs, create a `ScientificEvaluation` object with the `SimulationData` object that you want to analyze and use the `compute_tc_metrics` method. This method computes several **TC metrics** (see [Methodology](./Methodology.md#tropical-cyclones-tcs-tc-metrics)) and requires the following variables with a 6-hourly frequency:
+To evaluate the simulation of TCs, initialize the `ScientificEvaluation` class with the `SimulationData` object that you want to analyze and use the `compute_tc_scores` method. This method computes several scalar scores related to TCs (see [Methodology](./Methodology.md#tropical-cyclones-tcs)) and requires the following variables with a 6-hourly frequency:
 - **Sea level pressure** (`psl`)
 - **Zonal and meridional wind at 10 m** (`uas` and `vas`)
 - **Geopotential height at 300 hPa and 500 hPa** (`zg300` and `zg500`)
 
-The following snippet creates a `TCMetrics` instance that:
+The following snippet creates a `TCEvaluation` instance that:
 1. Detects and tracks TCs between `year_init` and `year_end`.
-2. Computes several TC metrics, including number of TCs, their lifetime and intensity.
-3. Computes various global temporal and spatial scalar statistics from the TC metrics for both the provided simulation data and the reference observational data ([IBTrACS](https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C01552) by default).
+2. Computes several **TC metrics**, including number of TCs, their lifetime and intensity.
+3. Computes various global temporal and spatial **scalar scores** from the TC metrics for both the provided simulation data and the reference observational data ([IBTrACS](https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C01552) by default).
 
 ```python
 # Initialize ScientificEvaluation class with a SimulationData object
-# (If you have already added this dataset to an existing ScientificEvaluation object, you can skip this step)
+# (If you have already added this dataset to an existing ScientificEvaluation object, 
+# you can skip this step)
 sciskill = pyhanami.ScientificEvaluation(sim_1)
 
-# Compute TC metrics statistics for one simulation dataset
-tc_metrics= sciskill.compute_tc_metrics(
+# Compute TC metrics and related scalar scores for one simulation dataset
+tc_analysis= sciskill.compute_tc_scores(
     'name_sim_1',
     start_year_tc=year_init_tc,
     end_year_tc=year_end_tc
 )
 ```
 
-Moreover, the `TCMetrics` class includes methods to visualize and save the results of the analysis. The following shows how to save the computed data, create linear and spatial plots displaying the computed TC metrics, and create table plots summarizing the statistics for each TC metric:
+Moreover, the `TCEvaluation` class includes methods to visualize and save the results of the analysis. The following shows how to save the computed data, create linear and spatial plots displaying the computed TC metrics, and create table plots summarizing the scalar score for each TC metric:
 
 ```python
-# Save outcome of the TC metrics analysis
-tc_metrics.save_data('output_path')
+# Save outcome of the TC analysis
+tc_analysis.save_data('output_path')
 
 # Plot the resulting TC metrics
-tc_metrics.linear_plots('output_path')
-tc_metrics.spatial_plots('output_path')
+tc_analysis.linear_plots('output_path')
+tc_analysis.spatial_plots('output_path')
 
-# Plot summary tables of the TC metrics statistics
-tc_metrics.clim_bias_table('output_path')
-tc_metrics.storm_bias_table('output_path')
-tc_metrics.temp_corr_table('output_path')
-tc_metrics.spatial_corr_table('output_path')
+# Plot summary tables of the TC scalar scores
+tc_analysis.clim_bias_table('output_path')
+tc_analysis.storm_bias_table('output_path')
+tc_analysis.temp_corr_table('output_path')
+tc_analysis.spatial_corr_table('output_path')
 ```
 
 Considerations regarding the 10 m wind speed:
 - By default, a threshold of 10 m/s is used for TC detection. However, we recommend adjusting it according to the model's (or reanalysis') horizontal 
-resolution following the criteria established in [(K.J.E. Walsh et al., 2007)](https://doi.org/10.1175/JCLI4074.1). This can be done by passing the argument `min_wind` when calling the `compute_tc_metrics` method.
-- By default, it is assumed that the wind provided is at 10 m height. If the wind data corresponds to a different height, it can still be used by passing the argument `wind_factor` when calling the `compute_tc_metrics` method. This factor will be used to scale the wind data to approximate the 10 m wind speed. 
+resolution following the criteria established in [(K.J.E. Walsh et al., 2007)](https://doi.org/10.1175/JCLI4074.1). This can be done by passing the argument `min_wind` when calling the `compute_tc_scores` method.
+- By default, it is assumed that the wind provided is at 10 m height. If the wind data corresponds to a different height, it can still be used by passing the argument `wind_factor` when calling the `compute_tc_scores` method. This factor will be used to scale the wind data to approximate the 10 m wind speed. 
 
 
 ## General considerations

@@ -21,12 +21,12 @@ from pyhanami.utils.tcs_metrics import tcs_tempestextremes, tcs_ibtracs, tcs_cym
 
 VARIABLES = data_general.load_yaml_file(config_params.VARIABLES_PATH)
 
-class BimodalISO:
+class ISOEvaluation:
     """
-    Compute bimodal ISO indices and derived statistics.
+    Compute bimodal ISO indices and derived scalar scores.
 
     This class provides functionality for computing the bimodal ISO indices following (K. Kikuchi, 2020) and 
-    plotting the results for the selected years, as well as, computing statistics comparing simulation and 
+    plotting the results for the selected years, as well as, computing scalar scores comparing simulations and 
     observational data following (M. Nakano et al., 2019).
 
     Parameters
@@ -80,12 +80,12 @@ class BimodalISO:
         PCs from observational data, or None if not computed.
     start_year_pc, end_year_pc : int
         Initial and end years to compute Principal Components (PCs) for.
-    freq_ISO_sim : xarray.DataArray
+    freq_sim : xarray.DataArray
         Mean monthly frequency of occurrence for simulation data.
-    freq_ISO_obs : xarray.DataArray or None
+    freq_obs : xarray.DataArray or None
         Mean monthly frequency of occurrence for observational data, or None if not computed.
-    stats : dict
-        Dictionary containing various statistics comparing simulations and observational data:
+    scores : dict
+        Dictionary containing various scalar scores comparing simulations and observational data:
             alpha : float
                 Ratio of PCs' amplitude (model/obs).
             corr : float
@@ -130,7 +130,7 @@ class BimodalISO:
         # Compute/load EEOFs
         if self.obs:
             self.obs_name = 'NOAA'
-            data_sim.data = self._load_and_regrid_obs_data(data_sim.data)
+            data_sim.data, self.eeof_summer, self.eeof_winter, self.pcs_obs = self._load_and_regrid_obs_data(data_sim.data)
             print(f"\tEEOF analysis loaded for '{self.obs_name}' observations between {self.start_year_eeof} and {self.end_year_eeof}.")
 
         # Filter simulation data
@@ -148,23 +148,23 @@ class BimodalISO:
                   " See attributes `eeof_summer` and `eeof_winter` for results.", flush=True)
 
 
-        # Compute PCs and ISO statistics
-        self.stats = {}
-        self.pcs_sim, self.stats['alpha'] = self._compute_PCs(data_filtered_sim)
+        # Compute PCs, monthly frequency, and scalar scores
+        self.scores = {}
+        self.pcs_sim, self.scores['alpha'] = self._compute_PCs(data_filtered_sim)
         print(f"\tPCs (bimodal ISO indices) computed between {self.start_year_pc} and {self.end_year_pc}."
               " See attribute `pcs_sim` (and `pcs_obs` if `obs=True`) for results.", flush=True)
 
-        self.freq_ISO_sim, self.freq_ISO_obs, self.stats['R'], self.stats['sigma'], self.stats['TSS'] = self._compute_ISO_stats()
+        self.freq_sim, self.freq_obs, self.scores['R'], self.scores['sigma'], self.scores['TSS'] = self._compute_freq_and_scores()
         print(f'\tMean monthly frequency computed between {self.start_year_pc} and {self.end_year_pc}.'
-              ' See attributes `freq_ISO_sim` (and `freq_ISO_obs` if `obs=True`) for results.', flush=True)
+              ' See attributes `freq_sim` (and `freq_obs` if `obs=True`) for results.', flush=True)
         
         if self.obs:
-            print(f"\tTaylor Skill Score (TSS) between simulations and observations computed (stored in attribute `stats`):"
-                  f"\n\t\tRatio PCs amplitudes ($\\alpha$): {self.stats['alpha']:.2f}"
-                  f"\n\t\tTemporal correlation (R): {self.stats['R']:.2f}"
-                  f"\n\t\tRatio standard deviations ($\\sigma$): {self.stats['sigma']:.2f}"
-                  f"\n\t\tTaylor Skill Score (TSS): {self.stats['TSS']:.2f}", flush=True)
-        print("\nBimodal ISO indices computation completed.", flush=True)
+            print(f"\tTaylor Skill Score (TSS) between simulations and observations computed (stored in attribute `scores`):"
+                  f"\n\t\tRatio PCs amplitudes ($\\alpha$): {self.scores['alpha']:.2f}"
+                  f"\n\t\tTemporal correlation (R): {self.scores['R']:.2f}"
+                  f"\n\t\tRatio standard deviations ($\\sigma$): {self.scores['sigma']:.2f}"
+                  f"\n\t\tTaylor Skill Score (TSS): {self.scores['TSS']:.2f}", flush=True)
+        print("\nTropical Intraseasonal Oscillation scores computation completed.", flush=True)
 
         return
 
@@ -183,6 +183,12 @@ class BimodalISO:
         -------
         data_sim : xr.Dataset
             Regridded simulation data if regridding was necessary, otherwise the original data.
+        eeof_summer : xarray.DataArray
+            EEOFs for boreal summer from observations.
+        eeof_winter : xarray.DataArray
+            EEOFs for boreal winter from observations.
+        pcs_obs : xarray.DataArray
+            PCs from observations.
         """
 
         # Load observational data grid 
@@ -204,9 +210,9 @@ class BimodalISO:
         # Regrid simulations if their resolution is higher
         if sim_resolution < obs_resolution:  
             try: 
-                self.eeof_summer = xr.open_dataset(config_params.NOAA_EEOF_SUMMER_PATH)
-                self.eeof_winter = xr.open_dataset(config_params.NOAA_EEOF_WINTER_PATH)
-                self.pcs_obs = xr.open_dataset(config_params.NOAA_PC_PATH)
+                eeof_summer = xr.open_dataset(config_params.NOAA_EEOF_SUMMER_PATH)
+                eeof_winter = xr.open_dataset(config_params.NOAA_EEOF_WINTER_PATH)
+                pcs_obs = xr.open_dataset(config_params.NOAA_PC_PATH)
             except FileNotFoundError:   
                 raise FileNotFoundError(f"Some or all required NOAA analysis files not found: "
                                         f"'{config_params.NOAA_EEOF_SUMMER_PATH}', "
@@ -219,9 +225,9 @@ class BimodalISO:
         # Keep original grids if both resolutions are equal
         elif sim_resolution == obs_resolution:  
             try: 
-                self.eeof_summer = xr.open_dataset(config_params.NOAA_EEOF_SUMMER_PATH)
-                self.eeof_winter = xr.open_dataset(config_params.NOAA_EEOF_WINTER_PATH)
-                self.pcs_obs = xr.open_dataset(config_params.NOAA_PC_PATH)
+                eeof_summer = xr.open_dataset(config_params.NOAA_EEOF_SUMMER_PATH)
+                eeof_winter = xr.open_dataset(config_params.NOAA_EEOF_WINTER_PATH)
+                pcs_obs = xr.open_dataset(config_params.NOAA_PC_PATH)
             except FileNotFoundError:   
                 raise FileNotFoundError(f"Some or all required NOAA analysis files not found: "
                                         f"'{config_params.NOAA_EEOF_SUMMER_PATH}', "
@@ -236,25 +242,24 @@ class BimodalISO:
                 raise FileNotFoundError(f"NOAA observations data file not found at '{config_params.NOAA_PATH}'")
             data_obs_regrid = data_general.regrid_data(data_obs, data_sim)
 
-            self.eeof_summer, self.eeof_winter, self.pcs_obs = iso_metrics.prepare_NOAA_iso_data(data_obs_regrid)
+            eeof_summer, eeof_winter, pcs_obs = iso_metrics.prepare_NOAA_iso_data(data_obs_regrid)
             del data_obs, data_obs_regrid
 
             # Directly regrid EEOFs (not used anymore as redoing the EEOF analysis is now computationally affordable)
-            # eeof_summer_regrid = data_general.regrid_data(self.eeof_summer, data_sim.sortby("lat").sel(lat=slice(*lat_range)), var='eeof')
-            # eeof_winter_regrid = data_general.regrid_data(self.eeof_winter, data_sim.sortby("lat").sel(lat=slice(*lat_range)), var='eeof')
+            # eeof_summer_regrid = data_general.regrid_data(eeof_summer, data_sim.sortby("lat").sel(lat=slice(*lat_range)), var='eeof')
+            # eeof_winter_regrid = data_general.regrid_data(eeof_winter, data_sim.sortby("lat").sel(lat=slice(*lat_range)), var='eeof')
 
-            # eeof_summer_copy = self.eeof_summer.copy()
-            # eeof_winter_copy = self.eeof_winter.copy()
-
+            # eeof_summer_copy = eeof_summer.copy()
+            # eeof_winter_copy = eeof_winter.copy()
             # eeof_summer_no_eeof = eeof_summer_copy.drop_vars('eeof').drop_dims(['lat', 'lon'])
             # eeof_winter_no_eeof = eeof_winter_copy.drop_vars('eeof').drop_dims(['lat', 'lon'])
 
-            # self.eeof_summer = xr.merge([eeof_summer_regrid, eeof_summer_no_eeof])
-            # self.eeof_winter = xr.merge([eeof_winter_regrid, eeof_winter_no_eeof])
+            # eeof_summer = xr.merge([eeof_summer_regrid, eeof_summer_no_eeof])
+            # eeof_winter = xr.merge([eeof_winter_regrid, eeof_winter_no_eeof])
 
             print(f"\tObservational data regridded to match simulations' resolution (~{sim_resolution:.2f}°).")
 
-        return data_sim
+        return data_sim, eeof_summer, eeof_winter, pcs_obs
 
 
     def _compute_EEOFs(self, data_sim, lag=5, n_lags=3, n_modes=2):
@@ -326,16 +331,16 @@ class BimodalISO:
         return pcs_sim, alpha
 
 
-    def _compute_ISO_stats(self):
+    def _compute_freq_and_scores(self):
         """
         Compute monthly frequency of ISO events, and statistics comparing simulation and
         observational data if requested.
         
         Returns
         -------
-        freq_ISO_sim : xr.DataArray
+        freq_sim : xr.DataArray
             Mean monthly frequency of occurrence for simulation data.
-        freq_ISO_obs : xr.DataArray or None
+        freq_obs : xr.DataArray or None
             Mean monthly frequency of occurrence for observational data, or None if not computed.
         corr : float
             Temporal correlation coefficient of the seasonality.
@@ -346,22 +351,22 @@ class BimodalISO:
         """
 
         events_sim = self.pcs_sim['label']
-        freq_ISO_sim = iso_metrics.compute_freq_ISO(events_sim)
+        freq_sim = iso_metrics.compute_freq_ISO(events_sim)
 
         if self.obs:
             # TO ADD: precompute freq_ISO_obs and just load it here?
             events_obs = self.pcs_obs['label']
-            freq_ISO_obs = iso_metrics.compute_freq_ISO(events_obs)
-            corr, sigma, tss = iso_metrics.compute_TSS(freq_ISO_sim, freq_ISO_obs)
+            freq_obs = iso_metrics.compute_freq_ISO(events_obs)
+            corr, sigma, tss = iso_metrics.compute_TSS(freq_sim, freq_obs)
 
-            # Add statistics as attributes to freq_ISO_sim
-            freq_ISO_sim.attrs['R'] = corr
-            freq_ISO_sim.attrs['sigma'] = sigma
-            freq_ISO_sim.attrs['TSS'] = tss
+            # Add statistics as attributes to freq_sim
+            freq_sim.attrs['R'] = corr
+            freq_sim.attrs['sigma'] = sigma
+            freq_sim.attrs['TSS'] = tss
         else:
-            freq_ISO_obs, corr, sigma, tss = None, None, None, None
+            freq_obs, corr, sigma, tss = None, None, None, None
 
-        return freq_ISO_sim, freq_ISO_obs, corr, sigma, tss
+        return freq_sim, freq_obs, corr, sigma, tss
 
 
     def save_data(self, output_path):
@@ -519,7 +524,7 @@ class BimodalISO:
         return
 
 
-    def freq_iso_plot(self, output_path=None):
+    def freq_plot(self, output_path=None):
         """
         Generate and save/display plots of the mean monthly frequency of ISO events
         for the simulation data or, if `obs=True`, for the observational data.
@@ -543,8 +548,8 @@ class BimodalISO:
             name_file = f"{('_').join(self.sim_name.split())}"
 
         # Plot frequency of ISO events
-        freq_plot, _ = plot.plot_freq_ISO(self.freq_ISO_sim, self.freq_ISO_obs, alpha=self.stats['alpha'], corr=self.stats['R'],
-                                           sigma=self.stats['sigma'], tss=self.stats['TSS'],
+        freq_plot, _ = plot.plot_freq_ISO(self.freq_ISO_sim, self.freq_ISO_obs, alpha=self.scores['alpha'], corr=self.scores['R'],
+                                           sigma=self.scores['sigma'], tss=self.scores['TSS'],
                                            title=plot_title, sim_label=self.sim_name, obs_label=self.obs_name)
 
         plot.save_or_show_plot(freq_plot, output_path, plot_filename=f"freq_ISO_{name_file}_{self.start_year_pc}-{self.end_year_pc}_projected_{self.start_year_eeof}-{self.end_year_eeof}",
@@ -553,12 +558,13 @@ class BimodalISO:
         return
 
 
-class TCMetrics:
+class TCEvaluation:
     """
-    Compute Tropical Cyclones (TCs) metrics.
+    Compute Tropical Cyclones (TCs) metrics and derived scalar scores.
     
-    This class provides functionality for computing various TC metricsfollowing (C.M. Zarzycki et al., 2021) and plotting 
-    the results comparing simulations to IBTrACS observational data, as well as, several reanalysis datasets.
+    This class provides functionality for computing various TC metrics and derived scalar scores following 
+    (C.M. Zarzycki et al., 2021) and plotting the results comparing simulations to IBTrACS observational 
+    data, as well as, several reanalysis datasets.
 
     Parameters
     ----------
@@ -567,7 +573,7 @@ class TCMetrics:
     start_year_tc, end_year_tc : int, optional
         Initial and end years to compute the TCs metrics for.
     obs : bool
-        If True, also consider obsrvational data if available (default: False).
+        If True, also consider obsrvational data if available (default: True).
     wind_factor : float
         Wind speed correction factor (to normalize the provided wind to 10 m wind) for simulations (default: 1.0).
     min_wind : float
@@ -605,13 +611,21 @@ class TCMetrics:
         Global mean climatological bias for each TC metric.
     storm_bias : np.ndarray
         Global mean storm bias for each TC metric.
+    cbar_ticks_bias : list[str]
+        Colorbar ticks labels for bias tables.
+    colors_bias : tuple
+        Colorbar colors for bias tables.
     temp_corr : np.ndarray
         Seasonal correlation for each TC metric.
     spatial_corr : np.ndarray
         Spatial correlation for each TC metric.
+    cbar_ticks_corr : list[str]
+        Colorbar ticks labels for correlation tables.
+    colors_corr : tuple
+        Colorbar colors for correlation tables.
     """
 
-    def __init__(self, data_sim : SimulationData, start_year_tc: int = None, end_year_tc: int = None, obs: bool = False, 
+    def __init__(self, data_sim : SimulationData, start_year_tc: int = None, end_year_tc: int = None, obs: bool = True, 
                  wind_factor: float = 1.0, min_wind: float = 10.0, bin_size : float = 2.5):
         
         # Validate input
@@ -645,7 +659,7 @@ class TCMetrics:
         print(f"\tIBTrACS TCs data preprocessed and saved to '{self.config_cymep['IBTrACS'][0]}'.", flush=True)
 
         if self.obs:
-            self.obs_names = ['ERA5', 'JRA55']
+            self.obs_names = ['JRA55']
             self._prepare_obs_data()
             print(f"\tObservational TCs data preprocessed and saved to '{self.tracks_path}'.", flush=True)
 
@@ -657,19 +671,19 @@ class TCMetrics:
 
         # Compute TCs metrics
         print("\tStarting Tropical Cyclones metrics computation. CyMeP output:", flush=True)
-        self._compute_cymep_metrics()
+        self.data_cymep, self.model_names = self._compute_cymep_metrics()
         print(f"\tTCs metrics computed. See attribute `data_cymep`.", flush=True)
 
-        self._retrieve_biases()
+        self.clim_bias, self.storm_bias, self.cbar_ticks_bias, self.colors_bias = self._retrieve_biases()
         print("\tBiases computation completed. See attributes `clim_bias` and `storm_bias`.", flush=True)
 
-        self._retrieve_correlations()
+        self.temp_corr, self.spatial_corr, self.cbar_ticks_corr, self.colors_corr =  self._retrieve_correlations()
         print("\tCorrelations computation completed. See attributes `temp_corr` and `spatial_corr`.", flush=True)
 
         # # Delete intermediate files
         # shutil.rmtree(self.tracks_path)
 
-        print(f"\nTropical Cyclones metrics computation completed between years {self.start_year_tc} and {self.end_year_tc}.", flush=True)
+        print(f"\nTropical Cyclones scores computation completed between years {self.start_year_tc} and {self.end_year_tc}.", flush=True)
         return
 
 
@@ -704,7 +718,7 @@ class TCMetrics:
             obs_path = obs_files[0]
             
             # Check whether the current version covers the selected period
-            match = re.search(rf'{name}_(\d+)-(\d+)', obs_path.name)
+            match = re.search(rf'{name.lower()}_(\d+)-(\d+)', obs_path.name)
             obs_start_year = int(match.group(1))
             obs_end_year = int(match.group(2))
 
@@ -757,6 +771,13 @@ class TCMetrics:
     def _compute_cymep_metrics(self):
         """
         Compute TCs metrics using the CyMeP package.
+
+        Returns 
+        -------
+        data_cymep : xr.Dataset
+            TCs metrics computed with CyMeP.
+        model_names : list[str]
+            List of model names included in the TCs metrics dataset.
         """
 
         # Prepare CyMeP configuration file
@@ -764,49 +785,71 @@ class TCMetrics:
         tcs_cymep_main.prepare_configs_file(self.config_cymep, output_path=config_cymep_path)
 
         # Run CyMeP TCs metrics computation
-        self.data_cymep = tcs_cymep_main.run_cymep_pyhanami(self.start_year_tc, self.end_year_tc, output_path=self.tracks_path, 
+        data_cymep = tcs_cymep_main.run_cymep_pyhanami(self.start_year_tc, self.end_year_tc, output_path=self.tracks_path, 
                                                             gridsize=self.bin_size, csvfilename=config_cymep_path)
-        self.model_names = self.data_cymep.model.values 
+        model_names = self.data_cymep.model.values 
 
-        return
+        return data_cymep, model_names
 
 
     def _retrieve_biases(self):
         """
         Retrieve climatological and storm biases from CyMeP output data,
         and define related plotting parameters.
+
+        Returns
+        -------
+        clim_bias : np.ndarray
+            Global mean climatological bias for each TC metric.
+        storm_bias : np.ndarray
+            Global mean storm bias for each TC metric.
+        cbar_ticks_bias : list[str]
+            Colorbar ticks labels for bias tables.
+        colors_bias : tuple
+            Colorbar colors for bias tables.
         """
 
         # Retrieve biases
         clim_mean = np.transpose([self.data_cymep[f'clim_mean_{metric}'].values for metric in self.metrics_metadata if self.metrics_metadata[metric]['temporal']==True])   
-        self.clim_bias = np.concatenate(([clim_mean[0]], clim_mean[1:] - clim_mean[0]))
+        clim_bias = np.concatenate(([clim_mean[0]], clim_mean[1:] - clim_mean[0]))
 
         storm_mean = np.transpose([self.data_cymep[f'storm_mean_{metric}'].values for metric in self.metrics_metadata if self.metrics_metadata[metric]['temporal']==True 
                       and metric!='count'])
-        self.storm_bias = np.concatenate(([storm_mean[0]], storm_mean[1:] - storm_mean[0]))
+        storm_bias = np.concatenate(([storm_mean[0]], storm_mean[1:] - storm_mean[0]))
 
         # Define plotting parameters
-        self.cbar_ticks_bias = ['Negative bias', 'No bias', 'Positive bias']
-        self.colors_bias = ("BlueRed", ['tab:blue', 'white', 'tab:red'])
+        cbar_ticks_bias = ['Negative bias', 'No bias', 'Positive bias']
+        colors_bias = ("BlueRed", ['tab:blue', 'white', 'tab:red'])
 
-        return
+        return clim_bias, storm_bias, cbar_ticks_bias, colors_bias
     
 
     def _retrieve_correlations(self):
         """
         Retrieve temporal and spatial correlations from CyMeP output data,
         and define related plotting parameters.
+
+        Returns
+        -------
+        temp_corr : np.ndarray
+            Seasonal correlation for each TC metric.
+        spatial_corr : np.ndarray
+            Spatial correlation for each TC metric.
+        cbar_ticks_corr : list[str]
+            Colorbar ticks labels for correlation tables.
+        colors_corr : tuple
+            Colorbar colors for correlation tables.
         """
 
         # Retrieve correlations
-        self.temp_corr = np.transpose([self.data_cymep[var].values for var in self.data_cymep.data_vars if var.startswith('temporal_scorr_')])
-        self.spatial_corr = np.transpose([self.data_cymep[var].values for var in self.data_cymep.data_vars if var.startswith('spatial_pcorr_')])
+        temp_corr = np.transpose([self.data_cymep[var].values for var in self.data_cymep.data_vars if var.startswith('temporal_scorr_')])
+        spatial_corr = np.transpose([self.data_cymep[var].values for var in self.data_cymep.data_vars if var.startswith('spatial_pcorr_')])
 
         # Define plotting parameters
-        self.cbar_ticks_corr = ['Negative correlation', 'No correlation', 'Positive correlation']
-        self.colors_corr = ("OrangeGreen", ['tab:orange', 'white', 'tab:green'])
+        cbar_ticks_corr = ['Negative correlation', 'No correlation', 'Positive correlation']
+        colors_corr = ("OrangeGreen", ['tab:orange', 'white', 'tab:green'])
 
-        return
+        return temp_corr, spatial_corr, cbar_ticks_corr, colors_corr
 
 
     def save_data(self, output_path):
@@ -913,7 +956,7 @@ class TCMetrics:
         cols_temp_corr = np.append([f'{self.bin_size}° x {self.bin_size}°'], [fr'$\rho_{{s,{metric}}}$' for metric in self.metrics_metadata 
                                                                               if self.metrics_metadata[metric]['temporal']==True])
         temp_corr_table_plot, _ = plot.plot_table(self.temp_corr, title=f'Global seasonal correlation ({year_range})', col_labels=cols_temp_corr, 
-                                                  row_labels=self.model_names, cbar_ticks=self.cbar_ticks_corr, colors=self.colors_corr)
+                                                  row_labels=self.model_names, cbar_ticks=self.cbar_ticks_corr, colors=self.colors_corr, decimals=2)
         
         plot.save_or_show_plot(temp_corr_table_plot, output_path, plot_filename=f"tcs_seasonal_corr_table_{('-').join(self.sim_name.split())}_{year_range}",
                                plot_name="Seasonal correlation table for TCs metrics plot")
@@ -935,7 +978,7 @@ class TCMetrics:
         cols_spatial_corr = np.append([f'{self.bin_size}° x {self.bin_size}°'], [fr'$r_{{xy,{metric}}}$' for metric in self.metrics_metadata 
                                                                                  if self.metrics_metadata[metric]['spatial']==True])
         spatial_corr_table_plot, _ = plot.plot_table(self.spatial_corr, title=f'Global spatial correlation ({year_range})', col_labels=cols_spatial_corr,
-                                                     row_labels=self.model_names, cbar_ticks=self.cbar_ticks_corr, colors=self.colors_corr)
+                                                     row_labels=self.model_names, cbar_ticks=self.cbar_ticks_corr, colors=self.colors_corr, decimals=2)
         
         plot.save_or_show_plot(spatial_corr_table_plot, output_path, plot_filename=f"tcs_spatial_corr_table_{('-').join(self.sim_name.split())}_{year_range}",
                                plot_name="Spatial correlation table for TCs metrics plot")
@@ -1123,11 +1166,11 @@ class ScientificEvaluation:
         return
     
     
-    def compute_bimodal_iso(self, data_name=None, start_year_eeof=None, end_year_eeof=None, start_year_pc=None, end_year_pc=None, obs=False, 
+    def compute_iso_scores(self, data_name=None, start_year_eeof=None, end_year_eeof=None, start_year_pc=None, end_year_pc=None, obs=False, 
                             correct_pc=False, lat_range=(-30, 30), lag=5, n_lags=3, n_modes=2, window=141, low_freq=1/90, high_freq=1/25):
         """
-        Initialize and compute bimodal ISO indices (following (K. Kikuchi, 2020)) and derived 
-        statistics (following (M. Nakano et al., 2019)) for a selected dataset.
+        Initialize and compute bimodal ISO indices (following (K. Kikuchi, 2020)) and derive scalar 
+        scores (following (M. Nakano et al., 2019)) for a selected dataset.
 
         Parameters
         ----------
@@ -1157,6 +1200,11 @@ class ScientificEvaluation:
             Lower cutoff frequency (default: 1/90).
         high_freq : float
             Upper cutoff frequency (default: 1/25).
+
+        Returns
+        -------
+        iso_scores : ISOEvaluation
+            ISOEvaluation object containing the computed bimodal ISO indices and scalar scores.
         """
 
         # Validate input
@@ -1173,19 +1221,20 @@ class ScientificEvaluation:
         else:
             raise TypeError("'data_name' must be a string representing a dataset name.")
         
-        # Create BimodalISO object and compute indices/statistics
+        # Create ISOEvaluation object and compute scores
         print(f"Performing ISO analysis for dataset '{data_name}':", flush=True)
-        bimodal_indices = BimodalISO(data_ISO, start_year_eeof=start_year_eeof, end_year_eeof=end_year_eeof, start_year_pc=start_year_pc, 
+        iso_scores = ISOEvaluation(data_ISO, start_year_eeof=start_year_eeof, end_year_eeof=end_year_eeof, start_year_pc=start_year_pc, 
                                       end_year_pc=end_year_pc, obs=obs, correct_pc=correct_pc, lat_range=lat_range, lag=lag, n_lags=n_lags,
                                       n_modes=n_modes, window=window, low_freq=low_freq, high_freq=high_freq)
 
-        return bimodal_indices
+        return iso_scores
+    
 
-
-    def compute_tc_metrics(self, data_name=None, start_year_tc=None, end_year_tc=None, obs=False, wind_factor=1.0, min_wind=10, 
+    def compute_tc_scores(self, data_name=None, start_year_tc=None, end_year_tc=None, obs=True, wind_factor=1.0, min_wind=10, 
                            bin_size=2.5):
         """
-        Compute Tropical Cyclones (TCs) metrics following (C.M. Zarzycki et al., 2021) and plot results.
+        Compute Tropical Cyclones (TCs) metrics and derive scalar scores following (C.M. Zarzycki et al., 2021) 
+        and plot results.
 
         Parameters
         ----------
@@ -1195,13 +1244,18 @@ class ScientificEvaluation:
         start_year_tc, end_year_tc : int, optional
             Initial and end years to compute the TCs metrics for.
         obs : bool
-            If True, include observational data if available (default: False).
+            If True, include observational data if available (default: True).
         wind_factor : float
             Wind speed correction factor (to normalize the provided wind to 10 m wind) for simulations (default: 1.0).
         min_wind : float
             Minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
         bin_size : float
             Size of the bins in degrees for computing the TCs metrics with CyMeP (default: 2.5).
+
+        Returns
+        -------
+        tc_scores : TCEvaluation
+            TCEvaluation object containing the computed TCs metrics and scalar scores.
         """
 
         # Validate input
@@ -1218,12 +1272,12 @@ class ScientificEvaluation:
         else:
             raise TypeError("'data_name' must be a string representing a dataset name.")
 
-        # Create a TCMetrics object and compute metrics
+        # Create a TCEvaluation object and compute scores
         print(f"Performing TCs analysis for dataset '{data_name}':", flush=True)
-        tc_metrics = TCMetrics(data_TC, start_year_tc=start_year_tc, end_year_tc=end_year_tc, obs=obs, wind_factor=wind_factor, min_wind=min_wind,
-                               bin_size=bin_size)
+        tc_scores = TCEvaluation(data_TC, start_year_tc=start_year_tc, end_year_tc=end_year_tc, obs=obs, wind_factor=wind_factor, 
+                                 min_wind=min_wind, bin_size=bin_size)
 
-        return tc_metrics
+        return tc_scores
 
         # input_path = data_TC.data_path
 
