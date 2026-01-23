@@ -24,7 +24,7 @@ sim_1 = pyhanami.SimulationData('source_sim_1', name='name_sim_1')
 sim_2 = pyhanami.SimulationData('source_sim_2', name='name_sim_2')
 ```
 
-The `data_source` parameter can be:
+The `data_source` parameter can be either:
 - A path to a NetCDF file containing the simulation data (as string)
 - An `xarray.Dataset` object already loaded in memory
 
@@ -46,7 +46,7 @@ sim_1 = pyhanami.SimulationData(data_sim_1, name='name_sim_1')
 
 ## Time series plots
 
-To generate **time series plots** between `year_init` and `year_end` for a given climate variable `var_name`, create a `DataDiagnostics` object with the `SimulationData` objects that you want to analyze and use the `time_series_plot` method:
+To generate **time series plots** between `year_init` and `year_end` for a given climate variable `var_name`, initialize the `DataDiagnostics` class with the `SimulationData` objects that you want to analyze and use the `time_series_plot` method:
 
 ```python
 # Initialize DataDiagnostics class with a SimulationData object
@@ -94,11 +94,11 @@ To take into account when using this `time_series_plot` method:
 
 ## Spatial plots
 
-To generate **spatial plots** comparing two simulation datasets between `year_init` and `year_end`, create a `DataDiagnostics` instance with the `SimulationData` objects that you want to analyze and use the `abs_diff_plot` and `eff_size_plot` methods:
+To generate **spatial plots** comparing two simulation datasets between `year_init` and `year_end`, initialize the `DataDiagnostics` class with the `SimulationData` objects that you want to analyze and use the `abs_diff_plot` and `eff_size_plot` methods:
 
 ```python
 # Initialize DataDiagnostics class with two SimulationData objects
-# (If you have already added these datasets to an existing DataDiagnostics object, 
+# (If you have already added these datasets to an existing DataDiagnostics instance, 
 # you can skip this step)
 diags = pyhanami.DataDiagnostics([sim_1, sim_2])
 
@@ -131,7 +131,7 @@ To take into account when using these methods:
 
 ## Replicability test
 
-To perform and plot results of a **replicability test** comparing two simulation datasets, create a `ReplicabilityTest` object with the `SimulationData` objects that you want to compare and use the `matrix_plot` method:
+To perform and plot results of a **replicability test** comparing two simulation datasets, initialize the `ReplicabilityTest` class with the `SimulationData` objects that you want to compare and use the `matrix_plot` method:
 
 ```python
 # Initialize ReplicabilityTest class with two SimulationData objects
@@ -144,7 +144,7 @@ tester.matrix_plot(
 )
 ```
 
-This `matrix_plot` method uses all variables from the simulation datasets that are listed in `src/pyhanami/config/variables.yaml` to perform the replicability test.
+This `matrix_plot` method uses all variables present in the simulation datasets as long as they are listed in `src/pyhanami/config/variables.yaml` to perform the replicability test.
 
 
 ## Tropical IntraSeasonal Oscillation (ISO) analysis

@@ -16,8 +16,8 @@ from matplotlib.colors import LinearSegmentedColormap
 from pyhanami.config import config_params
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
-from pyhanami.utils import data_general, iso_metrics, plot
-from pyhanami.utils.tcs_metrics import tcs_tempestextremes, tcs_ibtracs, tcs_cymep_main
+from pyhanami.utils import data_general, iso_scores, plot
+from pyhanami.utils.tcs_scores import tcs_tempestextremes, tcs_ibtracs, tcs_cymep_main
 
 VARIABLES = data_general.load_yaml_file(config_params.VARIABLES_PATH)
 
@@ -135,7 +135,7 @@ class ISOEvaluation:
 
         # Filter simulation data
         data_unfiltered_sim = data_sim.data[var_name].sortby("lat").sel(lat=slice(*lat_range)).compute()
-        data_filtered_sim = iso_metrics.apply_lanczos_bandpass_filter(data_unfiltered_sim, window, low_freq, high_freq)
+        data_filtered_sim = iso_scores.apply_lanczos_bandpass_filter(data_unfiltered_sim, window, low_freq, high_freq)
         print("\tSimulation data filtered for ISO timescales.", flush=True)
         
         if not self.obs:
@@ -242,7 +242,7 @@ class ISOEvaluation:
                 raise FileNotFoundError(f"NOAA observations data file not found at '{config_params.NOAA_PATH}'")
             data_obs_regrid = data_general.regrid_data(data_obs, data_sim)
 
-            eeof_summer, eeof_winter, pcs_obs = iso_metrics.prepare_NOAA_iso_data(data_obs_regrid)
+            eeof_summer, eeof_winter, pcs_obs = iso_scores.prepare_NOAA_iso_data(data_obs_regrid)
             del data_obs, data_obs_regrid
 
             # Directly regrid EEOFs (not used anymore as redoing the EEOF analysis is now computationally affordable)
@@ -286,8 +286,8 @@ class ISOEvaluation:
         """
 
         data_eeof_sim = data_sim.sel(time=slice(f'{self.start_year_eeof}-01-01', f'{self.end_year_eeof}-12-31'))
-        eeof_summer = iso_metrics.perform_EEOF_analysis(data_eeof_sim, self.start_year_eeof, self.end_year_eeof, 'boreal_summer', lag, n_lags, n_modes)
-        eeof_winter = iso_metrics.perform_EEOF_analysis(data_eeof_sim, self.start_year_eeof, self.end_year_eeof, 'boreal_winter', lag, n_lags, n_modes)
+        eeof_summer = iso_scores.perform_EEOF_analysis(data_eeof_sim, self.start_year_eeof, self.end_year_eeof, 'boreal_summer', lag, n_lags, n_modes)
+        eeof_winter = iso_scores.perform_EEOF_analysis(data_eeof_sim, self.start_year_eeof, self.end_year_eeof, 'boreal_winter', lag, n_lags, n_modes)
 
         return eeof_summer, eeof_winter
 
@@ -311,7 +311,7 @@ class ISOEvaluation:
         """
 
         data_pcs_sim = data_sim.sel(time=slice(f'{self.start_year_pc}-01-01', f'{self.end_year_pc}-12-31'))
-        pcs_sim = iso_metrics.compute_PCs(data_pcs_sim, [self.eeof_winter, self.eeof_summer])
+        pcs_sim = iso_scores.compute_PCs(data_pcs_sim, [self.eeof_winter, self.eeof_summer])
 
         alpha = None
         if self.obs: 
@@ -322,7 +322,7 @@ class ISOEvaluation:
 
             # Adjust PCs if requested
             if self.correct_pc:
-                pcs_sim = iso_metrics.adjust_PCs(pcs_sim, alpha)
+                pcs_sim = iso_scores.adjust_PCs(pcs_sim, alpha)
                 pcs_sim.attrs['alpha'] = alpha
                 print(f"\tSimulated PCs have been adjusted using the '{self.obs_name}' observations.", flush=True)
         elif self.correct_pc:
@@ -351,13 +351,13 @@ class ISOEvaluation:
         """
 
         events_sim = self.pcs_sim['label']
-        freq_sim = iso_metrics.compute_freq_ISO(events_sim)
+        freq_sim = iso_scores.compute_freq_ISO(events_sim)
 
         if self.obs:
-            # TO ADD: precompute freq_ISO_obs and just load it here?
+            # TO ADD: precompute freq_obs and just load it here?
             events_obs = self.pcs_obs['label']
-            freq_obs = iso_metrics.compute_freq_ISO(events_obs)
-            corr, sigma, tss = iso_metrics.compute_TSS(freq_sim, freq_obs)
+            freq_obs = iso_scores.compute_freq_ISO(events_obs)
+            corr, sigma, tss = iso_scores.compute_TSS(freq_sim, freq_obs)
 
             # Add statistics as attributes to freq_sim
             freq_sim.attrs['R'] = corr
@@ -413,18 +413,17 @@ class ISOEvaluation:
 
         # Save frequency of ISO events
         if self.obs:
-            freq_ISO_sim_path = output_path / f"freq_ISO_{('_').join(self.sim_name.split())}_projected_on_{('_').join(self.obs_name.split())}_{self.start_year_pc}-{self.end_year_pc}.nc"
-            self.freq_ISO_sim.to_netcdf(freq_ISO_sim_path)
-            print(f"Mean monthly frequency of ISO events computed for '{self.sim_name}' saved to '{freq_ISO_sim_path}'.", flush=True)
+            freq_sim_path = output_path / f"freq_ISO_{('_').join(self.sim_name.split())}_projected_on_{('_').join(self.obs_name.split())}_{self.start_year_pc}-{self.end_year_pc}.nc"
+            self.freq_sim.to_netcdf(freq_sim_path)
+            print(f"Mean monthly frequency of ISO events computed for '{self.sim_name}' saved to '{freq_sim_path}'.", flush=True)
 
-            freq_ISO_obs_path = output_path / f"freq_ISO_{('_').join(self.obs_name.split())}_projected_{config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}.nc"
-            self.freq_ISO_obs.to_netcdf(freq_ISO_obs_path)
-            print(f"Mean monthly frequency of ISO events computed for '{self.obs_name}' observations saved to '{freq_ISO_obs_path}'.", flush=True)
+            freq_obs_path = output_path / f"freq_ISO_{('_').join(self.obs_name.split())}_projected_{config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}.nc"
+            self.freq_obs.to_netcdf(freq_obs_path)
+            print(f"Mean monthly frequency of ISO events computed for '{self.obs_name}' observations saved to '{freq_obs_path}'.", flush=True)
         else:
-            freq_ISO_sim_path = output_path / f"freq_ISO_{('_').join(self.sim_name.split())}_projected_{self.start_year_pc}-{self.end_year_pc}.nc"
-            self.freq_ISO_sim.to_netcdf(freq_ISO_sim_path)
-            print(f"Mean monthly frequency of ISO events computed for '{self.sim_name}' saved to '{freq_ISO_sim_path}'.", flush=True)
-
+            freq_sim_path = output_path / f"freq_ISO_{('_').join(self.sim_name.split())}_projected_{self.start_year_pc}-{self.end_year_pc}.nc"
+            self.freq_sim.to_netcdf(freq_sim_path)
+            print(f"Mean monthly frequency of ISO events computed for '{self.sim_name}' saved to '{freq_sim_path}'.", flush=True)
         return
 
 
@@ -548,7 +547,7 @@ class ISOEvaluation:
             name_file = f"{('_').join(self.sim_name.split())}"
 
         # Plot frequency of ISO events
-        freq_plot, _ = plot.plot_freq_ISO(self.freq_ISO_sim, self.freq_ISO_obs, alpha=self.scores['alpha'], corr=self.scores['R'],
+        freq_plot, _ = plot.plot_freq_ISO(self.freq_sim, self.freq_obs, alpha=self.scores['alpha'], corr=self.scores['R'],
                                            sigma=self.scores['sigma'], tss=self.scores['TSS'],
                                            title=plot_title, sim_label=self.sim_name, obs_label=self.obs_name)
 
@@ -1203,7 +1202,7 @@ class ScientificEvaluation:
 
         Returns
         -------
-        iso_scores : ISOEvaluation
+        iso_analysis : ISOEvaluation
             ISOEvaluation object containing the computed bimodal ISO indices and scalar scores.
         """
 
@@ -1223,11 +1222,11 @@ class ScientificEvaluation:
         
         # Create ISOEvaluation object and compute scores
         print(f"Performing ISO analysis for dataset '{data_name}':", flush=True)
-        iso_scores = ISOEvaluation(data_ISO, start_year_eeof=start_year_eeof, end_year_eeof=end_year_eeof, start_year_pc=start_year_pc, 
+        iso_analysis = ISOEvaluation(data_ISO, start_year_eeof=start_year_eeof, end_year_eeof=end_year_eeof, start_year_pc=start_year_pc, 
                                       end_year_pc=end_year_pc, obs=obs, correct_pc=correct_pc, lat_range=lat_range, lag=lag, n_lags=n_lags,
                                       n_modes=n_modes, window=window, low_freq=low_freq, high_freq=high_freq)
 
-        return iso_scores
+        return iso_analysis
     
 
     def compute_tc_scores(self, data_name=None, start_year_tc=None, end_year_tc=None, obs=True, wind_factor=1.0, min_wind=10, 
@@ -1254,7 +1253,7 @@ class ScientificEvaluation:
 
         Returns
         -------
-        tc_scores : TCEvaluation
+        tc_analysis : TCEvaluation
             TCEvaluation object containing the computed TCs metrics and scalar scores.
         """
 
@@ -1274,10 +1273,10 @@ class ScientificEvaluation:
 
         # Create a TCEvaluation object and compute scores
         print(f"Performing TCs analysis for dataset '{data_name}':", flush=True)
-        tc_scores = TCEvaluation(data_TC, start_year_tc=start_year_tc, end_year_tc=end_year_tc, obs=obs, wind_factor=wind_factor, 
+        tc_analysis = TCEvaluation(data_TC, start_year_tc=start_year_tc, end_year_tc=end_year_tc, obs=obs, wind_factor=wind_factor, 
                                  min_wind=min_wind, bin_size=bin_size)
 
-        return tc_scores
+        return tc_analysis
 
         # input_path = data_TC.data_path
 

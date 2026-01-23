@@ -14,23 +14,30 @@ Key features of the package include:
 - **Diagnostics plotting:** generate visualizations comparing two previously loaded simulation ensembles for selected variables using the `DataDiagnostics` class. 
 These include time series plots (with the `time_series_plot` method) and spatial plots (with the `spatial_plots` method). The latter generates two plots, one for the absolute difference and another for the effect size (Cohen's _d)_ between both ensembles.
 - **Replicability testing:** perform a replicability test checking the statistical indistinguishability between two previously loaded simulation ensembles using the `ReplicabilityTest` class.
-- **Scientific skill evaluation:** compute metrics evaluating the following phenomena using the `ScientificEvaluation` class:
-    - Tropical IntraSeasonal Oscillation (ISO): this includes the computation of the bimodal ISO indices (for MJO and BSISO), as well as the calculation of related statistics comparing the indices between simulations and observations (temporal correlation ($R$), standard deviation ratio ($\sigma$), and Taylor Skill Score (TSS)).
-    - Tropical Cyclones (TCs): this includes the computation of various scalar statistics (bias ($\bar{b}$), spatial Pearson correlation ($r_{xy}$), and temporal Spearman rank correlation ($\rho_s$)) for several TC metrics (counts, TC days (TCD), accumulated cyclone energy (ACE), pressure ACE (PACE), and latitude of lifetime-maximum intensity (LMI)).
+- **Scientific skill evaluation:** compute scalar scores evaluating the following phenomena using the `ScientificEvaluation` class:
+    - Tropical IntraSeasonal Oscillation (ISO): this includes the computation of the bimodal ISO indices (for MJO and BSISO), as well as the calculation of related scalar scores comparing the indices between simulations and observations (amplitude ratio ($\alpha$), temporal correlation ($R$), standard deviation ratio ($\sigma$), and Taylor Skill Score (TSS)).
+    - Tropical Cyclones (TCs): this includes the computation of various scalar scores (bias ($\bar{b}$), spatial Pearson correlation ($r_{xy}$), and temporal Spearman rank correlation ($\rho_s$)) for several TC metrics (counts, TC days (TCD), accumulated cyclone energy (ACE), pressure ACE (PACE), and latitude of lifetime-maximum intensity (LMI)).
 - **Flexible data management:** add and compare datasets in the `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes even after initialization.
 
 Future releases will include:
-- **Additional scientific skill evaluation:** compute additional metrics evaluating several climate phenomena, such as precipitation.
-- **Automated report generation:** produce reports including plots and statistics summary.
+- **Additional scientific skill evaluation:** compute additional scalar scores evaluating several climate phenomena, such as precipitation.
+- **Automated report generation:** produce reports including plots and scores summary.
 
 
 
 ## Installation
-The package and the necessary dependencies can be installed from the source using the conda environment provided in this repository (`environment.yaml`):
+The package and its dependencies can be installed using the conda environment provided in this repository (`environment.yaml`):
 ```bash
+# Clone the repository to your current directory
 git clone https://github.com/BSC-ES/pyhanami.git
+
+# Enter the repository folder
 cd pyhanami
+
+# Create the conda environment 
 conda env create -f environment.yaml
+
+# Activate the newly created environment
 conda activate pyhanami-env_v0.1.0
 ```
 
@@ -50,19 +57,19 @@ pip install .
 The following examples demonstrate the main functionalities of _pyhanami_. For detailed usage instructions, see the project's documentation in [https://pyhanami.readthedocs.io/](https://pyhanami.readthedocs.io/)
 
 ### Load simulation data
+Load two simulation datasets from either paths to NetCDF files or already loaded `xarray.Dataset` objects (`source_simulation_1` and `source_simulation_2`) and assign a name to each of them (`name_sim_1` and `name_sim_2`):
 ```python
 import pyhanami
 
-# Load two simulation datasets from paths to NetCDF files or xarray.Dataset objects 
-# ('source_simulation_1' and 'source_simulation_2') and assign a name to each of 
-# them ('name_sim_1' and 'name_sim_2')
-sim_1 = pyhanami.SimulationData('source_simulation_1', name='name_sim_1')
-sim_2 = pyhanami.SimulationData('source_simulation_2', name='name_sim_2')
+# Initialize the SimulationData class for both datasets
+sim_1 = pyhanami.SimulationData(data_source='source_simulation_1', name='name_sim_1')
+sim_2 = pyhanami.SimulationData(data_source='source_simulation_2', name='name_sim_2')
 ```
 
 ### Generate visualization diagnostics (time series and spatial plots)
+Generate diagnostics plots comparing both simulation datasets:
 ```python
-# Generate diagnostics plots comparing both simulation datasets
+# Initialize the DataDiagnostics class with the two simulation datasets
 diags = pyhanami.DataDiagnostics([sim_1, sim_2])
 
 # Create a time series plot (simulations + observations) for one climate variable 
@@ -95,20 +102,22 @@ diags.eff_size_plot(
 ```
 
 ### Perform replicability test
+Perform a replicability test comparing the two simulation datasets:
 ```python
-# Perform a replicability test comparing the two simulation datasets and save results 
-# to 'output_path'
+# Initialize the ReplicabilityTest class with the two simulation datasets
 tester = pyhanami.ReplicabilityTest([sim_1, sim_2], obs_path='path_obs')
 
+# Perform test and save results to 'output_path'
 tester.matrix_plot(
     ['name_sim_1', 'name_sim_2'],
     'output_path'
 )
 ```
 
-### Evaluate scientific skill
+### Evaluate scientific skill (Tropical IntraSeasonal Oscillation and Tropical Cyclones)
+Evaluate the scientific skill of one simulation dataset:
 ```python
-# Evaluate the scientific skill of one simulation dataset
+# Initialize the ScientificEvaluation class with one simulation dataset
 sciskill = pyhanami.ScientificEvaluation(sim_1)
 
 # Assess simulation of the Tropical IntraSeasonal Oscillation (ISO) by computing the 
@@ -123,8 +132,8 @@ iso_analysis = sciskill.compute_iso_scores(
 # Save results of the analysis to 'output_path'
 iso_analysis.save_data('output_path')
 
-# Create plots for EEOFs, PCs (bimodal ISO indices) and frequency of ISO events and
-# save them to 'output_path'
+# Create plots for EEOFs, PCs (bimodal ISO indices) and monthly frequency of 
+# ISO events (seasonality) and save them to 'output_path'
 iso_analysis.eeof_plots('output_path')
 iso_analysis.pc_plots('output_path', years=[year_1, year_2, year_3])
 iso_analysis.freq_plot('output_path')
@@ -134,7 +143,7 @@ iso_analysis.freq_plot('output_path')
 iso_analysis.scores
 
 # Assess simulation of Tropical Cyclones (TCs) by computing TC metrics and derived 
-# scalar scores for one simulation dataset comparing to observations and reanalyses
+# scalar scores comparing to observations and reanalyses
 tc_analysis = sciskill.compute_tc_scores(
     'name_sim_1',
     start_year_tc=year_init_tc,
@@ -162,13 +171,13 @@ This project includes code and resources from the following sources:
 
 #### Adapted code:
 - [CyMeP package](https://github.com/zarzycki/cymep):
-    - Used in: `src/pyhanami/utils/tcs_metrics/tcs_cymep_main.py`, `src/pyhanami/utils/tcs_metrics/tcs_cymep_funcs.py`
+    - Used in: `src/pyhanami/utils/tcs_scores/tcs_cymep_main.py`, `src/pyhanami/utils/tcs_scores/tcs_cymep_funcs.py`
     - License: MIT License
     - Copyright (c) 2021 Colin Zarzycki
 
 #### Code dependencies:
 - [TempestExtremes package](https://github.com/ClimateGlobalChange/tempestextremes):
-    - Used in: `src/pyhanami/utils/tcs_metrics/tcs_tempestextremes.py`
+    - Used in: `src/pyhanami/utils/tcs_scores/tcs_tempestextremes.py`
     - License: BSD 2-Clause License
     - Copyright (c) 2025, Paul Ullrich
 

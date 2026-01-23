@@ -16,7 +16,7 @@ from pathlib import Path
 
 from pyhanami.utils import data_general
 from pyhanami.config import config_params
-from pyhanami.utils.tcs_metrics import tcs_cymep_funcs
+from pyhanami.utils.tcs_scores import tcs_cymep_funcs
 
 
 

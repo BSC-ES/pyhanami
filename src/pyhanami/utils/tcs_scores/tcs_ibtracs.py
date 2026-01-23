@@ -19,7 +19,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 
 from pyhanami.config import config_params
-from pyhanami.utils.tcs_metrics import tcs_tempestextremes
+from pyhanami.utils.tcs_scores import tcs_tempestextremes
 
 
 # Functions adapted from cymep/conver-traj/ibtracs-to-tempest.ncl (translated to Python)

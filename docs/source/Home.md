@@ -15,14 +15,14 @@ Key features of the package include:
 - **Diagnostics plotting:** generate visualizations comparing two previously loaded simulation ensembles for selected variables using the `DataDiagnostics` class. 
 These include time series plots (with the `time_series_plots` method) and spatial plots (with the `spatial_plots` method). The latter generates two plots, one for the absolute difference and another for the effect size (Cohen's _d)_ between both ensembles.
 - **Replicability testing:** perform a replicability test checking the statistical indistinguishability between two previously loaded simulation ensembles using the `ReplicabilityTest` class.
-- **Scientific skill evaluation:** compute metrics evaluating the following phenomena using the `ScientificEvaluation` class:
-    - <u>Tropical IntraSeasonal Oscillation (ISO):</u> this includes the computation of the bimodal ISO indices (for MJO and BSISO), as well as the calculation of related statistics comparing the indices between simulations and observations (PCs' amplitude ratio ($\alpha$), temporal correlation ($R$), standard deviation ratio ($\sigma$), and Taylor Skill Score (TSS)).
-    - <u>Tropical Cyclones (TCs):</u> this includes the computation of various scalar statistics (bias ($\bar{b}$), spatial Pearson correlation ($r_{xy}$), and temporal Spearman rank correlation ($\rho_s$)) for several TC metrics (counts, TC days (TCD), accumulated cyclone energy (ACE), pressure ACE (PACE), and latitude of lifetime-maximum intensity (LMI)).
+- **Scientific skill evaluation:** compute scalar scores evaluating the following phenomena using the `ScientificEvaluation` class:
+    - <u>Tropical IntraSeasonal Oscillation (ISO):</u> this includes the computation of the bimodal ISO indices (for MJO and BSISO), as well as the calculation of related scalar scores comparing the indices between simulations and observations (amplitude ratio ($\alpha$), temporal correlation ($R$), standard deviation ratio ($\sigma$), and Taylor Skill Score (TSS)).
+    - <u>Tropical Cyclones (TCs):</u> this includes the computation of various scalar scores (bias ($\bar{b}$), spatial Pearson correlation ($r_{xy}$), and temporal Spearman rank correlation ($\rho_s$)) for several TC metrics (counts, TC days (TCD), accumulated cyclone energy (ACE), pressure ACE (PACE), and latitude of lifetime-maximum intensity (LMI)).
 - **Flexible data management:** add and compare datasets in the `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes even after initialization.
 
 Future releases will include:
-- **Additional scientific skill evaluation:** compute additional metrics evaluating several climate phenomena, such as precipitation.
-- **Automated report generation:** produce reports including plots and statistics summary.
+- **Additional scientific skill evaluation:** compute additional scalar scores evaluating several climate phenomena, such as precipitation.
+- **Automated report generation:** produce reports including plots and scores summary.
 
 For quick start instructions, see the README on the [project's GitHub repository](https://github.com/BSC-ES/pyhanami/tree/main). This documentation provides in-depth information and advanced usage details.
 

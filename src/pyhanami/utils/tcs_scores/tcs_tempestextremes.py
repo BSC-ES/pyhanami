@@ -120,7 +120,8 @@ def detect_nodes(input_file, output_file="detected_nodes.txt", psl_delta=200.0, 
     cmd = [
         "DetectNodes",
         "--verbosity", "0",
-        "--timestride", "1",
+        # "--timestride", "1",  # Deprecated, it only examines discrete times at the given stride, replaced by --timefilter
+        "--timefilter", "6hr",
         "--closedcontourcmd", f"PSL,{psl_delta},{psl_dist},0;_DIFF(Z300,Z500),{z_delta},{z_dist},{z_offset}",
         "--mergedist", f"{merge_dist}",
         "--searchbymin", "PSL",
