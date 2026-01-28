@@ -193,7 +193,7 @@ This project includes code and resources from the following sources:
     - Used for: reference Tropical Cyclones data in `src/pyhanami/diags/ScientificSkill.py`
     - Reference: NCEI DSI 9637_02 (doi:10.25921/82ty-9e16)
 - [GEBCO_2024 Grid](https://www.gebco.net/data-products-gridded-bathymetry-data/gebco2024-grid):
-    - Used for: computing surface geopotential in `src/pyhanami/utils/tcs_tempestextremes.py`
+    - Used for: computing surface geopotential in `src/pyhanami/utils/tcs_scores/tcs_tempestextremes.py`
     - Reference: GEBCO Compilation Group (2024) GEBCO 2024 Grid (doi:10.5285/1c44ce99-0a0d-5f4f-e063-7086abc0ea0f)
 
 For full license files, see the [LICENSES](./LICENSES) directory.

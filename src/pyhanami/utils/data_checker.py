@@ -255,10 +255,14 @@ class DataChecker:
         for var in data.data_vars:
             if var in self.variables:
                 
-                # Check if all values are NaN
+                # Count NaN values
                 data_var = data[var]
-                all_nan_check = data_var.isnull().all()
-                if all_nan_check:
+                nan_mask = data_var.isnull()
+                nan_count = nan_mask.sum().compute().item()
+                total_count = data_var.size
+
+                # Check if all values are NaN
+                if nan_count == total_count:
                     self.error_msg.append(
                         f"Variable '{var}' only contains NaN values." 
                     )
@@ -268,16 +272,14 @@ class DataChecker:
                     mask = self.variables[var]['mask']
                     if mask == 'atm':
                         # Check if any values are NaN
-                        any_nan_check = data_var.isnull().any()
-                        if any_nan_check:
+                        if nan_count > 0:
                             self.error_msg.append(
                                 f"Variable '{var}' contains NaN values. " 
                                 "Not acceptable for an atmosphere variable." 
                             )
                     elif mask == 'oce':
                         # Check if at least one value is NaN
-                        any_nan_check = data_var.isnull().any()
-                        if not any_nan_check:
+                        if nan_count == 0:
                             self.error_msg.append(
                                 f"Variable '{var}' does not contain any NaN values. " 
                                 "Not acceptable for an ocean variable." 

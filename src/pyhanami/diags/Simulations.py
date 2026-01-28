@@ -45,7 +45,8 @@ class SimulationData:
         else:
             raise TypeError("'name' must be a string.")
         
-        self.check_data()
+        print(f"Loaded simulation data '{self.name}', starting data checks...", flush=True)
+        self.data = self.check_data()
 
 
     def _prepare_data(self):
@@ -64,9 +65,14 @@ class SimulationData:
 
     def check_data(self):
         """ 
-        Check and correct provided data (available variables, units, coordinates names and format, ...). 
+        Check and correct provided data (available variables, units, coordinates names and format, ...).
+        
+        Returns
+        -------
+        data_sim : xr.Dataset
+            Checked simulation data. 
         """
 
         data_checker_ins =  data_checker.DataChecker()
-        self.data = data_checker_ins.check_data(self.data)
-        return
+        data_checked = data_checker_ins.check_data(self.data)
+        return data_checked
