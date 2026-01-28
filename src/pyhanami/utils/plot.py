@@ -1179,7 +1179,8 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
     return fig, ax
 
 
-def plot_table(data, title='Climate variables', col_labels='', row_labels='', cbar_ticks=['Low', '0', 'High'], colors=('RdBu_r')):
+def plot_table(data, title='Climate variables', col_labels='', row_labels='', cbar_ticks=['Low', '0', 'High'], colors=('RdBu_r'),
+               decimals=1):
     """ 
     Generate a table plot with climate data.
 
@@ -1198,6 +1199,8 @@ def plot_table(data, title='Climate variables', col_labels='', row_labels='', cb
         Labels for the colorbar ticks (default: ['Low', '0', 'High']).
     colors : tuple
         Colormap (default: 'RdBu_r').
+    decimals : int
+        Number of decimals to round the data values (default: 1).
 
     Returns
     -------
@@ -1228,7 +1231,8 @@ def plot_table(data, title='Climate variables', col_labels='', row_labels='', cb
     ax.axis('off')
     ax.set_title(title, fontsize=16, pad=20)
 
-    cell_text = np.column_stack((np.reshape(row_labels, (-1, 1)), np.round(data, 1)))
+    formatted_data = np.array([[f"{val:.{decimals}f}" for val in row] for row in data])
+    cell_text = np.column_stack((np.reshape(row_labels, (-1, 1)), formatted_data))
     table = plt.table(cellText=cell_text, colLabels=col_labels, loc='center', cellLoc='center')
     table.auto_set_font_size(False)
     table.set_fontsize(14)

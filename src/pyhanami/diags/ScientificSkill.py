@@ -786,7 +786,7 @@ class TCEvaluation:
         # Run CyMeP TCs metrics computation
         data_cymep = tcs_cymep_main.run_cymep_pyhanami(self.start_year_tc, self.end_year_tc, output_path=self.tracks_path, 
                                                             gridsize=self.bin_size, csvfilename=config_cymep_path)
-        model_names = self.data_cymep.model.values 
+        model_names = data_cymep.model.values 
 
         return data_cymep, model_names
 

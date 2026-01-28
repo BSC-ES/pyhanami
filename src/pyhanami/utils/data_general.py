@@ -228,12 +228,12 @@ def validate_year_range(data_sim, start_year=None, end_year=None, process_name=N
     # Set default years if not provided
     if start_year is None:
         start_year = start_year_data
-        print(f"Warning: As no start year was provided for the {process_name} analysis, the first year available" +
-              f" in the '{sim_name}' dataset ({start_year_data}) will be used.", flush=True)
+        warnings.warn(f"Warning: As no start year was provided for the {process_name} analysis, the first year available" + 
+                      f" in the '{sim_name}' dataset ({start_year_data}) will be used.", flush=True)
     if end_year is None:
         end_year = end_year_data
-        print(f"Warning: As no end year was provided for the {process_name} analysis, the last year available" +
-              f" in the '{sim_name}' dataset ({end_year_data}) will be used.", flush=True)
+        warnings.warn(f"Warning: As no end year was provided for the {process_name} analysis, the last year available" +
+                      f" in the '{sim_name}' dataset ({end_year_data}) will be used.", flush=True)
     
     # Validate year range
     if start_year > end_year:
