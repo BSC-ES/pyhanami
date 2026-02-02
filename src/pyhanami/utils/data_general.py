@@ -111,7 +111,7 @@ def cyclic_wrapper(data, dim="lon"):
     return wrapped_data
 
 
-def regrid_data(source_ds, target_ds, var=None, method='conservative', cyclic_point=False, time_dim='time' ):
+def regrid_data(source_ds, target_ds, var=None, method='bilinear', cyclic_point=False, time_dim='time' ):
         """
         Regrid one or all variables from the source dataset to the target dataset.
 
@@ -124,7 +124,7 @@ def regrid_data(source_ds, target_ds, var=None, method='conservative', cyclic_po
         var : str
             Variable to regrid.
         method : str
-            Regridding method (default: 'conservative').
+            Regridding method (default: 'bilinear').
         cyclic_point : bool
             Whether to handle cyclic points (default: False).
         time_dim : str
@@ -161,34 +161,44 @@ def regrid_data(source_ds, target_ds, var=None, method='conservative', cyclic_po
 
         source_ds_copy = source_ds.copy()
 
-        # Select first timestep (we are only performing spatial regridding) and handle cyclic longitudes if needed
+        # Handle cyclic longitudes if needed
         if cyclic_point:
-            source_ds_copy = source_ds_copy.map(cyclic_wrapper, keep_attrs=True)
-        source_ds_t0 = source_ds_copy.isel({time_dim: 0}, drop=True) if time_dim in source_ds_copy.dims else source_ds_copy
-        target_ds_t0 = target_ds.isel({time_dim: 0}, drop=True) if time_dim in target_ds.dims else target_ds
+            source_ds_copy = source_ds_copy.map(cyclic_wrapper, keep_attrs=True)        
 
-        # Drop time coordinate to avoid conflicts during regridding
-        source_ds_t0 = source_ds_t0.drop_vars(time_dim, errors='ignore')
-        target_ds_t0 = target_ds_t0.drop_vars(time_dim, errors='ignore')
-        
-        # Build regridder and perform interpolation for all time steps
-        regridder = xe.Regridder(source_ds_t0, target_ds_t0, method)
-        regridded_vars = {}
-        for var_name in vars_to_regrid:
-            regridded_var = regridder(source_ds_copy[var_name])
-            regridded_var.attrs = source_ds[var_name].attrs
-            regridded_vars[var_name] = regridded_var
-        regridded_ds = xr.Dataset(regridded_vars)
-        
-        # Preserve both global and coordinate attributes
-        for coord_name in source_ds.coords:
-            if coord_name in regridded_ds.coords:
-                regridded_ds[coord_name].attrs = source_ds[coord_name].attrs
-        regridded_ds.attrs = source_ds.attrs
 
+        # Compare spatial coordinates
+        lat_identical = (source_ds_copy.lat.equals(target_ds.lat))
+        lon_identical = (source_ds_copy.lon.equals(target_ds.lon))
+        
+        # Handle identical grids
+        if lat_identical and lon_identical and not cyclic_point:
+            regridded_ds = source_ds_copy[vars_to_regrid]
+        # Handle regridding
+        else:
+            # Select first timestep (we are only performing spatial regridding)
+            source_ds_t0 = source_ds_copy.isel({time_dim: 0}, drop=True) if time_dim in source_ds_copy.dims else source_ds_copy
+            target_ds_t0 = target_ds.isel({time_dim: 0}, drop=True) if time_dim in target_ds.dims else target_ds
+
+            # Drop time coordinate to avoid conflicts during regridding (above, only time as a dimension was dropped)
+            source_ds_t0 = source_ds_t0.drop_vars(time_dim, errors='ignore')
+            target_ds_t0 = target_ds_t0.drop_vars(time_dim, errors='ignore')  
+
+            # Build regridder and perform interpolation for all time steps
+            regridder = xe.Regridder(source_ds_t0, target_ds_t0, method)
+            regridded_vars = {}
+            for var_name in vars_to_regrid:
+                regridded_var = regridder(source_ds_copy[var_name])
+                regridded_var.attrs = source_ds[var_name].attrs
+                regridded_vars[var_name] = regridded_var
+            regridded_ds = xr.Dataset(regridded_vars)
+            
+            # Preserve both global and coordinate attributes
+            for coord_name in source_ds.coords:
+                if coord_name in regridded_ds.coords:
+                    regridded_ds[coord_name].attrs = source_ds[coord_name].attrs
+            regridded_ds.attrs = source_ds.attrs
 
         del source_ds_copy
-
         return regridded_ds
 
 
@@ -228,12 +238,12 @@ def validate_year_range(data_sim, start_year=None, end_year=None, process_name=N
     # Set default years if not provided
     if start_year is None:
         start_year = start_year_data
-        warnings.warn(f"Warning: As no start year was provided for the {process_name} analysis, the first year available" + 
-                      f" in the '{sim_name}' dataset ({start_year_data}) will be used.", flush=True)
+        warnings.warn(f"As no start year was provided for the {process_name} analysis, the first year available" + 
+                      f" in the '{sim_name}' dataset ({start_year_data}) will be used.")
     if end_year is None:
         end_year = end_year_data
-        warnings.warn(f"Warning: As no end year was provided for the {process_name} analysis, the last year available" +
-                      f" in the '{sim_name}' dataset ({end_year_data}) will be used.", flush=True)
+        warnings.warn(f"As no end year was provided for the {process_name} analysis, the last year available" +
+                      f" in the '{sim_name}' dataset ({end_year_data}) will be used.")
     
     # Validate year range
     if start_year > end_year:

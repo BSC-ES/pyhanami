@@ -22,9 +22,12 @@ class ObservationData:
     sim : xr.Dataset
         Input simulation dataset.
     name : str
-        Name of the observations instance.
+        Name of the observations instance (default: obs).
+    realization : int
+        Realization number to select from the observations dataset if more than
+        one member is present (default: 0).
     regrid_method : str
-        Regridding method.
+        Regridding method (default: bilinear).
 
     Attributes
     ----------
@@ -34,11 +37,14 @@ class ObservationData:
         Processed observational data, regridded to match the input simulation.
     name : str
         Name of the observations instance (default: obs).
+    realization : int
+        Realization number to select from the observations dataset if more than
+        one member is present (default: 0).
     regrid_method : str
-        Regridding method.
+        Regridding method (default: bilinear).
     """
 
-    def __init__(self, data_path: str, sim: xr.Dataset, name: str = 'obs', regrid_method: str = 'conservative'):
+    def __init__(self, data_path: str, sim: xr.Dataset, name: str = 'obs', realization: int = 0, regrid_method: str = 'bilinear'):
         if isinstance(data_path, (str, Path)):
             self.data_path = Path(data_path)
         else:
@@ -55,6 +61,10 @@ class ObservationData:
             self.name = name
         else:
             raise TypeError("'name' must be a string.")
+        if isinstance(realization, int):
+            self.realization = realization
+        else:
+            raise TypeError("'realization' must be an integer.")
         if isinstance(regrid_method, str):
             self.regrid_method = regrid_method
         else:
@@ -70,7 +80,7 @@ class ObservationData:
         
         Parameters
         ----------
-        sim : xr.Dataset)
+        sim : xr.Dataset
             Input simulation dataset.
 
         Returns
@@ -91,6 +101,12 @@ class ObservationData:
         for var in sim.data_vars:
             var_path = next(self.data_path.glob(f"data_obs*_{var}.nc"))
             data_obs_aux = xr.open_dataset(var_path, chunks="auto")
+
+            # Select realization if more than one member is present
+            if 'realization' in data_obs_aux.dims:
+                data_obs_aux = data_obs_aux.isel({'realization' : self.realization}, drop=True)
+            if 'realization' in data_obs_aux.coords:
+                data_obs_aux = data_obs_aux.drop_vars('realization')
 
             # Check time coordinate and format
             if "time" not in data_obs_aux.coords or "time" not in sim.coords:
