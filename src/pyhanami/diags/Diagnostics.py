@@ -15,6 +15,7 @@ from scipy.stats import ttest_ind
 from collections.abc import Iterable
 
 from pyhanami.config import config_params
+from matplotlib.colors import LinearSegmentedColormap
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
 from pyhanami.utils import data_general, plot, statistics
@@ -309,6 +310,58 @@ class DataDiagnostics:
         return significant_reshaped
 
 
+    def _compute_bias(self, var_name, data_plot):
+        """
+        Compute average bias between a simulation ensemble and observations
+        for the given variable at the grid point level.
+        
+        Parameters
+        ----------
+        var_name : str
+            Climate variable name.
+        data_plot : list[SimulationData and ObservationData]
+            List containing the simulation ensemble and the observational dataset.
+
+        Returns
+        -------
+        data_bias : xr.DataArray
+            Bias between the simulation ensemble and observations.
+        """
+
+        # Validate inputs
+        if not isinstance(data_plot, list) or len(data_plot) != 2 \
+            or not isinstance(data_plot[0], SimulationData) \
+            or not isinstance(data_plot[1], ObservationData):
+            raise TypeError("'data_plot' must be a list with a SimulationData instance and an ObservationData instance.")
+    
+        for dataset in data_plot:
+            if var_name not in dataset.data.data_vars:
+                raise ValueError(f"Variable '{var_name}' not found in the dataset '{dataset.name}'. "
+                            f"Available variables: {list(dataset.data.data_vars.keys())}")
+            
+        # Validate time coordinates match
+        data_sim = data_plot[0].data.persist()
+        data_obs = data_plot[1].data.persist()
+        if not data_sim.time.equals(data_obs.time):
+            raise ValueError(
+                f"Time coordinates of the two datasets do not match:\n"
+                f"  {data_plot[0].name} has time from {str(data_sim.time.min().values)[:19]} to {str(data_sim.time.max().values)[:19]}\n"
+                f"  {data_plot[1].name} has time from {str(data_obs.time.min().values)[:19]} to {str(data_obs.time.max().values)[:19]}"
+            )
+        
+
+        # Compute mean bias
+        data_sim_mean = data_sim[var_name].mean(['time'])
+        data_obs_mean = data_obs[var_name].mean(['time'])
+        if 'realization' in data_sim.coords:
+            data_sim_mean = data_sim_mean.mean(['realization'])
+        if data_sim_mean.shape != data_obs_mean.shape:
+            raise ValueError(f"Averaged data shapes of the two datasets do not match ({data_sim_mean.shape} vs {data_obs_mean.shape}).")
+        
+        data_bias = (data_sim_mean - data_obs_mean).compute()
+        return data_bias
+    
+    
     def add_datasets(self, datasets):
         """ 
         Add new datasets to the DataDiagnostics object.
@@ -461,7 +514,7 @@ class DataDiagnostics:
         end_year : int 
             End year to plot.
         clon : int
-            Central longitude for the spatial map.
+            Central longitude for the spatial map (default: 0).
         """
         
         # Validate inputs
@@ -498,7 +551,7 @@ class DataDiagnostics:
         limit = np.max(np.abs(abs_diff.values))
         levels = np.linspace(-limit, limit, 13)
         
-        abs_diff_plot, _ = plot.plot_spatial(abs_diff, clon=clon, title=f"Difference in {self.variables[var_name]['long_name']} for {start_year}-{end_year} ({data_plot_filtered[0].name} - {data_plot_filtered[1].name})",
+        abs_diff_plot, _ = plot.plot_spatial(abs_diff, clon=clon, title=f"Difference in {self.variables[var_name]['long_name']} for {start_year}-{end_year} ({data_names[0]} - {data_names[1]})",
                                           cb_label=f"difference in {var_name} ({self.variables[var_name]['units']})", cmap=cmocean.cm.thermal, levels=levels)
 
         # Save plot to path if given
@@ -529,7 +582,7 @@ class DataDiagnostics:
         end_year : int 
             End year to plot.
         clon : int
-            Central longitude for the spatial map.
+            Central longitude for the spatial map (default: 0).
         alpha : float
             Significance level for the statistical test (default: 0.05).
         stat : Callable
@@ -577,7 +630,7 @@ class DataDiagnostics:
         significant = self._compute_significant_diff(var_name, data_plot_filtered, alpha, stat)
         levels = [-2,-1.2,-0.8,-0.5,-0.2,-0.01,0.01,0.2,0.5,0.8,1.2,2.0]    # Use Cohen's limits for effect size
 
-        eff_size_plot, _ = plot.plot_spatial(eff_size, clon=clon, title=f"Effect size ($d$) for {self.variables[var_name]['long_name']} for {start_year}-{end_year} ({data_plot_filtered[0].name} - {data_plot_filtered[1].name})",
+        eff_size_plot, _ = plot.plot_spatial(eff_size, clon=clon, title=f"Effect size ($d$) for {self.variables[var_name]['long_name']} for {start_year}-{end_year} ({data_names[0]} - {data_names[1]})",
                                           cb_label=f"$d$ for {var_name} (-)", cmap=cmocean.cm.diff, levels=levels, significant=significant)
 
         # Save plot to path if given
@@ -588,6 +641,88 @@ class DataDiagnostics:
         return
 
 
+    def bias_plot(self, var_name, data_name=None, output_path=None, obs_path=None, obs_name=None, start_year=None, 
+                  end_year=None, clon=0):
+        """
+        Generate bias plot for the given dataset and variable comparing with observations.
+
+        Parameters
+        ----------
+        var_name : str
+            Climate variable name.
+        data_name : str, optional
+            Name of the simulation ensemble to plot. If None, the first dataset
+            in the DataDiagnostics object is used.
+        output_path : str, optional
+            Path to save the spatial plot.
+        obs_path : str
+            Path to the observations database.
+        obs_name : str
+            Name of the observational dataset.
+        start_year : int
+            Start year to plot.
+        end_year : int
+            End year to plot.
+        clon : int
+            Central longitude for the spatial map (default: 0).
+        """
+
+        # Validate inputs
+        if data_name is None:
+            if len(self.datasets) < 1:
+                raise ValueError("At least one dataset is required for bias plots. Please add a dataset.")
+            data_plot = self.datasets[0]
+            data_name = data_plot.name
+        elif isinstance(data_name, str):
+            data_plot = [ds for ds in self.datasets if ds.name == data_name]
+            if not data_plot:
+                raise ValueError(f"Dataset with name '{data_name}' not found in the DataDiagnostics object.")
+            if len(data_plot) > 1:
+                raise ValueError(f"Multiple datasets with name '{data_name}' found in the DataDiagnostics object.")
+        else:
+            raise TypeError("'data_name' must be a string representing a dataset name.")
+
+        if var_name not in data_plot[0].data.data_vars:
+            raise ValueError(f"Variable '{var_name}' not found in the simulated dataset '{data_plot[0].name}'. "
+                                f"Available variables: {list(data_plot[0].data.data_vars.keys())}")
+        
+        if obs_path is None or obs_name is None:
+            raise ValueError('Automatic selection of observations is not implemented yet. '
+                             'Please provide a path and a name for the observations database.')
+        elif not isinstance(obs_path, str) or not isinstance(obs_name, str):
+            raise TypeError("'obs_path' and 'obs_name' must be strings representing the observations database path and name, respectively.")
+        else:
+            data_obs = ObservationData(obs_path, data_plot[0].data[[var_name]], obs_name)
+            data_plot.append(data_obs)
+            data_names = [data_name, obs_name]
+        
+        # Validate year range
+        for dataset in data_plot:
+            start_year, end_year = data_general.validate_year_range(dataset, start_year, end_year, process_name='bias')
+        data_plot_filtered = copy.deepcopy(data_plot)
+        for i, dataset in enumerate(data_plot):
+            data_plot_filtered[i].data = dataset.data.sel(time=slice(str(start_year), str(end_year)))
+
+
+        # Compute and plot bias
+        bias = self._compute_bias(var_name, data_plot_filtered)
+
+        limit = np.max(np.abs(bias.values))
+        levels = np.linspace(-limit, limit, 13)
+        colors = ("GreenRed", ['tab:red', 'white', 'tab:green'])
+        cmap = LinearSegmentedColormap.from_list(*colors)
+
+        bias_plot, _ = plot.plot_spatial(bias, clon=clon, title=f"Bias in {self.variables[var_name]['long_name']} for {start_year}-{end_year} ({data_names[0]} - {data_names[1]})",
+                                    cb_label=f"bias in {var_name} ({self.variables[var_name]['units']})", cmap=cmap, levels=levels)
+
+        # Save plot to path if given
+        data_names_str = "-".join([('_').join(name.split()) for name in data_names])
+        plot.save_or_show_plot(bias_plot, output_path, plot_filename=f"bias_{var_name}_{data_names_str}_{start_year}-{end_year}_clon_{clon}",
+                               plot_name="Bias plot")
+        
+        return
+
+    
     # Unused, divided into two separate methods above (kept for reference)
     # def spatial_plots(self, var_name, data_names=None, output_path=None, clon=0, alpha=0.05, stat=ttest_ind):
     #     """ 
