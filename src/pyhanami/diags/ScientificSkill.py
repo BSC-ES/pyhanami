@@ -7,19 +7,431 @@ import shutil
 import cmocean
 import numpy as np
 import xarray as xr
+import concurrent.futures
 import matplotlib.pyplot as plt
 
 from pathlib import Path
+from scipy.stats import pearsonr
 from collections.abc import Iterable
 from matplotlib.colors import LinearSegmentedColormap
 
 from pyhanami.config import config_params
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
-from pyhanami.utils import data_general, iso_scores, plot
+from pyhanami.utils import data_general, iso_scores, plot, statistics
 from pyhanami.utils.tcs_scores import tcs_tempestextremes, tcs_ibtracs, tcs_cymep_main
 
 VARIABLES = data_general.load_yaml_file(config_params.VARIABLES_PATH)
+
+
+class GeneralEvaluation:
+    """ 
+    Compute general scientific skill scalar scores.
+
+    This class provides functionality for computing several scalar scores comparing simulations 
+    and observational data:
+        - Bias (absolute and relative)
+        - Centralized Root Mean Square Error (RMSE) (absolute and relative)
+        - Pearson correlation coefficient
+
+    Parameters
+    ----------
+    data_sim : SimulationData
+        Simulation dataset to use.
+    var_names : str or list[str], optional
+        Climate variable(s) name(s). If None, all variables in the simulated dataset will be used.
+    start_year, end_year : int
+        Initial and end years to perform the general analysis for.
+    obs_name : str
+        Name of the observational dataset to compare to (default: config_params.GEN_OBS_NAME).
+    obs_path : str
+        Path to the observations database (default: config_params.GEN_OBS_PATH).
+
+    Attributes
+    ----------
+    var_names : list[str]
+        List of climate variables names used in the analysis.
+    sim_name : str
+        Name of the simulation dataset.
+    obs_name : str 
+        Name of the observational dataset
+    max_workers_grid : int
+        Number of parallel workers used for variable-wise computations (default: 
+        config_params.MAX_WORKERS_VARS).
+    ensemble : bool
+        Whether the simulation dataset is a single member or an ensemble.
+    start_year, end_year : int
+        Initial and end years to perform the general analysis for.
+    scores : xr.Dataset
+        Dataset containing various scalar scores comparing simulations and observational data:
+            bias_abs : np.ndarray
+                Area-weighted mean absolute bias.
+            bias_rel : np.ndarray
+                Area-weighted mean relative bias
+            rmse_abs : np.ndarray
+                Area-weighted mean absolute RMSE.
+            rmse_rel : np.ndarray
+                Area-weighted mean relative RMSE.
+            pcorr : np.ndarray
+                Pearson correlation coefficient.
+    """
+
+    def __init__(self,  data_sim : SimulationData, var_names : str | list[str] = None, start_year : int = None, end_year : int = None,
+                 obs_name : str = config_params.GEN_OBS_NAME, obs_path : str = config_params.GEN_OBS_PATH):
+
+        # Validate input
+        if not isinstance(data_sim, SimulationData):
+            raise TypeError("'data_sim' must be an instance of SimulationData.")
+        if var_names is None:
+            var_names = list(data_sim.data.data_vars.keys())
+        if isinstance(var_names, str):
+            var_names = [var_names]
+        for var_name in var_names:
+            if var_name not in data_sim.data.data_vars:
+                raise ValueError(f"Variable '{var_name}' not found in the simulated dataset '{data_sim.name}'. "
+                                f"Available variables: {list(data_sim.data.data_vars.keys())}")
+            
+        # Prepare attributes
+        self.var_names = var_names
+        self.sim_name = data_sim.name
+        self.obs_name = obs_name
+
+        self.ensemble = True if 'realization' in data_sim.data.dims else False
+        self.max_workers_vars = config_params.MAX_WORKERS_VARS
+
+        # Load observational data
+        if obs_path is None or obs_name is None:
+            raise ValueError('Automatic selection of observations is not implemented yet. '
+                             'Please provide a path and a name for the observations database.')
+        elif not isinstance(obs_path, (str, Path)) or not isinstance(obs_name, str):
+            raise TypeError("'obs_path' and 'obs_name' must be strings representing the observations database path and name, respectively.")
+        else:
+            data_obs = ObservationData(obs_path, data_sim.data[[var_name]], obs_name)
+        
+        # Select year for general analysis
+        for dataset in [data_sim, data_obs]:
+            start_year, end_year = data_general.validate_year_range(dataset, start_year, end_year, process_name='general scalar')
+        self.start_year, self.end_year = start_year, end_year
+        data_sim_filtered = data_sim.data.sel(time=slice(str(self.start_year), str(self.end_year))).compute()
+        data_obs_filtered = data_obs.data.sel(time=slice(str(self.start_year), str(self.end_year))).compute()
+
+
+        # Compute scalar scores
+        bias_abs, bias_rel = self._compute_bias(data_sim_filtered, data_obs_filtered)
+        rmse_abs, rmse_rel = self._compute_rmse(data_sim_filtered, data_obs_filtered)
+        pcorr = self._compute_pcorr(data_sim_filtered, data_obs_filtered)
+
+        # Store all scores in an xarray Dataset
+        self.scores = xr.Dataset(
+            data_vars = {
+                'bias_abs': (['variable'], bias_abs),
+                'bias_rel': (['variable'], bias_rel),
+                'rmse_abs': (['variable'], rmse_abs),
+                'rmse_rel': (['variable'], rmse_rel),
+                'pcorr': (['variable'], pcorr)
+            },
+            coords = {'variable': self.var_names},
+        )
+
+        print("\nGeneral scalar analysis computation completed.", flush=True)
+
+        return
+ 
+
+    def _compute_bias_one_var(self, args):
+        """
+        Compute bias between simulations and observations as the area-weighted
+        mean of the absolute and relative differences for the given variable.
+
+        Parameters
+        ----------
+        args : tuple
+            List containing:
+                data_sim_mean : xarray.DataArray
+                    Time averaged simulation data.
+                data_obs : xarray.DataArray
+                    Observational data.
+                var_name : str
+                    Climate variable.
+
+        Returns
+        -------
+        bias_abs_one_var : float
+            Absolute bias.
+        bias_rel_one_var : float
+            Relative bias.
+        """
+
+        data_sim_mean, data_obs, var_name = args
+
+        # Compute absolute bias
+        bias_abs_one_var = statistics.abs_weighted_bias(data_sim_mean, data_obs, var_name)
+
+        # Compute relative bias
+        bias_rel_one_var = statistics.ilamb_weighted_bias(data_sim_mean, data_obs, var_name)
+
+        # Take ensemble mean when more than one member is present
+        if self.ensemble:
+            bias_abs_one_var = np.mean(bias_abs_one_var)
+            bias_rel_one_var = np.mean(bias_rel_one_var)
+
+        return bias_abs_one_var, bias_rel_one_var
+
+    
+    def _compute_bias(self, data_sim, data_obs):
+        """
+        Compute bias between simulations and observations as the area-weighted mean 
+        of the absolute and relative differences, for all variables in parallel.
+
+        Parameters
+        ----------
+        data_sim : xarray.DataArray
+            Simulation data.
+        data_obs : xarray.DataArray
+            Observational data.
+
+        Returns
+        -------
+        bias_abs : np.ndarray
+            Absolute bias.
+        bias_rel : np.ndarray
+            Relative bias.
+        """
+
+        # Prepare data
+        data_sim_mean = data_sim.mean(dim='time')
+
+        # Compute biases for all variables in parallel
+        bias_abs = np.empty(len(self.var_names))
+        bias_rel = np.empty(len(self.var_names))
+        tasks = [(data_sim_mean[[var_name]], data_obs[[var_name]], var_name) for var_name in self.var_names]
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers_vars) as executor:
+            for idx, value in enumerate(executor.map(self._compute_bias_one_var, tasks)):
+                bias_abs[idx], bias_rel[idx] = value
+        
+        return bias_abs, bias_rel
+
+    
+    def _compute_rmse_one_var(self, args):
+        """
+        Compute root mean square error (RMSE) between simulations and observations 
+        as the area-weighted mean of the absolute and relative centralized RMSE
+        for the given variable.
+
+        Parameters
+        ----------
+        args : tuple
+            List containing:
+                data_sim : xarray.DataArray
+                    Simulation data.
+                data_obs : xarray.DataArray
+                    Observational data.
+                var_name : str
+                    Climate variable.
+
+        Returns
+        -------
+        rmse_abs : float
+            Absolute RMSE.
+        rmse_rel : float
+            Relative RMSE.
+        """
+        data_sim, data_obs, var_name = args
+
+        # Compute absolute RMSE
+        rmse_abs = statistics.abs_weighted_RMSE(data_sim, data_obs, var_name)
+
+        # Compute relative RMSE
+        rmse_rel = statistics.ilamb_weighted_RMSE(data_sim, data_obs, var_name)
+
+        # Take ensemble mean when more than one member is present
+        if self.ensemble:
+            rmse_abs = np.mean(rmse_abs)
+            rmse_rel = np.mean(rmse_rel)
+
+        return rmse_abs, rmse_rel
+
+    
+    def _compute_rmse(self, data_sim, data_obs):
+        """
+        Compute root mean square error (RMSE) between simulations and observations 
+        as the area-weighted mean of the absolute and relative centralized RMSE
+        for all variables in parallel
+
+        Parameters
+        ----------
+        data_sim : xarray.DataArray
+            Simulation data.
+        data_obs : xarray.DataArray
+            Observational data.
+
+        Returns
+        -------
+        rmse_abs : np.ndarray
+            Absolute RMSE.
+        rmse_rel : np.ndarray
+            Relative RMSE.
+        """
+
+        # Compute RMSE for all variables in parallel
+        rmse_abs = np.empty(len(self.var_names))
+        rmse_rel = np.empty(len(self.var_names))
+        tasks = [(data_sim[[var_name]], data_obs[[var_name]], var_name) for var_name in self.var_names]
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers_vars) as executor:
+            for idx, value in enumerate(executor.map(self._compute_rmse_one_var, tasks)):
+                rmse_abs[idx], rmse_rel[idx] = value
+
+        return rmse_abs, rmse_rel
+
+
+    def _compute_pcorr_one_var(self, args):
+        """
+        Compute Pearson correlation coefficient between simulations and observations
+        for the given variable.
+
+        Parameters
+        ----------
+        args : tuple
+            List containing:
+                data_sim : xarray.DataArray
+                    Simulation data.
+                data_obs : xarray.DataArray
+                    Observational data.
+                var_name : str
+                    Climate variable.
+
+        Returns
+        -------     
+        pcorr : float
+            Pearson correlation coefficient.
+        """
+
+        # With scipy.stats.pearsonr (not used anymore, kept for reference)
+        # # Prepare data
+        # data_sim_mean = data_sim[var_name].mean(dim='time').values.flatten()
+        # data_obs_mean = data_obs[var_name].mean(dim='time').values.flatten()
+
+        # # Compute Pearson correlation coefficient
+        # pcorr, _ = pearsonr(data_sim_mean, data_obs_mean)
+
+        data_sim, data_obs, var_name = args
+
+        # With xarray.corr
+        # Prepare data
+        data_sim_mean = data_sim[var_name].mean(dim='time').stack(spatial=['lat', 'lon'])
+        data_obs_mean = data_obs[var_name].mean(dim='time').stack(spatial=['lat', 'lon'])
+
+        # Compute Pearson correlation coefficient
+        pcorr = xr.corr(data_sim_mean, data_obs_mean, dim='spatial').values
+
+        # Take ensemble mean when more than one member is present
+        if self.ensemble:
+            pcorr = np.mean(pcorr)
+
+        return pcorr    
+
+
+    def _compute_pcorr(self, data_sim, data_obs):
+        """
+        Compute Pearson correlation coefficient between simulations and observations
+        for all variables in parallel.
+
+        Parameters
+        ----------
+        data_sim : xarray.DataArray
+            Simulation data.
+        data_obs : xarray.DataArray
+            Observational data.
+
+        Returns
+        -------     
+        pcorr : np.ndarray
+            Pearson correlation coefficient.
+        """
+
+        # Compute Pearson correlation coefficient for all variables in parallel
+        pcorr = np.empty(len(self.var_names))
+        tasks = [(data_sim[[var_name]], data_obs[[var_name]], var_name) for var_name in self.var_names]
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers_vars) as executor:
+            for idx, value in enumerate(executor.map(self._compute_pcorr_one_var, tasks)):
+                pcorr[idx] = value
+
+        return pcorr    
+
+
+    def save_data(self, output_path):
+        """
+        Save computed scalar scores to a Numpy file.
+
+        Parameters
+        ----------
+        output_path : str
+            Path to save the data files.
+        """
+
+        output_path = Path(output_path)
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        # Save scalar scores
+        path_sim_name = self.sim_name.replace(' ', '_')
+        path_obs_name = self.obs_name.replace(' ', '_')
+        scores_path = output_path / f"general_scalar_scores_{path_sim_name}-{path_obs_name}_{self.start_year}-{self.end_year}.nc"
+        self.scores.to_netcdf(scores_path)
+
+        return
+
+    
+    def scores_table(self, var_name=None, output_path=None):
+        """
+        Generate and save/display table plot with general scalar scores for a 
+        specific variable.
+
+        Parameters
+        ----------
+        var_name : str
+            Climate variable.
+        output_path : str, optional
+            Path to save the table plot. If None, the table is displayed but not saved.
+        """
+
+        # Validate input
+        if var_name is None:
+            raise ValueError("A variable name must be provided to generate the general scalar scores table plot.")
+        elif var_name not in self.var_names:
+            raise ValueError(f"Variable '{var_name}' was not used in the general scalar analysis. "
+                             f"Available variables: {self.var_names}")
+
+        # Prepare plot parameters
+        var_name_title = VARIABLES[var_name]['long_name']
+        year_range = f"{self.start_year}-{self.end_year}"
+        if self.ensemble:
+            cols = [' ', r'$\overline{\text{BIAS}}$', r'$\overline{\text{eBIAS}}$', r'$\overline{\text{RMSE}}$', 
+                    r'$\overline{\text{eRMSE}}$', r'$\overline{r}_{xy}$']
+            title = f"Scalar scores for {var_name_title} (ensemble mean) ({year_range})"
+        else:
+            cols = [' ', 'BIAS', 'eBIAS', 'RMSE', 'eRMSE', r'$r_{xy}$']
+            title = f"Scalar scores for {var_name_title} ({year_range})"
+        
+        rows = [self.obs_name, self.sim_name]
+        cbar_ticks = ['Worse performance', ' ', 'Better performance']
+        colors = ("RedGreen", ['tab:red', 'white', 'tab:green'])
+
+        # Prepare plot data
+        data_ref = np.array([0, 1, 0, 1, 1])
+        data_sim = self.scores.sel(variable=var_name).to_array().values
+        data_plot = np.stack([data_ref, data_sim])
+
+        # Generate and save/display plot
+        general_scores_plot, _ = plot.plot_table(data_plot, title=title, col_labels=cols, row_labels=rows, cbar_ticks=cbar_ticks, colors=colors, decimals=2)
+
+        plot.save_or_show_plot(general_scores_plot, output_path, plot_filename=f"general_scalar_scores_table_{self.sim_name.replace(' ', '-')}_{year_range}",
+                               plot_name="General scalar scores table plot")
+
+        return
+
 
 class ISOEvaluation:
     """
@@ -148,16 +560,18 @@ class ISOEvaluation:
                   " See attributes `eeof_summer` and `eeof_winter` for results.", flush=True)
 
 
-        # Compute PCs, monthly frequency, and scalar scores
+        # Compute PCs
         self.scores = {}
         self.pcs_sim, self.scores['alpha'] = self._compute_PCs(data_filtered_sim)
         print(f"\tPCs (bimodal ISO indices) computed between {self.start_year_pc} and {self.end_year_pc}."
               " See attribute `pcs_sim` (and `pcs_obs` if `obs=True`) for results.", flush=True)
 
+        # Compute monthly frequency and scalar scores
         self.freq_sim, self.freq_obs, self.scores['R'], self.scores['sigma'], self.scores['TSS'] = self._compute_freq_and_scores()
         print(f'\tMean monthly frequency computed between {self.start_year_pc} and {self.end_year_pc}.'
               ' See attributes `freq_sim` (and `freq_obs` if `obs=True`) for results.', flush=True)
         
+        # Print scalar scores
         if self.obs:
             print(f"\tTaylor Skill Score (TSS) between simulations and observations computed (stored in attribute `scores`):"
                   f"\n\t\tRatio PCs amplitudes ($\\alpha$): {self.scores['alpha']:.2f}"
@@ -382,46 +796,54 @@ class ISOEvaluation:
         output_path = Path(output_path)
         output_path.mkdir(parents=True, exist_ok=True)
 
-        # Determine dataset name for titles
+        year_range_eeof = f"{self.start_year_eeof}-{self.end_year_eeof}"
+        year_range_pcs = f"{self.start_year_pc}-{self.end_year_pc}"
+
+        # Determine dataset names for filenames
+        sim_name_file = self.sim_name.replace(' ', '-') 
+
         if self.obs:
+            obs_name_file = self.obs_name.replace(' ', '-')
             name = self.obs_name
         else:
             name = self.sim_name
+        name_file = name.replace(' ', '-') 
+
 
         # Save EEOFS
-        eeof_summer_path = output_path / f"eeof_boreal_summer_{('_').join(name.split())}_{self.start_year_eeof}-{self.end_year_eeof}.nc"
+        eeof_summer_path = output_path / f"eeof_boreal_summer_{name_file}_{year_range_eeof}.nc"
         self.eeof_summer.to_netcdf(eeof_summer_path)
         print(f"EEOFs computed from '{name}' for boreal summer saved to '{eeof_summer_path}'.", flush=True)
 
-        eeof_winter_path = output_path / f"eeof_boreal_winter_{('_').join(name.split())}_{self.start_year_eeof}-{self.end_year_eeof}.nc"
+        eeof_winter_path = output_path / f"eeof_boreal_winter_{name_file}_{year_range_eeof}.nc"
         self.eeof_winter.to_netcdf(eeof_winter_path)
         print(f"EEOFs computed from '{name}' for boreal winter saved to '{eeof_winter_path}'.", flush=True)
 
         # Save PCs
         if self.obs:
-            pcs_sim_path = output_path / f"pcs_{('_').join(self.sim_name.split())}_projected_on_{('_').join(self.obs_name.split())}_{self.start_year_pc}-{self.end_year_pc}.nc"
+            pcs_sim_path = output_path / f"pcs_{sim_name_file}_projected_on_{obs_name_file}_{year_range_pcs}.nc"
             self.pcs_sim.to_netcdf(pcs_sim_path)
             print(f"PCs (bimodal ISO indices) computed for '{self.sim_name}' simulations saved to '{pcs_sim_path}'.", flush=True)
 
-            pcs_obs_path = output_path / f"pcs_{('_').join(self.obs_name.split())}_projected_{config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}.nc"
+            pcs_obs_path = output_path / f"pcs_{obs_name_file}_projected_{config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}.nc"
             self.pcs_obs.to_netcdf(pcs_obs_path)
             print(f"PCs (bimodal ISO indices) computed for '{self.obs_name}' observations saved to '{pcs_obs_path}'.", flush=True)
         else:
-            pcs_sim_path = output_path / f"pcs_{('_').join(self.sim_name.split())}_projected_{self.start_year_pc}-{self.end_year_pc}.nc"
+            pcs_sim_path = output_path / f"pcs_{sim_name_file}_projected_{year_range_pcs}.nc"
             self.pcs_sim.to_netcdf(pcs_sim_path)
             print(f"PCs (bimodal ISO indices) computed for '{self.sim_name}' simulations saved to '{pcs_sim_path}'.", flush=True)
 
         # Save frequency of ISO events
         if self.obs:
-            freq_sim_path = output_path / f"freq_ISO_{('_').join(self.sim_name.split())}_projected_on_{('_').join(self.obs_name.split())}_{self.start_year_pc}-{self.end_year_pc}.nc"
+            freq_sim_path = output_path / f"freq_ISO_{sim_name_file}_projected_on_{obs_name_file}_{year_range_pcs}.nc"
             self.freq_sim.to_netcdf(freq_sim_path)
             print(f"Mean monthly frequency of ISO events computed for '{self.sim_name}' saved to '{freq_sim_path}'.", flush=True)
 
-            freq_obs_path = output_path / f"freq_ISO_{('_').join(self.obs_name.split())}_projected_{config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}.nc"
+            freq_obs_path = output_path / f"freq_ISO_{obs_name_file}_projected_{config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}.nc"
             self.freq_obs.to_netcdf(freq_obs_path)
             print(f"Mean monthly frequency of ISO events computed for '{self.obs_name}' observations saved to '{freq_obs_path}'.", flush=True)
         else:
-            freq_sim_path = output_path / f"freq_ISO_{('_').join(self.sim_name.split())}_projected_{self.start_year_pc}-{self.end_year_pc}.nc"
+            freq_sim_path = output_path / f"freq_ISO_{sim_name_file}_projected_{year_range_pcs}.nc"
             self.freq_sim.to_netcdf(freq_sim_path)
             print(f"Mean monthly frequency of ISO events computed for '{self.sim_name}' saved to '{freq_sim_path}'.", flush=True)
         return
@@ -445,27 +867,30 @@ class ISOEvaluation:
         if output_path is not None:
             output_path = Path(output_path)
             output_path.mkdir(parents=True, exist_ok=True)
+        
+        year_range = f"{self.start_year_eeof}-{self.end_year_eeof}"
 
         # Determine dataset name for titles
         if self.obs:
             name = self.obs_name
         else:
             name = self.sim_name
+        name_file = name.replace(' ', '-')
 
 
         # Plot EEOFs for borean summer
-        eeofs_plot, _ = plot.plot_eeofs(self.eeof_summer, clon=clon, title=f"BSISO convective pattern '{name}' (JJASO {self.start_year_eeof}-{self.end_year_eeof})",
+        eeofs_plot, _ = plot.plot_eeofs(self.eeof_summer, clon=clon, title=f"BSISO convective pattern '{name}' (JJASO {year_range})",
                                 cb_label=f"scaled EEOF ({VARIABLES[var_name]['units']})", cmap=LinearSegmentedColormap.from_list("GreenOrange", ['tab:green', 'white', 'tab:orange']))       
         
-        plot.save_or_show_plot(eeofs_plot, output_path, plot_filename=f"eeof_boreal_summer_{('_').join(name.split())}_{self.start_year_eeof}-{self.end_year_eeof}_clon_{clon}",
+        plot.save_or_show_plot(eeofs_plot, output_path, plot_filename=f"eeof_boreal_summer_{name_file}_{year_range}_clon_{clon}",
                                plot_name="BSISO EEOFs plot", custom_name=False)
 
 
         # Plot EEOFs for borean winter
-        eeofw_plot, _ = plot.plot_eeofs(self.eeof_winter, clon=clon, title=f"MJO convective pattern '{name}' (DJFMA {self.start_year_eeof}-{self.end_year_eeof})",
+        eeofw_plot, _ = plot.plot_eeofs(self.eeof_winter, clon=clon, title=f"MJO convective pattern '{name}' (DJFMA {year_range})",
                                         cb_label=f"scaled EEOF ({VARIABLES[var_name]['units']})", cmap=LinearSegmentedColormap.from_list("BlueRed", ['tab:blue', 'white', 'tab:red']))
         
-        plot.save_or_show_plot(eeofw_plot, output_path, plot_filename=f"eeof_boreal_winter_{('_').join(name.split())}_{self.start_year_eeof}-{self.end_year_eeof}_clon_{clon}",
+        plot.save_or_show_plot(eeofw_plot, output_path, plot_filename=f"eeof_boreal_winter_{name_file}_{year_range}_clon_{clon}",
                                plot_name="MJO EEOFs plot", custom_name=False)
 
         return
@@ -490,17 +915,17 @@ class ISOEvaluation:
             pcs_data = self.pcs_sim
             if self.obs:
                 name_title = f"'{self.sim_name}' projected on '{self.obs_name}'" 
-                name_projected = f"_{('_').join(self.obs_name.split())}"
+                name_projected = f"_{self.obs_name.replace(' ', '-')}"
             else:
                 name_title = f"'{self.sim_name}'"
                 name_projected = ''
-            name_file = ('_').join(self.sim_name.split())
+            name_file = self.sim_name.replace(' ', '-')
         elif data == 'obs':
             if not self.obs:
                 raise ValueError("Observational PCs are not available. Set 'obs=True' when initializing the bimodalISO object to load them.")
             pcs_data = self.pcs_obs
             name_title = f"'{self.obs_name}'"
-            name_file = ('_').join(self.obs_name.split())
+            name_file = self.obs_name.replace(' ', '-')
             name_projected = ''
 
         # Validate years input
@@ -537,14 +962,14 @@ class ISOEvaluation:
         plot_title = f'Mean monthly frequency of ISO events'
         if self.obs:
             name_title = f"'{self.sim_name}'_vs_'{self.obs_name}'"
-            name_file = f"{('_').join(self.sim_name.split())}_vs_{('_').join(self.obs_name.split())}"
+            name_file = f"{self.sim_name.replace(' ', '-')}_vs_{self.obs_name.replace(' ', '-')}"
 
             if self.correct_pc:
                 plot_title += f' (corrected PCs)'
                 name_file += f"_corrected_PCs"
         else:
             name_title = f"'{self.sim_name}'"
-            name_file = f"{('_').join(self.sim_name.split())}"
+            name_file = f"{self.sim_name.replace(' ', '-')}"
 
         # Plot frequency of ISO events
         freq_plot, _ = plot.plot_freq_ISO(self.freq_sim, self.freq_obs, alpha=self.scores['alpha'], corr=self.scores['R'],
@@ -757,7 +1182,7 @@ class TCEvaluation:
 
         # Run TempestExtremes tracking on simulated data
         tracks_sim_path = tcs_tempestextremes.run_tempestExtremes(data_sim, self.sim_name, self.tracks_path, min_wind=self.min_wind)
-        new_sim_path = self.tracks_path / f"{('-').join(self.sim_name.split())}_{self.start_year_tc}-{self.end_year_tc}_{self.min_wind:.1f}_False_1_{wind_factor:.1f}.txt"
+        new_sim_path = self.tracks_path / f"{self.sim_name.replace(' ', '-')}_{self.start_year_tc}-{self.end_year_tc}_{self.min_wind:.1f}_False_1_{wind_factor:.1f}.txt"
         os.rename(tracks_sim_path, new_sim_path)
 
         # Add simulation data parameters to CyMeP configuration file
@@ -818,7 +1243,7 @@ class TCEvaluation:
 
         # Define plotting parameters
         cbar_ticks_bias = ['Negative bias', 'No bias', 'Positive bias']
-        colors_bias = ("BlueRed", ['tab:blue', 'white', 'tab:red'])
+        colors_bias = ("RedGreen", ['tab:red', 'white', 'tab:green'])   #("BlueRed", ['tab:blue', 'white', 'tab:red'])
 
         return clim_bias, storm_bias, cbar_ticks_bias, colors_bias
     
@@ -845,8 +1270,8 @@ class TCEvaluation:
         spatial_corr = np.transpose([self.data_cymep[var].values for var in self.data_cymep.data_vars if var.startswith('spatial_pcorr_')])
 
         # Define plotting parameters
-        cbar_ticks_corr = ['Negative correlation', 'No correlation', 'Positive correlation']
-        colors_corr = ("OrangeGreen", ['tab:orange', 'white', 'tab:green'])
+        cbar_ticks_corr = ['Negative correlation (-1)', 'No correlation (0)', 'Positive correlation (1)']
+        colors_corr = ("RedGreen", ['tab:red', 'white', 'tab:green'])   #("OrangeGreen", ['tab:orange', 'white', 'tab:green'])
 
         return temp_corr, spatial_corr, cbar_ticks_corr, colors_corr
 
@@ -864,32 +1289,34 @@ class TCEvaluation:
         output_path = Path(output_path)
         output_path.mkdir(parents=True, exist_ok=True)
 
+        year_range = f"{self.start_year_tc}-{self.end_year_tc}"
+
         # Prepare dataset names for filenames
-        name = f"IBTrACS_{('-').join(self.sim_name.split())}"
+        name = f"IBTrACS_{self.sim_name.replace(' ', '-')}"
         if self.obs:
             name += '_obs'
 
 
         # Save all CyMeP output data to NetCDF file
-        data_cymep_path = output_path / f'tcs_metrics_{name}_{self.start_year_tc}-{self.end_year_tc}.nc'
+        data_cymep_path = output_path / f'tcs_metrics_{name}_{year_range}.nc'
         self.data_cymep.to_netcdf(data_cymep_path)
         print(f"TCs metrics computed for '{self.sim_name}' simulations saved to '{data_cymep_path}'.", flush=True)
 
 
         # Save biases and correlations to Numpy files
-        clim_bias_path = output_path / f'tcs_clim_bias_{name}_{self.start_year_tc}-{self.end_year_tc}.npy'
+        clim_bias_path = output_path / f'tcs_clim_bias_{name}_{year_range}.npy'
         np.save(clim_bias_path, self.clim_bias)
         print(f"Global climatological mean bias saved to '{clim_bias_path}'.", flush=True)
 
-        storm_bias_path = output_path / f'tcs_storm_bias_{name}_{self.start_year_tc}-{self.end_year_tc}.npy'
+        storm_bias_path = output_path / f'tcs_storm_bias_{name}_{year_range}.npy'
         np.save(storm_bias_path, self.storm_bias)
         print(f"Global storm mean bias saved to '{storm_bias_path}'.", flush=True)
 
-        temp_corr_path = output_path / f'tcs_temp_corr_{name}_{self.start_year_tc}-{self.end_year_tc}.npy'
+        temp_corr_path = output_path / f'tcs_temp_corr_{name}_{year_range}.npy'
         np.save(temp_corr_path, self.temp_corr)
         print(f"Global seasonal correlation saved to '{temp_corr_path}'.", flush=True)
 
-        spatial_corr_path = output_path / f'tcs_spatial_corr_{name}_{self.start_year_tc}-{self.end_year_tc}.npy'
+        spatial_corr_path = output_path / f'tcs_spatial_corr_{name}_{year_range}.npy'
         np.save(spatial_corr_path, self.spatial_corr)
         print(f"Global spatial correlation saved to '{spatial_corr_path}'.", flush=True)
 
@@ -912,7 +1339,7 @@ class TCEvaluation:
         clim_bias_table_plot, _ = plot.plot_table(self.clim_bias, title=f'Global climatological mean bias ({year_range})', col_labels=cols_clim_bias, 
                                                   row_labels=self.model_names, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias)
         
-        plot.save_or_show_plot(clim_bias_table_plot, output_path, plot_filename=f"tcs_climatological_bias_table_{('-').join(self.sim_name.split())}_{year_range}",
+        plot.save_or_show_plot(clim_bias_table_plot, output_path, plot_filename=f"tcs_climatological_bias_table_{self.sim_name.replace(' ', '-')}_{year_range}",
                                plot_name="Climatological bias table for TCs metrics plot")
         
         return
@@ -935,7 +1362,7 @@ class TCEvaluation:
         storm_bias_table_plot, _ = plot.plot_table(self.storm_bias, title=f'Global storm mean bias ({year_range})', col_labels=cols_storm_bias, 
                                                    row_labels=self.model_names, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias)
         
-        plot.save_or_show_plot(storm_bias_table_plot, output_path, plot_filename=f"tcs_storm_bias_table_{('-').join(self.sim_name.split())}_{year_range}",
+        plot.save_or_show_plot(storm_bias_table_plot, output_path, plot_filename=f"tcs_storm_bias_table_{self.sim_name.replace(' ', '-')}_{year_range}",
                                plot_name="Storm bias table for TCs metrics plot")
         
         return
@@ -955,9 +1382,10 @@ class TCEvaluation:
         cols_temp_corr = np.append([f'{self.bin_size}° x {self.bin_size}°'], [fr'$\rho_{{s,{metric}}}$' for metric in self.metrics_metadata 
                                                                               if self.metrics_metadata[metric]['temporal']==True])
         temp_corr_table_plot, _ = plot.plot_table(self.temp_corr, title=f'Global seasonal correlation ({year_range})', col_labels=cols_temp_corr, 
-                                                  row_labels=self.model_names, cbar_ticks=self.cbar_ticks_corr, colors=self.colors_corr, decimals=2)
+                                                  row_labels=self.model_names, cbar_ticks=self.cbar_ticks_corr, colors=self.colors_corr, 
+                                                  vmin=-1, vmax=1, decimals=2)
         
-        plot.save_or_show_plot(temp_corr_table_plot, output_path, plot_filename=f"tcs_seasonal_corr_table_{('-').join(self.sim_name.split())}_{year_range}",
+        plot.save_or_show_plot(temp_corr_table_plot, output_path, plot_filename=f"tcs_seasonal_corr_table_{self.sim_name.replace(' ', '-')}_{year_range}",
                                plot_name="Seasonal correlation table for TCs metrics plot")
 
         return
@@ -977,9 +1405,10 @@ class TCEvaluation:
         cols_spatial_corr = np.append([f'{self.bin_size}° x {self.bin_size}°'], [fr'$r_{{xy,{metric}}}$' for metric in self.metrics_metadata 
                                                                                  if self.metrics_metadata[metric]['spatial']==True])
         spatial_corr_table_plot, _ = plot.plot_table(self.spatial_corr, title=f'Global spatial correlation ({year_range})', col_labels=cols_spatial_corr,
-                                                     row_labels=self.model_names, cbar_ticks=self.cbar_ticks_corr, colors=self.colors_corr, decimals=2)
+                                                     row_labels=self.model_names, cbar_ticks=self.cbar_ticks_corr, colors=self.colors_corr, 
+                                                     vmin=-1, vmax=1, decimals=2)
         
-        plot.save_or_show_plot(spatial_corr_table_plot, output_path, plot_filename=f"tcs_spatial_corr_table_{('-').join(self.sim_name.split())}_{year_range}",
+        plot.save_or_show_plot(spatial_corr_table_plot, output_path, plot_filename=f"tcs_spatial_corr_table_{self.sim_name.replace(' ', '-')}_{year_range}",
                                plot_name="Spatial correlation table for TCs metrics plot")
 
         return
@@ -1005,10 +1434,12 @@ class TCEvaluation:
         linear_month_titles = [f'{name} seasonal cycle' for name in linear_metrics_names] 
         linear_year_titles = [f'{name} interannual cycle' for name in linear_metrics_names]
 
-        # Prepare invariant arrays
+        # Prepare invariant arrays/strings
         months = np.arange(1, 13, dtype=int)
         years = np.arange(self.start_year_tc, self.end_year_tc+1, dtype=int)  
+
         year_range = f"{self.start_year_tc}-{self.end_year_tc}"
+        name_file = self.sim_name.replace(' ', '-')
 
 
         # Create plots
@@ -1028,7 +1459,7 @@ class TCEvaluation:
             plt.legend()
 
             plot.save_or_show_plot(plt.gcf(), output_path, plot_name=f"Linear seasonal cycle plot for TC {name}",
-                                   plot_filename=f"tcs_{name.lower()}_seasonal_cycle_plot_{self.sim_name}_{year_range}", 
+                                   plot_filename=f"tcs_{name.lower()}_seasonal_cycle_plot_{name_file}_{year_range}", 
                                    custom_name=False)
 
             # Create line plot for interannual cycles
@@ -1045,7 +1476,7 @@ class TCEvaluation:
             plt.legend()
 
             plot.save_or_show_plot(plt.gcf(), output_path, plot_name=f"Linear interannual cycle plot for TC {name}",
-                                   plot_filename=f"tcs_{name.lower()}_interannual_cycle_plot_{('-').join(self.sim_name.split())}_{year_range}", 
+                                   plot_filename=f"tcs_{name.lower()}_interannual_cycle_plot_{name_file}_{year_range}", 
                                    custom_name=False)
 
         return
@@ -1073,7 +1504,7 @@ class TCEvaluation:
         spatial_titles = [f'TC {name} density for {self.bin_size}°x{self.bin_size}° cells ({year_range})' for name in spatial_metrics_names]
         spatial_bias_titles = [f"TC {name} bias ('{self.sim_name}' vs 'IBTrACS') for {self.bin_size}°x{self.bin_size}° cells ({year_range})" for name in spatial_metrics_names]
         spatial_cb_labels = [f'{name} ({unit})' for name, unit in zip(spatial_metrics_names, spatial_metrics_units)]
-
+        name_file = self.sim_name.replace(' ', '-')
 
         # Create plots
         for i, name in enumerate(spatial_metrics_names):
@@ -1088,7 +1519,7 @@ class TCEvaluation:
             spatial_abs_plot, _ = plot.two_spatial_plots(spatial_abs_data.sel(model='IBTrACS'), spatial_abs_data.sel(model=self.sim_name), clon=clon,
                                                          title_1='IBTrACS', title_2=self.sim_name, suptitle=spatial_titles[i], cb_label=spatial_cb_labels[i],
                                                          cmap=cmap_modified)
-            plot.save_or_show_plot(spatial_abs_plot, output_path, plot_filename=f"tcs_{name.lower()}_spatial_abs_plot_{('-').join(self.sim_name.split())}_{year_range}_clon_{clon}",
+            plot.save_or_show_plot(spatial_abs_plot, output_path, plot_filename=f"tcs_{name.lower()}_spatial_abs_plot_{name_file}_{year_range}_clon_{clon}",
                                     plot_name=f"Spatial plot for TC {name}", custom_name=False)
 
             spatial_bias_data = self.data_cymep[f'spatial_bias_{spatial_metrics[i]}'].sel(model=self.sim_name)
@@ -1097,7 +1528,7 @@ class TCEvaluation:
             spatial_bias_plot, _ = plot.plot_spatial(spatial_bias_data, clon=clon, title=spatial_bias_titles[i], cb_label=f'bias in {spatial_cb_labels[i]}', 
                                                      cmap=LinearSegmentedColormap.from_list(*self.colors_bias), levels=levels)
                                                      #cmap=cmocean.cm.diff)
-            plot.save_or_show_plot(spatial_bias_plot, output_path, plot_filename=f"tcs_{name.lower()}_spatial_bias_plot_{('-').join(self.sim_name.split())}_{year_range}_clon_{clon}",
+            plot.save_or_show_plot(spatial_bias_plot, output_path, plot_filename=f"tcs_{name.lower()}_spatial_bias_plot_{name_file}_{year_range}_clon_{clon}",
                                    plot_name=f"Spatial bias plot for TC {name}", custom_name=False)
             
         return
@@ -1165,6 +1596,53 @@ class ScientificEvaluation:
         return
     
     
+    def compute_general_scores(self, var_names=None, data_name=None, start_year=None, end_year=None, obs_name=config_params.GEN_OBS_NAME, 
+                               obs_path=config_params.GEN_OBS_PATH):
+        """
+        Initialize and compute general model skill evaluation scores for a selected dataset.
+        
+        Parameters
+        ----------
+        var_names : str or list[str], optional
+            Climate variable(s) name(s). If None, all variables in the simulated dataset will be used.
+        data_name : str, optional
+            Name of simulation ensemble to use. If None, the first dataset in the ScientificEvaluation 
+            object is used.
+        start_year, end_year : int
+            Initial and end years to compute the general scores for.
+        obs_name : str
+            Name of the observational dataset to compare to (default: config_params.GEN_OBS_NAME).
+        obs_path : str
+            Path to the observations database (default: config_params.GEN_OBS_PATH).
+
+        Returns
+        -------
+        general_analysis : GeneralEvaluation
+            GeneralEvaluation object containing the computed general scientific skill scalar scores.
+        """
+
+        # Validate input
+        if data_name is None:
+            if len(self.datasets) < 1:
+                raise ValueError("At least one dataset is required for the general evaluation.")
+            data_general = self.datasets[0]
+            data_name = data_general.name
+        elif isinstance(data_name, str):
+            data_general = [ds for ds in self.datasets if ds.name == data_name]
+            if not data_general:
+                raise ValueError(f"Dataset with name '{data_name}' not found in the ScientificEvaluation object.")
+            data_general = data_general[0]
+        else:
+            raise TypeError("'data_name' must be a string representing a dataset name.")
+        
+        # Create GeneralEvaluation object and compute scores
+        print(f"Performing general scalar analysis for dataset '{data_name}':", flush=True)
+        general_analysis = GeneralEvaluation(data_sim=data_general, var_names=var_names, start_year=start_year, end_year=end_year, 
+                                             obs_name=obs_name, obs_path=obs_path)
+
+        return general_analysis
+
+
     def compute_iso_scores(self, data_name=None, start_year_eeof=None, end_year_eeof=None, start_year_pc=None, end_year_pc=None, obs=False, 
                             correct_pc=False, lat_range=(-30, 30), lag=5, n_lags=3, n_modes=2, window=141, low_freq=1/90, high_freq=1/25):
         """
@@ -1209,7 +1687,7 @@ class ScientificEvaluation:
         # Validate input
         if data_name is None:
             if len(self.datasets) < 1:
-                raise ValueError("At least one dataset is required for the Bimodal ISO indices.")
+                raise ValueError("At least one dataset is required for the ISO evaluation.")
             data_ISO = self.datasets[0]
             data_name = data_ISO.name
         elif isinstance(data_name, str):
@@ -1222,7 +1700,7 @@ class ScientificEvaluation:
         
         # Create ISOEvaluation object and compute scores
         print(f"Performing ISO analysis for dataset '{data_name}':", flush=True)
-        iso_analysis = ISOEvaluation(data_ISO, start_year_eeof=start_year_eeof, end_year_eeof=end_year_eeof, start_year_pc=start_year_pc, 
+        iso_analysis = ISOEvaluation(data_sim=data_ISO, start_year_eeof=start_year_eeof, end_year_eeof=end_year_eeof, start_year_pc=start_year_pc, 
                                       end_year_pc=end_year_pc, obs=obs, correct_pc=correct_pc, lat_range=lat_range, lag=lag, n_lags=n_lags,
                                       n_modes=n_modes, window=window, low_freq=low_freq, high_freq=high_freq)
 
@@ -1260,7 +1738,7 @@ class ScientificEvaluation:
         # Validate input
         if data_name is None:
             if len(self.datasets) < 1:
-                raise ValueError("At least one dataset is required for the Tropical Cyclones metrics.")
+                raise ValueError("At least one dataset is required for the TCs evaluation.")
             data_TC = self.datasets[0]
             data_name = data_TC.name
         elif isinstance(data_name, str):
@@ -1273,8 +1751,8 @@ class ScientificEvaluation:
 
         # Create a TCEvaluation object and compute scores
         print(f"Performing TCs analysis for dataset '{data_name}':", flush=True)
-        tc_analysis = TCEvaluation(data_TC, start_year_tc=start_year_tc, end_year_tc=end_year_tc, obs=obs, wind_factor=wind_factor, 
-                                 min_wind=min_wind, bin_size=bin_size)
+        tc_analysis = TCEvaluation(data_sim=data_TC, start_year_tc=start_year_tc, end_year_tc=end_year_tc, obs=obs, 
+                                   wind_factor=wind_factor, min_wind=min_wind, bin_size=bin_size)
 
         return tc_analysis
 

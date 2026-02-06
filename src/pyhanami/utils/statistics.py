@@ -59,7 +59,8 @@ def exp_RK_index(data_sim, data_obs, var_name):
 
 
 def ilamb_crms(data, var_name):
-    """ Calculate centralized root mean square (RMS) along time. 
+    """ 
+    Calculate centralized root mean square (RMS) along time. 
 
     Arguments
     ---------
@@ -236,6 +237,92 @@ def ilamb_weighted_RMSE(data_sim, data_obs, var_name):
     S_rmse = s_weighted.mean(dim = ['lon', 'lat'])[var_name].values
 
     return S_rmse
+
+
+def abs_weighted_bias(data_sim, data_obs, var_name):
+    """
+    Calculate absolute weighted bias score for an ensemble E.
+
+    Arguments
+    ---------
+    data_sim : xarray.Dataset
+        Climate simulation ensemble.
+    data_obs : xarray.Dataset
+        Climate observations ensemble.
+    var_name : str
+        Climate variable.
+    
+    Returns
+    -------
+    bias : numpy.ndarray
+        Absolute bias for each ensemble member.
+    """
+
+    # Validate inputs
+    if not isinstance(data_sim, xr.Dataset):
+        raise TypeError("Simulated data must be an xarray.Dataset")
+    if not isinstance(data_obs, xr.Dataset):
+        raise TypeError("Observational data must be an xarray.Dataset")
+    if var_name not in data_sim.data_vars:
+        raise ValueError(f"Variable '{var_name}' not found in the simulated dataset. "
+                        f"Available variables: {list(data_sim.data_vars.keys())}")
+    if var_name not in data_obs.data_vars:
+        raise ValueError(f"Variable '{var_name}' not found in the observational dataset. "
+                        f"Available variables: {list(data_obs.data_vars.keys())}")
+
+    # Compute absolute bias for each grid cell
+    v_mmean = data_sim
+    v_rmean = data_obs.mean(dim='time')
+    diff = np.abs(v_mmean - v_rmean)
+    
+    # Weighted mean
+    weights = area_weights(data_sim)
+    diff_weighted = diff.weighted(weights)
+    bias = diff_weighted.mean(dim = ['lon', 'lat'])[var_name].values
+
+    return bias
+
+
+def abs_weighted_RMSE(data_sim, data_obs, var_name):
+    """
+    Calculate absolute weighted root mean square error (RMSE) score for an ensemble E.
+
+    Arguments
+    ---------
+    data_sim : xarray.Dataset
+        Climate simulation ensemble.
+    data_obs : xarray.Dataset
+        Climate observations ensemble.
+    var_name : str
+        Climate variable.
+
+    Returns
+    -------
+    rmse : numpy.ndarray
+        RMSE for each ensemble member.
+    """
+
+    # Validate inputs
+    if not isinstance(data_sim, xr.Dataset):
+        raise TypeError("Simulated data must be an xarray.Dataset")
+    if not isinstance(data_obs, xr.Dataset):
+        raise TypeError("Observational data must be an xarray.Dataset")
+    if var_name not in data_sim.data_vars:
+        raise ValueError(f"Variable '{var_name}' not found in the simulated dataset. "
+                        f"Available variables: {list(data_sim.data_vars.keys())}")
+    if var_name not in data_obs.data_vars:
+        raise ValueError(f"Variable '{var_name}' not found in the observational dataset. "
+                        f"Available variables: {list(data_obs.data_vars.keys())}")
+
+    # Compute centralized RMSE for each grid cell
+    crmse = ilamb_crmse(data_sim, data_obs, var_name)
+
+    # Weighted mean
+    weights = area_weights(data_sim)
+    crmse_weighted = crmse.weighted(weights)
+    rmse = crmse_weighted.mean(dim = ['lon', 'lat'])[var_name].values
+
+    return rmse
 
 
 def cp_effect_size(sample_1, sample_2):

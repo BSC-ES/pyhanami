@@ -17,6 +17,10 @@ TCS_METRICS_PATH = Path(__file__).parent / "tc_metrics.yaml"
 # Available datasets parameters
 DATA_PATH = Path(__file__).parent.parent / "data"
 
+# Related to general scalar evaluation data
+GEN_OBS_NAME = "ERA5"
+GEN_OBS_PATH = DATA_PATH / "era5"
+
 # Related to NOAA data
 NOAA_PATH = DATA_PATH / "noaa/data_obs_noaa_1974-2022_rlut.nc"
 NOAA_GRID_PATH = DATA_PATH / "noaa/noaa_grid.nc"
