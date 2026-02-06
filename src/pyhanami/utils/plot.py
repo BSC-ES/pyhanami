@@ -1180,7 +1180,7 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
 
 
 def plot_table(data, title='Climate variables', col_labels='', row_labels='', cbar_ticks=['Low', '0', 'High'], colors=('RdBu_r'),
-               vmin=None, vmax=None, reference=True, decimals=1):
+               limits=None, reference=True, decimals=1):
     """ 
     Generate a table plot with climate data.
 
@@ -1199,8 +1199,9 @@ def plot_table(data, title='Climate variables', col_labels='', row_labels='', cb
         Labels for the colorbar ticks (default: ['Low', '0', 'High']).
     colors : tuple
         Colormap (default: ('RdBu_r')).
-    vmin, vmax : float
-        Min. and max. values for the colormap.
+    limits : np.ndarray
+        Colormap limits (min, max) for each column in the table. If None, the limits will
+        be automatically set as the maximum and minimum values in each column.
     reference : bool
         Whether to use the first row of data as reference (not colored) (default: True).
     decimals : int
@@ -1223,6 +1224,8 @@ def plot_table(data, title='Climate variables', col_labels='', row_labels='', cb
         raise ValueError("The number of row labels must match the number of rows in the data.")
     if len(col_labels)-1 != data.shape[1]:
         raise ValueError("The number of column labels must match the number of columns in the data.")
+    if limits is not None and (limits.shape[0] != data.shape[1] or limits.shape[1] != 2):
+        raise ValueError("Limits must be a 2D array with shape (n_columns, 2).")
 
 
     # Create figure with adjusted height based on number of rows
@@ -1274,7 +1277,7 @@ def plot_table(data, title='Climate variables', col_labels='', row_labels='', cb
 
     # Customize other columns (data cells)
     start_color_cell = 1 if reference else 0
-    custom_norm = True if vmin is not None and vmax is not None else False
+    custom_norm = True if limits is not None else False
     cmap = LinearSegmentedColormap.from_list(*colors)
     for col in range(1, n_cols):
         for row in range(n_rows+1): 
@@ -1287,13 +1290,22 @@ def plot_table(data, title='Climate variables', col_labels='', row_labels='', cb
 
         # Color the remaining cells (rows 2-on if `reference` is True, else all rows)
         if custom_norm:
-            norm = plt.Normalize(vmin, vmax)
+            vmin, vmax = limits[col-1]
         else:
             values = data[start_color_cell:, col-1]
             vmin, vmax = values.min(), values.max()
+        if vmin == vmax:
+            vmin = vmax - 1e-6
+        norm = plt.Normalize(vmin, vmax)
 
-            abs_max = max(abs(vmin), abs(vmax))
-            norm = plt.Normalize(-abs_max, abs_max)
+        # if custom_norm:
+        #     norm = plt.Normalize(vmin, vmax)
+        # else:
+        #     values = data[start_color_cell:, col-1]
+        #     vmin, vmax = values.min(), values.max()
+
+        #     abs_max = max(abs(vmin), abs(vmax))
+        #     norm = plt.Normalize(-abs_max, abs_max)
 
         for row in range(start_color_cell+1, n_rows+1):
             val = data[row-1, col-1]
@@ -1306,9 +1318,9 @@ def plot_table(data, title='Climate variables', col_labels='', row_labels='', cb
                         orientation='horizontal', pad=0.1, shrink=1.7, aspect=35)
 
     # Add ticks to bar
-    left_tick = norm.vmin + (norm.vmax - norm.vmin) * 0.08  # 8% from left
+    left_tick = norm.vmin + (norm.vmax - norm.vmin) * 0.07  # 7% from left
     middle_tick = norm.vmin + (norm.vmax - norm.vmin) * 0.5  # middle
-    right_tick = norm.vmax - (norm.vmax - norm.vmin) * 0.08  # 8% from right
+    right_tick = norm.vmax - (norm.vmax - norm.vmin) * 0.07  # 7% from right
     cbar.set_ticks([left_tick, middle_tick, right_tick])
     cbar.set_ticklabels(cbar_ticks)
     cbar.ax.tick_params(labelsize=12, length=0)
