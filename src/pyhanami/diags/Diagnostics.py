@@ -7,10 +7,8 @@ import numpy as np
 import xarray as xr
 import concurrent.futures
 import multiprocessing as mp
-import matplotlib.pyplot as plt
 
 from tqdm import tqdm
-from pathlib import Path
 from scipy.stats import ttest_ind
 from collections.abc import Iterable
 
@@ -488,7 +486,7 @@ class DataDiagnostics:
                                                  start_year=start_year, end_year=end_year, plot_ens=plot_ens)
         
         # Save plot to path if given
-        data_names_str = "-".join([('_').join(name.split()) for name in data_names])
+        data_names_str = "_".join([name.replace(' ', '-') for name in data_names])
         ens_suffix = "_all_members" if plot_ens else ""
         plot.save_or_show_plot(time_series_plot, output_path, plot_filename=f"{time_freq}_time_series_{var_name}_{data_names_str}_{start_year}-{end_year}{ens_suffix}",
                                plot_name=f"{time_freq.capitalize()} mean time series plot")
@@ -550,13 +548,14 @@ class DataDiagnostics:
         abs_diff = self._compute_abs_diff(var_name, data_plot_filtered)
         limit = np.max(np.abs(abs_diff.values))
         levels = np.linspace(-limit, limit, 13)
+        year_range = f"{start_year}-{end_year}"
         
-        abs_diff_plot, _ = plot.plot_spatial(abs_diff, clon=clon, title=f"Difference in {self.variables[var_name]['long_name']} for {start_year}-{end_year} ({data_names[0]} - {data_names[1]})",
+        abs_diff_plot, _ = plot.plot_spatial(abs_diff, clon=clon, title=f"Difference in {self.variables[var_name]['long_name']} for {year_range} ({data_names[0]} - {data_names[1]})",
                                           cb_label=f"difference in {var_name} ({self.variables[var_name]['units']})", cmap=cmocean.cm.thermal, levels=levels)
 
         # Save plot to path if given
-        data_names_str = "-".join([('_').join(name.split()) for name in data_names])
-        plot.save_or_show_plot(abs_diff_plot, output_path, plot_filename=f"abs_diff_{var_name}_{data_names_str}_{start_year}-{end_year}_clon_{clon}",
+        data_names_str = "_".join([name.replace(' ', '-') for name in data_names])
+        plot.save_or_show_plot(abs_diff_plot, output_path, plot_filename=f"abs_diff_{var_name}_{data_names_str}_{year_range}_clon_{clon}",
                                plot_name="Absolute difference plot")
 
         return
@@ -629,13 +628,14 @@ class DataDiagnostics:
         eff_size = self._compute_eff_size_ens(var_name, data_plot_filtered)
         significant = self._compute_significant_diff(var_name, data_plot_filtered, alpha, stat)
         levels = [-2,-1.2,-0.8,-0.5,-0.2,-0.01,0.01,0.2,0.5,0.8,1.2,2.0]    # Use Cohen's limits for effect size
+        year_range = f"{start_year}-{end_year}"
 
-        eff_size_plot, _ = plot.plot_spatial(eff_size, clon=clon, title=f"Effect size ($d$) for {self.variables[var_name]['long_name']} for {start_year}-{end_year} ({data_names[0]} - {data_names[1]})",
+        eff_size_plot, _ = plot.plot_spatial(eff_size, clon=clon, title=f"Effect size ($d$) for {self.variables[var_name]['long_name']} for {year_range} ({data_names[0]} - {data_names[1]})",
                                           cb_label=f"$d$ for {var_name} (-)", cmap=cmocean.cm.diff, levels=levels, significant=significant)
 
         # Save plot to path if given
-        data_names_str = "-".join([('_').join(name.split()) for name in data_names])
-        plot.save_or_show_plot(eff_size_plot, output_path, plot_filename=f"eff_size_{var_name}_{data_names_str}_{start_year}-{end_year}_clon_{clon}",
+        data_names_str = "_".join([name.replace(' ', '-') for name in data_names])
+        plot.save_or_show_plot(eff_size_plot, output_path, plot_filename=f"eff_size_{var_name}_{data_names_str}_{year_range}_clon_{clon}",
                                plot_name="Effect size plot")
             
         return
@@ -706,18 +706,18 @@ class DataDiagnostics:
 
         # Compute and plot bias
         bias = self._compute_bias(var_name, data_plot_filtered)
-
         limit = np.max(np.abs(bias.values))
         levels = np.linspace(-limit, limit, 13)
-        colors = ("GreenRed", ['tab:red', 'white', 'tab:green'])
+        colors = ("RedGreen", ['tab:red', 'white', 'tab:green'])
         cmap = LinearSegmentedColormap.from_list(*colors)
+        year_range = f"{start_year}-{end_year}"
 
-        bias_plot, _ = plot.plot_spatial(bias, clon=clon, title=f"Bias in {self.variables[var_name]['long_name']} for {start_year}-{end_year} ({data_names[0]} - {data_names[1]})",
+        bias_plot, _ = plot.plot_spatial(bias, clon=clon, title=f"Bias in {self.variables[var_name]['long_name']} for {year_range} ({data_names[0]} - {data_names[1]})",
                                     cb_label=f"bias in {var_name} ({self.variables[var_name]['units']})", cmap=cmap, levels=levels)
 
         # Save plot to path if given
-        data_names_str = "-".join([('_').join(name.split()) for name in data_names])
-        plot.save_or_show_plot(bias_plot, output_path, plot_filename=f"bias_{var_name}_{data_names_str}_{start_year}-{end_year}_clon_{clon}",
+        data_names_str = "_".join([name.replace(' ', '-') for name in data_names])
+        plot.save_or_show_plot(bias_plot, output_path, plot_filename=f"bias_{var_name}_{data_names_str}_{year_range}_clon_{clon}",
                                plot_name="Bias plot")
         
         return
@@ -781,7 +781,7 @@ class DataDiagnostics:
     #             raise ValueError("Output path must be a directory, not a file path, as two output files will be created.")
             
     #         output_path.mkdir(parents=True, exist_ok=True)
-    #         data_names_str = "-".join([('_').join(name.split()) for name in data_names])
+    #         data_names_str = "_".join([name.replace(' ', '-') for name in data_names])
     #         abs_diff_path = output_path / f"abs_diff_{var_name}_{data_names_str}.png"
     #         eff_size_path = output_path / f"eff_size_{var_name}_{data_names_str}.png"
 

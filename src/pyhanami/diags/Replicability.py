@@ -474,7 +474,7 @@ class ReplicabilityTest:
         # Plot results and save to path if given
         matrix, _ = plot.plot_matrix(eff_sizes, test_results, title=f"Effect size replicability test ({data_names[0]} vs {data_names[1]})", variables=self.variables)
 
-        data_names_str = "-".join([('_').join(name.split()) for name in data_names])
+        data_names_str = "_".join([name.replace(' ', '-') for name in data_names])
         plot.save_or_show_plot(matrix, output_path, plot_filename=f"matrix_{data_names_str}", plot_name=f"Matrix plot")
 
         return

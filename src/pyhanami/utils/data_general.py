@@ -202,14 +202,14 @@ def regrid_data(source_ds, target_ds, var=None, method='bilinear', cyclic_point=
         return regridded_ds
 
 
-def validate_year_range(data_sim, start_year=None, end_year=None, process_name=None):
+def validate_year_range(dataset, start_year=None, end_year=None, process_name=None):
     """
     Validate and adjust the provided year range against the dataset's time dimension.
 
     Parameters
     ----------
-    data_sim : SimulationData
-        Simulation dataset containing a time dimension.
+    dataset : SimulationData or ObservationData
+        Simulation or observations dataset containing a time dimension.
     start_year : int, optional
         Start year for the analysis. If None, uses the dataset's start year.
     end_year : int, optional
@@ -226,11 +226,11 @@ def validate_year_range(data_sim, start_year=None, end_year=None, process_name=N
     """
 
     # Get available years in the dataset
-    sim_name = data_sim.name
-    if 'time' not in data_sim.data.dims:
+    data_name = dataset.name
+    if 'time' not in dataset.data.dims:
         raise ValueError(f"In the {process_name} analysis, the simulation dataset does not contain a 'time' dimension.")
     
-    years = data_sim.data.time.dt.year
+    years = dataset.data.time.dt.year
     start_year_data = int(years.min())
     end_year_data = int(years.max())
 
@@ -239,11 +239,11 @@ def validate_year_range(data_sim, start_year=None, end_year=None, process_name=N
     if start_year is None:
         start_year = start_year_data
         warnings.warn(f"As no start year was provided for the {process_name} analysis, the first year available" + 
-                      f" in the '{sim_name}' dataset ({start_year_data}) will be used.")
+                      f" in the '{data_name}' dataset ({start_year_data}) will be used.")
     if end_year is None:
         end_year = end_year_data
         warnings.warn(f"As no end year was provided for the {process_name} analysis, the last year available" +
-                      f" in the '{sim_name}' dataset ({end_year_data}) will be used.")
+                      f" in the '{data_name}' dataset ({end_year_data}) will be used.")
     
     # Validate year range
     if start_year > end_year:
@@ -251,6 +251,6 @@ def validate_year_range(data_sim, start_year=None, end_year=None, process_name=N
                          f" the end year ({end_year}).")
     if start_year < start_year_data or end_year_data < end_year:
         raise ValueError(f"The year range for the {process_name} analysis ({start_year}-{end_year}) must be within the" + 
-                         f" available simulation data range for '{sim_name}' ({start_year_data}-{end_year_data}).")
+                         f" available simulation data range for '{data_name}' ({start_year_data}-{end_year_data}).")
 
     return start_year, end_year
