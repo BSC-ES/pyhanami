@@ -1153,9 +1153,9 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
         legend_bsiso = ax.legend(handles=bsiso_handles, loc='lower right', fontsize=8)
         ax.add_artist(legend_bsiso)
 
-        # Add Taylor Skill Score (TSS) statistics
+        # Add scalar scores
         stats_text = (
-            f"Statistics: $\\alpha$={f'{alpha:.2f}' if alpha is not None else 'N/A'}, "
+            f"Scores: $\\alpha$={f'{alpha:.2f}' if alpha is not None else 'N/A'}, "
             f"R={f'{corr:.2f}' if corr is not None else 'N/A'}, "
             f"$\\sigma$={f'{sigma:.2f}' if sigma is not None else 'N/A'}, "
             f"TSS={f'{tss:.2f}'if tss is not None else 'N/A'}"
@@ -1180,7 +1180,7 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
 
 
 def plot_table(data, title='Climate variables', col_labels='', row_labels='', cbar_ticks=['Low', '0', 'High'], colors=('RdBu_r'),
-               decimals=1):
+               vmin=None, vmax=None, reference=True, decimals=1):
     """ 
     Generate a table plot with climate data.
 
@@ -1198,7 +1198,11 @@ def plot_table(data, title='Climate variables', col_labels='', row_labels='', cb
     cbar_ticks : list
         Labels for the colorbar ticks (default: ['Low', '0', 'High']).
     colors : tuple
-        Colormap (default: 'RdBu_r').
+        Colormap (default: ('RdBu_r')).
+    vmin, vmax : float
+        Min. and max. values for the colormap.
+    reference : bool
+        Whether to use the first row of data as reference (not colored) (default: True).
     decimals : int
         Number of decimals to round the data values (default: 1).
 
@@ -1268,24 +1272,30 @@ def plot_table(data, title='Climate variables', col_labels='', row_labels='', cb
         table.get_celld()[(row, 0)].set_width(row_label_width_inch)
         table.get_celld()[(row, 0)].set_height(cell_height_inch)
 
-    # Customize other columnes (data cells)
+    # Customize other columns (data cells)
+    start_color_cell = 1 if reference else 0
+    custom_norm = True if vmin is not None and vmax is not None else False
+    cmap = LinearSegmentedColormap.from_list(*colors)
     for col in range(1, n_cols):
         for row in range(n_rows+1): 
             table.get_celld()[(row, col)].set_width(col_widths_inch[col-1])
             table.get_celld()[(row, col)].set_height(cell_height_inch)
 
-        # Paint the cells in the first row (corresponding to IBTrACS) with light gray
-        table[(1, col)].set_facecolor('lightgray')
+        if reference:
+            # Paint the cells in the first row (corresponding to the reference data) with light gray
+            table[(1, col)].set_facecolor('lightgray')
 
-        # Color the cells in rows 2-on
-        values = data[1:, col-1]
-        vmin, vmax = values.min(), values.max()
+        # Color the remaining cells (rows 2-on if `reference` is True, else all rows)
+        if custom_norm:
+            norm = plt.Normalize(vmin, vmax)
+        else:
+            values = data[start_color_cell:, col-1]
+            vmin, vmax = values.min(), values.max()
 
-        abs_max = max(abs(vmin), abs(vmax))
-        norm = plt.Normalize(-abs_max, abs_max)
-        cmap = LinearSegmentedColormap.from_list(*colors)
+            abs_max = max(abs(vmin), abs(vmax))
+            norm = plt.Normalize(-abs_max, abs_max)
 
-        for row in range(2, n_rows+1):
+        for row in range(start_color_cell+1, n_rows+1):
             val = data[row-1, col-1]
             color = cmap(norm(val))
             table[(row, col)].set_facecolor(color)
@@ -1297,7 +1307,7 @@ def plot_table(data, title='Climate variables', col_labels='', row_labels='', cb
 
     # Add ticks to bar
     left_tick = norm.vmin + (norm.vmax - norm.vmin) * 0.08  # 8% from left
-    middle_tick = 0
+    middle_tick = norm.vmin + (norm.vmax - norm.vmin) * 0.5  # middle
     right_tick = norm.vmax - (norm.vmax - norm.vmin) * 0.08  # 8% from right
     cbar.set_ticks([left_tick, middle_tick, right_tick])
     cbar.set_ticklabels(cbar_ticks)
