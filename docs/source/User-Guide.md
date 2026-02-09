@@ -1,6 +1,6 @@
 # User Guide
 
-This guide provides detailed instructions and examples for using _pyhanami_ to evaluate several features of ESMs. 
+This guide provides detailed instructions and examples for using _pyhanami_ to evaluate several features of Earth System Models (ESMs). 
 
 
  ## Set up configuration files
@@ -94,7 +94,7 @@ To take into account when using this `time_series_plot` method:
 
 ## Spatial plots
 
-To generate **spatial plots** comparing two simulation datasets between `year_init` and `year_end`, initialize the `DataDiagnostics` class with the `SimulationData` objects that you want to analyze and use the `abs_diff_plot` and `eff_size_plot` methods:
+To generate **spatial plots** comparing two datasets between `year_init` and `year_end`, initialize the `DataDiagnostics` class with the `SimulationData` objects that you want to analyze and use the following methods:
 
 ```python
 # Initialize DataDiagnostics class with two SimulationData objects
@@ -119,13 +119,25 @@ diags.eff_size_plot(
     start_year=year_init, 
     end_year=year_end
 )
+
+# Plot spatial bias between one dataset and observations
+diags.bias_plot(
+    'var_name',
+    'name_sim_1',
+    'output_path',
+    obs_path='path_obs', 
+    obs_name='name_obs', 
+    start_year=year_init,
+    end_year=year_end
+)
 ```
-The `abs_diff_plot` and `eff_size_plot` methods generate the following visualization outputs, respectively:
+The `abs_diff_plot`, `eff_size_plot`, and `bias_plot` methods generate the following visualization outputs, respectively:
 1. **Absolute difference plot**: spatial plot displaying the absolute average difference between two simulation datasets for the given variable at the grid point level. 
 2. **Effect size plot**: spatial plot showing the effect size (Cohen's _d_) between two simulation datasets for the given variable at the grid point level. Grid points in which the difference between the datasets is statistically significant (based on the _t_-test) are highlighted in the plot.
+3. **Bias plot**: spatial plot of the average difference between a simulation dataset and observations for the given variable at the grid point level.
 
 To take into account when using these methods:
-- The central longitude in the plots is set to 0º by default, but it can be modified with the argument `clon` (e.g. `clon=180`).
+- The central longitude in the plots is set to 0º by default, but it can be modified with the argument `clon` (e.g., `clon=180`).
 - If no `start_year` and `end_year` are specified, the whole period covered by the datasets is used by default. In this case, both datasets must have overlapping time periods.
 
 
@@ -147,6 +159,38 @@ tester.matrix_plot(
 This `matrix_plot` method uses all variables present in the simulation datasets as long as they are listed in `src/pyhanami/config/variables.yaml` to perform the replicability test.
 
 
+## General scientific skill analysis
+
+To perform a general scientific skill evaluation of a simulation dataset, initialize the `ScientificEvaluation` class with the `SimulationData` object that you want to analyze and use the `compute_general_scores` method. This method computes several scalar scores related to the general scientific skill of the model by comparing to a reference observational dataset. It can be performed on any of the variables listed in `src/pyhanami/config/variables.yaml`. 
+
+The following snippet creates a `GeneralEvaluation` instance that computes the general scientific skill scores for the variable `var_name` between `year_init` and `year_end`:
+
+```python
+# Initialize ScientificEvaluation class with a SimulationData object
+sciskill = pyhanami.ScientificEvaluation(sim_1)
+
+# Compute general scalar scores for one simulation dataset comparing to observations
+general_analysis = sciskill.compute_general_scores(
+    'var_name',
+    'name_sim_1',
+    obs_path='path_obs',
+    obs_name = 'name_obs',
+    start_year=year_init,
+    end_year=year_end
+```
+Note that `var_name` can either be a single variable name (as string) or a list of variable names. If no variable is specified, all variables in the simulation dataset are considered for the analysis. Besides, if no years are passed, the whole period covered by the simulation dataset is used by default.
+
+Moreover, the `GeneralEvaluation` class includes methods to visualize and save the results of the analysis. The following shows how to save the computed scalar scores and create a summary table plot for a given variable:
+
+```python
+# Save and plot outcome of the general scientific skill analysis
+general_analysis.save_data('output_path')
+general_analysis.scores_table('var_name', 'output_path')
+```
+
+<!-- TO DO: Explain the colors in the summary table plot.-->
+
+
 ## Tropical IntraSeasonal Oscillation (ISO) analysis
 
 To evaluate the simulation of the ISO, initialize the `ScientificEvaluation` class with the `SimulationData` object that you want to analyze and use the `compute_iso_scores` method. This method computes scalar scores related to ISO and requires **daily Top of Atmosphere Outgoing Longwave Radiation** (`rlut`) data, preferably covering a period of 10 years or more (ideally, at least 30 years).
@@ -158,6 +202,8 @@ The following snippet creates an `ISOEvaluation` instance that:
 
 ```python
 # Initialize ScientificEvaluation class with a SimulationData object
+# (If you have already added this dataset to an existing ScientificEvaluation object, 
+# you can skip this step)
 sciskill = pyhanami.ScientificEvaluation(sim_1)
 
 # Compute bimodal ISO indices performing an EEOF analysis on simulated data
@@ -204,7 +250,7 @@ iso_analysis_obs.scores
 When `obs=True`, the simulated PCs can be adjusted before computing the scores to account for amplitude differences between simulations and observations (see [Methodology](./Methodology.md#tropical-intraseasonal-oscillation-iso) for more details). This correction can be turned on by passing the argument `correct_pc=True`.
 
 To summarize, the `ISOEvaluation` class includes methods to generate the following visualization outputs:
-1. **EEOF plots** (`ISOEvaluation.eeof_plots`): spatial patterns of the first two EEOFs for boreal winter and boreal summer. The central longitude for these plots is set to 0º by default, but it can be modified with the argument `clon` (e.g. `clon=180`).
+1. **EEOF plots** (`ISOEvaluation.eeof_plots`): spatial patterns of the first two EEOFs for boreal winter and boreal summer. The central longitude for these plots is set to 0º by default, but it can be modified with the argument `clon` (e.g., `clon=180`).
 2. **PC plots** (`ISOEvaluation.pc_plots`, passing one year or a list of years): time series of the first two PCs and their amplitude for both MJO and BSISO for the specified years.
 3. **Frequency plot** (`ISOEvaluation.freq_plot`): mean monthly frequency (seasonality) of ISO events for both MJO and BSISO, computed over the entire period covered by the dataset. If observations are set to `True`, these are included in the  frequency plot, which also shows the scalar scores ($\alpha$, $R$, $\sigma$ and $\text{TSS}$) comparing simulations and observations.
 
@@ -235,6 +281,8 @@ tc_analysis= sciskill.compute_tc_scores(
 )
 ```
 
+If no years are passed, the whole period covered by the simulation dataset is used by default.
+
 Moreover, the `TCEvaluation` class includes methods to visualize and save the results of the analysis. The following shows how to save the computed data, create linear and spatial plots displaying the computed TC metrics, and create table plots summarizing the scalar score for each TC metric:
 
 ```python
@@ -263,4 +311,4 @@ resolution following the criteria established in [(K.J.E. Walsh et al., 2007)](h
 - The climate variable name `var_name` must be listed in the configuration file `src/pyhanami/config/variables.yaml`.  
 - `output_path` for functions that generate a single plot can be either a directory path or a full file path including the filename. For functions that generate multiple plots, `output_path` must be a directory path. If `output_path` is not provided, the plots are displayed interactively.
 - `path_obs` must be a path to a directory containing observation datasets, with files named following the pattern `data_obs*_{var_name}.nc`, where `var_name` matches the corresponding variable name in `src/pyhanami/config/variables.yaml`. 
-- For all the spatial plots, the central longitude is set to 0º by default, but it can be modified with the argument `clon` (e.g. `clon=180`).
+- For all the spatial plots, the central longitude is set to 0º by default, but it can be modified with the argument `clon` (e.g., `clon=180`).

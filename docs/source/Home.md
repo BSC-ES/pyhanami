@@ -7,7 +7,7 @@ Welcome to the Read the Docs page for _pyhanami_. This documentation contains de
 _pyhanami_ is a Python package that provides tools for:
 1. Generating diagnostic visualizations (e.g., time series and spatial plots)
 2. Evaluating the replicability of ESMs (e.g., identify significant differences between experiments)
-3. Assessing the scientific skill of ESMs (e.g., metrics related to ISO and Tropical Cyclones)
+3. Assessing the scientific skill of ESMs (e.g., scalar scores related to ISO and Tropical Cyclones)
 
 Key features of the package include:
 
@@ -16,6 +16,7 @@ Key features of the package include:
 These include time series plots (with the `time_series_plots` method) and spatial plots (with the `spatial_plots` method). The latter generates two plots, one for the absolute difference and another for the effect size (Cohen's _d)_ between both ensembles.
 - **Replicability testing:** perform a replicability test checking the statistical indistinguishability between two previously loaded simulation ensembles using the `ReplicabilityTest` class.
 - **Scientific skill evaluation:** compute scalar scores evaluating the following phenomena using the `ScientificEvaluation` class:
+    - <u> General skill:</u> this includes the computation of general scalar scores (bias (BIAS), Root Mean Square Error (RMSE), and spatial Pearson correlation ($r_{xy}$)) for any variable in the simulation dataset comparing to observations.
     - <u>Tropical IntraSeasonal Oscillation (ISO):</u> this includes the computation of the bimodal ISO indices (for MJO and BSISO), as well as the calculation of related scalar scores comparing the indices between simulations and observations (amplitude ratio ($\alpha$), temporal correlation ($R$), standard deviation ratio ($\sigma$), and Taylor Skill Score (TSS)).
     - <u>Tropical Cyclones (TCs):</u> this includes the computation of various scalar scores (bias ($\bar{b}$), spatial Pearson correlation ($r_{xy}$), and temporal Spearman rank correlation ($\rho_s$)) for several TC metrics (counts, TC days (TCD), accumulated cyclone energy (ACE), pressure ACE (PACE), and latitude of lifetime-maximum intensity (LMI)).
 - **Flexible data management:** add and compare datasets in the `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes even after initialization.

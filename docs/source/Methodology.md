@@ -1,6 +1,6 @@
 # Methodology
 
-This page describes the methodology used in _pyhanami_ for evaluating model replicability and assessing ESMs' ability to reproduce real-world climate phenomena.
+This page describes the methodology used in _pyhanami_ for evaluating model replicability and assessing Earth System Models' (ESMs) ability to reproduce real-world climate phenomena.
 
 
 ## Data preprocessing
@@ -23,9 +23,9 @@ This section provides an overview of how the data is prepared and processed for 
 
 First of all, the package includes methods to create **time series** plots for a given climate variable. For these, the data is spatially averaged with area weights (based on latitude) to obtain global mean time series. The time series can be computed as annual, monthly or daily means. Given a simulation ensemble, the time series are first calculated for each ensemble member, and then the ensemble mean is plotted together with the 2.5%, 5%, 95% and 97.5% percentiles. Besides, the trajectories of individual members can be included in the plot.
 
-Additionally, the package allows to generate spatial comparisons between different simulation datasets for a given climate variable. These include:
-- **Absolute difference**: absolute average difference between the datasets at the grid point level. Before computing the difference, the mean over time (for the whole period covered by the datasets) and the mean over ensemble members (if the datasets contain multiple ensemble members) are calculated.
-- **Effect size (Cohen's $d$)**: effect size between the datasets at the grid point level. This is taken as Cohen's effect size ($d$), computed as
+Additionally, the package allows to generate spatial comparisons between different datasets for a given climate variable. These include comparisons between simulations datasets:
+- **Absolute difference**: absolute average difference between two datasets at the grid point level. Before computing the difference, the mean over time and the mean over ensemble members (if the datasets contain multiple ensemble members) are calculated.
+- **Effect size (Cohen's $d$)**: effect size between two datasets at the grid point level. This is taken as Cohen's effect size ($d$), computed as
     
     $$
     d = \frac{\mu_1 - \mu_2}{\sigma},
@@ -41,11 +41,15 @@ Additionally, the package allows to generate spatial comparisons between differe
 
     Note that the effect size is not computed just once for all the ensembles members. Instead,  bootstrapping is used to compute the effect size multiple times, generating a distribution of effect sizes. The mean of this distribution is taken as the final effect size value. Moreover, a _t_-test is performed to assess whether the differences between the two datasets are statistically significant at the grid point level.
 
+And comparisons between simulations and observations:
+- **Bias**: average difference between the datasets at the grid point level. Before computing the difference, the mean over time and the mean over ensemble members (if the simulated dataset contains multiple ensemble members) are calculated.
 
 
 ## Replicability
 
 This section describes the statistical approach implemented within the `ReplicabilityTest` class to assess the replicability of ESMs. The aim of the test is to evaluate whether two sets of simulated ensembles are statistically indistinguishable with a given significance level (see ([[Preprint] K. Keller et al., 2025](https://egusphere.copernicus.org/preprints/2025/egusphere-2025-1367/)) for a more detailed description of the methodology).
+
+For clarity, in this and the following section, we use the term **metric** to refer to descriptive quantitative statistices, indicators, or figures of merit derived from climate data (e.g., the number of Tropical Cyclones (TCs) detected per month); while **score** is used to denote scalar values derived from these metrics to evaluate model performance, typically through comparison with observations or reanalyses (e.g., the spatial correlation between simulated and observed TC counts).
 
 The structure of the test is the following: given two ensembles generated in two different computing environments (e.g., different hardware or software stack), we assign a score to each ensemble member; this results in two distributions of scores (one per computing environment), which are then compared by combining several statistical tests (e.g., the Kolmogorov-Smirnov test) with the null hypothesis that both samples are drawn from the same underlying distribution.
 
@@ -77,6 +81,37 @@ This visualization allows for a quick assessment of the replicability, helping i
 The `ScientificEvaluation` class implements various plots and scalar scores to analyze how well ESMs reproduce key climate phenomena. These scores compare model output against observational data to quantify the models' skill in capturing specific features of the Earth's climate system.
 
 This section explains the approach used to evaluate several climate phenomena. Currently, the package allows to assess the following phenomena:
+
+
+### General scalar scores
+
+General scalar scores are computed for a given variable by comparing the simulated data with a reference observational dataset. The scores include:
+
+- **Spatially averaged absolute and relative bias**: computed as
+    $$
+    \text{BIAS} = \sum_{i=1}^N \widetilde{\omega}_i\cdot |\text{bias}_i|, \quad \text{eBIAS} = \sum_{i=1}^N \widetilde{\omega}_i\cdot e^{-|\text{bias}_{i}|/\sigma^y_i},
+    $$
+
+    where 
+    $$
+    \text{bias}_{i} = \bar{x}_{i} - \bar{y}_i
+    $$ 
+    is the bias between the simulated ($\bar{x}_{i}$) and observed ($\bar{y}_i$) climatological means, $\sigma^y_i$ is the standard deviation over time of the observed variable and $\widetilde{\omega}_i$ is the normalized area weight, all at grid point $i$.
+
+- **Spatially averaged absolute and relative Root Mean Square Error (RMSE)**: computed as
+    $$
+    \text{RMSE} = \sum_{i=1}^N \widetilde{\omega}_i\cdot \text{crmse}_i, \quad \text{eRMSE} = \sum_{i=1}^N \widetilde{\omega}_i\cdot e^{-\text{crmse}_i/\sigma^y_i},
+    $$
+    where 
+    $$
+    \text{crmse}_{i} = \sqrt{\frac{1}{T}\sum_{t=1}^T [(x_{it}-\bar{x}_{i})-(y_{ti}-\bar{y}_i)]^2}
+    $$
+    is the centralized RMSE at grid point $i$, and $T$ is the number of time steps.
+- **Spatial Pearson correlation coefficient** ($r_{xy}$) between the simulated and observed climatologies.
+<!-- TO DO: add Pcc formula? Or not necessary as it is the general one? -->
+
+When more than one ensemble member is available, the scores are computed for each member and then averaged to obtain a single score for the simulation dataset.
+
 
 ### Tropical IntraSeasonal Oscillation (ISO)    <!-- : Bimodal ISO indices -->
 
@@ -135,7 +170,7 @@ Following [(C.M. Zarzycki et al., 2021)](https://journals.ametsoc.org/view/journ
 From these, we generate monthly/yearly global time series that allow computing the following scalar temporal scores:
 - **Global climatological mean bias** with respect to a reference observational dataset over a given period ($\bar{b}_{clim}$).
 - **Global storm mean values** (dividing by the counts) over a given period ($\bar{b}_{storm}$).
-- **Global Spearman rank correlation** coefficient ($\rho_s$) over a given period.
+- **Global Spearman rank correlation** coefficient over a given period ($\rho_s$).
 
 Moreover, we generate spatial plots of the absolute values and biases with respect to an observational reference for the aforementioned metrics (except for LMI) together with the minimum sea level pressure, the maximum 10 m wind and the TC genesis. From these, we compute the following scalar spatial scores:
 - **Global Pearson correlation** coefficient ($r_{xy}$).
