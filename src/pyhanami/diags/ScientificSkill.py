@@ -40,12 +40,12 @@ class GeneralEvaluation:
         Simulation dataset to use.
     var_names : str or list[str], optional
         Climate variable(s) name(s). If None, all variables in the simulated dataset will be used.
-    start_year, end_year : int
-        Initial and end years to perform the general analysis for.
     obs_name : str
         Name of the observational dataset to compare to (default: config_params.GEN_OBS_NAME).
     obs_path : str
         Path to the observations database (default: config_params.GEN_OBS_PATH).
+    start_year, end_year : int
+        Initial and end years to perform the general analysis for.
 
     Attributes
     ----------
@@ -76,8 +76,8 @@ class GeneralEvaluation:
                 Pearson correlation coefficient.
     """
 
-    def __init__(self,  data_sim : SimulationData, var_names : str | list[str] = None, start_year : int = None, end_year : int = None,
-                 obs_name : str = config_params.GEN_OBS_NAME, obs_path : str = config_params.GEN_OBS_PATH):
+    def __init__(self,  data_sim : SimulationData, var_names : str | list[str] = None, obs_name : str = config_params.GEN_OBS_NAME, 
+                 obs_path : str = config_params.GEN_OBS_PATH, start_year : int = None, end_year : int = None):
 
         # Validate input
         if not isinstance(data_sim, SimulationData):
@@ -386,53 +386,57 @@ class GeneralEvaluation:
         return
 
     
-    def scores_table(self, var_name=None, output_path=None):
+    def scores_table(self, var_names=None, output_path=None):
         """
-        Generate and save/display table plot with general scalar scores for a 
-        specific variable.
+        Generate and save/display table plot with general scalar scores for the given variable(s).
 
         Parameters
         ----------
-        var_name : str
-            Climate variable.
+        var_names : str or list[str], optional
+            Climate variable(s) name(s). If None, all variables in the analysis will be used.
         output_path : str, optional
             Path to save the table plot. If None, the table is displayed but not saved.
         """
 
         # Validate input
-        if var_name is None:
-            raise ValueError("A variable name must be provided to generate the general scalar scores table plot.")
-        elif var_name not in self.var_names:
-            raise ValueError(f"Variable '{var_name}' was not used in the general scalar analysis. "
-                             f"Available variables: {self.var_names}")
+        if var_names is None:
+            var_names = self.var_names
+        if isinstance(var_names, str):
+            var_names = [var_names]
+        for var_name in var_names:
+            if var_name not in self.var_names:
+                raise ValueError(f"Variable '{var_name}' was not used in the general scalar analysis. "
+                                 f"Available variables: {self.var_names}")
 
-        # Prepare plot parameters
-        var_name_title = VARIABLES[var_name]['long_name']
-        year_range = f"{self.start_year}-{self.end_year}"
-        if self.ensemble:
-            # cols = [' ', r'$\overline{\text{BIAS}}$', r'$\overline{\text{eBIAS}}$', r'$\overline{\text{RMSE}}$', 
-            #         r'$\overline{\text{eRMSE}}$', r'$\overline{r}_{xy}$']
-            cols = [' ', r'$\overline{\text{eBIAS}}$', r'$\overline{\text{eRMSE}}$', r'$\overline{r}_{xy}$']
-            title = f"Scalar scores for {var_name_title} (ensemble mean) ({year_range})"
-        else:
-            # cols = [' ', 'BIAS', 'eBIAS', 'RMSE', 'eRMSE', r'$r_{xy}$']
-            cols = [' ', 'eBIAS', 'eRMSE', r'$r_{xy}$']
-            title = f"Scalar scores for {var_name_title} ({year_range})"
-        
+
+        # Prepare plot parameters        
         rows = [self.obs_name, self.sim_name]
         cbar_ticks = ['Worse performance', ' ', 'Better performance']
         colors = ("RedGreen", ['tab:red', 'white', 'tab:green'])
-
-        # Prepare plot data
         data_ref = np.array([1, 1, 1])
-        data_sim = self.scores[['bias_rel', 'rmse_rel', 'pcorr']].sel(variable=var_name).to_array().values
-        data_plot = np.stack([data_ref, data_sim])
 
-        # Generate and save/display plot
-        general_scores_plot, _ = plot.plot_table(data_plot, title=title, col_labels=cols, row_labels=rows, cbar_ticks=cbar_ticks, colors=colors, decimals=3)
+        for var_name in var_names:
+            var_name_title = VARIABLES[var_name]['long_name']
+            year_range = f"{self.start_year}-{self.end_year}"
+            if self.ensemble:
+                # cols = [' ', r'$\overline{\text{BIAS}}$', r'$\overline{\text{eBIAS}}$', r'$\overline{\text{RMSE}}$', 
+                #         r'$\overline{\text{eRMSE}}$', r'$\overline{r}_{xy}$']
+                cols = [' ', r'$\overline{\text{eBIAS}}$', r'$\overline{\text{eRMSE}}$', r'$\overline{r}_{xy}$']
+                title = f"Scalar scores for {var_name_title} (ensemble mean) ({year_range})"
+            else:
+                # cols = [' ', 'BIAS', 'eBIAS', 'RMSE', 'eRMSE', r'$r_{xy}$']
+                cols = [' ', 'eBIAS', 'eRMSE', r'$r_{xy}$']
+                title = f"Scalar scores for {var_name_title} ({year_range})"
 
-        plot.save_or_show_plot(general_scores_plot, output_path, plot_filename=f"general_scalar_scores_table_{self.sim_name.replace(' ', '-')}_{year_range}",
-                               plot_name="General scalar scores table plot")
+            # Prepare plot data
+            data_sim = self.scores[['bias_rel', 'rmse_rel', 'pcorr']].sel(variable=var_name).to_array().values
+            data_plot = np.stack([data_ref, data_sim])
+
+            # Generate and save/display plot
+            general_scores_plot, _ = plot.plot_table(data_plot, title=title, col_labels=cols, row_labels=rows, cbar_ticks=cbar_ticks, colors=colors, decimals=3)
+
+            plot.save_or_show_plot(general_scores_plot, output_path, plot_filename=f"general_scalar_scores_table_{var_name}_{self.sim_name.replace(' ', '-')}_{year_range}",
+                                   plot_name="General scalar scores table plot")
 
         return
 
@@ -1248,17 +1252,21 @@ class TCEvaluation:
 
 
         # Retrieve biases as xarray.Datasets
-        clim_mean = self.data_cymep[[f'clim_mean_{metric}' for metric in self.metrics_metadata if self.metrics_metadata[metric]['temporal']==True]]
+        clim_metrics = [metric for metric in self.metrics_metadata if self.metrics_metadata[metric]['temporal']==True]
+        clim_mean = self.data_cymep[[f'clim_mean_{metric}' for metric in clim_metrics]]
         clim_bias = xr.concat([
             clim_mean.isel(model=0).expand_dims('model'),
             clim_mean.isel(model=slice(1, None)) - clim_mean.isel(model=0)
         ], dim='model')
-
-        storm_mean = self.data_cymep[[f'storm_mean_{metric}' for metric in self.metrics_metadata if self.metrics_metadata[metric]['temporal']==True and metric!='count']]
+        clim_bias = clim_bias.rename({f'clim_mean_{metric}': f'clim_bias_{metric}' for metric in clim_metrics})
+        
+        storm_metrics = [metric for metric in self.metrics_metadata if self.metrics_metadata[metric]['temporal']==True and metric!='count']
+        storm_mean = self.data_cymep[[f'storm_mean_{metric}' for metric in storm_metrics]]
         storm_bias = xr.concat([
             storm_mean.isel(model=0).expand_dims('model'),
             storm_mean.isel(model=slice(1, None)) - storm_mean.isel(model=0)
         ], dim='model')
+        storm_bias = storm_bias.rename({f'storm_mean_{metric}': f'storm_bias_{metric}' for metric in storm_metrics})
 
         # Define plotting parameters
         cbar_ticks_bias = ['Negative bias', 'No bias', 'Positive bias']
@@ -1649,8 +1657,8 @@ class ScientificEvaluation:
         return
     
     
-    def compute_general_scores(self, var_names=None, data_name=None, start_year=None, end_year=None, obs_name=config_params.GEN_OBS_NAME, 
-                               obs_path=config_params.GEN_OBS_PATH):
+    def compute_general_scores(self, var_names=None, data_name=None, obs_name=None, obs_path=None, #config_params.GEN_OBS_NAME, obs_path=config_params.GEN_OBS_PATH, 
+                               start_year=None, end_year=None):
         """
         Initialize and compute general model skill evaluation scores for a selected dataset.
         
@@ -1661,12 +1669,12 @@ class ScientificEvaluation:
         data_name : str, optional
             Name of simulation ensemble to use. If None, the first dataset in the ScientificEvaluation 
             object is used.
-        start_year, end_year : int
-            Initial and end years to compute the general scores for.
         obs_name : str
             Name of the observational dataset to compare to (default: config_params.GEN_OBS_NAME).
         obs_path : str
             Path to the observations database (default: config_params.GEN_OBS_PATH).
+        start_year, end_year : int
+            Initial and end years to compute the general scores for.
 
         Returns
         -------
@@ -1690,8 +1698,8 @@ class ScientificEvaluation:
         
         # Create GeneralEvaluation object and compute scores
         print(f"Performing general scalar analysis for dataset '{data_name}':", flush=True)
-        general_analysis = GeneralEvaluation(data_sim=data_general, var_names=var_names, start_year=start_year, end_year=end_year, 
-                                             obs_name=obs_name, obs_path=obs_path)
+        general_analysis = GeneralEvaluation(data_sim=data_general, var_names=var_names, obs_name=obs_name, 
+                                             obs_path=obs_path, start_year=start_year, end_year=end_year)
 
         return general_analysis
 
