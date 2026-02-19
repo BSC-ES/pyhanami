@@ -1,0 +1,18 @@
+{
+    "_ARRAY_DIMENSIONS": [],
+    "center": "False",
+    "check_nans": "True",
+    "compute": "True",
+    "date": "2026-02-18 12:49:05",
+    "feature_name": "feature",
+    "model": "EOF analysis",
+    "n_modes": 2,
+    "random_state": "None",
+    "sample_name": "sample",
+    "software": "xeofs",
+    "solver": "auto",
+    "solver_kwargs": {},
+    "standardize": "False",
+    "use_coslat": "False",
+    "version": "3.0.4"
+}

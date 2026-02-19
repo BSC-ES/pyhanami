@@ -1,0 +1,7 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "feature"
+    ],
+    "description": "Preprocessed data with seasonal cycle removed, latitude averaged and normalized by standard deviation.",
+    "dtype": "bool"
+}

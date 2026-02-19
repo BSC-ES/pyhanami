@@ -1,0 +1,12 @@
+{
+    "coslat_weights_": "_is_node",
+    "mean_": "_is_node",
+    "params": {
+        "compute": true,
+        "with_center": false,
+        "with_coslat": false,
+        "with_std": false
+    },
+    "std_": "_is_node",
+    "weights_": "_is_node"
+}

@@ -1,0 +1,12 @@
+{
+    "coordinates": "dim1 dim2",
+    "multiindexes": {
+        "feature": [
+            "dim1",
+            "dim2"
+        ]
+    },
+    "name_map": {
+        "feature": "feature"
+    }
+}
