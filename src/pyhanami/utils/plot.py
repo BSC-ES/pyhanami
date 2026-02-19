@@ -10,6 +10,7 @@ import cartopy.mpl.ticker as cticker
 from pathlib import Path
 from matplotlib import colors
 from scipy.stats import bootstrap
+from matplotlib.lines import Line2D
 from pyhanami.utils import data_general
 from pyhanami.config import config_params
 from cartopy.util import add_cyclic_point
@@ -1177,6 +1178,135 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
     ax.set_title(title, fontsize=12)
 
     return fig, ax
+
+
+def plot_ceofs(ceofs, title='MJO Multivariate EOFs', vars_colors={'ua850':'#e41a1c','ua200':'#4daf4a','rlut':'#377eb8'},
+               labels_linestyles={'Dataset 1':'-', 'Dataset 2':'--', 'Dataset 3':':'}):
+    """
+    Generate plot of the first two Combined Empirical Orthogonal Functions (CEOFs) 
+    for the MJO, including all three variables (ua850, ua200 and rlut) in the 
+    same plot, for up to three different datasets.    
+
+    Parameters
+    ----------
+    ceofs : list[xr.DataArray]
+        List of CEOFs for each variable.
+    title : str
+        Title of the plot.
+    vars_colors : dict
+        Dictionary mapping variable names to colors.
+    labels_linestyles : dict
+        Dictionary mapping dataset names to line styles.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        Generated plot.
+    ax : matplotlib.axes._subplots.AxesSubplot
+        Plot axis.
+    """
+
+    # Validate input
+    if not isinstance(ceofs, list) or not all(isinstance(ds, xr.DataArray) for ds in ceofs):
+        raise TypeError("The CEOFs data must be provided as a list of xr.DataArrays.")
+    
+
+    # Define plotting style parameters
+    shade_factors = [0.6, 0.85, 1.25]
+
+    # Create the plot
+    fig, axs = plt.subplots(1, 2, figsize=(15, 5))
+
+    # Bring subplots closer together
+    plt.subplots_adjust(wspace=0.15)  
+
+
+    # Generate plots
+    for i, ds in enumerate(ceofs):
+        ds_name = list(labels_linestyles.keys())[i]
+        for var in ds["variable"].values:
+            subset = ds.sel(variable=var)
+
+            # Determine color and style
+            base = vars_colors.get(var, 'black')
+            base_rgb = colors.to_rgb(base)
+            color = tuple(min(1, max(0, c*shade_factors[i])) for c in base_rgb)
+
+            # Loop over modes
+            for i_mode in range(2):  
+                ax = axs[i_mode]
+                subset_one_mode = subset.sel(mode=i_mode)
+
+                ax.plot(
+                    subset_one_mode.lon,
+                    subset_one_mode,
+                    color=color,
+                    linestyle=labels_linestyles[ds_name],
+                    label=f"{ds_name} - {var}"
+                )
+
+    # Formatting
+    for j, ax in enumerate(axs):
+        ax.set_xlabel("Longitude (°E)" , fontsize=12)
+        if j == 0:
+            ax.set_ylabel("Normalized Amplitude", fontsize=12)
+        ax.set_title(f"Multivariate EOF{j+1}")
+        ax.margins(x=0)  # remove whitespace before first data point
+        ax.grid()
+        ax.axhline(0, color='black', linestyle='-')
+        ax.tick_params(axis='both', which='major', labelsize=11)
+
+
+    # Build custom legend entries for datasets (linestyles)
+    dataset_handles = [
+        Line2D(
+            [0], [0],
+            color='black',
+            linestyle=labels_linestyles[ds],
+            linewidth=2,
+            label=ds
+        )
+        for ds in labels_linestyles.keys()
+    ]
+
+    # Build legend entries for variables (colors)
+    variable_handles = [
+        Line2D(
+            [0], [0],
+            color=vars_colors[var],
+            linestyle='-',
+            linewidth=2,
+            label=var
+        )
+        for var in vars_colors.keys()
+    ]
+
+    # Add both legends to the figure
+    dataset_legend = fig.legend(
+        handles=dataset_handles,
+        loc='lower center',
+        bbox_to_anchor=(0.35, -0.12),  # Position left
+        ncol=len(dataset_handles),
+        frameon=True,
+        fontsize=11,
+        title='Dataset:',
+    )
+
+    variable_legend = fig.legend(
+        handles=variable_handles,
+        loc='lower center',
+        bbox_to_anchor=(0.65, -0.12),  # Position right
+        ncol=len(variable_handles),
+        frameon=True,
+        fontsize=11,
+        title='Variable:',
+    )
+
+    # Add the first legend back (matplotlib removes it when adding the second)
+    fig.add_artist(dataset_legend)
+
+    fig.suptitle(title) 
+    return fig, axs
 
 
 def plot_table(data, title='Climate variables', col_labels='', row_labels='', cbar_ticks=['Low', '0', 'High'], colors=('RdBu_r'),
