@@ -735,8 +735,7 @@ def plot_matrix(eff_sizes, test_results, test=4, title='Effect sizes replicabili
 
     # Define the grid
     n_rows, n_cols, n_indices = abs_eff_sizes.shape
-    fig_size = (22, 16)
-    fig, ax = plt.subplots(figsize=fig_size)
+    fig, ax = plt.subplots(figsize=(22, 16))
 
     x_labels = [f'{s1} {s2}' for s1 in seasons for s2 in regions]
     y_labels = variables
@@ -1117,8 +1116,8 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
     ax.axhline(0, color='black', lw=0.8)
     
     if freq_ISO_obs is None:
-        ax.bar(x, freq_ISO_sim['freq_MJO'], color='tab:blue', label=f'MJO {sim_label}', align='center')
-        ax.bar(x, -freq_ISO_sim['freq_BSISO'], color='tab:orange', label=f'BSISO {sim_label}', align='center') 
+        ax.bar(x, freq_ISO_sim['freq_MJO'], color='tab:blue', label=f'MJO {sim_label}', align='center', zorder=2)
+        ax.bar(x, -freq_ISO_sim['freq_BSISO'], color='tab:orange', label=f'BSISO {sim_label}', align='center', zorder=2) 
 
         # MJO legend (upper right)
         mjo_handles = [plt.Rectangle((0,0),1,1, color='tab:blue', label=f'MJO {sim_label}')]
@@ -1131,12 +1130,12 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
         ax.add_artist(legend_bsiso)
     else:
         # MJO
-        ax.bar(x, freq_ISO_sim['freq_MJO'], color='tab:blue', label=f'MJO {sim_label}', width=-bar_width, align='edge')
-        ax.bar(x, freq_ISO_obs['freq_MJO'], color='white', edgecolor='tab:blue', hatch='////', linewidth=0.8, label=f'MJO {obs_label}', width=bar_width, align='edge')
+        ax.bar(x, freq_ISO_sim['freq_MJO'], color='tab:blue', label=f'MJO {sim_label}', width=-bar_width, align='edge', zorder=2)
+        ax.bar(x, freq_ISO_obs['freq_MJO'], color='white', edgecolor='tab:blue', hatch='////', linewidth=0.8, label=f'MJO {obs_label}', width=bar_width, align='edge', zorder=2)
 
         # BSISO
-        ax.bar(x, -freq_ISO_sim['freq_BSISO'], color='tab:orange', label=f'BSISO {sim_label}', width=-bar_width, align='edge')
-        ax.bar(x, -freq_ISO_obs['freq_BSISO'], color='white', edgecolor='tab:orange', hatch='////', linewidth=0.5, label=f'BSISO {obs_label}', width=bar_width, align='edge')
+        ax.bar(x, -freq_ISO_sim['freq_BSISO'], color='tab:orange', label=f'BSISO {sim_label}', width=-bar_width, align='edge', zorder=2)
+        ax.bar(x, -freq_ISO_obs['freq_BSISO'], color='white', edgecolor='tab:orange', hatch='////', linewidth=0.5, label=f'BSISO {obs_label}', width=bar_width, align='edge', zorder=2)
         
         # MJO legend (upper right)
         mjo_handles = [
@@ -1176,11 +1175,12 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
     ax.set_ylabel('frequency of occurrence', fontsize=10)
     
     ax.set_title(title, fontsize=12)
+    ax.grid(alpha=0.8, zorder=0)
 
     return fig, ax
 
 
-def plot_ceofs(ceofs, title='MJO Multivariate EOFs', vars_colors={'ua850':'#e41a1c','ua200':'#4daf4a','rlut':'#377eb8'},
+def plot_ceofs(ceofs, title='MJO Multivariate EOFs', vars_colors={'ua850':'#1f77b4','ua200':'#ff7f0e','rlut':'#2ca02c'},
                labels_linestyles={'Dataset 1':'-', 'Dataset 2':'--', 'Dataset 3':':'}):
     """
     Generate plot of the first two Combined Empirical Orthogonal Functions (CEOFs) 
@@ -1212,10 +1212,10 @@ def plot_ceofs(ceofs, title='MJO Multivariate EOFs', vars_colors={'ua850':'#e41a
     
 
     # Define plotting style parameters
-    shade_factors = [0.6, 0.85, 1.25]
+    shade_factors = [0.8, 1, 1.2]   #[0.6, 0.85, 1.25]
 
     # Create the plot
-    fig, axs = plt.subplots(1, 2, figsize=(15, 5))
+    fig, axs = plt.subplots(1, 2, figsize=(15, 5), dpi=150)
 
     # Bring subplots closer together
     plt.subplots_adjust(wspace=0.15)  
@@ -1247,12 +1247,12 @@ def plot_ceofs(ceofs, title='MJO Multivariate EOFs', vars_colors={'ua850':'#e41a
 
     # Formatting
     for j, ax in enumerate(axs):
-        ax.set_xlabel("Longitude (°E)" , fontsize=12)
+        ax.set_xlabel("longitude (°E)" , fontsize=12)
         if j == 0:
-            ax.set_ylabel("Normalized Amplitude", fontsize=12)
-        ax.set_title(f"Multivariate EOF{j+1}")
+            ax.set_ylabel("normalized amplitude", fontsize=12)
+        ax.set_title(f"Multivariate EOF{j+1}", fontsize=13)
         ax.margins(x=0)  # remove whitespace before first data point
-        ax.grid()
+        ax.grid(alpha=0.8)
         ax.axhline(0, color='black', linestyle='-')
         ax.tick_params(axis='both', which='major', labelsize=11)
 
@@ -1305,8 +1305,253 @@ def plot_ceofs(ceofs, title='MJO Multivariate EOFs', vars_colors={'ua850':'#e41a
     # Add the first legend back (matplotlib removes it when adding the second)
     fig.add_artist(dataset_legend)
 
-    fig.suptitle(title) 
+    fig.suptitle(title, fontsize=14, y=0.99) 
     return fig, axs
+
+
+def plot_grouped_bars(data, x_values=None, title='Grouped bar plot', x_label='', y_label='', labels=None):
+    """
+    Generate a grouped bar plot.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        2D array with the data to display in the bar plot.
+    x_values : list
+        Values for the x-axis. If None, default integer 
+        values will be used.
+    title : str
+        Title of plot (default: 'Grouped bar plot').
+    x_label : str
+        Label for the x-axis (default: '').
+    y_label : str
+        Label for the y-axis (default: '').
+    labels : list
+        Labels for each group in the bar plot.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        Generated table plot.
+    ax : matplotlib.axes._subplots.AxesSubplot
+        Plot axis.
+    """
+
+    # Validate input
+    if not isinstance(data, np.ndarray):
+        raise TypeError("The data must be a np.ndarray.")
+    
+    # Prepare plotting parameters
+    if x_values is None:
+        x_values = np.arange(data.shape[1])
+
+    n_bars = data.shape[0]
+    total_width = 0.75
+    bar_width = total_width / n_bars
+    
+
+    # Create figure
+    fig, ax = plt.subplots(figsize=(8, 5), dpi=150)
+
+    # Plot bars
+    for i, dataset in enumerate(data):
+        ax.bar(x_values - (total_width/2) + (i+0.5)*bar_width, dataset, width=bar_width, label=labels[i] if labels else None, zorder=2)
+    
+    # Plot formatting
+    ax.set_xticks(x_values)
+    ax.set_xlabel(x_label, fontsize=11)
+    ax.set_ylabel(y_label, fontsize=11)
+    ax.set_title(title, fontsize=13, pad=15)
+
+    ax.legend(loc='lower right', fontsize=10, framealpha=0.9)
+    ax.grid(zorder=0, alpha=0.8)
+    plt.tight_layout()
+
+    return fig, ax
+
+
+def plot_two_grouped_bars(data_1, data_2, x1_values=None, x2_values=None, suptitle='Grouped bar plot', title_1='First bar plot', 
+                          title_2='Second bar plot', x1_label='', x2_label='', y1_label='', y2_label='', labels=None):
+    """
+    Generate two grouped bar plots side by side.
+
+    Parameters
+    ----------
+    data_1, data_2 : np.ndarray
+        2D arrays with the data to display in the bar plots.
+    x1_values, x2_values : list
+        Values for the x-axes of the individual bar plots. If None,
+        default integer values will be used.
+    suptitle : str
+        Title of the entire figure (default: 'Grouped bar plot').
+    title_1, title_2 : str
+        Titles for the individual bar plots (default: 'First bar plot', 
+        'Second bar plot').
+    x1_label, x2_label : str
+        Labels for the x-axes of the individual bar plots (default: '').
+    y1_label, y2_label : str
+        Labels for the y-axes of the individual bar plots (default: '').
+    labels : list
+        Labels for each group in the bar plots (assuming same for both plots).
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        Generated table plot.
+    ax : matplotlib.axes._subplots.AxesSubplot
+        Plot axis.
+    """
+
+    # Validate input
+    if not isinstance(data_1, np.ndarray) or not isinstance(data_2, np.ndarray) or \
+       data_1.shape[0] != data_2.shape[0]:
+        raise TypeError("The data must be np.ndarrays with the same number of rows.")
+    
+    # Prepare plotting parameters
+    if x1_values is None:
+        x1_values = np.arange(data_1.shape[1])
+    if x2_values is None:
+        x2_values = np.arange(data_2.shape[1])
+
+
+    # Create figure
+    fig, axs = plt.subplots(1, 2, figsize=(10, 4), dpi=150)
+
+    # Plot each dataset
+    total_width = 0.75
+    for i, (data, x_values, x_label, y_label, title) in enumerate(zip([data_1, data_2], [x1_values, x2_values], [x1_label, x2_label], [y1_label, y2_label], [title_1, title_2])):
+        if data.shape[1] != len(x_values):
+            raise ValueError("The number of columns in the data must match the length of x_values.")
+        
+        n_bars = data.shape[0]
+        bar_width = total_width / n_bars
+
+        # Plot bars
+        for j, dataset in enumerate(data):
+            axs[i].bar(x_values - (total_width/2) + (j+0.5)*bar_width, dataset, width=bar_width, label=labels[j] if labels else None, zorder=2)
+        
+        # Plot formatting
+        axs[i].set_xticks(x_values)
+        axs[i].tick_params(axis='both', labelsize=8)
+
+        axs[i].set_xlabel(x_label, fontsize=10)
+        axs[i].set_ylabel(y_label, fontsize=10)
+        axs[i].set_title(title, fontsize=12, pad=15)
+
+        axs[i].legend(loc='lower right', fontsize=7, framealpha=0.9)
+        axs[i].grid(zorder=0, alpha=0.8)
+
+
+    # Add shared title and adjust layout
+    fig.suptitle(suptitle, fontsize=14)  
+    plt.tight_layout()
+
+    return fig, axs
+
+
+def plot_dots_two_axes(data_1, data_2, x_values=None, x_values_minor=None, title='Two y-axes dot plot', x_label='', y1_label='', 
+                       y2_label='', y1_lim=None, y2_lim=None, labels=None):
+    """
+    Generate two dots plots together one on the left y-axis and 
+    the other on the right y-axis.
+
+    Parameters
+    ----------
+    data_1, data_2 : np.ndarray
+        2D array with the data to display in the dot plot on the 
+        left y-axis and right y-axis, respectively.
+    x_values : list
+        Values for the x-axis. If None, default integer values 
+        will be used.
+    x_values_minor : list
+        Values for the minor ticks on the x-axis used for the grid.
+        If None, the grid will use the major x-axis ticks.
+    title : str
+        Title of plot (default: 'Two y-axes dot plot').
+    x_label : str
+        Label for the x-axis (default: '').
+    y1_label, y2_label : str
+        Labels for the left and right y-axes (default: '').
+    y1_lim, y2_lim : tuple
+        Limits for the left and right y-axes.
+    labels : list
+        Labels for each group in the bar plot.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        Generated table plot.
+    ax : matplotlib.axes._subplots.AxesSubplot
+        Plot axis.
+    """
+
+    # Validate input
+    if not isinstance(data_1, np.ndarray) or not isinstance(data_2, np.ndarray) or \
+        data_1.shape != data_2.shape:
+        raise TypeError("The data must be np.ndarrays with the same shape.")
+    
+    # Prepare plotting parameters
+    if x_values is None:
+        x_values = np.arange(data_1.shape[1])
+    n_datasets = data_1.shape[0]
+    total_span = 0.75
+    dot_spacing = total_span / n_datasets
+
+    
+    # Create figure 
+    fig, ax1 = plt.subplots(figsize=(8, 5), dpi=150)
+    ax2 = ax1.twinx()
+
+    # Plot data
+    for i, (dataset_1, dataset_2) in enumerate(zip(data_1, data_2)):
+        sc1 = ax1.scatter(x_values - (total_span/2) + (i+0.5)*dot_spacing, dataset_1, label=labels[i] if labels else None, 
+                          marker='o', linewidth=1, zorder=2)
+        sc2 = ax2.scatter(x_values - (total_span/2) + (i+0.5)*dot_spacing, dataset_2, label=labels[i] if labels else None, 
+                          marker='s', linewidth=1, zorder=2)
+
+        # Adjust markers' colors
+        edge_color = sc1.get_facecolor()[0]
+        edge_color_rgb = colors.to_rgb(edge_color)
+        face_color = tuple(min(1, max(0, c*1.3)) for c in edge_color_rgb)
+
+        sc1.set_edgecolor(edge_color)
+        sc1.set_facecolor(face_color)
+
+        sc2.set_edgecolor(edge_color)
+        sc2.set_facecolor(face_color)
+
+
+    # Plot formatting
+    ax1.set_xticks(x_values)
+    ax1.tick_params(axis='x', which='minor', bottom=False, top=False)
+    ax1.set_xlabel(x_label, fontsize=11)
+
+    ax1.set_ylabel(y1_label + ' (circles)', fontsize=11)
+    if y1_lim is not None:
+        ax1.set_ylim(y1_lim)
+    ax2.set_ylabel(y2_label + ' (squares)', fontsize=11)
+    if y2_lim is not None:
+        ax2.set_ylim(y2_lim)
+
+    if x_values_minor is not None:
+        ax1.set_xticks(x_values_minor, minor=True)
+        ax1.grid(which='minor', axis='x', zorder=0, alpha=0.8)
+    else:
+        ax1.grid(axis='x', zorder=0, alpha=0.8)
+    
+    # Create custom legend with colored rectangles
+    if labels:
+        legend_elements = []
+        for i, label in enumerate(labels):
+            # Get the color from the first scatter plot
+            color = ax1.collections[i].get_facecolors()[0]
+            legend_elements.append(plt.Rectangle((0, 0), 1, 1, facecolor=color, label=label))
+        ax1.legend(handles=legend_elements, fontsize=8)
+
+    ax1.set_title(title, fontsize=13, pad=15)
+    plt.tight_layout()
+
+    return fig, (ax1, ax2)
 
 
 def plot_table(data, title='Climate variables', col_labels='', row_labels='', cbar_ticks=['Low', '0', 'High'], colors=('RdBu_r'),
@@ -1347,7 +1592,7 @@ def plot_table(data, title='Climate variables', col_labels='', row_labels='', cb
 
     # Validate input
     if data is None or not isinstance(data, np.ndarray):
-        raise TypeError("The data must be provided as a numpy ndarray.")
+        raise TypeError("The data must be a np.ndarray.")
     if data.ndim != 2:
         raise ValueError("The data array must be 2-dimensional.")
     if len(row_labels) != data.shape[0]:

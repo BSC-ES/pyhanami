@@ -1049,15 +1049,18 @@ class MJOEvaluation:
     eof_sim_on_sim : xr.Dataset
         Output of CEOF analysis for simulated data projected on simulated CEOFs ('eof', 
         'eigval', 'var_frac' and 'pc' for the first 'n_modes').
-    phase_counts : xr.Dataset
-        Total number of MJO days ('total_counts') and active MJO days ('active_counts') 
-        per phase for observations ('obs'), simulations projected on observed CEOFs 
-        ('sim_on_obs'), and simulations projected on their own CEOFs ('sim_on_sim').
-    phase_counts_bias : xr.Dataset
-        Bias in the total number of MJO days ('total_counts') and active MJO days
-        ('active_counts') per phase with respect to observations for simulations
-        projected on observed CEOFs ('sim_on_obs'), and simulations projected on 
-        their own CEOFs ('sim_on_sim').
+    activity_per_phase : xr.Dataset
+        Mean amplitude and days per phase (total and only for active MJO days). It 
+        contains the following variables: 'mean_amplitude', 'mean_active_amplitude',
+        'total_counts' and 'active_counts' per phase for observations ('obs'), 
+        simulations projected on observed CEOFs ('sim_on_obs'), and simulations 
+        projected on their own CEOFs ('sim_on_sim').
+    activity_per_phase_bias : xr.Dataset
+        Bias in amplitude and days per phase (total and only for active MJO days). It 
+        contains the following variables: 'mean_amplitude', 'mean_active_amplitude',
+        'total_counts' and 'active_counts' per phase for observations ('obs'), 
+        simulations projected on observed CEOFs ('sim_on_obs'), and simulations 
+        projected on their own CEOFs ('sim_on_sim').
     cbar_ticks_bias : list[str]
         Colorbar ticks labels for bias tables.
     colors_bias : tuple
@@ -1094,11 +1097,11 @@ class MJOEvaluation:
         self.eof_obs, self.eof_sim_on_obs, self.eof_sim_on_sim = self._perform_CEOF_analysis(self.data_mjo_sim, n_modes)
         print(f"\tCEOF analyses completed. See attributes `eof_obs`, `eof_sim_on_obs`, and `eof_sim_on_sim` for results.", flush=True)
         
-        # Compute MJO active days per phase (absolute value and bias)
-        self.phase_counts = self._compute_phase_counts(threshold=threshold_active_days)
-        self.phase_counts_bias, self.cbar_ticks_bias, self.colors_bias = self._compute_phase_counts_bias()
-        print(f"\tAbsolute values and bias in total and active MJO days per phase computation completed between years {self.start_year_mjo} and {self.end_year_mjo}."
-              f" See attribute `phase_counts` and `phase_counts_bias` for results.", flush=True)
+        # Compute MJO mean amplitude and days per phase (absolute value and bias)
+        self.activity_per_phase = self._compute_phase_counts(threshold=threshold_active_days)
+        self.activity_per_phase_bias, self.cbar_ticks_bias, self.colors_bias = self._compute_phase_counts_bias()
+        print(f"\tAbsolute values and bias in MJO activity (mean amplitude and days) per phase computation completed."
+              f" See attribute `activity_per_phase` and `activity_per_phase_bias` for results.", flush=True)
         
         print(f"\nMadden-Julian Oscillation scores computation completed between years {self.start_year_mjo} and {self.end_year_mjo}.", flush=True)
         return
@@ -1274,9 +1277,10 @@ class MJOEvaluation:
         Returns
         -------
         phase_counts : xr.Dataset
-            Total number of MJO days ('total_counts') and active MJO days
-            ('active_counts') per phase for observations ('obs'), simulations
-            projected on observed CEOFs ('sim_on_obs'), and simulations  
+            Mean amplitude and days per phase (total and only for active MJO days).
+            It contains the following variables: 'mean_amplitude', 'mean_active_amplitude',
+            'total_counts' and 'active_counts' per phase for observations ('obs'), 
+            simulations projected on observed CEOFs ('sim_on_obs'), and simulations 
             projected on their own CEOFs ('sim_on_sim').
         """
 
@@ -1311,9 +1315,10 @@ class MJOEvaluation:
         Returns
         -------
         phase_counts_bias : xr.Dataset
-            Bias in the total number of MJO days ('total_counts') and active MJO days
-            ('active_counts') per phase with respect to observations for simulations
-            projected on observed CEOFs ('sim_on_obs'), and simulations  
+            Bias in mean amplitude and days per phase (total and only for active MJO days).
+            It contains the following variables: 'mean_amplitude', 'mean_active_amplitude',
+            'total_counts' and 'active_counts' per phase for observations ('obs'), 
+            simulations projected on observed CEOFs ('sim_on_obs'), and simulations 
             projected on their own CEOFs ('sim_on_sim').
         cbar_ticks_bias : list[str]
             Colorbar ticks labels for bias tables.
@@ -1323,8 +1328,8 @@ class MJOEvaluation:
 
         # Compile all bias counts into a single dataset
         phase_counts_bias = xr.concat([
-            self.phase_counts.isel(dataset=0).expand_dims('dataset'),
-            self.phase_counts.isel(dataset=slice(1, None)) - self.phase_counts.isel(dataset=0),
+            self.activity_per_phase.isel(dataset=0).expand_dims('dataset'),
+            self.activity_per_phase.isel(dataset=slice(1, None)) - self.activity_per_phase.isel(dataset=0),
         ], dim='dataset') 
 
         # Define plotting parameters
@@ -1368,20 +1373,19 @@ class MJOEvaluation:
 
 
         # Save total and active MJO days (absolute values and bias)
-        phase_counts_path = output_path / f"phase_counts_{sim_name_file}_{obs_name_file}_{year_range}.nc"
-        self.phase_counts.to_netcdf(phase_counts_path)
-        print(f"Total and active MJO days per phase for all datasets saved to '{phase_counts_path}'.", flush=True)
+        activity_per_phase_path = output_path / f"activity_per_phase_{sim_name_file}_{obs_name_file}_{year_range}.nc"
+        self.activity_per_phase.to_netcdf(activity_per_phase_path)
+        print(f"MJO activity (mean amplitude and days) per phase for all datasets saved to '{activity_per_phase_path}'.", flush=True)
 
-        phase_counts_bias_path = output_path / f"phase_counts_bias_{sim_name_file}_{obs_name_file}_{year_range}.nc"
-        self.phase_counts_bias.to_netcdf(phase_counts_bias_path)
-        print(f"Bias in total and active MJO days per phase for all datasets saved to '{phase_counts_bias_path}'.", flush=True)
-
+        activity_per_phase_bias_path = output_path / f"activity_per_phase_bias_{sim_name_file}_{obs_name_file}_{year_range}.nc"
+        self.activity_per_phase_bias.to_netcdf(activity_per_phase_bias_path)
+        print(f"Bias in MJO activity (mean amplitude and days) per phase for all datasets saved to '{activity_per_phase_bias_path}'.", flush=True)
         return
 
 
-    def eof_plot(self, output_path=None):
+    def ceof_plots(self, output_path=None):
         """
-        Generate and save/display plots of EOFs for simulations and observations together.. 
+        Generate and save/display plots of CEOFs for simulations and observations together.
 
         Parameters
         ----------
@@ -1390,11 +1394,11 @@ class MJOEvaluation:
         """
 
         # Prepare plotting parameters
-        vars_colors = {
-            'ua850': '#e41a1c',  # red
-            'ua200': '#4daf4a',  # green
-            'rlut':  '#377eb8'   # blue
-        }
+        # vars_colors = {
+        #     'ua850': '#e41a1c',  # red
+        #     'ua200': '#4daf4a',  # green
+        #     'rlut':  '#377eb8'   # blue
+        # }
         labels_linestyles = {
             self.obs_name: '-',
             self.sim_name: '--'
@@ -1409,7 +1413,7 @@ class MJOEvaluation:
 
         # Generate EOFs plot
         eof_sim_plot, _ = plot.plot_ceofs([self.eof_obs['eof'], self.eof_sim_on_sim['eof']], title=f"MJO Multivariate EOFs, {self.obs_name} ({year_range_obs}) vs {self.sim_name} ({year_range_sim})",
-                                          vars_colors=vars_colors, labels_linestyles=labels_linestyles)
+                                          labels_linestyles=labels_linestyles)
         
         plot.save_or_show_plot(eof_sim_plot, output_path, plot_filename=f"eof_{sim_name_file}-{obs_name_file}_projected_on_sim_{year_range_sim}",
                                plot_name=f"MJO Multivariate EOFs for '{self.sim_name}' vs '{self.obs_name}' plot")
@@ -1417,9 +1421,119 @@ class MJOEvaluation:
         return
 
 
-    def phase_counts_bias_table(self, output_path=None):
+    def mean_active_amplitude_plot(self, output_path=None):
         """
-        Generate and save/display table plot with active MJO days phase counts bias.
+        Generate and save/display bar plot with mean MJO amplitude in the active 
+        days per phase for each dataset.
+        
+        Parameters
+        ----------
+        output_path : str, optional
+            Path to save the bar plot. If None, the plot is displayed but not saved.
+        """
+
+        # Prepare data and plotting parameters
+        data_mean_active_amp = self.activity_per_phase['mean_active_amplitude'].values
+        x_values = self.activity_per_phase.phase.values
+
+        sim_name_file = self.sim_name.replace(' ', '-')
+        obs_name_file = self.obs_name.replace(' ', '-')
+
+        year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
+        labels_mean_amp = [f"{self.obs_name}", f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
+
+        # Generate bar plot
+        mean_amp_bar_plot, _ = plot.plot_grouped_bars(data_mean_active_amp, x_values=x_values, title=f'Mean MJO amplitude per phase ({year_range})', 
+                                                     x_label='MJO phase', y_label='mean amplitude', labels=labels_mean_amp)
+        
+        plot.save_or_show_plot(mean_amp_bar_plot, output_path, plot_filename=f"mean_amplitude_{sim_name_file}_{obs_name_file}_{year_range}",
+                               plot_name=f"Mean MJO amplitude in the active days per phase bar plot")
+
+        return
+    
+    
+    def active_days_plot(self, output_path=None):
+        """
+        Generate and save/display bar plot with active MJO days per phase for each
+        dataset.
+        
+        Parameters
+        ----------
+        output_path : str, optional
+            Path to save the bar plot. If None, the plot is displayed but not saved.
+        """
+
+        # Prepare data and plotting parameters
+        data_active_days = self.activity_per_phase['active_counts'].values
+        x_values = self.activity_per_phase.phase.values
+
+        sim_name_file = self.sim_name.replace(' ', '-')
+        obs_name_file = self.obs_name.replace(' ', '-')
+
+        year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
+        labels_active_days = [f"{self.obs_name}", f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
+
+        # Generate bar plot
+        active_days_bar_plot, _ = plot.plot_grouped_bars(data_active_days, x_values=x_values, title=f'Active MJO days per phase ({year_range})', 
+                                                     x_label='MJO phase', y_label='number of active days', labels=labels_active_days)
+        
+        plot.save_or_show_plot(active_days_bar_plot, output_path, plot_filename=f"active_days_{sim_name_file}_{obs_name_file}_{year_range}",
+                               plot_name=f"Active MJO days per phase bar plot")
+
+        return
+
+
+    def activity_per_phase_plots(self, output_path=None, layout='separate'):
+        """
+        Generate and save/display plot with mean MJO amplitude in the active days 
+        and active MJO days per phase for each dataset together.
+        
+        Parameters
+        ----------
+        output_path : str, optional
+            Path to save the plot. If None, the plot is displayed but not saved.
+        layout: str
+            Whether to plot mean amplitude and active days in 'separate' bar 
+            subplots or 'together' in the same dots plot sharing the x-axis 
+            (default: 'separate').
+        """
+
+        # Prepare data and plotting parameters
+        data_mean_active_amp = self.activity_per_phase['mean_active_amplitude'].values
+        data_active_days = self.activity_per_phase['active_counts'].values
+        
+        x_values = self.activity_per_phase.phase.values
+        x_values_minor = np.append([0.5], x_values + 0.5) 
+        x_label = 'MJO phase'
+
+        sim_name_file = self.sim_name.replace(' ', '-')
+        obs_name_file = self.obs_name.replace(' ', '-')
+
+        year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
+        labels = [f"{self.obs_name}", f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
+
+        # Generate bar plot
+        if layout == 'separate':
+            mean_amp_active_days_plot, _ = plot.plot_two_grouped_bars(data_mean_active_amp, data_active_days, x1_values=x_values, x2_values=x_values,
+                                                                        suptitle=f'MJO activity per phase ({year_range})', title_1='Mean MJO amplitude per phase', 
+                                                                        title_2='Active MJO days per phase', x1_label=x_label, x2_label=x_label, 
+                                                                        y1_label='mean amplitude', y2_label='number of active days', labels=labels)
+        elif layout == 'together':
+            mean_amp_active_days_plot, _ = plot.plot_dots_two_axes(data_mean_active_amp, data_active_days, x_values=x_values, x_values_minor=x_values_minor, 
+                                                                       title=f'MJO activity per phase ({year_range})', x_label=x_label, y1_label='mean amplitude', 
+                                                                       y2_label='number of active days', labels=labels)
+        else:
+            raise ValueError(f"Invalid layout option '{layout}'. Choose either 'separate' or 'together'.")
+        
+        plot.save_or_show_plot(mean_amp_active_days_plot, output_path, plot_filename=f"activity_per_phase_{layout}_{sim_name_file}_{obs_name_file}_{year_range}",
+                               plot_name=f"MJO activity (mean MJO amplitude and active days) per phase {layout} plot")
+
+        return
+
+
+    def mean_amplitude_bias_table(self, output_path=None):
+        """
+        Generate and save/display table plot with mean MJO amplitude per phase bias.
         
         Parameters
         ----------
@@ -1428,25 +1542,59 @@ class MJOEvaluation:
         """
 
         # Prepare data and plotting parameters
-        data_phase_counts_bias = self.phase_counts_bias['active_counts'].values
+        data_mean_amp_bias = self.activity_per_phase_bias['mean_active_amplitude'].values
         sim_name_file = self.sim_name.replace(' ', '-')
         obs_name_file = self.obs_name.replace(' ', '-')
 
         year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
-        cols_phase_counts_bias = np.append([' '], [fr'$\overline{{b}}_{{ph\: {phase}}}$ (days)' for phase in self.phase_counts.phase.values])
-                                           #(['Dataset \ Phase'], [str(phase) for phase in self.phase_counts.phase.values])
-        rows_phase_counts_bias = [self.obs_name, f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
+        cols_mean_amp_bias = np.append([' '], [fr'$\overline{{b}}_{{ph\, {phase}}}$' for phase in self.activity_per_phase.phase.values])
+                                           #(['Dataset \ Phase'], [str(phase) for phase in self.activity_per_phase.phase.values])
+        rows_mean_amp_bias = [self.obs_name, f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
 
-        maxs_phase_counts_bias = np.max(np.abs(data_phase_counts_bias[1:, :]), axis=0)
-        limits_phase_counts_bias = np.stack([-maxs_phase_counts_bias, maxs_phase_counts_bias], axis=1)
-
+        maxs_mean_amp_bias = np.max(np.abs(data_mean_amp_bias[1:, :]), axis=0)
+        limits_mean_amp_bias = np.stack([-maxs_mean_amp_bias, maxs_mean_amp_bias], axis=1)
+        
         # Generate table plot
-        phase_counts_bias_table_plot, _ = plot.plot_table(data_phase_counts_bias, title=f'Bias in MJO active days per phase ({year_range})', col_labels=cols_phase_counts_bias, 
-                                                          row_labels=rows_phase_counts_bias, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias, 
-                                                          limits=limits_phase_counts_bias, decimals=0)
+        mean_amp_bias_table_plot, _ = plot.plot_table(data_mean_amp_bias, title=f'Bias in mean MJO amplitude per phase ({year_range})', col_labels=cols_mean_amp_bias, 
+                                                      row_labels=rows_mean_amp_bias, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias, 
+                                                      limits=limits_mean_amp_bias, decimals=2)
+        
+        plot.save_or_show_plot(mean_amp_bias_table_plot, output_path, plot_filename=f"mean_amplitude_bias_table_{sim_name_file}_{obs_name_file}_{year_range}",
+                               plot_name=f"Bias in mean MJO amplitude per phase table plot")
 
-        plot.save_or_show_plot(phase_counts_bias_table_plot, output_path, plot_filename=f"phase_counts_bias_table_{sim_name_file}_{obs_name_file}_{year_range}",
-                               plot_name=f"Bias in total and active MJO days per phase table plot")
+        return
+
+
+    def active_days_bias_table(self, output_path=None):
+        """
+        Generate and save/display table plot with active MJO days per phase bias.
+        
+        Parameters
+        ----------
+        output_path : str, optional
+            Path to save the table plot. If None, the table is displayed but not saved.
+        """
+
+        # Prepare data and plotting parameters
+        data_active_days_bias = self.activity_per_phase_bias['active_counts'].values
+        sim_name_file = self.sim_name.replace(' ', '-')
+        obs_name_file = self.obs_name.replace(' ', '-')
+
+        year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
+        cols_active_days_bias = np.append([' '], [fr'$\overline{{b}}_{{ph\, {phase}}}$ (days)' for phase in self.activity_per_phase.phase.values])
+                                           #(['Dataset \ Phase'], [str(phase) for phase in self.activity_per_phase.phase.values])
+        rows_active_days_bias = [self.obs_name, f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
+
+        maxs_active_days_bias = np.max(np.abs(data_active_days_bias[1:, :]), axis=0)
+        limits_active_days_bias = np.stack([-maxs_active_days_bias, maxs_active_days_bias], axis=1)
+        
+        # Generate table plot
+        active_days_bias_table_plot, _ = plot.plot_table(data_active_days_bias, title=f'Bias in active MJO days per phase ({year_range})', col_labels=cols_active_days_bias, 
+                                                         row_labels=rows_active_days_bias, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias, 
+                                                         limits=limits_active_days_bias, decimals=0)
+        
+        plot.save_or_show_plot(active_days_bias_table_plot, output_path, plot_filename=f"active_days_bias_table_{sim_name_file}_{obs_name_file}_{year_range}",
+                               plot_name=f"Bias in active MJO days per phase table plot")
 
         return
 

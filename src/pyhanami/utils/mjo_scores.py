@@ -458,8 +458,9 @@ def compute_phase_counts(pcs, threshold=None):
     Returns
     -------
     phase_counts : xr.Dataset
-        Total number of MJO days ('total_counts') and active MJO days 
-        ('active_counts') per phase.
+        Mean amplitude and days per phase (total and only for active MJO days).
+        It contains the following variables: 'mean_amplitude', 'mean_active_amplitude',
+        'total_counts' and 'active_counts' per phase.
     """
 
     # Validate input
@@ -474,15 +475,34 @@ def compute_phase_counts(pcs, threshold=None):
     else:
         active_days = amplitude > threshold
 
+
     # Determine phase for each day
     phases = deteremine_phases(pcs)
+
+    # Compute mean amplitude per phase
+    mean_amplitude_per_phase = []
+    mean_active_amplitude_per_phase = []
+    for phase in range(1, 9):
+        phase_mask = phases == phase
+        if phase_mask.sum() > 0:
+            mean_amp = amplitude.where(phase_mask).mean(dim='time').values.item()
+            mean_active_amp = amplitude.where(phase_mask & active_days).mean(dim='time').values.item()
+        else:
+            mean_amp = 0.0
+            mean_active_amp = 0.0
+        mean_amplitude_per_phase.append(mean_amp)
+        mean_active_amplitude_per_phase.append(mean_active_amp)
 
     # Compute total counts and active counts per phase
     total_counts = phases.to_pandas().value_counts().sort_index()
     active_counts = phases.to_pandas()[active_days.values].value_counts().sort_index()
 
+
+    # Compile results into a xr.Dataset
     phase_counts = xr.Dataset(
         {
+            'mean_amplitude': ('phase', mean_amplitude_per_phase),
+            'mean_active_amplitude': ('phase', mean_active_amplitude_per_phase),
             'total_counts': ('phase', total_counts.reindex(range(1, 9), fill_value=0).values),
             'active_counts': ('phase', active_counts.reindex(range(1, 9), fill_value=0).values)
         },
