@@ -255,6 +255,56 @@ To summarize, the `ISOEvaluation` class includes methods to generate the followi
 3. **Frequency plot** (`ISOEvaluation.freq_plot`): mean monthly frequency (seasonality) of ISO events for both MJO and BSISO, computed over the entire period covered by the dataset. If observations are set to `True`, these are included in the  frequency plot, which also shows the scalar scores ($\alpha$, $R$, $\sigma$ and $\text{TSS}$) comparing simulations and observations.
 
 
+## Specific Madden-Julian Oscillation (MJO) analysis
+
+To evaluate the simulation of the MJO specifically, initialize the `ScientificEvaluation` class with the `SimulationData` object that you want to analyze and use the `compute_mjo_scores` method. This method computes several scalar scores related to MJO (see [Methodology](./Methodology.md#madden-julian-oscillation-mjo)) and requires the following variables with a daily frequency:
+- **Top of Atmosphere (TOA) outgoing longwave radiation** (`rlut`)
+- **Zonal wind at 200 and 850 hPa** (`ua200` and `ua850`)
+
+The following snippet creates a `MJOEvaluation` instance that:
+1. Performs a **Combined Empirical Orthogonal Function (CEOF)** analysis between `year_init_mjo` and `year_end_mjo`
+2. Uses the CEOFs to compute the **first two Principal Components (PCs) (Real-Time Multivariate MJO (RMM) indices)** for the same period, projecting simulations both on the observed and simulated CEOFs
+3. Determines the **MJO amplitude and active days per phase** based on the PCs amplitude
+4. Calculates the **bias** in the quantities from step 3
+
+```python
+# Initialize ScientificEvaluation class with a SimulationData object
+# (If you have already added this dataset to an existing ScientificEvaluation object,
+# you can skip this step)
+sciskill = pyhanami.ScientificEvaluation(sim_1)
+
+# Compute MJO scalar scores performing a CEOF analysis
+mjo_analysis = sciskill.compute_mjo_scores(
+    'name_sim_1',
+    start_year_mjo=year_init_mjo,
+    end_year_mjo=year_end_mjo,
+
+)
+```
+
+If no years are passed, the whole period covered by the simulation dataset is used by default.
+
+Moreover, the `MJOEvaluation` class includes methods to visualize and save the results of the analysis. The following shows how to save the computed data, create plots for the CEOFs and MJO activity, and create table plots summarizing the biases:
+
+```python
+# Save outcome of the MJO analysis
+mjo_analysis.save_data('output_path')
+
+# Plot the resulting CEOFs and MJO activity per phase
+mjo_analysis.ceof_plots('output_path')
+mjo_analysis.activity_per_phase_plots('output_path')
+
+# Plot summary tables of the bias scores
+mjo_analysis.mean_amplitude_bias_table('output_path')
+mjo_analysis.active_days_bias_table('output_path')
+```
+
+To summarize, the `MJOEvaluation` class includes methods to generate the following visualization outputs:
+1. **CEOF plots** (`MJOEvaluation.ceof_plots`): longitudinal patterns of the first two Multivariate EOFs for the three considered variables comparing observations and simulations.
+2. **MJO activity per phase plots** (`MJOEvaluation.activity_per_phase_plots`): mean MJO amplitude and number of active MJO days per phase for both observations and simulations. Both quantities are plotted separately using two bar plots by default, but they can also be plotted together in the same dot plot by passing the argument `layout='together'`, allowing to more easily identify the relationship between both quantities.
+3. **Bias in activity per phase tables** (`MJOEvaluation.mean_amplitude_bias_table` and `MJOEvaluation.active_days_bias_table`): tables summarizing the bias in mean MJO amplitude and active MJO days per phase, respectively. In these, each column is colored independently based on its maximum value. The largest bias value in a column determines the limits of the colorbar for that column. This allows to easily identify the dataset with the highest bias for each phase.
+
+
 ## Tropical Cyclones (TCs) analysis
 
 To evaluate the simulation of TCs, initialize the `ScientificEvaluation` class with the `SimulationData` object that you want to analyze and use the `compute_tc_scores` method. This method computes several scalar scores related to TCs (see [Methodology](./Methodology.md#tropical-cyclones-tcs)) and requires the following variables with a 6-hourly frequency:
@@ -299,6 +349,8 @@ tc_analysis.storm_bias_table('output_path')
 tc_analysis.temp_corr_table('output_path')
 tc_analysis.spatial_corr_table('output_path')
 ```
+
+Note that, in the bias table plots, each column is colored independently, with the largest bias value in a column determining the limits of the colorbar for that column. In contrast, in the correlation tables, all columns share a common colorbar, ranging from -1 to 1.
 
 Considerations regarding the 10 m wind speed:
 - By default, a threshold of 10 m/s is used for TC detection. However, we recommend adjusting it according to the model's (or reanalysis') horizontal 

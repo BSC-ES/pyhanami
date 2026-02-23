@@ -88,24 +88,31 @@ This section explains the approach used to evaluate several climate phenomena. C
 General scalar scores are computed for a given variable by comparing the simulated data with a reference observational dataset. The scores include:
 
 - **Spatially averaged absolute and relative bias**: computed as
+
     $$
     \text{BIAS} = \sum_{i=1}^N \widetilde{\omega}_i\cdot |\text{bias}_i|, \quad \text{eBIAS} = \sum_{i=1}^N \widetilde{\omega}_i\cdot e^{-|\text{bias}_{i}|/\sigma^y_i},
     $$
 
-    where 
+    where
+
     $$
     \text{bias}_{i} = \bar{x}_{i} - \bar{y}_i
     $$ 
+    
     is the bias between the simulated ($\bar{x}_{i}$) and observed ($\bar{y}_i$) climatological means, $\sigma^y_i$ is the standard deviation over time of the observed variable and $\widetilde{\omega}_i$ is the normalized area weight, all at grid point $i$.
 
 - **Spatially averaged absolute and relative Root Mean Square Error (RMSE)**: computed as
+
     $$
     \text{RMSE} = \sum_{i=1}^N \widetilde{\omega}_i\cdot \text{crmse}_i, \quad \text{eRMSE} = \sum_{i=1}^N \widetilde{\omega}_i\cdot e^{-\text{crmse}_i/\sigma^y_i},
     $$
+
     where 
+
     $$
     \text{crmse}_{i} = \sqrt{\frac{1}{T}\sum_{t=1}^T [(x_{it}-\bar{x}_{i})-(y_{ti}-\bar{y}_i)]^2}
     $$
+
     is the centralized RMSE at grid point $i$, and $T$ is the number of time steps.
 - **Spatial Pearson correlation coefficient** ($r_{xy}$) between the simulated and observed climatologies.
 <!-- TO DO: add Pcc formula? Or not necessary as it is the general one? -->
@@ -115,7 +122,7 @@ When more than one ensemble member is available, the scores are computed for eac
 
 ### Tropical IntraSeasonal Oscillation (ISO)    <!-- : Bimodal ISO indices -->
 
-Two separate indices are defined for the Madden-Julian Oscillation (MJO) and the Boreal Summer ISO (BSISO), following [(K. Kikuchi, 2020)](https://link.springer.com/article/10.1007/s00382-019-05037-z). These indices capture the ISO behavior during boreal winter and boreal summer, respectively. They are constructed using an Extended Empirical Orthogonal Function (EEOF) analysis of Top of Atmosphere (TOA) Outgoing Longwave Radiation (OLR) data. Projecting the OLR data onto the first two EEOFs results in two Principal Components (PCs) for MJO and two for BSISO, which together represent the **bimodal ISO indices**. The PCs are normalized by one standard deviation of the EEOF analysis period, corresponding to the squared root of the associated eigenvalue. Based on the PCs amplitudes, the mean monthly frequency of MJO and BSISO events (ISO seasonality) is computed. 
+Two separate indices are defined for the **Madden-Julian Oscillation (MJO)** and the **Boreal Summer ISO (BSISO)**, following [(K. Kikuchi, 2020)](https://link.springer.com/article/10.1007/s00382-019-05037-z). These indices capture the ISO behavior during boreal winter and boreal summer, respectively. They are constructed using an Extended Empirical Orthogonal Function (EEOF) analysis of Top of Atmosphere (TOA) Outgoing Longwave Radiation (OLR) data. Projecting the OLR data onto the first two EEOFs results in two Principal Components (PCs) for MJO and two for BSISO, which together represent the **bimodal ISO indices**. The PCs are normalized by one standard deviation of the EEOF analysis period, corresponding to the squared root of the associated eigenvalue. Based on the PCs amplitudes, the mean monthly frequency of MJO and BSISO events (ISO seasonality) is computed. 
 
 <!-- EOFs are spatial patterns showing where things tend to vary together, and they look for the simplest explanation of the most variance (if a dataset could be described with just one pattern, what pattern would capture the most?). The 2nd EOF explains the second-most, and so on, and they are mathematically independent (orthogonal). The whole dataset can be reconstructed by adding a weighted combination of a few EOF pattern. Moreover, each one has an associated time series (PC) which shows when the pattern was active and how strongly. When a dataset contains an oscillatory phenomenon, EOF1 + EOF2 together represent a physical mode, being EOF1 like 'phase 1' and EOF2 like 'phase 2' (90º out of phase); hence, combining them gives a rotating or propagating structure. In this case, the physical meaning is in the pair EOF1 + EOF2, not in each EOF individually. This is very common when both eigenvalues are nearly equal and EOF1 and EOF2 look like the same map but shifted in space, however, for other phenomena, they can also represent two different independent physical modes (ex. global temperature, where EOF1 is the overall warming pattern and EOF2 is the ENSO pattern?). 
 
@@ -154,6 +161,22 @@ The implementation of the analysis described above produces three types of diagn
 In all cases, a colormap with a blue to red gradient is used for boreal winter (or MJO), while a green to orange gradient is used for boreal summer (or BSISO).
 
 Finally, by default, NOAA data ([NOAA Interpolated OLR dataset](https://psl.noaa.gov/data/gridded/data.olrcdr.interp.html)) is taken as the observational reference when computing these scores.
+
+
+### Madden-Julian Oscillation (MJO)
+
+Specific indices for the Madden-Julian Oscillation (MJO) are evaluated following [(M.C. Wheeler & H.H. Hendon, 2004)](https://doi.org/10.1175/1520-0493(2004)132%3C1917:AARMMI%3E2.0.CO;2). These are similar to those defined for ISO in the previous section, but they are computed using a Combined Empirical Orthogonal Function (CEOF) analysis instead of a EEOF analysis. For the latter, a lagged matrix of a single climate variable was used, whereas for the CEOF analysis, a combination of three variables is employed: TOA OLR and zonal wind at different pressure levels over a specific latitude band centered on the equator (typically 15°S-15°N). 
+
+The CEOF analysis is performed after filtering the data to remove longer-time-scale components, including the seasonal cycle (using harmonic filtering) and the interannual variability (using a 120-day rolling mean), and averaging along the latitude. The resulting CEOFs are then used to calculate the first two PCs for MJO, referred to as the **Real-Time Multivariate MJO (RMM) indices**. As for the bimodal ISO indices, these are normalized by one stadard deviation of the CEOF analysis period, corresponding to the squared root of the associated eigenvalue. 
+
+Based on the amplitude of the RMM indices, the MJO amplitude is estimated. With this, the number of active MJO days is determined as the number of days with an amplitude above a given threshold, typically taken as the total mean MJO amplitude. Moreover, the phase space defined by the RMM indices is usually divided into 8 phases (one per each octant). Following this convention, the MJO activity is analyzed using the mean amplitude and days when the MJO is active per phase. This leads to several scalar scores corresponding to the **bias in mean MJO amplitude and active MJO days per phase ($\overline{b}_{ph\, num}$)**.
+
+The implementation of the analysis described above produces two different diagnostic plots comparing simulations and observations:
+- **CEOFs:** two longitudinal plots showing the first two CEOFs for the three considered climate variables.
+- **MJO activity per phase:** absolute values of the mean amplitude and the number of active days per phase. 
+
+<!-- ADD DEFAULT OBSERVATIONS DATASET (NOAA?) -->
+
 
 ### Tropical Cyclones (TCs) <!-- : TC metrics -->
 

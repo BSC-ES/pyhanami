@@ -16,6 +16,7 @@ These include time series plots (with the `time_series_plot` method) and spatial
 - **Replicability testing:** perform a replicability test checking the statistical indistinguishability between two previously loaded simulation ensembles using the `ReplicabilityTest` class.
 - **Scientific skill evaluation:** compute scalar scores evaluating the following phenomena using the `ScientificEvaluation` class:
     - Tropical IntraSeasonal Oscillation (ISO): this includes the computation of the bimodal ISO indices (for MJO and BSISO), as well as the calculation of related scalar scores comparing the indices between simulations and observations (amplitude ratio ($\alpha$), temporal correlation ($R$), standard deviation ratio ($\sigma$), and Taylor Skill Score (TSS)).
+    - Madden-Julian Oscillation (MJO): this includes the computation of the Real-Time Multivariate MJO (RMM) indices, as well as the calculation of related scalar scores comparing simulations and observations (bias ($\bar{b}$) in the mean amplitude and number of active days per MJO phase).
     - Tropical Cyclones (TCs): this includes the computation of various scalar scores (bias ($\bar{b}$), spatial Pearson correlation ($r_{xy}$), and temporal Spearman rank correlation ($\rho_s$)) for several TC metrics (counts, TC days (TCD), accumulated cyclone energy (ACE), pressure ACE (PACE), and latitude of lifetime-maximum intensity (LMI)).
 - **Flexible data management:** add and compare datasets in the `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes even after initialization.
 
@@ -99,6 +100,18 @@ diags.eff_size_plot(
     ['name_sim_1', 'name_sim_2'],
     'output_path'
 )
+
+# Create a spatial bias plot (simulations - observations) for one climate variable 
+# ('variable_name') and save it to 'output_path'
+diags.bias_plot(
+    'variable_name',
+    'name_sim_1',
+    'output_path',
+    obs_path='path_obs',
+    obs_name='name_obs',
+    start_year=year_init,
+    end_year=year_end
+)
 ```
 
 ### Perform replicability test
@@ -114,14 +127,17 @@ tester.matrix_plot(
 )
 ```
 
-### Evaluate scientific skill (Tropical IntraSeasonal Oscillation and Tropical Cyclones)
+### Evaluate scientific skill
 Evaluate the scientific skill of one simulation dataset:
 ```python
 # Initialize the ScientificEvaluation class with one simulation dataset
 sciskill = pyhanami.ScientificEvaluation(sim_1)
+```
 
-# Assess simulation of the Tropical IntraSeasonal Oscillation (ISO) by computing the 
-# bimodal ISO indices and related scalar scores comparing to observations
+#### Tropical IntraSeasonal Oscillation (ISO)
+Assess simulation of the Tropical IntraSeasonal Oscillation (ISO) by computing the bimodal ISO indices and related scalar scores comparing to observations:
+```python
+# Perform the ISO analysis
 iso_analysis = sciskill.compute_iso_scores(
     'name_sim_1',
     start_year_pc=year_init_pc,
@@ -138,12 +154,37 @@ iso_analysis.eeof_plots('output_path')
 iso_analysis.pc_plots('output_path', years=[year_1, year_2, year_3])
 iso_analysis.freq_plot('output_path')
 
-# Display computed scores (scalar values measuring how well simulations match 
-# observations)
+# Display computed scores (scalar values measuring how well simulations match observations)
 iso_analysis.scores
+```
 
-# Assess simulation of Tropical Cyclones (TCs) by computing TC metrics and derived 
-# scalar scores comparing to observations and reanalyses
+#### Madden-Julian Oscillation (MJO)
+Assess simulation of the Madden-Julian Oscillation (MJO) by computing the RMM indices and related scalar scores comparing to observations:
+```python
+# Perform the MJO analysis
+mjo_analysis = sciskill.compute_mjo_scores(
+    'name_sim_1',
+    start_year_mjo=year_init_mjo,
+    end_year_mjo=year_end_mjo,
+
+)
+
+# Save results of the analysis to 'output_path'
+mjo_analysis.save_data('output_path')
+
+# Create plots for CEOFs and MJO activity per phase and save them to 'output_path'
+mjo_analysis.ceof_plots('output_path')
+mjo_analysis.activity_per_phase_plots('output_path')
+
+# Create table plots summarizing the computed scores (biases) and save them to 'output_path'
+mjo_analysis.mean_amplitude_bias_table('output_path')
+mjo_analysis.active_days_bias_table('output_path')
+```
+
+#### Tropical Cyclones (TCs)
+Assess simulation of Tropical Cyclones (TCs) by computing TC metrics and derived scalar scores comparing to observations and reanalyses:
+```python
+# Perform the TC analysis
 tc_analysis = sciskill.compute_tc_scores(
     'name_sim_1',
     start_year_tc=year_init_tc,
@@ -160,6 +201,28 @@ tc_analysis.storm_bias_table('output_path')
 tc_analysis.temp_corr_table('output_path')
 tc_analysis.spatial_corr_table('output_path')
 ```
+
+<!--
+# Assess general scientific skill by computing general scalar scores (bias, RMSE, and 
+# spatial Pearson correlation) for one variable comparing to observations
+general_anlysis = sciskill.compute_general_scores(
+    'var_name',
+    'name_sim_1',
+    start_year=year_init,
+    end_year=year_end,
+    obs_path='path_obs',
+    obs_name='name_obs',
+    start_year=year_init,
+    end_year=year_end
+)
+
+# Save results of the analysis to 'output_path'
+general_anlysis.save_data('output_path')
+
+# Create table plot summarizing the computed scores for one variable and save it 
+# to 'output_path'
+general_anlysis.scores_table('var_name', 'output_path')
+-->
 
 
 ## License
@@ -212,11 +275,11 @@ Main developer:
 - Marta Alerany Solé (BSC-CNS): marta.alerany@bsc.es
 
 Significant contributors:
+- Bernardo Maraldi (BSC-CNS): bernardo.maraldi@bsc.es
 - Kai Keller (BSC-CNS): kai.keller@bsc.es
 - Masuo Nakano (JAMSTEC): masuo@jamstec.go.jp
 
 Thanks to:
-- Bernardo Maraldi (BSC-CNS): bernardo.maraldi@bsc.es
 - Chihiro Kodama (JAMSTEC): kodamac@jamstec.go.jp
 - Iker Gonzalez (BSC-CNS): iker.gonzalez@bsc.es
 - Tomoe Nasuno (JAMSTEC): nasuno@jamstec.go.jp
@@ -236,13 +299,21 @@ Kikuchi, K., Extension of the bimodal intraseasonal oscillation index using JRA-
 
 Knapp, K.R., Kruk, M.C., Levinson, D.H., Diamond, H.J., & Neumann, C.J., The International Best Track Archive for Climate Stewardship (IBTrACS): Unifying tropical cyclone best track data. Bulletin of the American Meteorological Society, 91, 363-376 (2010). https://doi.org/10.1175/2009BAMS2755.1
 
+Lee, J., Gleckler, P.J., Ahn, M.-S., Ordonez, A., Ullrich, P.A., Sperber, K.R., Taylor, K.E., Planton, Y.Y., Guilyardi, E., Durack, P., Bonfils, C., Zelinka, M.D., Chao, L.-W., Dong, B., Doutriaux, C., Zhang, C., Vo, T., Boutte, J., Wehner, M.F., Pendergrass, A.G., Kim, D., Xue, Z., Wittenberg, A.T., & Krasting, J., Systematic and objective evaluation of Earth system models: PCMDI Metrics Package (PMP) version 3. Geosci. Model Dev., 17, 3919–3948 (2024). https://doi.org/10.5194/gmd-17-3919-2024
+
 Liebmann, B., & Smith, C.A., Description of a Complete (Interpolated) Outgoing Longwave Radiation Dataset. Bulletin of the American Meteorological Society, 77, 1275-1277 (1996).
 <!-- No DOI found for this paper??? -->
 
 Nakano, M., & Kikuchi, K., Seasonality of intraseasonal variability in global climate models. Geophysical Research Letters, 46, 4441–4449 (2019). https://doi.org/10.1029/2019GL082443
 
+Planton, Y.Y., Guilyardi, E., Wittenberg, A.T., Lee, J., Gleckler, P.J., Bayr, T., McGregor, S., McPhaden, M.J., Power, S., Roehrig, R., Vialard, J., & Voldoire, A., Evaluating Climate Models with the CLIVAR 2020 ENSO Metrics Package. Bull. Amer. Meteor. Soc., 102, E193–E217 (2021). https://doi.org/10.1175/BAMS-D-19-0337.1
+
 Taylor, K.E., Summarizing multiple aspects of model performance in a single diagram. J. Geophys. Res., 106(D7), 7183–7192, (2001). https://doi.org/10.1029/2000JD900719
 
 Walsh, K.J.E., Fiorino, M., Landsea, C.W., & McInnes, K.L., Objectively Determined Resolution-Dependent Threshold Criteria for the Detection of Tropical Cyclones in Climate Models and Reanalyses. J. Climate, 20, 2307–2314 (2007). https://doi.org/10.1175/JCLI4074.1
 
-Zarzycki, C.M., & Ullrich, P.A., Assessing sensitivities in algorithmic detection of tropical cyclones in climate data. Geophys. Res. Lett., 44, 1141–1149 (2017). https://doi.org/10.1002/2016GL071606.
+Wheeler, M.C., & Hendon, H.H., An All-Season Real-Time Multivariate MJO Index: Development of an Index for Monitoring and Prediction. Mon. Wea. Rev., 132, 1917–1932 (2004). https://doi.org/10.1175/1520-0493(2004)132%3C1917:AARMMI%3E2.0.CO;2
+
+Wheeler, M., & Kiladis, G.N., Convectively Coupled Equatorial Waves: Analysis of Clouds and Temperature in the Wavenumber-Frequency Domain. J. Atmos.Sci., 56, 374-399 (1999). [https://doi.org/10.1175/1520-0469(1999)056<0374:CCEWAO>2.0.CO;2](https://doi.org/10.1175/1520-0469(1999)056<0374:CCEWAO>2.0.CO;2)
+
+Zarzycki, C.M., & Ullrich, P.A., Assessing sensitivities in algorithmic detection of tropical cyclones in climate data. Geophys. Res. Lett., 44, 1141–1149 (2017). https://doi.org/10.1002/2016GL071606
