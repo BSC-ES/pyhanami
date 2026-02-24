@@ -74,7 +74,7 @@ class GeneralEvaluation:
             rmse_rel : np.ndarray
                 Area-weighted mean relative RMSE.
             pcorr : np.ndarray
-                Pearson correlation coefficient.
+                Area-weighted Pearson correlation coefficient.
     """
 
     def __init__(self,  data_sim : SimulationData, var_names : str | list[str] = None, obs_name : str = config_params.GEN_OBS_NAME, 
@@ -289,8 +289,8 @@ class GeneralEvaluation:
 
     def _compute_pcorr_one_var(self, args):
         """
-        Compute Pearson correlation coefficient between simulations and observations
-        for the given variable.
+        Compute area-weighted Pearson correlation coefficient between simulations 
+        and observations for the given variable.
 
         Parameters
         ----------
@@ -306,7 +306,7 @@ class GeneralEvaluation:
         Returns
         -------     
         pcorr : float
-            Pearson correlation coefficient.
+            Area-weighted Pearson correlation coefficient.
         """
 
         # With scipy.stats.pearsonr (not used anymore, kept for reference)
@@ -321,11 +321,12 @@ class GeneralEvaluation:
 
         # With xarray.corr
         # Prepare data
-        data_sim_mean = data_sim[var_name].mean(dim='time').stack(spatial=['lat', 'lon'])
-        data_obs_mean = data_obs[var_name].mean(dim='time').stack(spatial=['lat', 'lon'])
+        data_sim_mean = data_sim[var_name].mean(dim='time') #.stack(spatial=['lat', 'lon'])
+        data_obs_mean = data_obs[var_name].mean(dim='time') #.stack(spatial=['lat', 'lon'])
 
-        # Compute Pearson correlation coefficient
-        pcorr = xr.corr(data_sim_mean, data_obs_mean, dim='spatial').values
+        # Compute area-weighted Pearson correlation coefficient
+        weights = statistics.area_weights(data_sim_mean)
+        pcorr = xr.corr(data_sim_mean, data_obs_mean, dim=['lat', 'lon'], weights=weights).values
 
         # Take ensemble mean when more than one member is present
         if self.ensemble:
