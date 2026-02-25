@@ -1,8 +1,0 @@
-{
-    "coords_from_fit": "_is_tree",
-    "coords_from_transform": "_is_tree",
-    "modified_dimensions": [
-        "feature"
-    ],
-    "params": {}
-}

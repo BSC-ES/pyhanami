@@ -109,35 +109,35 @@ def remove_longer_time_scale_components(data, start_year_ref, end_year_ref, lat_
         'ua200': 4.81   # 200 hPa zonal wind
     }
 
-    
+
+    # Pre-filter data for all variables
+    # Select time period and remove leap days to avoid issues with data shape
+    # data = data.sel(time=slice(str(start_year_ref), str(end_year_ref)))
+    data_filtered = data.sel(time=~((data['time'].dt.month == 2) & (data['time'].dt.day == 29)))
+
+    # Select latitude region
+    data_filtered = data_filtered.sel(lat=slice(*lat_range))
+
     # Filter data
     processed_data = []
     anom_list = []
     std_list = []
 
-    for var_name, data_var in data.data_vars.items():
-        # Select time period and remove leap days to avoid issues with data shape
-        # data_var = data_var.sel(time=slice(str(start_year_ref), str(end_year_ref)))
-        data_var = data_var.sel(time=~((data_var['time'].dt.month == 2) & (data_var['time'].dt.day == 29)))
-
-        # Select latitude region
-        data_var = data_var.sel(lat=slice(*lat_range))
-
-
+    for var_name, data_var in data_filtered.data_vars.items():
         # Compute anomalies (remove mean + first 'n_harmonics' harmonics of seasonal cycle)
         anomalies = remove_seasonal_cycle(data_var, start_year_ref, end_year_ref, n_harmonics)
 
         # Store anomalies
-        anomalies_aux = anomalies.expand_dims('variable')
-        anomalies_aux['variable'] = [var_name]
+        anomalies_aux = anomalies.expand_dims('variable', axis=-1)
+        anomalies_aux = anomalies_aux.assign_coords(variable=[var_name])
         anom_list.append(anomalies_aux)
 
         # Remove time mean
-        anomalies = anomalies - anomalies.mean(dim='time')
+        anomalies -= anomalies.mean(dim='time')
 
         # Apply rolling mean (not centered, previous 120 days) and subtract
         rolling_mean = anomalies.rolling(time=rolling_window_size, center=False).mean() 
-        anomalies = anomalies - rolling_mean
+        anomalies -= rolling_mean
         anomalies = anomalies.isel(time=slice(rolling_window_size, -1))
 
         # Latitude weighting and average over latitude
@@ -150,7 +150,7 @@ def remove_longer_time_scale_components(data, start_year_ref, end_year_ref, lat_
         # std_dev = np.sqrt(anomalies_lat_avg.var(dim='time').mean(dim='lon'))  # CHANGED ACCORDING TO VENTRICE ET AL 2013
 
         std_aux = std_dev.expand_dims('variable')
-        std_aux['variable'] = [var_name]
+        std_aux = std_aux.assign_coords(variable=[var_name])
         std_list.append(std_aux)
 
         anomalies_lat_avg /= std_dev
@@ -163,8 +163,8 @@ def remove_longer_time_scale_components(data, start_year_ref, end_year_ref, lat_
             anomalies_lat_avg /= std
 
         # Add 'variable' dimension for concatenation
-        anomalies_lat_avg = anomalies_lat_avg.expand_dims('variable')
-        anomalies_lat_avg['variable'] = [var_name]
+        anomalies_lat_avg = anomalies_lat_avg.expand_dims('variable', axis=-1)
+        anomalies_lat_avg = anomalies_lat_avg.assign_coords(variable=[var_name])
 
         processed_data.append(anomalies_lat_avg)
 
@@ -214,14 +214,14 @@ def fit_CEOF_model_xeofs(data, n_modes=2):
     return eof_model
 
 
-def retrieve_EOFs_xeofs(eof_model, vars_order=['ua850', 'ua200', 'rlut']):
+def retrieve_CEOFs_xeofs(ceof_model, vars_order=['ua850', 'ua200', 'rlut']):
     """
     Retrieve elements of Combined Empirical Orthogonal Function (COEF) analysis from 
     the provided fitted model and correct them to match the output of eofs.xarray.Eof.
 
     Parameters
     ----------
-    eof_model : xeofs.single.EOF
+    ceof_model : xeofs.single.EOF
         Fitted CEOF model.
     vars_order : list[str]
         Name of climate variables in the correct order to be saved in the
@@ -229,8 +229,8 @@ def retrieve_EOFs_xeofs(eof_model, vars_order=['ua850', 'ua200', 'rlut']):
 
     Returns
     -------
-    eof_xeofs : xr.DataArray
-        Resulting EOFs
+    ceof_xeofs : xr.DataArray
+        Resulting CEOFs
     eigenvalues_xeofs : xr.DataArray
         Resulting eigenvalues.
     variance_xeofs : xr.DataArray
@@ -242,17 +242,16 @@ def retrieve_EOFs_xeofs(eof_model, vars_order=['ua850', 'ua200', 'rlut']):
     """
 
     # Retrieve model's outcome
-    eof_xeofs = eof_model.components()
-    variance_xeofs = eof_model.explained_variance_ratio() * 100
-    eigenvalues_xeofs = eof_model.explained_variance()
-    pc_xeofs = eof_model.scores()
-    reconstructed_xeofs = eof_model.inverse_transform(pc_xeofs)
-
+    ceof_xeofs = ceof_model.components()
+    variance_xeofs = ceof_model.explained_variance_ratio() * 100
+    eigenvalues_xeofs = ceof_model.explained_variance()
+    pc_xeofs = ceof_model.scores()
+    reconstructed_xeofs = ceof_model.inverse_transform(pc_xeofs)
 
     # Correct EOFs to match output of eofs.xarray.Eof
-    eof_xeofs = eof_xeofs.assign_coords(mode=[0, 1]).sel(variable=vars_order)
-    eof_xeofs.loc[dict(mode=0)] *= -1
-    eof_xeofs.attrs.pop('solver_kwargs', None)
+    ceof_xeofs = ceof_xeofs.assign_coords(mode=[0, 1]).sel(variable=vars_order)
+    ceof_xeofs.loc[dict(mode=0)] *= -1
+    ceof_xeofs.attrs.pop('solver_kwargs', None)
 
     # Correct explained variance to match output of eofs.xarray.Eof
     variance_xeofs = variance_xeofs.assign_coords(mode=[0, 1])
@@ -271,10 +270,10 @@ def retrieve_EOFs_xeofs(eof_model, vars_order=['ua850', 'ua200', 'rlut']):
     reconstructed_xeofs = reconstructed_xeofs.sel(variable=vars_order)
     reconstructed_xeofs.attrs.pop('solver_kwargs', None)
 
-    return eof_xeofs, eigenvalues_xeofs, variance_xeofs, pc_xeofs, reconstructed_xeofs
+    return ceof_xeofs, eigenvalues_xeofs, variance_xeofs, pc_xeofs, reconstructed_xeofs
 
 
-def perform_CEOF_analysis(data=None, eof_model=None, n_modes=2, vars_order=['ua850', 'ua200', 'rlut']):
+def perform_CEOF_analysis(data=None, ceof_model=None, n_modes=2, vars_order=['ua850', 'ua200', 'rlut']):
     """
     Perform Combined Empirical Orthogonal Function (COEF) analysis to 
     identify MJO events.
@@ -282,9 +281,9 @@ def perform_CEOF_analysis(data=None, eof_model=None, n_modes=2, vars_order=['ua8
     Parameters
     ----------
     data : xr.DataArray
-        Climate data. It is not needed if a fitted `eof_model` is provided.
-    eof_model : xeofs.single.EOF
-        Fitted CEOF model that can be used to retrieve EOFs, eigenvalues, 
+        Climate data. It is not needed if a fitted `ceof_model` is provided.
+    ceof_model : xeofs.single.EOF
+        Fitted CEOF model that can be used to retrieve CEOFs, eigenvalues, 
         explained variance, PCs and reconstructed data. If not provided, 
         the model will be fitted using the provided data.
     n_modes : int
@@ -295,8 +294,8 @@ def perform_CEOF_analysis(data=None, eof_model=None, n_modes=2, vars_order=['ua8
 
     Returns
     -------
-    eof_analysis_data : xr.Dataset
-        Output of CEOF analysis ('eof', 'eigval', 'var_frac' and 'pc' 
+    ceof_analysis_data : xr.Dataset
+        Output of CEOF analysis ('ceof', 'eigval', 'var_frac' and 'pc' 
         for the first 'n_modes')
     """
 
@@ -308,17 +307,17 @@ def perform_CEOF_analysis(data=None, eof_model=None, n_modes=2, vars_order=['ua8
     
     # Fit CEOF model if not provided
     if data is None:
-        if eof_model is None:
-            raise ValueError("When 'data' is not provided, 'eof_model' must be provided.")
+        if ceof_model is None:
+            raise ValueError("When 'data' is not provided, 'ceof_model' must be provided.")
     else:
-        eof_model = fit_CEOF_model_xeofs(data, n_modes)
+        ceof_model = fit_CEOF_model_xeofs(data, n_modes)
 
     # Retrieve output of CEOF analysis
-    eofs, eigvals, var_frac, pcs, _ = retrieve_EOFs_xeofs(eof_model, vars_order)
+    ceofs, eigvals, var_frac, pcs, _ = retrieve_CEOFs_xeofs(ceof_model, vars_order)
 
     # Compile CEOF analysis output as a xr.Dataset
     ceof_analysis_data = xr.Dataset({
-        "eof": eofs,
+        "ceof": ceofs,
         "eigval": eigvals,
         "var_frac": var_frac,
         "pc": pcs
@@ -327,49 +326,47 @@ def perform_CEOF_analysis(data=None, eof_model=None, n_modes=2, vars_order=['ua8
     return ceof_analysis_data
 
 
-def correct_EOFs(eof_new, eof_ref, n_modes=2):
+def correct_CEOFs(ceof_new, ceof_ref, n_modes=2):
     """
-    Correct sign and order of the first 'n_modes' EOFs, and related measures,
-    based on their correlation with a reference EOF (typically following 
+    Correct sign and order of the first 'n_modes' CCEOF (typically following 
     (M.Wheeler et al., (2004))).
     NOTE: only working for 'n_modes=2' for now.
 
     Paramters
     ---------
-    eof_new : xr.Dataset
-        Output of CEOF analysis to be corrected (EOFs, eigenvalues, explained 
+    ceof_new : xr.Dataset
+        Output of CEOF analysis to be corrected (CEOFs, eigenvalues, explained 
         variance and PCs).
-    eof_ref : xr.Dataset
-        Reference output of CEOF analysis (EOFs, eigenvalues, explained variance 
+    ceof_ref : xr.Dataset
+        Reference output of CEOF analysis (CEOFs, eigenvalues, explained variance 
         and PCs).
     n_modes : int
         Number of modes to correct (default: 2).
 
     Returns
     -------
-    eof_corrected : xr.Dataset
-        Corrected output of CEOF analysis (EOFs, eigenvalues, explained variance 
+    ceof_corrected : xr.Dataset
+        Corrected output of CEOF analysis (CEOFs, eigenvalues, explained variance 
         and PCs).
     """
 
     # Validate input
-    if not isinstance(eof_ref, xr.Dataset) or not isinstance(eof_new, xr.Dataset):
-        raise TypeError("'eof_ref' and 'eof_new' must be xarray.Datasets.")
+    if not isinstance(ceof_ref, xr.Dataset) or not isinstance(ceof_new, xr.Dataset):
+        raise TypeError("'ceof_ref' and 'ceof_new' must be xarray.Datasets.")
     if not isinstance(n_modes, int):
         raise TypeError("'n_modes' must be an integer.")
     
 
     # Select reference variable
     ref_var = 'ua850'
-    eof_ref_var = eof_ref['eof'].sel(variable=ref_var)
+    ceof_ref_var = ceof_ref['ceof'].sel(variable=ref_var)
 
-    eof_corrected = eof_new.copy(deep=True)
-    eof_var = eof_corrected['eof'].sel(variable=ref_var)
-
+    ceof_corrected = ceof_new.copy(deep=True)
+    ceof_var = ceof_corrected['ceof'].sel(variable=ref_var)
 
     # Compute correlation matrix between EOFs of reference and new dataset
     corr_matrix = np.array([
-        [xr.corr(eof_ref_var.sel(mode=i), eof_var.sel(mode=j)) for j in range(n_modes)] for i in range(n_modes)
+        [xr.corr(ceof_ref_var.sel(mode=i), ceof_var.sel(mode=j)) for j in range(n_modes)] for i in range(n_modes)
     ])
 
     # Check whether modes should be swapped
@@ -378,28 +375,73 @@ def correct_EOFs(eof_new, eof_ref, n_modes=2):
 
     # Swap modes to achieve the best correlation match
     if swap > keep:
-        eof_corrected['eof'].loc[dict(mode=0)] = eof_new['eof'].sel(mode=1)
-        eof_corrected['eigval'].loc[dict(mode=0)] = eof_new['eigval'].sel(mode=1)
-        eof_corrected['var_frac'].loc[dict(mode=0)] = eof_new['var_frac'].sel(mode=1)
-        eof_corrected['pc'].loc[dict(mode=0)] = eof_new['pc'].sel(mode=1)
+        ceof_corrected['ceof'].loc[dict(mode=0)] = ceof_new['ceof'].sel(mode=1)
+        ceof_corrected['eigval'].loc[dict(mode=0)] = ceof_new['eigval'].sel(mode=1)
+        ceof_corrected['var_frac'].loc[dict(mode=0)] = ceof_new['var_frac'].sel(mode=1)
+        ceof_corrected['pc'].loc[dict(mode=0)] = ceof_new['pc'].sel(mode=1)
 
-        eof_corrected['eof'].loc[dict(mode=1)] = eof_new['eof'].sel(mode=0)
-        eof_corrected['eigval'].loc[dict(mode=1)] = eof_new['eigval'].sel(mode=0)
-        eof_corrected['var_frac'].loc[dict(mode=1)] = eof_new['var_frac'].sel(mode=0)
-        eof_corrected['pc'].loc[dict(mode=1)] = eof_new['pc'].sel(mode=0)
+        ceof_corrected['ceof'].loc[dict(mode=1)] = ceof_new['ceof'].sel(mode=0)
+        ceof_corrected['eigval'].loc[dict(mode=1)] = ceof_new['eigval'].sel(mode=0)
+        ceof_corrected['var_frac'].loc[dict(mode=1)] = ceof_new['var_frac'].sel(mode=0)
+        ceof_corrected['pc'].loc[dict(mode=1)] = ceof_new['pc'].sel(mode=0)
 
         corr_matrix = corr_matrix[:, ::-1]
 
 
     # Check whether the sign of the EOFs and PCs should be inverted
     if corr_matrix[0,0] < 0:
-        eof_corrected['eof'].loc[dict(mode=0)] *= -1
-        eof_corrected['pc'].loc[dict(mode=0)] *= -1
+        ceof_corrected['ceof'].loc[dict(mode=0)] *= -1
+        ceof_corrected['pc'].loc[dict(mode=0)] *= -1
     if corr_matrix[1,1] < 0:
-        eof_corrected['eof'].loc[dict(mode=1)] *= -1
-        eof_corrected['pc'].loc[dict(mode=1)] *= -1
+        ceof_corrected['ceof'].loc[dict(mode=1)] *= -1
+        ceof_corrected['pc'].loc[dict(mode=1)] *= -1
+    
+    return ceof_corrected
 
-    return eof_corrected
+
+def compute_CEOFs_corr(ceof_1, ceof_2, n_modes=2):
+    """
+    Compute correlation between the first 'n_modes' CEOFs of two datasets
+    for all variables and modes.
+
+    Parameters
+    ----------
+    ceof_1, ceof_2 : xr.DataArray
+        CEOFs from two datasets.
+    n_modes : int
+        Number of modes to consider (default: 2).
+
+    Returns
+    -------
+    ceof_corr : xr.Dataset
+        Correlation between CEOFs of the two datasets for each variable
+        and mode.
+    """
+
+    # Validate input
+    if not isinstance(ceof_1, xr.DataArray) or not isinstance(ceof_2, xr.DataArray):
+        raise TypeError("'ceof_1' and 'ceof_2' must be xarray.DataArrays.")
+    if not all(var in ceof_2['variable'].values for var in ceof_1['variable'].values):
+        raise ValueError("'ceof_1' and 'ceof_2' must have the same 'variable' coordinate.")
+    if not isinstance(n_modes, int):
+        raise TypeError("'n_modes' must be an integer.")
+    
+    # Compute correlations
+    ceof_corr = []
+    for var in ceof_1['variable'].values:
+        corr_var = []
+        for mode in range(n_modes):
+            corr = xr.corr(ceof_1.sel(variable=var, mode=mode), ceof_2.sel(variable=var, mode=mode))
+            corr_var.append(corr)
+        ceof_corr.append(corr_var)
+
+    # Save correlations to a Dataset
+    ceof_corr = xr.Dataset(
+        data_vars={'ceof_corr': (['variable', 'mode'], ceof_corr)},
+        coords={'variable': ceof_1['variable'].values, 'mode': np.arange(n_modes)}
+    )
+    
+    return ceof_corr
 
 
 def deteremine_phases(pcs):
@@ -452,8 +494,8 @@ def compute_phase_counts(pcs, threshold=None):
         ['time', 'mode'].
     threshold : float
         Threshold for the amplitude of the first two PCs to consider the  
-        MJO active at a given day. If None, the mean amplitude is used 
-        as a threshold.
+        MJO active at a given day. If None, the mean MJO amplitude over 
+        the entire time period is used as a threshold.
 
     Returns
     -------
