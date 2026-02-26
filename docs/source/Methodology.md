@@ -93,7 +93,7 @@ General scalar scores are computed for a given variable by comparing the simulat
     \text{BIAS} = \sum_{i=1}^N \widetilde{\omega}_i\cdot |\text{bias}_i|, \quad \text{eBIAS} = \sum_{i=1}^N \widetilde{\omega}_i\cdot e^{-|\text{bias}_{i}|/\sigma^y_i},
     $$
 
-    where
+    respectively, where
 
     $$
     \text{bias}_{i} = \bar{x}_{i} - \bar{y}_i
@@ -107,14 +107,20 @@ General scalar scores are computed for a given variable by comparing the simulat
     \text{RMSE} = \sum_{i=1}^N \widetilde{\omega}_i\cdot \text{crmse}_i, \quad \text{eRMSE} = \sum_{i=1}^N \widetilde{\omega}_i\cdot e^{-\text{crmse}_i/\sigma^y_i},
     $$
 
-    where 
+    respectively, where 
 
     $$
     \text{crmse}_{i} = \sqrt{\frac{1}{T}\sum_{t=1}^T [(x_{it}-\bar{x}_{i})-(y_{ti}-\bar{y}_i)]^2}
     $$
 
     is the centralized RMSE at grid point $i$, and $T$ is the number of time steps.
-- **Spatial Pearson correlation coefficient** ($r_{xy}$) between the simulated and observed climatologies.
+- **Spatial Pearson correlation coefficient**: computed as
+
+    $$
+    r_{xy} = \frac{\text{cov}_w(x, y)}{\sqrt{\text{var}_w(x)\cdot\text{var}_w(y)}},
+    $$
+
+    where $\text{cov}_w(x, y)$ is the area-weighted covariance between the simulated and observed climatologies, and $\text{var}_w(x)$ and $\text{var}_w(y)$ are the area-weighted variances of the simulated and observed climatologies, respectively.
 <!-- TO DO: add Pcc formula? Or not necessary as it is the general one? -->
 
 When more than one ensemble member is available, the scores are computed for each member and then averaged to obtain a single score for the simulation dataset.
@@ -165,17 +171,18 @@ Finally, by default, NOAA data ([NOAA Interpolated OLR dataset](https://psl.noaa
 
 ### Madden-Julian Oscillation (MJO)
 
-Specific indices for the Madden-Julian Oscillation (MJO) are evaluated following [(M.C. Wheeler & H.H. Hendon, 2004)](https://doi.org/10.1175/1520-0493(2004)132%3C1917:AARMMI%3E2.0.CO;2). These are similar to those defined for ISO in the previous section, but they are computed using a Combined Empirical Orthogonal Function (CEOF) analysis instead of a EEOF analysis. For the latter, a lagged matrix of a single climate variable was used, whereas for the CEOF analysis, a combination of three variables is employed: TOA OLR and zonal wind at different pressure levels over a specific latitude band centered on the equator (typically 15°S-15°N). 
+Specific indices for the Madden-Julian Oscillation (MJO) are evaluated following [(M.C. Wheeler & H.H. Hendon, 2004)](https://doi.org/10.1175/1520-0493(2004)132%3C1917:AARMMI%3E2.0.CO;2). These are similar to those defined for ISO in the previous section, but they are computed using a Combined Empirical Orthogonal Function (CEOF) analysis instead of an EEOF analysis. For the latter, a lagged matrix of a single climate variable was used, whereas for the CEOF analysis, a combination of three variables is employed: TOA OLR and eastward wind at different pressure levels over a specific latitude band centered on the equator (typically 15°S-15°N). 
 
-The CEOF analysis is performed after filtering the data to remove longer-time-scale components, including the seasonal cycle (using harmonic filtering) and the interannual variability (using a 120-day rolling mean), and averaging along the latitude. The resulting CEOFs are then used to calculate the first two PCs for MJO, referred to as the **Real-Time Multivariate MJO (RMM) indices**. As for the bimodal ISO indices, these are normalized by one stadard deviation of the CEOF analysis period, corresponding to the squared root of the associated eigenvalue. 
+The CEOF analysis is performed after filtering the data to remove longer-time-scale components, including the seasonal cycle (using harmonic filtering) and the interannual variability (using a 120-day rolling mean), and averaging along the latitude. Then, the resulting CEOFs are compared between observations and simulations by computing their **Pearson correlation per variable and mode ($r_{\text{var,mode}}$)**, as well as the **bias in explained variance per mode ($\overline{b}_{\text{mode}}$)**.
 
-Based on the amplitude of the RMM indices, the MJO amplitude is estimated. With this, the number of active MJO days is determined as the number of days with an amplitude above a given threshold, typically taken as the total mean MJO amplitude. Moreover, the phase space defined by the RMM indices is usually divided into 8 phases (one per each octant). Following this convention, the MJO activity is analyzed using the mean amplitude and days when the MJO is active per phase. This leads to several scalar scores corresponding to the **bias in mean MJO amplitude and active MJO days per phase ($\overline{b}_{ph\, num}$)**.
+Besides, the CEOFs are used to calculate the first two PCs for MJO, referred to as the **Real-Time Multivariate MJO (RMM) indices**. As for the bimodal ISO indices, these are normalized by one stadard deviation of the CEOF analysis period, corresponding to the squared root of the associated eigenvalue. Based on the amplitude of the RMM indices, the MJO amplitude is estimated. With this, the number of active MJO days is determined as the number of days with an amplitude above a given threshold<!--, typically taken as the total mean MJO amplitude-->. Moreover, the phase space defined by the RMM indices is usually divided into 8 phases (one per each octant). Following this convention, the MJO activity is analyzed using the mean amplitude and days when the MJO is active per phase. This leads to several scalar scores corresponding to the **bias in mean MJO amplitude and active MJO days per phase ($\overline{b}_{\text{phase}}$)**.
 
-The implementation of the analysis described above produces two different diagnostic plots comparing simulations and observations:
+The implementation of the analysis described above produces three different diagnostic plots comparing simulations and observations:
 - **CEOFs:** two longitudinal plots showing the first two CEOFs for the three considered climate variables.
 - **MJO activity per phase:** absolute values of the mean amplitude and the number of active days per phase. 
+- **Scalar scores**: tables summarizing all the computed scalar scores, visually indicating the best and worst performing simulation datasets.
 
-<!-- ADD DEFAULT OBSERVATIONS DATASET (NOAA?) -->
+Finally, by default, NOAA data ([NOAA Interpolated OLR dataset](https://psl.noaa.gov/data/gridded/data.olrcdr.interp.html)) is taken as observational TOA OLR reference data and ERA5 data ([ERA5 hourly data on pressure levels from 1940 to present](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-pressure-levels?tab=overview)) is used as reference for the eastward wind data when computing these scores.
 
 
 ### Tropical Cyclones (TCs) <!-- : TC metrics -->

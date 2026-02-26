@@ -18,7 +18,7 @@ These include time series plots (with the `time_series_plots` method) and spatia
 - **Scientific skill evaluation:** compute scalar scores evaluating the following phenomena using the `ScientificEvaluation` class:
     - <u> General skill:</u> this includes the computation of general scalar scores (bias (BIAS), Root Mean Square Error (RMSE), and spatial Pearson correlation ($r_{xy}$)) for any variable in the simulation dataset comparing to observations.
     - <u>Tropical IntraSeasonal Oscillation (ISO):</u> this includes the computation of the bimodal ISO indices (for MJO and BSISO), as well as the calculation of related scalar scores comparing the indices between simulations and observations (amplitude ratio ($\alpha$), temporal correlation ($R$), standard deviation ratio ($\sigma$), and Taylor Skill Score (TSS)).
-    - <u>Madden-Julian Oscillation (MJO):</u> this includes the computation of the Real-Time Multivariate MJO (RMM) indices, as well as the calculation of related scalar scores comparing simulations and observations (bias ($\bar{b}$) in the mean amplitude and number of active days per MJO phase).
+    - <u>Madden-Julian Oscillation (MJO):</u> this includes the computation of the Real-Time Multivariate MJO (RMM) indices, as well as the calculation of related scalar scores (Pearson correlation ($r_{\text{var,mode}}$) and bias ($\bar{b}$)) comparing the MJO spatial patterns and activity between simulations and observations.
     - <u>Tropical Cyclones (TCs):</u> this includes the computation of various scalar scores (bias ($\bar{b}$), spatial Pearson correlation ($r_{xy}$), and temporal Spearman rank correlation ($\rho_s$)) for several TC metrics (counts, TC days (TCD), accumulated cyclone energy (ACE), pressure ACE (PACE), and latitude of lifetime-maximum intensity (LMI)).
 - **Flexible data management:** add and compare datasets in the `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes even after initialization.
 
@@ -31,8 +31,7 @@ For quick start instructions, see the README on the [project's GitHub repository
 
 ## Contact people
 
-Main developer: 
-- Marta Alerany Solé (BSC-CNS): marta.alerany@bsc.es
+- Marta Alerany Solé (BSC-CNS): [marta.alerany@bsc.es](mailto:marta.alerany@bsc.es)
 
 <!--Significant contributors:
 - Kai Keller (BSC-CNS): kai.keller@bsc.es

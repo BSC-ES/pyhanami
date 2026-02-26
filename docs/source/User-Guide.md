@@ -197,7 +197,7 @@ To evaluate the simulation of the ISO, initialize the `ScientificEvaluation` cla
 
 The following snippet creates an `ISOEvaluation` instance that:
 1. Performs an **Extended Empirical Orthogonal Function (EEOF)** analysis between `year_init_eeof` and `year_end_eeof`
-2. Uses the EEOFs to compute the **first two Principal Components (PCs) (bimodal ISO indices)** between `year_init_pc` and `year_end_pc`
+2. Uses the EEOFs to compute the first two Principal Components (PCs) (**bimodal ISO indices**) between `year_init_pc` and `year_end_pc`
 3. Calculates the **mean monthly frequency (seasonality)** of ISO events using all the bimodal ISO indices computed in step 2
 
 ```python
@@ -258,14 +258,14 @@ To summarize, the `ISOEvaluation` class includes methods to generate the followi
 ## Specific Madden-Julian Oscillation (MJO) analysis
 
 To evaluate the simulation of the MJO specifically, initialize the `ScientificEvaluation` class with the `SimulationData` object that you want to analyze and use the `compute_mjo_scores` method. This method computes several scalar scores related to MJO (see [Methodology](./Methodology.md#madden-julian-oscillation-mjo)) and requires the following variables with a daily frequency:
-- **Top of Atmosphere (TOA) outgoing longwave radiation** (`rlut`)
-- **Zonal wind at 200 and 850 hPa** (`ua200` and `ua850`)
+- **Top of atmosphere outgoing longwave radiation** (`rlut`)
+- **Eastward wind at 200 and 850 hPa** (`ua200` and `ua850`)
 
 The following snippet creates a `MJOEvaluation` instance that:
 1. Performs a **Combined Empirical Orthogonal Function (CEOF)** analysis between `year_init_mjo` and `year_end_mjo`
-2. Uses the CEOFs to compute the **first two Principal Components (PCs) (Real-Time Multivariate MJO (RMM) indices)** for the same period, projecting simulations both on the observed and simulated CEOFs
-3. Determines the **MJO amplitude and active days per phase** based on the PCs amplitude
-4. Calculates the **bias** in the quantities from step 3
+2. Uses the CEOFs to compute the first two Principal Components (PCs) (**Real-Time Multivariate MJO (RMM) indices**) for the same period, projecting simulations both on the observed and simulated CEOFs
+3. Determines the **MJO amplitude and active days per phase** based on the RMM indices amplitude
+4. Computes various **scalar scores** comparing the simulated CEOFs and MJO activity to the observed ones
 
 ```python
 # Initialize ScientificEvaluation class with a SimulationData object
@@ -278,13 +278,13 @@ mjo_analysis = sciskill.compute_mjo_scores(
     'name_sim_1',
     start_year_mjo=year_init_mjo,
     end_year_mjo=year_end_mjo,
-
+    threshold_active_days=1
 )
 ```
 
-If no years are passed, the whole period covered by the simulation dataset is used by default.
+If no years are passed, the whole period covered by the simulation dataset is used by default. Besides, `threshold_active_days` is the minimum amplitude of the RMM indices required for the MJO to be considered active on a given day. If it is not specified, the total mean MJO amplitude across the entire period is used by default as a threshold. 
 
-Moreover, the `MJOEvaluation` class includes methods to visualize and save the results of the analysis. The following shows how to save the computed data, create plots for the CEOFs and MJO activity, and create table plots summarizing the biases:
+Moreover, the `MJOEvaluation` class includes methods to visualize and save the results of the analysis. The following shows how to save the computed data, create plots for the CEOFs and MJO activity, and create table plots summarizing the scalar scores:
 
 ```python
 # Save outcome of the MJO analysis
@@ -294,7 +294,9 @@ mjo_analysis.save_data('output_path')
 mjo_analysis.ceof_plots('output_path')
 mjo_analysis.activity_per_phase_plots('output_path')
 
-# Plot summary tables of the bias scores
+# Plot summary tables of the scalar scores
+mjo_analysis.ceof_corr_table('output_path')
+mjo_analysis.explained_var_bias_table('output_path')
 mjo_analysis.mean_amplitude_bias_table('output_path')
 mjo_analysis.active_days_bias_table('output_path')
 ```
@@ -302,7 +304,7 @@ mjo_analysis.active_days_bias_table('output_path')
 To summarize, the `MJOEvaluation` class includes methods to generate the following visualization outputs:
 1. **CEOF plots** (`MJOEvaluation.ceof_plots`): longitudinal patterns of the first two Multivariate EOFs for the three considered variables comparing observations and simulations.
 2. **MJO activity per phase plots** (`MJOEvaluation.activity_per_phase_plots`): mean MJO amplitude and number of active MJO days per phase for both observations and simulations. Both quantities are plotted separately using two bar plots by default, but they can also be plotted together in the same dot plot by passing the argument `layout='together'`, allowing to more easily identify the relationship between both quantities.
-3. **Bias in activity per phase tables** (`MJOEvaluation.mean_amplitude_bias_table` and `MJOEvaluation.active_days_bias_table`): tables summarizing the bias in mean MJO amplitude and active MJO days per phase, respectively. In these, each column is colored independently based on its maximum value. The largest bias value in a column determines the limits of the colorbar for that column. This allows to easily identify the dataset with the highest bias for each phase.
+3. **Scalar score tables** (`MJOEvaluation.coef_corr_table`, `MJOEvaluation.explained_var_bias_table`, `MJOEvaluation.mean_amplitude_bias_table`, `MJOEvaluation.active_days_bias_table`): tables summarizing the computed scalar scores. In each table, columns are colored independently, with dark green indicating the best-performing dataset in that column relative to the reference dataset in the first row.
 
 
 ## Tropical Cyclones (TCs) analysis

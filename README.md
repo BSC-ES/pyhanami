@@ -16,7 +16,7 @@ These include time series plots (with the `time_series_plot` method) and spatial
 - **Replicability testing:** perform a replicability test checking the statistical indistinguishability between two previously loaded simulation ensembles using the `ReplicabilityTest` class.
 - **Scientific skill evaluation:** compute scalar scores evaluating the following phenomena using the `ScientificEvaluation` class:
     - Tropical IntraSeasonal Oscillation (ISO): this includes the computation of the bimodal ISO indices (for MJO and BSISO), as well as the calculation of related scalar scores comparing the indices between simulations and observations (amplitude ratio ($\alpha$), temporal correlation ($R$), standard deviation ratio ($\sigma$), and Taylor Skill Score (TSS)).
-    - Madden-Julian Oscillation (MJO): this includes the computation of the Real-Time Multivariate MJO (RMM) indices, as well as the calculation of related scalar scores comparing simulations and observations (bias ($\bar{b}$) in the mean amplitude and number of active days per MJO phase).
+    - Madden-Julian Oscillation (MJO): this includes the computation of the Real-Time Multivariate MJO (RMM) indices, as well as the calculation of related scalar scores (Pearson correlation ($r_{\text{var,mode}}$) and bias ($\bar{b}$)) comparing the MJO spatial patterns and activity between simulations and observations.
     - Tropical Cyclones (TCs): this includes the computation of various scalar scores (bias ($\bar{b}$), spatial Pearson correlation ($r_{xy}$), and temporal Spearman rank correlation ($\rho_s$)) for several TC metrics (counts, TC days (TCD), accumulated cyclone energy (ACE), pressure ACE (PACE), and latitude of lifetime-maximum intensity (LMI)).
 - **Flexible data management:** add and compare datasets in the `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes even after initialization.
 
@@ -159,14 +159,14 @@ iso_analysis.scores
 ```
 
 #### Madden-Julian Oscillation (MJO)
-Assess simulation of the Madden-Julian Oscillation (MJO) by computing the RMM indices and related scalar scores comparing to observations:
+Assess simulation of the Madden-Julian Oscillation (MJO) by computing the Real-time Multivariate MJO (RMM) indices and related scalar scores comparing to observations:
 ```python
 # Perform the MJO analysis
 mjo_analysis = sciskill.compute_mjo_scores(
     'name_sim_1',
     start_year_mjo=year_init_mjo,
     end_year_mjo=year_end_mjo,
-
+    threshold_active_days=1
 )
 
 # Save results of the analysis to 'output_path'
@@ -176,7 +176,9 @@ mjo_analysis.save_data('output_path')
 mjo_analysis.ceof_plots('output_path')
 mjo_analysis.activity_per_phase_plots('output_path')
 
-# Create table plots summarizing the computed scores (biases) and save them to 'output_path'
+# Create table plots summarizing the computed scalar scores and save them to 'output_path'
+mjo_analysis.ceof_corr_table('output_path')
+mjo_analysis.explained_var_bias_table('output_path')
 mjo_analysis.mean_amplitude_bias_table('output_path')
 mjo_analysis.active_days_bias_table('output_path')
 ```
@@ -249,9 +251,16 @@ This project includes code and resources from the following sources:
     - Used for: data ranges and boundaries for plausibility checks in `src/pyhanami/config/variables.yaml`
     - License: Apache License, Version 2.0, January 2004
 - [NOAA Interpolated Outgoing Longwave Radiation (OLR)](https://psl.noaa.gov/data/gridded/data.olrcdr.interp.html):
-    - Used for: reference Tropical IntraSeasonal Oscillation data in `src/pyhanami/diags/ScientificSkill.py`
+    - Used for: reference top of atmosphere outgoing longwave radiation data in `src/pyhanami/diags/ScientificSkill.py`
     - Reference: Liebmann, B., & Smith, C.A., Description of a Complete (Interpolated) Outgoing Longwave Radiation Dataset. Bulletin of the American Meteorological Society, 77, 1275-1277 (1996)
     - Acknowledgment: NOAA Interpolated Outgoing Longwave Radiation (OLR) data provided by the NOAA PSL, Boulder, Colorado, USA, from their website at https://psl.noaa.gov
+- [ERA5 hourly data on pressure levels from 1940 to present](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-pressure-levels?tab=overview):
+    - Used for: reference eastward wind data in `src/pyhanami/diags/ScientificSkill.py` 
+    - References:
+        - Copernicus Climate Change Service, Climate Data Store, ERA5 hourly data on pressure levels from 1940 to present. Copernicus Climate Change Service (C3S) Climate Data Store (CDS) (2023). https://doi.org/10.24381/cds.bd0915c6 (access date: 2025-06-18)
+        - Hersbach, H., Bell, B., Berrisford, P., Biavati, G., Horányi, A., Muñoz Sabater, J., Nicolas, J., Peubey, C., Radu, R., Rozum, I., Schepers, D., Simmons, A., Soci, C., Dee, D., & Thépaut, J-N., ERA5 hourly data on pressure levels from 1940 to present. Copernicus Climate Change Service (C3S) Climate Data Store (CDS) (2023). https://doi.org/10.24381/cds.bd0915c6 (access date: 2025-06-18)
+    - Acknowledgement: (H. Hersbach et al., 2023) was downloaded from the Copernicus Climate Change Service (2023). The results contain modified Copernicus Climate Change Service information (2023). Neither the European Commission nor ECMWF is responsible for any use that may be made of the Copernicus information or data it contains.
+<!-- NOTE: check https://confluence.ecmwf.int/display/CKB/Use+Case+2%3A+ERA5+hourly+data+on+single+levels+from+1940+to+present for proper ERA5 data citation -->
 - [IBTrACS Version 4.01](https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C01552):
     - Used for: reference Tropical Cyclones data in `src/pyhanami/diags/ScientificSkill.py`
     - Reference: NCEI DSI 9637_02 (doi:10.25921/82ty-9e16)
