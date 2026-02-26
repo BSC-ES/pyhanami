@@ -208,7 +208,7 @@ class DataChecker:
                 if 'long_name' not in var_attrs or var_attrs['long_name'] != expected_long_name:
                     data[var].attrs['long_name'] = expected_long_name
                     self.warning_msg.append(
-                        f"Variable '{var}' was missing the corresponding 'long_name' attribute: '{expected_long_name}'. " 
+                        f"Variable '{var}' was missing the corresponding 'long_name' attribute: '{expected_long_name}'." 
                         f" It has been added automatically but better to provide it in the correct format from the beginning."
                     )
                 

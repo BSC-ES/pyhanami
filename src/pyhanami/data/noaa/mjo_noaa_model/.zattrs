@@ -1,0 +1,17 @@
+{
+    "data": "_is_tree",
+    "params": {
+        "center": false,
+        "check_nans": true,
+        "compute": true,
+        "feature_name": "feature",
+        "n_modes": 2,
+        "random_state": null,
+        "sample_name": "sample",
+        "solver": "auto",
+        "solver_kwargs": {},
+        "standardize": false,
+        "use_coslat": false
+    },
+    "preprocessor": "_is_tree"
+}

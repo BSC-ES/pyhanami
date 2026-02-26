@@ -3,6 +3,7 @@ warnings.simplefilter("always")
 
 import os
 import re
+import xeofs
 import shutil
 import cmocean
 import numpy as np
@@ -18,7 +19,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from pyhanami.config import config_params
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
-from pyhanami.utils import data_general, iso_scores, plot, statistics
+from pyhanami.utils import data_general, iso_scores, mjo_scores, plot, statistics
 from pyhanami.utils.tcs_scores import tcs_tempestextremes, tcs_ibtracs, tcs_cymep_main
 
 VARIABLES = data_general.load_yaml_file(config_params.VARIABLES_PATH)
@@ -40,12 +41,12 @@ class GeneralEvaluation:
         Simulation dataset to use.
     var_names : str or list[str], optional
         Climate variable(s) name(s). If None, all variables in the simulated dataset will be used.
-    start_year, end_year : int
-        Initial and end years to perform the general analysis for.
     obs_name : str
         Name of the observational dataset to compare to (default: config_params.GEN_OBS_NAME).
     obs_path : str
         Path to the observations database (default: config_params.GEN_OBS_PATH).
+    start_year, end_year : int
+        Initial and end years to perform the general analysis for.
 
     Attributes
     ----------
@@ -73,11 +74,11 @@ class GeneralEvaluation:
             rmse_rel : np.ndarray
                 Area-weighted mean relative RMSE.
             pcorr : np.ndarray
-                Pearson correlation coefficient.
+                Area-weighted Pearson correlation coefficient.
     """
 
-    def __init__(self,  data_sim : SimulationData, var_names : str | list[str] = None, start_year : int = None, end_year : int = None,
-                 obs_name : str = config_params.GEN_OBS_NAME, obs_path : str = config_params.GEN_OBS_PATH):
+    def __init__(self,  data_sim : SimulationData, var_names : str | list[str] = None, obs_name : str = config_params.GEN_OBS_NAME, 
+                 obs_path : str = config_params.GEN_OBS_PATH, start_year : int = None, end_year : int = None):
 
         # Validate input
         if not isinstance(data_sim, SimulationData):
@@ -112,6 +113,7 @@ class GeneralEvaluation:
         for dataset in [data_sim, data_obs]:
             start_year, end_year = data_general.validate_year_range(dataset, start_year, end_year, process_name='general scalar')
         self.start_year, self.end_year = start_year, end_year
+        print(f"\tYears selected for general scalar scores computation: {self.start_year}-{self.end_year}.", flush=True)
         data_sim_filtered = data_sim.data.sel(time=slice(str(self.start_year), str(self.end_year))).compute()
         data_obs_filtered = data_obs.data.sel(time=slice(str(self.start_year), str(self.end_year))).compute()
 
@@ -133,8 +135,7 @@ class GeneralEvaluation:
             coords = {'variable': self.var_names},
         )
 
-        print("\nGeneral scalar analysis computation completed.", flush=True)
-
+        print(f"\nGeneral scalar scores computation completed between years {self.start_year} and {self.end_year}.", flush=True)
         return
  
 
@@ -288,8 +289,8 @@ class GeneralEvaluation:
 
     def _compute_pcorr_one_var(self, args):
         """
-        Compute Pearson correlation coefficient between simulations and observations
-        for the given variable.
+        Compute area-weighted Pearson correlation coefficient between simulations 
+        and observations for the given variable.
 
         Parameters
         ----------
@@ -305,7 +306,7 @@ class GeneralEvaluation:
         Returns
         -------     
         pcorr : float
-            Pearson correlation coefficient.
+            Area-weighted Pearson correlation coefficient.
         """
 
         # With scipy.stats.pearsonr (not used anymore, kept for reference)
@@ -320,11 +321,12 @@ class GeneralEvaluation:
 
         # With xarray.corr
         # Prepare data
-        data_sim_mean = data_sim[var_name].mean(dim='time').stack(spatial=['lat', 'lon'])
-        data_obs_mean = data_obs[var_name].mean(dim='time').stack(spatial=['lat', 'lon'])
+        data_sim_mean = data_sim[var_name].mean(dim='time') #.stack(spatial=['lat', 'lon'])
+        data_obs_mean = data_obs[var_name].mean(dim='time') #.stack(spatial=['lat', 'lon'])
 
-        # Compute Pearson correlation coefficient
-        pcorr = xr.corr(data_sim_mean, data_obs_mean, dim='spatial').values
+        # Compute area-weighted Pearson correlation coefficient
+        weights = statistics.area_weights(data_sim_mean)
+        pcorr = xr.corr(data_sim_mean, data_obs_mean, dim=['lat', 'lon'], weights=weights).values
 
         # Take ensemble mean when more than one member is present
         if self.ensemble:
@@ -386,53 +388,57 @@ class GeneralEvaluation:
         return
 
     
-    def scores_table(self, var_name=None, output_path=None):
+    def scores_table(self, var_names=None, output_path=None):
         """
-        Generate and save/display table plot with general scalar scores for a 
-        specific variable.
+        Generate and save/display table plot with general scalar scores for the given variable(s).
 
         Parameters
         ----------
-        var_name : str
-            Climate variable.
+        var_names : str or list[str], optional
+            Climate variable(s) name(s). If None, all variables in the analysis will be used.
         output_path : str, optional
             Path to save the table plot. If None, the table is displayed but not saved.
         """
 
         # Validate input
-        if var_name is None:
-            raise ValueError("A variable name must be provided to generate the general scalar scores table plot.")
-        elif var_name not in self.var_names:
-            raise ValueError(f"Variable '{var_name}' was not used in the general scalar analysis. "
-                             f"Available variables: {self.var_names}")
+        if var_names is None:
+            var_names = self.var_names
+        if isinstance(var_names, str):
+            var_names = [var_names]
+        for var_name in var_names:
+            if var_name not in self.var_names:
+                raise ValueError(f"Variable '{var_name}' was not used in the general scalar analysis. "
+                                 f"Available variables: {self.var_names}")
 
-        # Prepare plot parameters
-        var_name_title = VARIABLES[var_name]['long_name']
-        year_range = f"{self.start_year}-{self.end_year}"
-        if self.ensemble:
-            # cols = [' ', r'$\overline{\text{BIAS}}$', r'$\overline{\text{eBIAS}}$', r'$\overline{\text{RMSE}}$', 
-            #         r'$\overline{\text{eRMSE}}$', r'$\overline{r}_{xy}$']
-            cols = [' ', r'$\overline{\text{eBIAS}}$', r'$\overline{\text{eRMSE}}$', r'$\overline{r}_{xy}$']
-            title = f"Scalar scores for {var_name_title} (ensemble mean) ({year_range})"
-        else:
-            # cols = [' ', 'BIAS', 'eBIAS', 'RMSE', 'eRMSE', r'$r_{xy}$']
-            cols = [' ', 'eBIAS', 'eRMSE', r'$r_{xy}$']
-            title = f"Scalar scores for {var_name_title} ({year_range})"
-        
+
+        # Prepare plot parameters        
         rows = [self.obs_name, self.sim_name]
         cbar_ticks = ['Worse performance', ' ', 'Better performance']
         colors = ("RedGreen", ['tab:red', 'white', 'tab:green'])
-
-        # Prepare plot data
         data_ref = np.array([1, 1, 1])
-        data_sim = self.scores[['bias_rel', 'rmse_rel', 'pcorr']].sel(variable=var_name).to_array().values
-        data_plot = np.stack([data_ref, data_sim])
 
-        # Generate and save/display plot
-        general_scores_plot, _ = plot.plot_table(data_plot, title=title, col_labels=cols, row_labels=rows, cbar_ticks=cbar_ticks, colors=colors, decimals=3)
+        for var_name in var_names:
+            var_name_title = VARIABLES[var_name]['long_name']
+            year_range = f"{self.start_year}-{self.end_year}"
+            if self.ensemble:
+                # cols = [' ', r'$\overline{\text{BIAS}}$', r'$\overline{\text{eBIAS}}$', r'$\overline{\text{RMSE}}$', 
+                #         r'$\overline{\text{eRMSE}}$', r'$\overline{r}_{xy}$']
+                cols = [' ', r'$\overline{\text{eBIAS}}$', r'$\overline{\text{eRMSE}}$', r'$\overline{r}_{xy}$']
+                title = f"Scalar scores for {var_name_title} (ensemble mean) ({year_range})"
+            else:
+                # cols = [' ', 'BIAS', 'eBIAS', 'RMSE', 'eRMSE', r'$r_{xy}$']
+                cols = [' ', 'eBIAS', 'eRMSE', r'$r_{xy}$']
+                title = f"Scalar scores for {var_name_title} ({year_range})"
 
-        plot.save_or_show_plot(general_scores_plot, output_path, plot_filename=f"general_scalar_scores_table_{self.sim_name.replace(' ', '-')}_{year_range}",
-                               plot_name="General scalar scores table plot")
+            # Prepare plot data
+            data_sim = self.scores[['bias_rel', 'rmse_rel', 'pcorr']].sel(variable=var_name).to_array().values
+            data_plot = np.stack([data_ref, data_sim])
+
+            # Generate and save/display plot
+            general_scores_plot, _ = plot.plot_table(data_plot, title=title, col_labels=cols, row_labels=rows, cbar_ticks=cbar_ticks, colors=colors, decimals=3)
+
+            plot.save_or_show_plot(general_scores_plot, output_path, plot_filename=f"general_scalar_scores_table_{var_name}_{self.sim_name.replace(' ', '-')}_{year_range}",
+                                   plot_name="General scalar scores table plot")
 
         return
 
@@ -539,15 +545,18 @@ class ISOEvaluation:
             self.start_year_eeof, self.end_year_eeof = data_general.validate_year_range(data_sim, start_year_eeof, end_year_eeof, process_name="EEOF")
             if self.start_year_eeof == self.end_year_eeof:
                 raise ValueError("More than one year is needed for the EEOF analysis (at least 10 years is recommended, ideally ~ 30 years).")
+        print(f"\tYears selected for EEOF analysis: {self.start_year_eeof}-{self.end_year_eeof}.", flush=True)
 
         self.start_year_pc, self.end_year_pc = data_general.validate_year_range(data_sim, start_year_pc, end_year_pc, process_name="PC")
+        print(f"\tYears selected for PCs computation: {self.start_year_pc}-{self.end_year_pc}.", flush=True)
         
 
         # Compute/load EEOFs
         if self.obs:
             self.obs_name = 'NOAA'
             data_sim.data, self.eeof_summer, self.eeof_winter, self.pcs_obs = self._load_and_regrid_obs_data(data_sim.data)
-            print(f"\tEEOF analysis loaded for '{self.obs_name}' observations between {self.start_year_eeof} and {self.end_year_eeof}.")
+            print(f"\tEEOF analysis loaded for '{self.obs_name}' observations between {self.start_year_eeof} and {self.end_year_eeof}."
+                  " See attributes `eeof_summer`, `eeof_winter` and `pcs_obs` for results.", flush=True)
 
         # Filter simulation data
         data_unfiltered_sim = data_sim.data[var_name].sortby("lat").sel(lat=slice(*lat_range)).compute()
@@ -567,8 +576,8 @@ class ISOEvaluation:
         # Compute PCs
         self.scores = {}
         self.pcs_sim, self.scores['alpha'] = self._compute_PCs(data_filtered_sim)
-        print(f"\tPCs (bimodal ISO indices) computed between {self.start_year_pc} and {self.end_year_pc}."
-              " See attribute `pcs_sim` (and `pcs_obs` if `obs=True`) for results.", flush=True)
+        print(f"\tPCs (bimodal ISO indices) computed for '{self.sim_name}' data between {self.start_year_pc} and {self.end_year_pc}."
+              " See attribute `pcs_sim` for results.", flush=True)
 
         # Compute monthly frequency and scalar scores
         self.freq_sim, self.freq_obs, self.scores['R'], self.scores['sigma'], self.scores['TSS'] = self._compute_freq_and_scores()
@@ -703,7 +712,7 @@ class ISOEvaluation:
             EEOFs for boreal winter for simulated data.
         """
 
-        data_eeof_sim = data_sim.sel(time=slice(f'{self.start_year_eeof}-01-01', f'{self.end_year_eeof}-12-31'))
+        data_eeof_sim = data_sim.sel(time=slice(str(self.start_year_eeof), str(self.end_year_eeof)))
         eeof_summer = iso_scores.perform_EEOF_analysis(data_eeof_sim, self.start_year_eeof, self.end_year_eeof, 'boreal_summer', lag, n_lags, n_modes)
         eeof_winter = iso_scores.perform_EEOF_analysis(data_eeof_sim, self.start_year_eeof, self.end_year_eeof, 'boreal_winter', lag, n_lags, n_modes)
 
@@ -986,6 +995,752 @@ class ISOEvaluation:
         return
 
 
+class MJOEvaluation:
+    """
+    Compute Real-Time Multivariate (RMM) MJO indices and derived scalar scores.
+
+    This class provides functionality for computing the RMM MJO indices and derived scalar scores 
+    following (M.C. Wheeler et al., 2004) and plotting the results comparing simulations to 
+    observational data.
+
+    Parameters
+    ----------
+    data_sim : SimulationData
+        Simulation dataset to use.
+    start_year_mjo, end_year_mjo : int
+        Initial and end years to perform the analysis for.
+    start_year_ref, end_year_ref : int
+        Initial and end years for computing the reference seasonal cycle. If None, taken as
+        the initial and end years for the whole MJO analysis.
+    lat_range : tuple
+        Geographic latitude bounds (default: (-15, 15)).
+    rolling_window_size : int
+        Window size for rolling mean to remove low-frequency variability (default: 120 days).
+    n_harmonics : int
+        Number of harmonics to remove from the seasonal cycle (default: 3).
+    normalize_std : bool
+        Whether to normalize anomalies by fixed standard deviations when removing the 
+        seasonal cycle (default: False).
+    n_modes : int
+        Number of CEOFs to compute (default: 2).
+    threshold_active_days : float
+        Threshold for the amplitude of the first two PCs to consider the MJO active at 
+        a given day. If None, the mean MJO amplitude over the entire considered time
+        period is used as a threshold.
+
+    Attributes
+    ----------
+    sim_name : str
+        Name of the simulation dataset.
+    obs_name : str
+        Name of the observational dataset.
+    data_mjo_sim : xr.DataArray
+        Simulation data with longer-time-scale components removed.
+    data_mjo_obs : xr.DataArray
+        Observational data with longer-time-scale components removed.
+    data_res : float
+        Resolution of the data used for the MJO analysis.
+    start_year_mjo, end_year_mjo : int
+        Initial and end years to perform the MJO analysis for.
+    ceof_obs : xr.Dataset
+        Output of CEOF analysis for observational data ('eof', 'eigval', 'var_frac' 
+        and 'pc' for the first 'n_modes').
+    ceof_sim_on_obs : xr.Dataset
+        Output of CEOF analysis for simulated data projected on observed CEOFs ('ceof', 
+        'eigval', 'var_frac' and 'pc' for the first 'n_modes').
+    ceof_sim_on_sim : xr.Dataset
+        Output of CEOF analysis for simulated data projected on simulated CEOFs ('ceof', 
+        'eigval', 'var_frac' and 'pc' for the first 'n_modes').
+    ceof_scores : xr.Dataset
+        Scalar scores related to CEOFs, including the correlation between simulations and 
+        observations (`ceof_corr`) and the explained variance for each CEOF in absolute 
+        value (`explained_var`) and bias (`explained_var_bias`) for variable and mode.
+    activity_per_phase : xr.Dataset
+        Mean amplitude and days per phase (total and only for active MJO days). It 
+        contains the following variables: 'mean_amplitude', 'mean_active_amplitude',
+        'total_counts' and 'active_counts' per phase for observations ('obs'), 
+        simulations projected on observed CEOFs ('sim_on_obs'), and simulations 
+        projected on their own CEOFs ('sim_on_sim').
+    activity_per_phase_bias : xr.Dataset
+        Bias in amplitude and days per phase (total and only for active MJO days). It 
+        contains the following variables: 'mean_amplitude', 'mean_active_amplitude',
+        'total_counts' and 'active_counts' per phase for observations ('obs'), 
+        simulations projected on observed CEOFs ('sim_on_obs'), and simulations 
+        projected on their own CEOFs ('sim_on_sim').
+    cbar_ticks_bias : list[str]
+        Colorbar ticks labels for bias tables.
+    colors_bias : tuple
+        Colorbar colors for bias tables.
+    """
+
+    def __init__(self, data_sim, start_year_mjo=None, end_year_mjo=None, start_year_ref=None, end_year_ref=None,
+                 lat_range=(-15, 15), rolling_window_size=120, n_harmonics=3, normalize_std=False, n_modes=2,
+                 threshold_active_days=None):
+
+        # Validate input
+        if not isinstance(data_sim, SimulationData):
+            raise TypeError("'data_sim' must be an instance of SimulationData.")
+        self.sim_name = data_sim.name
+        self.obs_name = 'Obs'    #'NOAA+ERA5'
+        self.data_res = config_params.MJO_OBS_RES
+
+        # Select years for MJO analysis
+        self.start_year_mjo, self.end_year_mjo = data_general.validate_year_range(data_sim, start_year_mjo, end_year_mjo, process_name='MJO')
+        if self.start_year_mjo < config_params.MJO_START_YEAR or config_params.MJO_END_YEAR < self.end_year_mjo:
+            raise ValueError(f"Selected years for MJO analysis must be within the available observational period"
+                             f" ({config_params.MJO_START_YEAR} and {config_params.MJO_END_YEAR}).")
+        print(f"\tYears selected for MJO scores computation: {self.start_year_mjo}-{self.end_year_mjo}.", flush=True)
+        data_sim_filtered_time = data_sim.data.sel(time=slice(str(self.start_year_mjo), str(self.end_year_mjo))).compute()    
+
+
+        # Prepare simulation data (regrid to match observations, if needed, and filter seasonal cycle and interannual variability)
+        self.data_mjo_sim, _, _, self.data_mjo_obs, _, _ = self._prepare_mjo_data(data_sim_filtered_time, start_year_ref, end_year_ref, lat_range,
+                                                                                  rolling_window_size, n_harmonics, normalize_std)
+        print(f'\tObservations and simulations data filtered by removing longer-time-scale components between {self.start_year_mjo} and {self.end_year_mjo}.'
+              ' See attributes `data_mjo_sim` and `data_mjo_obs` for results.', flush=True)
+        
+
+        # Perform CEOF analysis (projecting on observed and simulated EOFs)
+        self.ceof_obs, self.ceof_sim_on_obs, self.ceof_sim_on_sim = self._perform_CEOF_analysis(n_modes)
+        print(f"\tCEOF analyses completed. See attributes `ceof_obs`, `ceof_sim_on_obs`, and `ceof_sim_on_sim` for results.", flush=True)
+        
+
+        # Compute scalar scores related to the CEOFs
+        self.ceof_scores = self._compute_CEOF_scores()
+        print(f"\tScalar scores related to CEOFs computed. See attribute `ceof_scores` for results.", flush=True)
+
+        # Compute MJO mean amplitude and days per phase (absolute value and bias)
+        self.activity_per_phase = self._compute_phase_counts(threshold=threshold_active_days)
+        self.activity_per_phase_bias, self.cbar_ticks_bias, self.colors_bias = self._compute_phase_counts_bias()
+        print(f"\tAbsolute values and bias in MJO activity (mean amplitude and days) per phase computation completed."
+              f" See attributes `activity_per_phase` and `activity_per_phase_bias` for results.", flush=True)
+        
+
+        print(f"\nMadden-Julian Oscillation scores computation completed between years {self.start_year_mjo} and {self.end_year_mjo}.", flush=True)
+        return
+    
+
+    def _match_obs_resolution(self, data_sim):
+        """
+        Regrid simulations if needed to match the resolution of the observations
+        (defined in `config_params`).
+
+        Parameters
+        ----------
+        data_sim : xr.Dataset
+            Simulation data to compare with observations.
+
+        Returns
+        -------
+        data_sim_regrid : xr.Dataset
+            Regridded simulation data to match the observational data resolution.
+        """
+
+        # Check simulations' resolution and regrid if needed
+        obs_res = self.data_res
+        sim_lat_res = abs(data_sim.lat[1] - data_sim.lat[0]).values
+        sim_lon_res = abs(data_sim.lon[1] - data_sim.lon[0]).values
+
+        # Regrid simulations if the resolutions do not match
+        if sim_lat_res != obs_res or sim_lon_res != obs_res:
+            data_obs_grid = xr.open_dataset(config_params.MJO_GRID_PATH)
+            data_sim_regrid = data_general.regrid_data(data_sim, data_obs_grid)
+        else:
+            data_sim_regrid = data_sim
+
+        return data_sim_regrid
+
+
+    def _prepare_mjo_data(self, data_sim, start_year_ref, end_year_ref, lat_range=(-15, 15), 
+                          rolling_window_size=120, n_harmonics=3, normalize_std=False):
+        """
+        Regrid simulation data if needed to match the resolution of the observations,then filter the data to
+        remove longer-time-scale components (seasonal cycle and interannual variability) at the grid point 
+        level and concatenate into a single dataset all three variables necessary for the MJO analysis.
+
+        Parameters
+        ----------
+        data_sim : xr.Dataset
+            Simulation data containing variables ('ua850', 'ua200', 'rlut').
+        start_year_ref, end_year_ref : int
+            Initial and end years for computing the reference seasonal cycle.
+        lat_range : tuple
+            Geographic latitude bounds (default: (-15, 15)).
+        rolling_window_size : int
+            Window size for rolling mean to remove low-frequency variability (default: 120 days).
+        n_harmonics : int
+            Number of harmonics to remove from the seasonal cycle (default: 3).
+        normalize_std : bool
+            Whether to normalize anomalies by fixed standard deviations when removing the 
+            seasonal cycle (default: False).
+
+        Returns 
+        -------
+        filtered_sim : xr.DataArray
+            Filtered simulation data for each variable.
+        anom_sim : xr.DataArray
+            Anomalies in simulation data for each variable.
+        std_sim : xr.DataArray
+            Standard deviations in simulation data for each variable.
+        filtered_obs : xr.DataArray
+            Filtered observational data for each variable.
+        anom_obs : xr.DataArray
+            Anomalies in observational data for each variable.
+        std_obs : xr.DataArray
+            Standard deviations in observational data for each variable.
+        """
+
+        vars_mjo = ['ua850', 'ua200', 'rlut']
+
+
+        # Load observational data (NOAA + ERA5)
+        try:
+            data_obs_vars = xr.open_dataset(config_params.MJO_VARS_PATH)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Observations MJO data file not found at '{config_params.MJO_VARS_PATH}'")
+        data_obs_vars = data_obs_vars[vars_mjo].sel(time=slice(str(self.start_year_mjo), str(self.end_year_mjo)))
+
+
+        # Extract MJO variables from simulation data
+        for var_name in vars_mjo:
+            if var_name not in data_sim.data_vars:
+                raise ValueError(f"Varaible '{var_name}' required for the MJO analysis not found in the simulated dataset '{self.sim_name}'.")
+        data_sim_vars = data_sim[vars_mjo]
+
+        # Regrid simulations if needed to match observations' resolution
+        data_sim_vars_regrid = self._match_obs_resolution(data_sim_vars)
+
+
+        # Prepare reference years
+        if start_year_ref is None:
+            start_year_ref = self.start_year_mjo
+        if end_year_ref is None:
+            end_year_ref = self.end_year_mjo
+
+        # Filter data and remove longer-time-scale components
+        filtered_obs, anom_obs, std_obs = mjo_scores.remove_longer_time_scale_components(data_obs_vars, start_year_ref, end_year_ref, lat_range, 
+                                                                                         rolling_window_size, n_harmonics, normalize_std)
+        filtered_sim, anom_sim, std_sim = mjo_scores.remove_longer_time_scale_components(data_sim_vars_regrid, start_year_ref, end_year_ref, lat_range,
+                                                                                         rolling_window_size, n_harmonics, normalize_std)
+
+        return filtered_sim, anom_sim, std_sim, filtered_obs, anom_obs, std_obs
+    
+
+    def _perform_CEOF_analysis(self, n_modes):
+        """
+        Perform Combined Empirical Orthogonal Function (CEOF) analyses on observational and 
+        simulation data. For the latter, projecting the data both on the observed CEOFs and
+        on its own CEOFs.
+
+        Parameters
+        ----------
+        n_modes : int
+            Number of CEOF modes to compute.
+
+        Returns
+        -------
+        ceof_obs : xr.Dataset
+            Output of CEOF analysis for observational data ('eof', 'eigval', 'var_frac' 
+            and 'pc' for the first 'n_modes').
+        ceof_sim_on_obs : xr.Dataset
+            Output of CEOF analysis for simulated data projected on observational CEOFs 
+            ('eof', 'eigval', 'var_frac' and 'pc' for the first 'n_modes').
+        ceof_sim_on_sim : xr.Dataset
+            Output of CEOF analysis for simulated data projected on its own CEOFs 
+            ('ceof', 'eigval', 'var_frac' and 'pc' for the first 'n_modes').
+        """
+
+        # Load observational model data (not used anymore, kept for reference)
+        # try:
+        #     model_mjo_obs = xeofs.single.EOF.load(config_params.MJO_MODEL_PATH)
+        # except FileNotFoundError:
+        #     raise FileNotFoundError(f"Observations MJO CEOF analysis file not found at "
+        #                             f"'{config_params.MJO_MODEL_PATH}'")
+        
+
+        # Perform observational CEOF analysis (correct sign of the first mode to match the typical
+        # MJO pattern from (M.Wheeler et al., (2004))
+        model_mjo_obs = mjo_scores.fit_CEOF_model_xeofs(self.data_mjo_obs, n_modes)
+        ceof_obs = mjo_scores.perform_CEOF_analysis(None, model_mjo_obs, n_modes)
+        ceof_obs['ceof'].loc[dict(mode=0)] *= -1
+        ceof_obs['pc'].loc[dict(mode=0)] *= -1
+        ceof_obs.attrs['EOFs source'] = f"Observations '{self.obs_name}'"
+        ceof_obs.attrs['PCs source'] = f"Observations '{self.obs_name}' projected on Observations CEOFs"
+        
+
+        # Compute PCs for simulations projecting on observed CEOFs
+        ceof_sim_on_obs = ceof_obs.copy(deep=True)
+        ceof_sim_on_obs.attrs['EOFs source'] = f"Observations '{self.obs_name}'"
+        ceof_sim_on_obs.attrs['PCs source'] = f"Simulations '{self.sim_name}' projected on Observations '{self.obs_name}' CEOFs"
+
+        pc_sim_on_obs = model_mjo_obs.transform(self.data_mjo_sim)
+
+        # Correct PCs to match eofs.xarray.Eof output
+        pc_sim_on_obs = pc_sim_on_obs.assign_coords(mode=[0, 1]).transpose('time', 'mode')
+        pc_sim_on_obs = pc_sim_on_obs/np.sqrt(ceof_sim_on_obs['eigval'])
+        pc_sim_on_obs.loc[dict(mode=0)] *= -1
+        pc_sim_on_obs.attrs.pop('solver_kwargs', None)
+        ceof_sim_on_obs['pc'] = pc_sim_on_obs
+
+
+        # Perform and correct CEOF analysis on simulations projecting on themselves
+        ceof_sim_on_sim = mjo_scores.perform_CEOF_analysis(self.data_mjo_sim, None, n_modes)
+        ceof_sim_on_sim = mjo_scores.correct_CEOFs(ceof_sim_on_sim, ceof_obs)
+        ceof_sim_on_sim.attrs['EOFs source'] = f"Simulations '{self.sim_name}'"
+        ceof_sim_on_sim.attrs['PCs source'] = f"Simulations '{self.sim_name}' projected on Simulations '{self.sim_name}' CEOFs"
+
+        return ceof_obs, ceof_sim_on_obs, ceof_sim_on_sim
+    
+    
+    def _compute_CEOF_scores(self):
+        """
+        Compute scalar scores related to CEOFs, including the Pearson correlation 
+        between observed and simulated CEOFs, as well as the bias in the associated 
+        explained variance per variable and mode.
+
+        Returns
+        -------
+        ceof_scores : xr.Dataset
+            Scalar scores related to CEOFs (`ceof_corr`, `explained_var`, and 
+            `explained_var_bias`).
+        """
+
+        # Compute correlation between observed and simulated CEOFs
+        ceof_obs_corr = mjo_scores.compute_CEOFs_corr(self.ceof_obs['ceof'], self.ceof_obs['ceof'])
+        ceof_sim_corr = mjo_scores.compute_CEOFs_corr(self.ceof_obs['ceof'], self.ceof_sim_on_sim['ceof'])
+    
+
+        # Retrieve explained variance of the CEOFs (absolute value and bias)
+        ceof_obs_expl_var = self.ceof_obs[['var_frac']].rename({'var_frac': 'explained_var'})
+        ceof_sim_expl_var = self.ceof_sim_on_sim[['var_frac']].rename({'var_frac': 'explained_var'})
+
+        ceof_obs_expl_var_bias = ceof_obs_expl_var.rename({'explained_var': 'explained_var_bias'})
+        ceof_sim_expl_var_bias = (ceof_sim_expl_var - ceof_obs_expl_var).rename({'explained_var': 'explained_var_bias'}) 
+
+
+        # Store all scores in a single dataset
+        ceof_scores = xr.concat([
+            xr.merge([ceof_obs_corr, ceof_obs_expl_var, ceof_obs_expl_var_bias]),
+            xr.merge([ceof_sim_corr, ceof_sim_expl_var, ceof_sim_expl_var_bias])
+        ], dim='dataset')
+        ceof_scores = ceof_scores.assign_coords(dataset=['obs', 'sim'])
+
+        return ceof_scores
+
+
+    def _compute_phase_counts(self, threshold=None):
+        """
+        Compute the number of MJO days and MJO active days per phase for 
+        both simulations and observations, including simulations projected 
+        on observed CEOFs and on their own CEOFs.
+
+        Parameters
+        ----------
+        threshold : float
+            Threshold for the amplitude of the first two PCs to consider the  
+            MJO active at a given day. If None, the mean MJO amplitude over 
+            the entire time period is used as a threshold.
+
+        Returns
+        -------
+        phase_counts : xr.Dataset
+            Mean amplitude and days per phase (total and only for active MJO days).
+            It contains the following variables: 'mean_amplitude', 'mean_active_amplitude',
+            'total_counts' and 'active_counts' per phase for observations ('obs'), 
+            simulations projected on observed CEOFs ('sim_on_obs'), and simulations 
+            projected on their own CEOFs ('sim_on_sim').
+        """
+
+        # Compute days for observations
+        pcs_obs = self.ceof_obs['pc'].sel(time=slice(str(self.start_year_mjo), str(self.end_year_mjo)))
+        phase_counts_obs = mjo_scores.compute_phase_counts(pcs_obs, threshold)
+        # phase_counts_obs.attrs['PCs source'] = self.ceof_obs.attrs['PCs source']
+
+        # Compute days for simulations projected on observed CEOFs
+        pcs_sim_on_obs = self.ceof_sim_on_obs['pc']
+        phase_counts_sim_on_obs = mjo_scores.compute_phase_counts(pcs_sim_on_obs, threshold)
+        # phase_counts_sim_on_obs.attrs['PCs source'] = self.ceof_sim_on_obs.attrs['PCs source']
+        
+        # Compute days for simulations projected on their own CEOFs
+        pcs_sim_on_sim = self.ceof_sim_on_sim['pc']
+        phase_counts_sim_on_sim = mjo_scores.compute_phase_counts(pcs_sim_on_sim, threshold)
+        # phase_counts_sim_on_sim.attrs['PCs source'] = self.ceof_sim_on_sim.attrs['PCs source']
+
+        # Compile all phase counts into a single dataset
+        phase_counts = xr.concat([phase_counts_obs, phase_counts_sim_on_obs, phase_counts_sim_on_sim], dim='dataset')
+        phase_counts = phase_counts.assign_coords(dataset=['obs', 'sim_on_obs', 'sim_on_sim'])
+
+        return phase_counts
+
+
+    def _compute_phase_counts_bias(self):
+        """
+        Compute the bias in the number of MJO days and MJO active days per phase for
+        simulations projected on observed CEOFs and on their own CEOFs, with respect 
+        to observations.
+        
+        Returns
+        -------
+        phase_counts_bias : xr.Dataset
+            Bias in mean amplitude and days per phase (total and only for active MJO days).
+            It contains the following variables: 'mean_amplitude', 'mean_active_amplitude',
+            'total_counts' and 'active_counts' per phase for observations ('obs'), 
+            simulations projected on observed CEOFs ('sim_on_obs'), and simulations 
+            projected on their own CEOFs ('sim_on_sim').
+        cbar_ticks_bias : list[str]
+            Colorbar ticks labels for bias tables.
+        colors_bias : tuple
+            Colorbar colors for bias tables.
+        """
+
+        # Compile all bias counts into a single dataset
+        phase_counts_bias = xr.concat([
+            self.activity_per_phase.isel(dataset=0).expand_dims('dataset'),
+            self.activity_per_phase.isel(dataset=slice(1, None)) - self.activity_per_phase.isel(dataset=0),
+        ], dim='dataset') 
+
+        # Define plotting parameters
+        cbar_ticks_bias = ['Negative bias', 'No bias', 'Positive bias']
+        colors_bias = ("RedGreen", ['tab:red', 'white', 'tab:green'])   #("BlueRed", ['tab:blue', 'white', 'tab:red'])
+
+        return phase_counts_bias, cbar_ticks_bias, colors_bias
+
+
+    def save_data(self, output_path):
+        """
+        Save computed output of CEOF analysis to NetCDF files.
+
+        Parameters
+        ----------
+        output_path : str
+            Path to save the data files.
+        """
+
+        output_path = Path(output_path)
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        # Prepare parameters for file names
+        year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
+        obs_name_file = self.obs_name.replace(' ', '-')
+        sim_name_file = self.sim_name.replace(' ', '-') 
+
+
+        # Save output of CEOF analyses
+        ceof_obs_path = output_path / f"ceof_mjo_{obs_name_file}_{year_range}.nc"
+        self.ceof_obs.to_netcdf(ceof_obs_path)
+        print(f"Output of CEOF analysis for '{self.obs_name}' saved to '{ceof_obs_path}'.", flush=True)
+
+        ceof_sim_on_obs_path = output_path / f"ceof_mjo_{sim_name_file}_projected_on_{obs_name_file}_{year_range}.nc"
+        self.ceof_sim_on_obs.to_netcdf(ceof_sim_on_obs_path)
+        print(f"Output of CEOF analysis for '{self.sim_name}' projected on '{self.obs_name}' saved to '{ceof_sim_on_obs_path}'.", flush=True)
+
+        ceof_sim_on_sim_path = output_path / f"ceof_mjo_{sim_name_file}_projected_on_{sim_name_file}_{year_range}.nc"
+        self.ceof_sim_on_sim.to_netcdf(ceof_sim_on_sim_path)
+        print(f"Output of CEOF analysis for '{self.sim_name}' projected on itself saved to '{ceof_sim_on_sim_path}'.", flush=True)
+
+
+        # Save CEOF scalar scores
+        ceof_scores_path = output_path / f"ceof_scores_{sim_name_file}_{obs_name_file}_{year_range}.nc"
+        self.ceof_scores.to_netcdf(ceof_scores_path)
+        print(f"Scalar scores related to CEOFs for all datasets saved to '{ceof_scores_path}'.", flush=True)
+
+
+        # Save total and active MJO days (absolute values and bias)
+        activity_per_phase_path = output_path / f"activity_per_phase_{sim_name_file}_{obs_name_file}_{year_range}.nc"
+        self.activity_per_phase.to_netcdf(activity_per_phase_path)
+        print(f"MJO activity (mean amplitude and days) per phase for all datasets saved to '{activity_per_phase_path}'.", flush=True)
+
+        activity_per_phase_bias_path = output_path / f"activity_per_phase_bias_{sim_name_file}_{obs_name_file}_{year_range}.nc"
+        self.activity_per_phase_bias.to_netcdf(activity_per_phase_bias_path)
+        print(f"Bias in MJO activity (mean amplitude and days) per phase for all datasets saved to '{activity_per_phase_bias_path}'.", flush=True)
+        
+        return
+
+
+    def ceof_plots(self, output_path=None):
+        """
+        Generate and save/display plots of CEOFs for simulations and observations together.
+
+        Parameters
+        ----------
+        output_path : str, optional
+            Path to save plots. If None, plots are displayed but not saved.
+        """
+
+        # Prepare plotting parameters
+        # vars_colors = {
+        #     'ua850': '#e41a1c',  # red
+        #     'ua200': '#4daf4a',  # green
+        #     'rlut':  '#377eb8'   # blue
+        # }
+        labels_linestyles = {
+            self.obs_name: '-',
+            self.sim_name: '--'
+        }
+
+        # Prepare parameters for titles and file names
+        sim_name_file = self.sim_name.replace(' ', '-')
+        obs_name_file = self.obs_name.replace(' ', '-')
+        year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
+
+        # Generate EOFs plot
+        ceof_sim_plot, _ = plot.plot_ceofs([self.ceof_obs['ceof'], self.ceof_sim_on_sim['ceof']], title=f"Multivariate MJO EOFs, {self.obs_name} vs {self.sim_name} ({year_range})",
+                                          labels_linestyles=labels_linestyles)
+        
+        plot.save_or_show_plot(ceof_sim_plot, output_path, plot_filename=f"ceof_{sim_name_file}-{obs_name_file}_projected_on_sim_{year_range}",
+                               plot_name=f"Multivariate MJO CEOFs for '{self.sim_name}' vs '{self.obs_name}' plot")
+
+        return
+
+
+    def ceof_corr_table(self, output_path=None):
+        """
+        Generate and save/display table with CEOF correlation for each dataset together.
+
+        Parameters
+        ----------
+        output_path : str, optional
+            Path to save the table. If None, the table is displayed but not saved.
+        """
+
+        # Prepare data and plotting parameters
+        ceof_corr = self.ceof_scores['ceof_corr'].values
+        data_ceof_corr = ceof_corr.reshape(ceof_corr.shape[0], -1)
+        sim_name_file = self.sim_name.replace(' ', '-')
+        obs_name_file = self.obs_name.replace(' ', '-')
+
+        year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
+        cols_ceof_corr = np.append([f'{self.data_res}° x {self.data_res}°'], [fr'$r_{{\text{{{var}}}, {mode}}}$' for var in self.ceof_scores['variable'].values 
+                                           for mode in self.ceof_scores['mode'].values])
+        rows_ceof_corr = [self.obs_name, self.sim_name]
+
+        cbar_ticks_corr = ['Negative correlation (-1)', 'No correlation (0)', 'Positive correlation (1)']
+        colors_corr = ("RedGreen", ['tab:red', 'white', 'tab:green']) 
+        limits_corr = np.repeat([[-1, 1]], len(cols_ceof_corr)-1, axis=0)
+
+        # Generate CEOF scores table
+        ceof_scores_table, _ = plot.plot_table(data_ceof_corr, title=f"Correlation between CEOFs per variable and mode ({year_range})", col_labels=cols_ceof_corr,
+                                               row_labels=rows_ceof_corr, cbar_ticks=cbar_ticks_corr, colors=colors_corr, limits=limits_corr,
+                                               decimals=2)
+        
+        plot.save_or_show_plot(ceof_scores_table, output_path, plot_filename=f"ceof_corr_table_{sim_name_file}_{obs_name_file}_{year_range}",
+                               plot_name=f"Correlation in CEOFs table plot")
+
+        return
+
+
+    def explained_var_bias_table(self, output_path=None):
+        """
+        Generate and save/display table plot with the CEOFs explained variance bias.
+        
+        Parameters
+        ----------
+        output_path : str, optional
+            Path to save the table plot. If None, the table is displayed but not saved.
+        """
+
+        # Prepare data and plotting parameters
+        expl_var_bias = self.ceof_scores['explained_var_bias'].values
+        data_expl_var_bias = expl_var_bias.reshape(expl_var_bias.shape[0], -1)
+        sim_name_file = self.sim_name.replace(' ', '-')
+        obs_name_file = self.obs_name.replace(' ', '-')
+
+        year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
+        cols_expl_var_bias = np.append([f'{self.data_res}° x {self.data_res}°'], [fr'$\overline{{b}}_{{{mode}}}$ (%)' for mode in self.ceof_scores['mode'].values])
+        rows_expl_var_bias = [self.obs_name, self.sim_name]
+
+        maxs_expl_var_bias = np.max(np.abs(data_expl_var_bias[1:, :]), axis=0)
+        limits_expl_var_bias = np.stack([-maxs_expl_var_bias, maxs_expl_var_bias], axis=1)
+        
+        # Generate table plot
+        expl_var_bias_table_plot, _ = plot.plot_table(data_expl_var_bias, title=f'Bias in CEOFs explained variance per mode ({year_range})', col_labels=cols_expl_var_bias, 
+                                                      row_labels=rows_expl_var_bias, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias, 
+                                                      limits=limits_expl_var_bias, decimals=2)
+        
+        plot.save_or_show_plot(expl_var_bias_table_plot, output_path, plot_filename=f"ceof_explained_var_bias_table_{sim_name_file}_{obs_name_file}_{year_range}",
+                               plot_name=f"Bias in CEOFs explained variance table plot")
+
+        return
+
+
+    def mean_active_amplitude_plot(self, output_path=None):
+        """
+        Generate and save/display bar plot with mean MJO amplitude in the active 
+        days per phase for each dataset.
+        
+        Parameters
+        ----------
+        output_path : str, optional
+            Path to save the bar plot. If None, the plot is displayed but not saved.
+        """
+
+        # Prepare data and plotting parameters
+        data_mean_active_amp = self.activity_per_phase['mean_active_amplitude'].values
+        x_values = self.activity_per_phase.phase.values
+
+        sim_name_file = self.sim_name.replace(' ', '-')
+        obs_name_file = self.obs_name.replace(' ', '-')
+
+        year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
+        labels_mean_amp = [f"{self.obs_name}", f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
+
+        # Generate bar plot
+        mean_amp_bar_plot, _ = plot.plot_grouped_bars(data_mean_active_amp, x_values=x_values, title=f'Mean MJO amplitude per phase ({year_range})', 
+                                                     x_label='MJO phase', y_label='mean amplitude', labels=labels_mean_amp)
+        
+        plot.save_or_show_plot(mean_amp_bar_plot, output_path, plot_filename=f"mean_amplitude_{sim_name_file}_{obs_name_file}_{year_range}",
+                               plot_name=f"Mean MJO amplitude in the active days per phase bar plot")
+
+        return
+    
+    
+    def active_days_plot(self, output_path=None):
+        """
+        Generate and save/display bar plot with active MJO days per phase for each
+        dataset.
+        
+        Parameters
+        ----------
+        output_path : str, optional
+            Path to save the bar plot. If None, the plot is displayed but not saved.
+        """
+
+        # Prepare data and plotting parameters
+        data_active_days = self.activity_per_phase['active_counts'].values
+        x_values = self.activity_per_phase.phase.values
+
+        sim_name_file = self.sim_name.replace(' ', '-')
+        obs_name_file = self.obs_name.replace(' ', '-')
+
+        year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
+        labels_active_days = [f"{self.obs_name}", f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
+
+        # Generate bar plot
+        active_days_bar_plot, _ = plot.plot_grouped_bars(data_active_days, x_values=x_values, title=f'Active MJO days per phase ({year_range})', 
+                                                     x_label='MJO phase', y_label='number of active days', labels=labels_active_days)
+        
+        plot.save_or_show_plot(active_days_bar_plot, output_path, plot_filename=f"active_days_{sim_name_file}_{obs_name_file}_{year_range}",
+                               plot_name=f"Active MJO days per phase bar plot")
+
+        return
+
+
+    def activity_per_phase_plots(self, output_path=None, layout='separate'):
+        """
+        Generate and save/display plot with mean MJO amplitude in the active days 
+        and active MJO days per phase for each dataset together.
+        
+        Parameters
+        ----------
+        output_path : str, optional
+            Path to save the plot. If None, the plot is displayed but not saved.
+        layout: str
+            Whether to plot mean amplitude and active days in 'separate' bar 
+            subplots or 'together' in the same dots plot sharing the x-axis 
+            (default: 'separate').
+        """
+
+        # Prepare data and plotting parameters
+        data_mean_active_amp = self.activity_per_phase['mean_active_amplitude'].values
+        data_active_days = self.activity_per_phase['active_counts'].values
+        
+        x_values = self.activity_per_phase.phase.values
+        x_values_minor = np.append([0.5], x_values + 0.5) 
+        x_label = 'MJO phase'
+
+        sim_name_file = self.sim_name.replace(' ', '-')
+        obs_name_file = self.obs_name.replace(' ', '-')
+
+        year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
+        labels = [f"{self.obs_name}", f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
+
+        # Generate bar plot
+        if layout == 'separate':
+            mean_amp_active_days_plot, _ = plot.plot_two_grouped_bars(data_mean_active_amp, data_active_days, x1_values=x_values, x2_values=x_values,
+                                                                        suptitle=f'MJO activity per phase ({year_range})', title_1='Mean MJO amplitude per phase', 
+                                                                        title_2='Active MJO days per phase', x1_label=x_label, x2_label=x_label, 
+                                                                        y1_label='mean amplitude', y2_label='number of active days', labels=labels)
+        elif layout == 'together':
+            mean_amp_active_days_plot, _ = plot.plot_dots_two_axes(data_mean_active_amp, data_active_days, x_values=x_values, x_values_minor=x_values_minor, 
+                                                                       title=f'MJO activity per phase ({year_range})', x_label=x_label, y1_label='mean amplitude', 
+                                                                       y2_label='number of active days', labels=labels)
+        else:
+            raise ValueError(f"Invalid layout option '{layout}'. Choose either 'separate' or 'together'.")
+        
+        plot.save_or_show_plot(mean_amp_active_days_plot, output_path, plot_filename=f"activity_per_phase_{layout}_{sim_name_file}_{obs_name_file}_{year_range}",
+                               plot_name=f"MJO activity (mean MJO amplitude and active days) per phase {layout} plot")
+
+        return
+
+
+    def mean_amplitude_bias_table(self, output_path=None):
+        """
+        Generate and save/display table plot with mean MJO amplitude per phase bias.
+        
+        Parameters
+        ----------
+        output_path : str, optional
+            Path to save the table plot. If None, the table is displayed but not saved.
+        """
+
+        # Prepare data and plotting parameters
+        data_mean_amp_bias = self.activity_per_phase_bias['mean_active_amplitude'].values
+        sim_name_file = self.sim_name.replace(' ', '-')
+        obs_name_file = self.obs_name.replace(' ', '-')
+
+        year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
+        cols_mean_amp_bias = np.append([f'{self.data_res}° x {self.data_res}°'], [fr'$\overline{{b}}_{{ph\, {phase}}}$ (-)' for phase in self.activity_per_phase.phase.values])
+                                           #(['Dataset \ Phase'], [str(phase) for phase in self.activity_per_phase.phase.values])
+        rows_mean_amp_bias = [self.obs_name, f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
+
+        maxs_mean_amp_bias = np.max(np.abs(data_mean_amp_bias[1:, :]), axis=0)
+        limits_mean_amp_bias = np.stack([-maxs_mean_amp_bias, maxs_mean_amp_bias], axis=1)
+        
+        # Generate table plot
+        mean_amp_bias_table_plot, _ = plot.plot_table(data_mean_amp_bias, title=f'Bias in mean MJO amplitude per phase ({year_range})', col_labels=cols_mean_amp_bias, 
+                                                      row_labels=rows_mean_amp_bias, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias, 
+                                                      limits=limits_mean_amp_bias, decimals=2)
+        
+        plot.save_or_show_plot(mean_amp_bias_table_plot, output_path, plot_filename=f"mean_amplitude_bias_table_{sim_name_file}_{obs_name_file}_{year_range}",
+                               plot_name=f"Bias in mean MJO amplitude per phase table plot")
+
+        return
+
+
+    def active_days_bias_table(self, output_path=None):
+        """
+        Generate and save/display table plot with active MJO days per phase bias.
+        
+        Parameters
+        ----------
+        output_path : str, optional
+            Path to save the table plot. If None, the table is displayed but not saved.
+        """
+
+        # Prepare data and plotting parameters
+        data_active_days_bias = self.activity_per_phase_bias['active_counts'].values
+        sim_name_file = self.sim_name.replace(' ', '-')
+        obs_name_file = self.obs_name.replace(' ', '-')
+
+        year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
+        cols_active_days_bias = np.append([f'{self.data_res}° x {self.data_res}°'], [fr'$\overline{{b}}_{{ph\, {phase}}}$ (days)' for phase in self.activity_per_phase.phase.values])
+                                           #(['Dataset \ Phase'], [str(phase) for phase in self.activity_per_phase.phase.values])
+        rows_active_days_bias = [self.obs_name, f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
+
+        maxs_active_days_bias = np.max(np.abs(data_active_days_bias[1:, :]), axis=0)
+        limits_active_days_bias = np.stack([-maxs_active_days_bias, maxs_active_days_bias], axis=1)
+        
+        # Generate table plot
+        active_days_bias_table_plot, _ = plot.plot_table(data_active_days_bias, title=f'Bias in active MJO days per phase ({year_range})', col_labels=cols_active_days_bias, 
+                                                         row_labels=rows_active_days_bias, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias, 
+                                                         limits=limits_active_days_bias, decimals=0)
+        
+        plot.save_or_show_plot(active_days_bias_table_plot, output_path, plot_filename=f"active_days_bias_table_{sim_name_file}_{obs_name_file}_{year_range}",
+                               plot_name=f"Bias in active MJO days per phase table plot")
+
+        return
+
+
 class TCEvaluation:
     """
     Compute Tropical Cyclones (TCs) metrics and derived scalar scores.
@@ -1001,7 +1756,7 @@ class TCEvaluation:
     start_year_tc, end_year_tc : int, optional
         Initial and end years to compute the TCs metrics for.
     obs : bool
-        If True, also consider obsrvational data if available (default: True).
+        If True, also consider observational data if available (default: True).
     wind_factor : float
         Wind speed correction factor (to normalize the provided wind to 10 m wind) for simulations (default: 1.0).
     min_wind : float
@@ -1074,8 +1829,8 @@ class TCEvaluation:
 
         # Select years for TCs analysis
         self.start_year_tc, self.end_year_tc = data_general.validate_year_range(data_sim, start_year_tc, end_year_tc, process_name="TC")
-        print(f"\tYears selected for TCs metrics computation: {self.start_year_tc}-{self.end_year_tc}.", flush=True)
-        data_sim_tcs = data_sim.data.sel(time=slice(np.datetime64(f"{self.start_year_tc}-01-01"), np.datetime64(f"{self.end_year_tc}-12-31")))
+        print(f"\tYears selected for TCs scores computation: {self.start_year_tc}-{self.end_year_tc}.", flush=True)
+        data_sim_tcs = data_sim.data.sel(time=slice(str(self.start_year_tc), str(self.end_year_tc)))
 
         # Prepare output folder for temporary files
         self.tracks_path = config_params.TC_DATA_PATH / "temp_tracks"
@@ -1248,17 +2003,21 @@ class TCEvaluation:
 
 
         # Retrieve biases as xarray.Datasets
-        clim_mean = self.data_cymep[[f'clim_mean_{metric}' for metric in self.metrics_metadata if self.metrics_metadata[metric]['temporal']==True]]
+        clim_metrics = [metric for metric in self.metrics_metadata if self.metrics_metadata[metric]['temporal']==True]
+        clim_mean = self.data_cymep[[f'clim_mean_{metric}' for metric in clim_metrics]]
         clim_bias = xr.concat([
             clim_mean.isel(model=0).expand_dims('model'),
             clim_mean.isel(model=slice(1, None)) - clim_mean.isel(model=0)
         ], dim='model')
-
-        storm_mean = self.data_cymep[[f'storm_mean_{metric}' for metric in self.metrics_metadata if self.metrics_metadata[metric]['temporal']==True and metric!='count']]
+        clim_bias = clim_bias.rename({f'clim_mean_{metric}': f'clim_bias_{metric}' for metric in clim_metrics})
+        
+        storm_metrics = [metric for metric in self.metrics_metadata if self.metrics_metadata[metric]['temporal']==True and metric!='count']
+        storm_mean = self.data_cymep[[f'storm_mean_{metric}' for metric in storm_metrics]]
         storm_bias = xr.concat([
             storm_mean.isel(model=0).expand_dims('model'),
             storm_mean.isel(model=slice(1, None)) - storm_mean.isel(model=0)
         ], dim='model')
+        storm_bias = storm_bias.rename({f'storm_mean_{metric}': f'storm_bias_{metric}' for metric in storm_metrics})
 
         # Define plotting parameters
         cbar_ticks_bias = ['Negative bias', 'No bias', 'Positive bias']
@@ -1649,8 +2408,8 @@ class ScientificEvaluation:
         return
     
     
-    def compute_general_scores(self, var_names=None, data_name=None, start_year=None, end_year=None, obs_name=config_params.GEN_OBS_NAME, 
-                               obs_path=config_params.GEN_OBS_PATH):
+    def compute_general_scores(self, var_names=None, data_name=None, obs_name=None, obs_path=None, #config_params.GEN_OBS_NAME, obs_path=config_params.GEN_OBS_PATH, 
+                               start_year=None, end_year=None):
         """
         Initialize and compute general model skill evaluation scores for a selected dataset.
         
@@ -1661,12 +2420,12 @@ class ScientificEvaluation:
         data_name : str, optional
             Name of simulation ensemble to use. If None, the first dataset in the ScientificEvaluation 
             object is used.
-        start_year, end_year : int
-            Initial and end years to compute the general scores for.
         obs_name : str
             Name of the observational dataset to compare to (default: config_params.GEN_OBS_NAME).
         obs_path : str
             Path to the observations database (default: config_params.GEN_OBS_PATH).
+        start_year, end_year : int
+            Initial and end years to compute the general scores for.
 
         Returns
         -------
@@ -1690,8 +2449,8 @@ class ScientificEvaluation:
         
         # Create GeneralEvaluation object and compute scores
         print(f"Performing general scalar analysis for dataset '{data_name}':", flush=True)
-        general_analysis = GeneralEvaluation(data_sim=data_general, var_names=var_names, start_year=start_year, end_year=end_year, 
-                                             obs_name=obs_name, obs_path=obs_path)
+        general_analysis = GeneralEvaluation(data_sim=data_general, var_names=var_names, obs_name=obs_name, 
+                                             obs_path=obs_path, start_year=start_year, end_year=end_year)
 
         return general_analysis
 
@@ -1758,6 +2517,67 @@ class ScientificEvaluation:
                                       n_modes=n_modes, window=window, low_freq=low_freq, high_freq=high_freq)
 
         return iso_analysis
+    
+
+    def compute_mjo_scores(self, data_name=None, start_year_mjo=None, end_year_mjo=None, start_year_ref=None, end_year_ref=None,
+                           lat_range=(-15, 15), rolling_window_size=120, n_harmonics=3, normalize_std=False, n_modes=2,
+                           threshold_active_days=None):
+        """
+        Initialize and compute RMM indices and derived scalar scores following (M.C. Wheeler et al., 2004) 
+        for a selected dataset.
+
+        Parameters
+        ----------
+        data_name : str, optional
+            Name of simulation ensemble to use. If None, the first dataset in the ScientificEvaluation 
+            object is used.
+        start_year_mjo, end_year_mjo : int
+            Initial and end years to perform the analysis for.
+        start_year_ref, end_year_ref : int
+            Initial and end years for computing the reference seasonal cycle. If None, taken as the
+            initial and end years for the whole MJO analysis.
+        lat_range : tuple
+            Geographic latitude bounds (default: (-15, 15)).
+        rolling_window_size : int
+            Window size for rolling mean to remove low-frequency variability (default: 120 days).
+        n_harmonics : int
+            Number of harmonics to remove from the seasonal cycle (default: 3).
+        normalize_std : bool
+            Whether to normalize anomalies by fixed standard deviations when removing the seasonal
+            cycle (default: False).
+        n_modes : int
+            Number of CEOFs to compute (default: 2).
+        threshold_active_days : float
+            Threshold for the amplitude of the first two PCs to consider the MJO active at a given 
+            day. If None, the mean MJO amplitude over the entire period is used as a threshold.
+
+        Returns
+        -------
+        mjo_analysis : MJOEvaluation
+            MJOEvaluation object containing the computed RMM MJO indices and scalar scores.
+        """
+
+        # Validate input
+        if data_name is None:
+            if len(self.datasets) < 1:
+                raise ValueError("At least one dataset is required for the MJO evaluation.")
+            data_MJO = self.datasets[0]
+            data_name = data_MJO.name
+        elif isinstance(data_name, str):
+            data_MJO = [ds for ds in self.datasets if ds.name == data_name]
+            if not data_MJO:
+                raise ValueError(f"Dataset with name '{data_name}' not found in the ScientificEvaluation object.")
+            data_MJO = data_MJO[0]
+        else:
+            raise TypeError("'data_name' must be a string representing a dataset name.")
+        
+        # Create MJOEvaluation object and compute scores
+        print(f"Performing MJO analysis for dataset '{data_name}':", flush=True)
+        mjo_analysis = MJOEvaluation(data_sim=data_MJO, start_year_mjo=start_year_mjo, end_year_mjo=end_year_mjo, start_year_ref=start_year_ref, 
+                                     end_year_ref=end_year_ref, lat_range=lat_range, rolling_window_size=rolling_window_size, n_harmonics=n_harmonics, 
+                                     normalize_std=normalize_std, n_modes=n_modes, threshold_active_days=threshold_active_days)
+
+        return mjo_analysis
     
 
     def compute_tc_scores(self, data_name=None, start_year_tc=None, end_year_tc=None, obs=True, wind_factor=1.0, min_wind=10, 
