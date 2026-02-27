@@ -31,6 +31,8 @@ class ReplicabilityTest:
         Ensemble or list of ensembles containing simulation data and metadata.
     obs_path : str
         Path to the observations database.
+    alpha : float
+        Significance level for the statistical tests (default: 0.05).
 
     Attributes
     ----------
@@ -42,6 +44,8 @@ class ReplicabilityTest:
         Instance containing observational data for comparison.
     variables : dict
         Configuration dictionary mapping variable names to display metadata.
+    alpha : float
+        Significance level for the statistical tests.
     max_workers_grid : int
         Number of parallel workers used for variable-wise computations.
     metrics : list of dict
@@ -52,9 +56,16 @@ class ReplicabilityTest:
         List of seasons to compute scores over.
     regions : dict
         Dictionary mapping region names to latitude bounds.
+    eff_sizes : dict
+        Dictionary to store effect sizes between the replicability test scores for 
+        each pair of datasets.
+    test_results : dict
+        Dictionary to store results of the replicability test for each pair of datasets.
     """
 
-    def __init__(self, datasets: Iterable[SimulationData] = None, obs_path: str = None):
+    def __init__(self, datasets=None, obs_path=None, alpha=0.05):
+
+        # Validate inputs and prepare observational data and variables
         self.obs_path = obs_path
         if datasets is None:
             self.datasets = []
@@ -75,12 +86,25 @@ class ReplicabilityTest:
             expected_vars = data_general.load_yaml_file(config_params.VARIABLES_PATH)
             self.variables = {var: info for var, info in expected_vars.items() if var in datasets[0].data.data_vars}
 
+        # Validate significance level
+        if not isinstance(alpha, (int, float)):
+            raise TypeError(f"The significance level 'alpha' must be numeric.")
+        if not (0 <= alpha <= 1):
+            raise ValueError(f"'alpha' must be between 0 and 1.")
+        self.alpha = alpha
+
         # Load config parameters once
         self.max_workers_vars = config_params.MAX_WORKERS_VARS
         self.metrics = config_params.METRICS
         self.tests = config_params.TESTS
         self.seasons = config_params.SEASONS
         self.regions = config_params.REGIONS
+
+        # Create placeholders for effect sizes and replicability test results
+        self.eff_sizes = {}
+        self.test_results = {}
+
+        return
 
 
     def _compare_ensembles(self):
@@ -319,7 +343,7 @@ class ReplicabilityTest:
         return effect_sizes
 
 
-    def _apply_tests(self, scores_all, data_names, alpha=0.05):
+    def _apply_tests(self, scores_all, data_names):
         """ 
         Compare scores with statistical tests separating by season
         and region, for all available variables. 
@@ -330,8 +354,6 @@ class ReplicabilityTest:
             Dictionary of scores datasets for each variable.
         data_names : list[str]
             List of two simulation ensemble names to compare.
-        alpha : float
-            Significance level for the statistical tests (default: 0.05).
 
         Returns
         -------
@@ -353,11 +375,6 @@ class ReplicabilityTest:
                 if name not in scores.coords['dataset'].values:
                     raise ValueError(f"Dataset '{name}' not found in scores for variable '{var_name}'. "
                                      f"Available datasets: {scores.coords['dataset'].values}")
-
-        if not isinstance(alpha, (int, float)):
-            raise TypeError(f"The significance level 'alpha' must be numeric.")
-        if not (0 <= alpha <= 1):
-            raise ValueError(f"'alpha' must be between 0 and 1.")
         
         
         # Initialize array
@@ -382,11 +399,11 @@ class ReplicabilityTest:
                         # Apply statistical tests
                         for test_idx, test_name in enumerate(self.tests):
                             p_value = self.tests[test_name](scores_ref, scores_test)
-                            test_results[var_idx, section_idx, test_idx] |= (p_value <= alpha)
+                            test_results[var_idx, section_idx, test_idx] |= (p_value <= self.alpha)
 
-        print('Performed replicability test for all variables...', flush=True)
+        print('Performed replicability test for all variables.', flush=True)
         return test_results
-            
+
 
     def add_datasets(self, datasets):
         """ 
@@ -425,22 +442,17 @@ class ReplicabilityTest:
         return
 
 
-    def matrix_plot(self, data_names=None, output_path=None, alpha=0.05):
+    def perform_rep_test(self, data_names=None):
         """ 
-        Perform replicability test comparing the given simulation ensembles
-        and generate matrix plot with effect sizes and test results. 
+        Perform replicability test comparing the given simulation ensembles. 
         
         Parameters
         ---------- 
         data_names : list[str], optional
-            List of names of two simulation ensembles to compare. If None, the first two datasets
-            in the ReplicabilityTest object are used.
-        output_path : str, optional
-            Path to save the matrix plot.
-        alpha : float
-            Significance level for the statistical tests (default: 0.05).
+            List of names of two simulation ensembles to compare. If None, the first 
+            two datasets in the ReplicabilityTest object are used.
         """
-        
+
         # Validate inputs
         if data_names is None:
             if len(self.datasets) < 2:
@@ -459,23 +471,205 @@ class ReplicabilityTest:
                 raise ValueError(f"All selected datasets must contain a 'realization' coordinate for ensemble computations.")
         else:
             raise TypeError("'data_names' must be a list of two strings representing simulation dataset names.")
+             
 
-        if not isinstance(alpha, (int, float)):
-            raise TypeError(f"The significance level 'alpha' must be numeric.")
-        if not (0 <= alpha <= 1):
-            raise ValueError(f"'alpha' must be between 0 and 1.")
-
-        # Run replicability test
-        print(f"Started replicability test with significance level {alpha} to compare ensembles '{data_names[0]}' and '{data_names[1]}':", flush=True)
+        # Run replicability test (compute scores, effect sizes between them and apply statistical tests)
+        print(f"Started replicability test with significance level {self.alpha} to compare ensembles '{data_names[0]}' and '{data_names[1]}':", flush=True)
         scores = self._compute_scores(data_plot)
         eff_sizes = self._compute_eff_sizes(scores, data_names)
-        test_results = self._apply_tests(scores, data_names, alpha)
-        
-        # Plot results and save to path if given
-        matrix, _ = plot.plot_matrix(eff_sizes, test_results, title=f"Effect size replicability test ({data_names[0]} vs {data_names[1]})", variables=self.variables)
+        test_results = self._apply_tests(scores, data_names)
 
-        data_names_str = "_".join([name.replace(' ', '-') for name in data_names])
-        plot.save_or_show_plot(matrix, output_path, plot_filename=f"matrix_{data_names_str}", plot_name=f"Matrix plot")
+
+        # Store results in object attributes
+        datasets_name = " - ".join(data_names)
+        self.eff_sizes[datasets_name] = eff_sizes
+        self.test_results[datasets_name] = test_results
+        
+        return 
+
+
+    def get_eff_sizes(self, data_names):
+        """
+        Return precomputed effect sizes between the replicability test
+        scores for the given simulation ensembles.
+
+        Parameters
+        ----------
+        data_names : list[str]
+            List of names of two simulation ensembles to compare. 
+
+        Returns
+        -------
+        eff_sizes : xr.DataArray
+            Effect sizes for all variables, seasons, regions and metrics.
+        """
+
+        # Validate input
+        if not isinstance(data_names, list) or len(data_names) != 2 \
+            or not all(isinstance(name, str) for name in data_names):
+            raise TypeError("'data_names' must be a list of two strings representing simulation dataset names.")
+        
+        # Look for effect sizes in stored attributes
+        if " - ".join(data_names) in self.eff_sizes:
+            datasets_name = " - ".join(data_names)
+            eff_sizes_array = self.eff_sizes[datasets_name]
+        elif " - ".join(data_names[::-1]) in self.eff_sizes:
+            data_names = data_names[::-1]
+            datasets_name = " - ".join(data_names)
+            eff_sizes_array = self.eff_sizes[datasets_name]
+        else:
+            raise ValueError(f"Effect sizes between the selected datasets ('{data_names[0]}' and '{data_names[1]}') not found."
+                             f" Please, run 'perform_rep_test' method with the selected datasets to compute the effect sizes.")
+        
+        
+        # Reshape effect sizes to match dimensions (variables, seasons, regions, metrics)
+        eff_sizes_sizes = (len(self.variables), len(self.seasons), len(self.regions), len(self.metrics)+1)
+        eff_sizes_expanded = eff_sizes_array.reshape(eff_sizes_sizes)
+
+        # Convert effect sizes to xr.DataArray
+        eff_sizes = xr.DataArray(
+            data = eff_sizes_expanded,
+            dims = ["variable", "season", "region", "metric"],
+            coords = {
+                "variable": list(self.variables.keys()),
+                "season": self.seasons,
+                "region": list(self.regions.keys()),
+                "metric": np.append(self.metrics['name'], 'Combined')
+            },
+            attrs = {
+                "datasets": datasets_name
+            },
+            name = 'eff_sizes'
+        )
+
+        return eff_sizes
+
+    
+    def get_test_results(self, data_names):
+        """
+        Return replicability test results for the given simulation ensembles.
+
+        Parameters
+        ----------
+        data_names : list[str]
+            List of names of two simulation ensembles to compare. 
+
+        Returns
+        -------
+        test_results : xr.DataArray
+            Results of the replicability test for all variables, seasons, 
+            regions and tests.
+        """
+
+        # Validate input
+        if not isinstance(data_names, list) or len(data_names) != 2 \
+            or not all(isinstance(name, str) for name in data_names):
+            raise TypeError("'data_names' must be a list of two strings representing simulation dataset names.")
+        
+        # Look for results in stored attributes
+        if " - ".join(data_names) in self.test_results:
+            datasets_name = " - ".join(data_names)
+            test_results_array = self.test_results[datasets_name]
+        elif " - ".join(data_names[::-1]) in self.test_results:
+            data_names = data_names[::-1]
+            datasets_name = " - ".join(data_names)
+            test_results_array = self.test_results[datasets_name]
+        else:
+            raise ValueError(f"Replicability test results for the selected datasets ('{data_names[0]}' and '{data_names[1]}') not found."
+                             f" Please, run 'perform_rep_test' method with the selected datasets to compute the results.")
+        
+
+        # Reshape test results to match dimensions (variables, seasons, regions, tests)
+        test_results_sizes = (len(self.variables), len(self.seasons), len(self.regions), len(self.tests))
+        test_results_expanded = test_results_array.reshape(test_results_sizes)
+
+        # Convert test results to xr.DataArray
+        test_results = xr.DataArray(
+            data = test_results_expanded,
+            dims = ["variable", "season", "region", "test"],
+            coords = {
+                "variable": list(self.variables.keys()),
+                "season": self.seasons,
+                "region": list(self.regions.keys()),
+                "test": list(self.tests.keys())
+            },
+            attrs = {
+                "datasets": datasets_name
+            },
+            name = 'test_results'
+        )
+
+        return test_results
+
+
+    def save_data(self, data_names, output_path):
+        """
+        Save computed effect size between the replicability test
+        scores and test results to NetCDF files.
+
+        Parameters
+        ----------
+        data_names : list[str]
+            List of names of two simulation ensembles to compare. 
+        output_path : str
+            Path to save the data files.
+        """
+
+        # Look for results in stored attributes
+        datasets_name = " - ".join(data_names)
+        eff_sizes = self.get_eff_sizes(data_names)
+        test_results = self.get_test_results(data_names)
+
+        # Prepare output directory
+        output_path = Path(output_path)
+        output_path.mkdir(parents=True, exist_ok=True)
+
+
+        # Save data
+        data_names_file = "-".join([name.replace(' ', '_') for name in data_names])
+
+        eff_sizes_path = output_path / f"effect_size_scores_{data_names_file}.nc"
+        eff_sizes.to_netcdf(eff_sizes_path)
+        print(f"Effect size between the replicability test scores for '{datasets_name}' saved to '{eff_sizes_path}'", flush=True)
+
+        test_results_path = output_path / f"replicability_test_results_{data_names_file}.nc"
+        test_results.to_netcdf(test_results_path)
+        print(f"Replicability test results for '{datasets_name}' saved to '{test_results_path}'", flush=True)
+
+        return
+
+
+    def matrix_plot(self, data_names, output_path=None):
+        """ 
+        Generate matrix plot with effect sizes and replicability test results. 
+        
+        Parameters
+        ---------- 
+        data_names : list[str]
+            List of names of two simulation ensembles to compare. 
+        output_path : str, optional
+            Path to save the matrix plot.
+        """
+        
+        # Look for results in stored attributes
+        if " - ".join(data_names) in self.eff_sizes:
+            datasets_name = " - ".join(data_names)
+            eff_sizes = self.eff_sizes[datasets_name]
+            test_results = self.test_results[datasets_name]
+        elif " - ".join(data_names[::-1]) in self.eff_sizes:
+            datasets_name = " - ".join(data_names[::-1])
+            eff_sizes = self.eff_sizes[datasets_name]
+            test_results = self.test_results[datasets_name]
+        else:
+            raise ValueError(f"Replicability test output between the selected datasets ('{data_names[0]}' and '{data_names[1]}') not found."
+                             f" Please, run 'perform_rep_test' method with the selected datasets to perform the replicability test.")
+        
+
+        # Generate matrix plot
+        matrix, _ = plot.plot_matrix(eff_sizes, test_results, title=f"Outcome of the replicability test ({data_names[0]} vs {data_names[1]})", variables=self.variables)
+
+        data_names_str = "-".join([name.replace(' ', '_') for name in data_names])
+        plot.save_or_show_plot(matrix, output_path, plot_filename=f"replicability_test_matrix_{data_names_str}", plot_name=f"Replicability test matrix plot")
 
         return
     

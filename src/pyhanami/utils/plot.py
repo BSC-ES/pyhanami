@@ -735,7 +735,8 @@ def plot_matrix(eff_sizes, test_results, test=4, title='Effect sizes replicabili
 
     # Define the grid
     n_rows, n_cols, n_indices = abs_eff_sizes.shape
-    fig, ax = plt.subplots(figsize=(22, 16))
+    fig_size = (22, 16)
+    fig, ax = plt.subplots(figsize=fig_size)
 
     x_labels = [f'{s1} {s2}' for s1 in seasons for s2 in regions]
     y_labels = variables
