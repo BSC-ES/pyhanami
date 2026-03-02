@@ -177,10 +177,13 @@ The CEOF analysis is performed after filtering the data to remove longer-time-sc
 
 Besides, the CEOFs are used to calculate the first two PCs for MJO, referred to as the **Real-Time Multivariate MJO (RMM) indices**. As for the bimodal ISO indices, these are normalized by one stadard deviation of the CEOF analysis period, corresponding to the squared root of the associated eigenvalue. Based on the amplitude of the RMM indices, the MJO amplitude is estimated. With this, the number of active MJO days is determined as the number of days with an amplitude above a given threshold<!--, typically taken as the total mean MJO amplitude-->. Moreover, the phase space defined by the RMM indices is usually divided into 8 phases (one per each octant). Following this convention, the MJO activity is analyzed using the mean amplitude and days when the MJO is active per phase. This leads to several scalar scores corresponding to the **bias in mean MJO amplitude and active MJO days per phase ($\overline{b}_{\text{phase}}$)**.
 
-The implementation of the analysis described above produces three different diagnostic plots comparing simulations and observations:
+On the other hand, a **power spectrum** analysis is performed for one of the climate variables following [(M. Wheeler & G.N. Kiladis, 1999)](https://doi.org/10.1175/1520-0469(1999)056<0374:CCEWAO>2.0.CO;2). For this, the data is preprocessed by removing the seasonal cycle (using harmonic filtering) and linear trends. Then, the spectrum is computed on 96-day segments with a 2-month overlap, and averaged over all segments. Both symmetric and antisymmetric components are obtained and normalized by a smoothed background spectrum (in which periodic signals have been removed).  
+
+The implementation of the analyses described above produces four different diagnostic plots comparing simulations and observations:
 - **CEOFs:** two longitudinal plots showing the first two CEOFs for the three considered climate variables.
 - **MJO activity per phase:** absolute values of the mean amplitude and the number of active days per phase. 
 - **Scalar scores**: tables summarizing all the computed scalar scores, visually indicating the best and worst performing simulation datasets.
+- **Power spectrum:** two wavenumber-frequency spectrum plots showing the power spectrum for one variable, with the MJO region encircled.
 
 Finally, by default, NOAA data ([NOAA Interpolated OLR dataset](https://psl.noaa.gov/data/gridded/data.olrcdr.interp.html)) is taken as observational TOA OLR reference data and ERA5 data ([ERA5 hourly data on pressure levels from 1940 to present](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-pressure-levels?tab=overview)) is used as reference for the eastward wind data when computing these scores.
 

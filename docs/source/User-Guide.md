@@ -143,20 +143,29 @@ To take into account when using these methods:
 
 ## Replicability test
 
-To perform and plot results of a **replicability test** comparing two simulation datasets, initialize the `ReplicabilityTest` class with the `SimulationData` objects that you want to compare and use the `matrix_plot` method:
+To perform a replicability test comparing two simulation datasets, initialize the `ReplicabilityTest` class with the `SimulationData` objects that you want to compare and use the `perform_rep_test` method:
 
 ```python
 # Initialize ReplicabilityTest class with two SimulationData objects
 tester = pyhanami.ReplicabilityTest([sim_1, sim_2], obs_path='path_obs')
 
-# Perform test
-tester.matrix_plot(
-    ['name_sim_1', 'name_sim_2'], 
-    'output_path'
-)
+# Perform replicability test between both datasets
+tester.perform_rep_test(['name_sim_1', 'name_sim_2'])
 ```
+Note that the test is performed on all variables present in the simulation datasets as long as they are listed in `src/pyhanami/config/variables.yaml`.
 
-This `matrix_plot` method uses all variables present in the simulation datasets as long as they are listed in `src/pyhanami/config/variables.yaml` to perform the replicability test.
+Moreover, the `ReplicabilityTest` class includes methods to visualize and save the results of the test. The following shows how to retrieve, save and plot the outcome of the test for the two datasets:
+
+```python
+# Load test output (effect size between the replicability test scores and 
+# test results for all variables, seasons and regions)
+effect_size_scores = tester.get_eff_sizes(['name_sim_1', 'name_sim_2'])
+test_results = tester.get_test_results(['name_sim_1', 'name_sim_2'])
+
+# Save and plot outcome of the test
+tester.save_data(['name_sim_1', 'name_sim_2'], 'output_path')
+tester.matrix_plot(['name_sim_1', 'name_sim_2'], 'output_path')
+```
 
 
 ## General scientific skill analysis
@@ -257,7 +266,7 @@ To summarize, the `ISOEvaluation` class includes methods to generate the followi
 
 ## Specific Madden-Julian Oscillation (MJO) analysis
 
-To evaluate the simulation of the MJO specifically, initialize the `ScientificEvaluation` class with the `SimulationData` object that you want to analyze and use the `compute_mjo_scores` method. This method computes several scalar scores related to MJO (see [Methodology](./Methodology.md#madden-julian-oscillation-mjo)) and requires the following variables with a daily frequency:
+To evaluate the simulation of the MJO specifically, initialize the `ScientificEvaluation` class with the `SimulationData` object that you want to analyze and use the `compute_mjo_scores` method. This method computes several scalar scores related to MJO (see [Methodology](./Methodology.md#madden-julian-oscillation-mjo)) and requires the following variables with a **daily** frequency:
 - **Top of atmosphere outgoing longwave radiation** (`rlut`)
 - **Eastward wind at 200 and 850 hPa** (`ua200` and `ua850`)
 
@@ -266,6 +275,7 @@ The following snippet creates a `MJOEvaluation` instance that:
 2. Uses the CEOFs to compute the first two Principal Components (PCs) (**Real-Time Multivariate MJO (RMM) indices**) for the same period, projecting simulations both on the observed and simulated CEOFs
 3. Determines the **MJO amplitude and active days per phase** based on the RMM indices amplitude
 4. Computes various **scalar scores** comparing the simulated CEOFs and MJO activity to the observed ones
+5. Calculates the **MJO power spectrum** (both symmetric and antisymmetric components) between `year_init_mjo` and `year_end_mjo`
 
 ```python
 # Initialize ScientificEvaluation class with a SimulationData object
@@ -273,7 +283,8 @@ The following snippet creates a `MJOEvaluation` instance that:
 # you can skip this step)
 sciskill = pyhanami.ScientificEvaluation(sim_1)
 
-# Compute MJO scalar scores performing a CEOF analysis
+# Compute MJO scalar scores performing a CEOF analysis and a power
+# spectrum analysis
 mjo_analysis = sciskill.compute_mjo_scores(
     'name_sim_1',
     start_year_mjo=year_init_mjo,
@@ -282,17 +293,18 @@ mjo_analysis = sciskill.compute_mjo_scores(
 )
 ```
 
-If no years are passed, the whole period covered by the simulation dataset is used by default. Besides, `threshold_active_days` is the minimum amplitude of the RMM indices required for the MJO to be considered active on a given day. If it is not specified, the total mean MJO amplitude across the entire period is used by default as a threshold. 
+If no years are passed, the whole period covered by the simulation dataset is used by default. Besides, `threshold_active_days` is the minimum amplitude of the RMM indices required for the MJO to be considered active on a given day. If it is not specified, the total mean MJO amplitude across the entire period is used by default as a threshold. Finally, the power spectrum is computed using only one variable, set to the radiation `'rlut'` by default. It is also possible to calculate it for the wind variables with the argument `spectrum_var='ua200'` or `spectrum_var='ua850'`.
 
-Moreover, the `MJOEvaluation` class includes methods to visualize and save the results of the analysis. The following shows how to save the computed data, create plots for the CEOFs and MJO activity, and create table plots summarizing the scalar scores:
+Moreover, the `MJOEvaluation` class includes methods to visualize and save the results of the analysis. The following shows how to save the computed data, create plots for the CEOFs, MJO activity and power spectrum, and create table plots summarizing the scalar scores:
 
 ```python
 # Save outcome of the MJO analysis
 mjo_analysis.save_data('output_path')
 
-# Plot the resulting CEOFs and MJO activity per phase
+# Plot visual outputs
 mjo_analysis.ceof_plots('output_path')
 mjo_analysis.activity_per_phase_plots('output_path')
+mjo_analysis.power_spectrum_plots('output_path')
 
 # Plot summary tables of the scalar scores
 mjo_analysis.ceof_corr_table('output_path')
@@ -305,13 +317,14 @@ To summarize, the `MJOEvaluation` class includes methods to generate the followi
 1. **CEOF plots** (`MJOEvaluation.ceof_plots`): longitudinal patterns of the first two Multivariate EOFs for the three considered variables comparing observations and simulations.
 2. **MJO activity per phase plots** (`MJOEvaluation.activity_per_phase_plots`): mean MJO amplitude and number of active MJO days per phase for both observations and simulations. Both quantities are plotted separately using two bar plots by default, but they can also be plotted together in the same dot plot by passing the argument `layout='together'`, allowing to more easily identify the relationship between both quantities.
 3. **Scalar score tables** (`MJOEvaluation.coef_corr_table`, `MJOEvaluation.explained_var_bias_table`, `MJOEvaluation.mean_amplitude_bias_table`, `MJOEvaluation.active_days_bias_table`): tables summarizing the computed scalar scores. In each table, columns are colored independently, with dark green indicating the best-performing dataset in that column relative to the reference dataset in the first row.
+4. **Power spectrum plots** (`MJOEvaluation.power_spectrum_plots`): wavenumber-frequency spectrum comparing simulations and observations. By default, the symmetric component of the spectrum is plotted, but it is also possible to plot the antisymmetric component with the argument `component='antisymmetric'`. Besides, a dashed box around the MJO region is included in the plots by default, pass the argument `mjo_box=False` to remove it.
 
 
 ## Tropical Cyclones (TCs) analysis
 
-To evaluate the simulation of TCs, initialize the `ScientificEvaluation` class with the `SimulationData` object that you want to analyze and use the `compute_tc_scores` method. This method computes several scalar scores related to TCs (see [Methodology](./Methodology.md#tropical-cyclones-tcs)) and requires the following variables with a 6-hourly frequency:
+To evaluate the simulation of TCs, initialize the `ScientificEvaluation` class with the `SimulationData` object that you want to analyze and use the `compute_tc_scores` method. This method computes several scalar scores related to TCs (see [Methodology](./Methodology.md#tropical-cyclones-tcs)) and requires the following variables with a **6-hourly** frequency:
 - **Sea level pressure** (`psl`)
-- **Zonal and meridional wind at 10 m** (`uas` and `vas`)
+- **Eastward and northward wind at 10 m** (`uas` and `vas`)
 - **Geopotential height at 300 hPa and 500 hPa** (`zg300` and `zg500`)
 
 The following snippet creates a `TCEvaluation` instance that:

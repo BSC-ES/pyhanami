@@ -11,7 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Data checker: automatically run standard compliance, spatial and temporal completeness, physical plausibility, and consistency of variables and coordinates checks when loading new datasets.
-- Scientific skill metrics: implemented Tropical IntraSeasonal Oscillation (ISO) evaluation and Tropical Cyclones (TCs) metrics comparing simulations with observations.
+- Visualization diagnostics: included spatial bias plots comparing simulations with observations.
+- Replicability test: added option to access the numerical output of the test.
+- Scientific skill metrics: implemented Tropical IntraSeasonal Oscillation (ISO), Madden-Julian Oscillation (MJO), and Tropical Cyclones (TCs) analyses comparing simulations with observations.
 - Configuration files: created default configuration files for parameters and variables.
 - Flexible data management: included option to add and compare datasets in the `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes even after initialization.
 - Documentation: 

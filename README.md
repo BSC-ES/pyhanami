@@ -16,7 +16,7 @@ These include time series plots (with the `time_series_plot` method) and spatial
 - **Replicability testing:** perform a replicability test checking the statistical indistinguishability between two previously loaded simulation ensembles using the `ReplicabilityTest` class.
 - **Scientific skill evaluation:** compute scalar scores evaluating the following phenomena using the `ScientificEvaluation` class:
     - Tropical IntraSeasonal Oscillation (ISO): this includes the computation of the bimodal ISO indices (for MJO and BSISO), as well as the calculation of related scalar scores comparing the indices between simulations and observations (amplitude ratio ($\alpha$), temporal correlation ($R$), standard deviation ratio ($\sigma$), and Taylor Skill Score (TSS)).
-    - Madden-Julian Oscillation (MJO): this includes the computation of the Real-Time Multivariate MJO (RMM) indices, as well as the calculation of related scalar scores (Pearson correlation ($r_{\text{var,mode}}$) and bias ($\bar{b}$)) comparing the MJO spatial patterns and activity between simulations and observations.
+    - Madden-Julian Oscillation (MJO): this includes the computation of the Real-Time Multivariate MJO (RMM) indices and the MJO power spectrum, as well as the calculation of related scalar scores (Pearson correlation ($r_{\text{var,mode}}$) and bias ($\bar{b}$)) comparing the MJO spatial patterns and activity between simulations and observations. 
     - Tropical Cyclones (TCs): this includes the computation of various scalar scores (bias ($\bar{b}$), spatial Pearson correlation ($r_{xy}$), and temporal Spearman rank correlation ($\rho_s$)) for several TC metrics (counts, TC days (TCD), accumulated cyclone energy (ACE), pressure ACE (PACE), and latitude of lifetime-maximum intensity (LMI)).
 - **Flexible data management:** add and compare datasets in the `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes even after initialization.
 
@@ -115,16 +115,19 @@ diags.bias_plot(
 ```
 
 ### Perform replicability test
-Perform a replicability test comparing the two simulation datasets:
+Perform a replicability test comparing both simulation datasets:
 ```python
 # Initialize the ReplicabilityTest class with the two simulation datasets
 tester = pyhanami.ReplicabilityTest([sim_1, sim_2], obs_path='path_obs')
 
-# Perform test and save results to 'output_path'
-tester.matrix_plot(
-    ['name_sim_1', 'name_sim_2'],
-    'output_path'
-)
+# Perform replicability test
+tester.perform_rep_test(['name_sim_1', 'name_sim_2'])
+
+# Save outcome of the test to 'output_path'
+tester.save_data(['name_sim_1', 'name_sim_2'], 'output_path')
+
+# Create plot summarizing the outcome of the test and save it to 'output_path'
+tester.matrix_plot(['name_sim_1', 'name_sim_2'], 'output_path')
 ```
 
 ### Evaluate scientific skill
@@ -172,9 +175,10 @@ mjo_analysis = sciskill.compute_mjo_scores(
 # Save results of the analysis to 'output_path'
 mjo_analysis.save_data('output_path')
 
-# Create plots for CEOFs and MJO activity per phase and save them to 'output_path'
+# Create plots for CEOFs, MJO activity per phase and power spectrum and save them to 'output_path'
 mjo_analysis.ceof_plots('output_path')
 mjo_analysis.activity_per_phase_plots('output_path')
+mjo_analysis.power_spectrum_plots('output_path')
 
 # Create table plots summarizing the computed scalar scores and save them to 'output_path'
 mjo_analysis.ceof_corr_table('output_path')
@@ -239,7 +243,10 @@ This project includes code and resources from the following sources:
     - Used in: `src/pyhanami/utils/tcs_scores/tcs_cymep_main.py`, `src/pyhanami/utils/tcs_scores/tcs_cymep_funcs.py`
     - License: MIT License
     - Copyright (c) 2021 Colin Zarzycki
-
+- [wavenumber_frequency GitHub repository](https://github.com/brianpm/wavenumber_frequency):
+    - Used in: `src/pyhanami/utils/mjo_scores/mjo_spectrum_funcs.py`
+    - License: MIT License
+    - Copyright (c) 2024 Brian Medeiros
 #### Code dependencies:
 - [TempestExtremes package](https://github.com/ClimateGlobalChange/tempestextremes):
     - Used in: `src/pyhanami/utils/tcs_scores/tcs_tempestextremes.py`
