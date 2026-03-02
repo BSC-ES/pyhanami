@@ -30,6 +30,17 @@ NOAA_PC_PATH = DATA_PATH / "noaa/pc_noaa_1975-2020.nc"
 NOAA_START_YEAR = 1975
 NOAA_END_YEAR = 2020
 
+
+# Related to MJO data
+MJO_DATA_PATH = DATA_PATH / "mjo"
+MJO_VARS_PATH = MJO_DATA_PATH / "data_obs_1975-2022_mjo.nc"
+MJO_MODEL_PATH = MJO_DATA_PATH / "mjo_obs_model_1975-2020"
+MJO_GRID_PATH = NOAA_GRID_PATH
+MJO_OBS_RES = 2.5
+MJO_START_YEAR = 1975
+MJO_END_YEAR = 2022
+
+
 # Related to Tropical Cyclones data
 TC_DATA_PATH = DATA_PATH / "tropical_cyclones"
 

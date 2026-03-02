@@ -5,8 +5,22 @@ from scipy.stats import bootstrap, norm
 
 
 def area_weights(data):
-    """ Compute weights area-averaging based on grid cell area """
-    return np.cos(np.deg2rad(data.lat))
+    """ 
+    Compute weights area-averaging based on grid cell area.
+    
+    Parameters
+    ----------
+    data : xr.Dataset or xr.DataArray
+        Data containing a latitude coordinate.
+
+    Returns
+    -------
+    weights : xr.DataArray
+        Weights for area-averaging.
+    """
+
+    weights = np.cos(np.deg2rad(data.lat))
+    return weights
 
 
 def exp_RK_index(data_sim, data_obs, var_name):
