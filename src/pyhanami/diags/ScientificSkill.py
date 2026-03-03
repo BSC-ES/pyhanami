@@ -997,7 +997,7 @@ class ISOEvaluation:
 
 class MJOEvaluation:
     """
-    Compute Real-Time Multivariate (RMM) MJO indices and derived scalar scores.
+    Compute Real-Time Multivariate MJO (RMM) indices and derived scalar scores.
 
     This class provides functionality for computing the RMM MJO indices and derived scalar scores 
     following (M.C. Wheeler et al., 2004) and plotting the results comparing simulations to 
