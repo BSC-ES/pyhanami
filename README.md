@@ -159,7 +159,7 @@ iso_analysis.scores
 ```
 
 #### Madden-Julian Oscillation (MJO)
-Assess simulation of the Madden-Julian Oscillation (MJO) by computing the Real-time Multivariate MJO (RMM) indices and related scalar scores comparing to observations:
+Assess simulation of the Madden-Julian Oscillation (MJO) by computing the Real-time Multivariate MJO (RMM) indices, the power spectrum and related scalar scores comparing to observations:
 ```python
 # Perform the MJO analysis
 mjo_analysis = sciskill.compute_mjo_scores(
