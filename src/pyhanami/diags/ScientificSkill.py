@@ -3,7 +3,6 @@ warnings.simplefilter("always")
 
 import os
 import re
-import xeofs
 import shutil
 import cmocean
 import numpy as np
@@ -19,6 +18,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from pyhanami.config import config_params
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
+from pyhanami.utils.mjo_scores_dir import mjo_spectrum_funcs
 from pyhanami.utils import data_general, iso_scores, mjo_scores, plot, statistics
 from pyhanami.utils.tcs_scores import tcs_tempestextremes, tcs_ibtracs, tcs_cymep_main
 
@@ -997,11 +997,13 @@ class ISOEvaluation:
 
 class MJOEvaluation:
     """
-    Compute Real-Time Multivariate (RMM) MJO indices and derived scalar scores.
+    Compute Real-Time Multivariate MJO (RMM) indices and MJO wavenumber-frequency power spectra, 
+    and derived scalar scores.
 
     This class provides functionality for computing the RMM MJO indices and derived scalar scores 
-    following (M.C. Wheeler et al., 2004) and plotting the results comparing simulations to 
-    observational data.
+    following (M.C. Wheeler & H.H. Hendon, 2004), as well as the MJO wavenumber-frequency power  
+    spectra following (M.C. Wheeler & G.N. Kiladis, 1999). It also includes tools to plot the 
+    results comparing simulations to observational data.
 
     Parameters
     ----------
@@ -1027,6 +1029,12 @@ class MJOEvaluation:
         Threshold for the amplitude of the first two PCs to consider the MJO active at 
         a given day. If None, the mean MJO amplitude over the entire considered time
         period is used as a threshold.
+    spectrum_var : str
+        Variable to be used for the spectral analysis (default: 'rlut').
+    seg_size : int
+        Size of the segments to perform the spectral analysis on, in days (default: 96).
+    n_overlap : int
+        Number of overlapping points between segments, in days (default: 60).
 
     Attributes
     ----------
@@ -1034,14 +1042,14 @@ class MJOEvaluation:
         Name of the simulation dataset.
     obs_name : str
         Name of the observational dataset.
-    data_mjo_sim : xr.DataArray
-        Simulation data with longer-time-scale components removed.
-    data_mjo_obs : xr.DataArray
-        Observational data with longer-time-scale components removed.
     data_res : float
         Resolution of the data used for the MJO analysis.
     start_year_mjo, end_year_mjo : int
         Initial and end years to perform the MJO analysis for.
+    data_ceof_sim : xr.DataArray
+        Simulation data with longer-time-scale components removed for all three variables.
+    data_ceof_obs : xr.DataArray
+        Observational data with longer-time-scale components removed for all three variables.
     ceof_obs : xr.Dataset
         Output of CEOF analysis for observational data ('eof', 'eigval', 'var_frac' 
         and 'pc' for the first 'n_modes').
@@ -1071,11 +1079,22 @@ class MJOEvaluation:
         Colorbar ticks labels for bias tables.
     colors_bias : tuple
         Colorbar colors for bias tables.
+    spectrum_var : str
+        Climate variable used for the spectral analysis.
+    data_spectra_sim : xr.DataArray
+        Simulation data with seasonal cycle removed for the selected variable.
+    data_spectra_obs : xr.DataArray
+        Observational data with seasonal cycle removed for the selected variable.
+    power_spectra : xr.Dataset
+        Power spectra. It contains the following variables: 'sym_spec' (normalized 
+        symmetric spectrum), 'asym_spec' (normalized antisymmetric spectrum), and 
+        'background' (smoothed background spectrum) for both observations ('obs')
+        and simulations ('sim').      
     """
 
     def __init__(self, data_sim, start_year_mjo=None, end_year_mjo=None, start_year_ref=None, end_year_ref=None,
                  lat_range=(-15, 15), rolling_window_size=120, n_harmonics=3, normalize_std=False, n_modes=2,
-                 threshold_active_days=None):
+                 threshold_active_days=None, spectrum_var='rlut', seg_size=96, n_overlap=60):
 
         # Validate input
         if not isinstance(data_sim, SimulationData):
@@ -1083,6 +1102,7 @@ class MJOEvaluation:
         self.sim_name = data_sim.name
         self.obs_name = 'Obs'    #'NOAA+ERA5'
         self.data_res = config_params.MJO_OBS_RES
+        self.spectrum_var = spectrum_var
 
         # Select years for MJO analysis
         self.start_year_mjo, self.end_year_mjo = data_general.validate_year_range(data_sim, start_year_mjo, end_year_mjo, process_name='MJO')
@@ -1093,11 +1113,11 @@ class MJOEvaluation:
         data_sim_filtered_time = data_sim.data.sel(time=slice(str(self.start_year_mjo), str(self.end_year_mjo))).compute()    
 
 
-        # Prepare simulation data (regrid to match observations, if needed, and filter seasonal cycle and interannual variability)
-        self.data_mjo_sim, _, _, self.data_mjo_obs, _, _ = self._prepare_mjo_data(data_sim_filtered_time, start_year_ref, end_year_ref, lat_range,
-                                                                                  rolling_window_size, n_harmonics, normalize_std)
-        print(f'\tObservations and simulations data filtered by removing longer-time-scale components between {self.start_year_mjo} and {self.end_year_mjo}.'
-              ' See attributes `data_mjo_sim` and `data_mjo_obs` for results.', flush=True)
+        # Prepare data for the CEOF analysis (regrid simulations to match observations, if needed, and filter seasonal cycle and interannual variability)
+        self.data_ceof_sim, _, _, self.data_ceof_obs, _, _ = self._prepare_ceof_data(data_sim_filtered_time, start_year_ref, end_year_ref, lat_range,
+                                                                                     rolling_window_size, n_harmonics, normalize_std)
+        print(f'\tObservations and simulations data prepared for the CEOF analysis by removing longer-time-scale components between {self.start_year_mjo}'
+              f' and {self.end_year_mjo}. See attributes `data_ceof_sim` and `data_ceof_obs` for results.', flush=True)
         
 
         # Perform CEOF analysis (projecting on observed and simulated EOFs)
@@ -1114,6 +1134,17 @@ class MJOEvaluation:
         self.activity_per_phase_bias, self.cbar_ticks_bias, self.colors_bias = self._compute_phase_counts_bias()
         print(f"\tAbsolute values and bias in MJO activity (mean amplitude and days) per phase computation completed."
               f" See attributes `activity_per_phase` and `activity_per_phase_bias` for results.", flush=True)
+
+
+        # Prepare data for the power spectra analysis (regrid simulations, if needed, and remove seasonal cycle)
+        self.data_spectra_sim, self.data_spectra_obs = self._prepare_spectra_data(data_sim_filtered_time, start_year_ref, end_year_ref, 
+                                                                                  self.spectrum_var, n_harmonics)
+        print(f"\tObservations and simulations data prepared for the power spectra analysis by removing the seasonal cycle between "
+              f"{self.start_year_mjo} and {self.end_year_mjo}. See attributes `data_spectra_sim` and `data_spectra_obs` for results.", flush=True)
+        
+        # Compute wavenumber-frequency power spectra
+        self.power_spectra = self._compute_power_spectra(seg_size, n_overlap, lat_range)
+        print(f"\tWavenumber-frequency power spectra computation completed. See attribute `power_spectra` for results.", flush=True)
         
 
         print(f"\nMadden-Julian Oscillation scores computation completed between years {self.start_year_mjo} and {self.end_year_mjo}.", flush=True)
@@ -1151,12 +1182,12 @@ class MJOEvaluation:
         return data_sim_regrid
 
 
-    def _prepare_mjo_data(self, data_sim, start_year_ref, end_year_ref, lat_range=(-15, 15), 
+    def _prepare_ceof_data(self, data_sim, start_year_ref, end_year_ref, lat_range=(-15, 15), 
                           rolling_window_size=120, n_harmonics=3, normalize_std=False):
         """
-        Regrid simulation data if needed to match the resolution of the observations,then filter the data to
+        Regrid simulation data if needed to match the resolution of the observations, then filter the data to
         remove longer-time-scale components (seasonal cycle and interannual variability) at the grid point 
-        level and concatenate into a single dataset all three variables necessary for the MJO analysis.
+        level and concatenate into a single dataset all three variables necessary for the CEOF analysis.
 
         Parameters
         ----------
@@ -1204,7 +1235,7 @@ class MJOEvaluation:
         # Extract MJO variables from simulation data
         for var_name in vars_mjo:
             if var_name not in data_sim.data_vars:
-                raise ValueError(f"Varaible '{var_name}' required for the MJO analysis not found in the simulated dataset '{self.sim_name}'.")
+                raise ValueError(f"Variable '{var_name}' required for the CEOF analysis not found in the simulated dataset '{self.sim_name}'.")
         data_sim_vars = data_sim[vars_mjo]
 
         # Regrid simulations if needed to match observations' resolution
@@ -1260,7 +1291,7 @@ class MJOEvaluation:
 
         # Perform observational CEOF analysis (correct sign of the first mode to match the typical
         # MJO pattern from (M.Wheeler et al., (2004))
-        model_mjo_obs = mjo_scores.fit_CEOF_model_xeofs(self.data_mjo_obs, n_modes)
+        model_mjo_obs = mjo_scores.fit_CEOF_model_xeofs(self.data_ceof_obs, n_modes)
         ceof_obs = mjo_scores.perform_CEOF_analysis(None, model_mjo_obs, n_modes)
         ceof_obs['ceof'].loc[dict(mode=0)] *= -1
         ceof_obs['pc'].loc[dict(mode=0)] *= -1
@@ -1273,7 +1304,7 @@ class MJOEvaluation:
         ceof_sim_on_obs.attrs['EOFs source'] = f"Observations '{self.obs_name}'"
         ceof_sim_on_obs.attrs['PCs source'] = f"Simulations '{self.sim_name}' projected on Observations '{self.obs_name}' CEOFs"
 
-        pc_sim_on_obs = model_mjo_obs.transform(self.data_mjo_sim)
+        pc_sim_on_obs = model_mjo_obs.transform(self.data_ceof_sim)
 
         # Correct PCs to match eofs.xarray.Eof output
         pc_sim_on_obs = pc_sim_on_obs.assign_coords(mode=[0, 1]).transpose('time', 'mode')
@@ -1284,7 +1315,7 @@ class MJOEvaluation:
 
 
         # Perform and correct CEOF analysis on simulations projecting on themselves
-        ceof_sim_on_sim = mjo_scores.perform_CEOF_analysis(self.data_mjo_sim, None, n_modes)
+        ceof_sim_on_sim = mjo_scores.perform_CEOF_analysis(self.data_ceof_sim, None, n_modes)
         ceof_sim_on_sim = mjo_scores.correct_CEOFs(ceof_sim_on_sim, ceof_obs)
         ceof_sim_on_sim.attrs['EOFs source'] = f"Simulations '{self.sim_name}'"
         ceof_sim_on_sim.attrs['PCs source'] = f"Simulations '{self.sim_name}' projected on Simulations '{self.sim_name}' CEOFs"
@@ -1406,6 +1437,105 @@ class MJOEvaluation:
         return phase_counts_bias, cbar_ticks_bias, colors_bias
 
 
+    def _prepare_spectra_data(self, data_sim, start_year_ref, end_year_ref, spectrum_var='rlut',
+                              n_harmonics=3):
+        """
+        Regrid simulation data if needed to match the resolution of the observations, then filter the data to
+        remove the seasonal cycle at the grid point level for the selected variable for the spectral analysis.
+
+        Parameters
+        ----------
+        data_sim : xr.Dataset
+            Simulation data containing the selected variable.
+        start_year_ref, end_year_ref : int
+            Initial and end years for computing the reference seasonal cycle.
+        spectrum_var : str
+            Variable to be used for the spectral analysis (default: 'rlut').
+        n_harmonics : int
+            Number of harmonics to remove from the seasonal cycle (default: 3).
+
+        Returns 
+        -------
+        filtered_sim : xr.DataArray
+            Filtered simulation data for the selected variable.
+        filtered_obs : xr.DataArray
+            Filtered observational data for the selected variable.
+        """
+
+        # Load observational data (NOAA)
+        try:
+            data_obs_vars = xr.open_dataset(config_params.MJO_VARS_PATH)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Observations MJO data file not found at '{config_params.MJO_VARS_PATH}'")
+        data_obs_vars = data_obs_vars[[spectrum_var]].sel(time=slice(str(self.start_year_mjo), str(self.end_year_mjo)))
+
+
+        # Extract MJO variable from simulation data
+        if spectrum_var not in data_sim.data_vars:
+            raise ValueError(f"Variable '{spectrum_var}' required for the spectral analysis not found in the simulated dataset '{self.sim_name}'.")
+        data_sim_vars = data_sim[[spectrum_var]]
+
+        # Regrid simulations if needed to match observations' resolution
+        data_sim_vars_regrid = self._match_obs_resolution(data_sim_vars)
+
+
+        # Prepare reference years
+        if start_year_ref is None:
+            start_year_ref = self.start_year_mjo
+        if end_year_ref is None:
+            end_year_ref = self.end_year_mjo
+
+        # Filter data and remove seasonal cycle
+        filtered_obs = mjo_scores.remove_seasonal_cycle(data_obs_vars[spectrum_var], start_year_ref, end_year_ref, n_harmonics)
+        filtered_sim = mjo_scores.remove_seasonal_cycle(data_sim_vars_regrid[spectrum_var], start_year_ref, end_year_ref, n_harmonics)
+
+        return filtered_sim, filtered_obs
+
+
+    def _compute_power_spectra(self, seg_size=96, n_overlap=60, lat_range=(-15, 15)):
+        """
+        Perform wavenumber-frequency analysis and return the normalized spectral symmetric 
+        and antisymmetric components obtained dividing by a smoothed background following 
+        (M.C. Wheeler & G.N. Kiladis, 1999).
+
+        Parameters
+        ----------
+        data : xr.DataArray
+            Data to compute the power spectra of.
+        seg_size : int
+            Size of the segments to perform the spectral analysis on, in days (default: 96).
+        n_overlap : int
+            Number of overlapping points between segments, in days (default: 60).
+        lat_range : tuple
+            Geographic latitude bounds (default: (-15, 15)).
+
+        Returns
+        -------
+        power_spectra : xr.Dataset
+            Power spectra. It contains the following variables: 'sym_spec' (normalized 
+            symmetric spectrum), 'asym_spec' (normalized antisymmetric spectrum), and 
+            'background' (smoothed background spectrum) for both observations ('obs')
+            and simulations ('sim').            
+        """
+
+        # Compute power spectra for observations
+        spec_obs_sim, spec_obs_asym, _, _, background_obs = mjo_spectrum_funcs.wavenum_freq_analysis(self.data_spectra_obs, seg_size, 
+                                                                                                     n_overlap, lat_range)
+        power_spectra_obs = xr.merge([spec_obs_sim.drop_vars('component'), spec_obs_asym.drop_vars('component'), background_obs])
+
+        # Compute power spectra for simulations
+        spec_sim_sim, spec_sim_asym, _, _, background_sim = mjo_spectrum_funcs.wavenum_freq_analysis(self.data_spectra_sim, seg_size, 
+                                                                                                     n_overlap, lat_range)
+        power_spectra_sim = xr.merge([spec_sim_sim.drop_vars('component'), spec_sim_asym.drop_vars('component'), background_sim])
+
+
+        # Store all spectra in a single dataset
+        power_spectra = xr.concat([power_spectra_obs, power_spectra_sim], dim='dataset')
+        power_spectra = power_spectra.assign_coords(dataset=['obs', 'sim'])
+
+        return power_spectra
+
+
     def save_data(self, output_path):
         """
         Save computed output of CEOF analysis to NetCDF files.
@@ -1453,6 +1583,12 @@ class MJOEvaluation:
         activity_per_phase_bias_path = output_path / f"activity_per_phase_bias_{sim_name_file}_{obs_name_file}_{year_range}.nc"
         self.activity_per_phase_bias.to_netcdf(activity_per_phase_bias_path)
         print(f"Bias in MJO activity (mean amplitude and days) per phase for all datasets saved to '{activity_per_phase_bias_path}'.", flush=True)
+
+
+        # Save power spectra
+        power_spectra_path = output_path / f"power_spectra_{sim_name_file}_{obs_name_file}_{year_range}.nc"
+        self.power_spectra.to_netcdf(power_spectra_path)
+        print(f"Power spectra for both observations and simulations saved to '{power_spectra_path}'.", flush=True)
         
         return
 
@@ -1483,7 +1619,7 @@ class MJOEvaluation:
         obs_name_file = self.obs_name.replace(' ', '-')
         year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
 
-        # Generate EOFs plot
+        # Generate CEOFs plot
         ceof_sim_plot, _ = plot.plot_ceofs([self.ceof_obs['ceof'], self.ceof_sim_on_sim['ceof']], title=f"Multivariate MJO EOFs, {self.obs_name} vs {self.sim_name} ({year_range})",
                                           labels_linestyles=labels_linestyles)
         
@@ -1737,6 +1873,59 @@ class MJOEvaluation:
         
         plot.save_or_show_plot(active_days_bias_table_plot, output_path, plot_filename=f"active_days_bias_table_{sim_name_file}_{obs_name_file}_{year_range}",
                                plot_name=f"Bias in active MJO days per phase table plot")
+
+        return
+
+
+    def power_spectrum_plots(self, output_path=None, component='symmetric', x_lim=[-10, 10], y_lim=[0.01, 0.25],
+                            levels=[1.1, 1.4, 1.7, 2, 2.3, 2.6, 2.9, 3.2, 3.5, 3.8], mjo_box=True):
+        """
+        Generate and save/display wavenumber-frequency power spectrum plots for the selected 
+        component for both observations and simulations.
+        
+
+        Parameters
+        ----------
+        output_path : str, optional
+            Path to save the plot. If None, the plot is displayed but not saved.
+        component : str
+            Component to plot, either 'symmetric' or 'antisymmetric' (default: 'symmetric').
+        x_lim : list[float]
+            Limits for the x-axis (default: [-10, 10]).
+        y_lim : list[float]
+            Limits for the y-axis (default: [0.01, 0.25]).
+        levels : list[float]
+            Contour levels (default: [1.1, 1.4, 1.7, 2, 2.3, 2.6, 2.9, 3.2, 3.5, 3.8]).
+        mjo_box : bool
+            Whether to draw a dashed box around the MJO region (default: True).
+        """
+
+        # Prepare data and plotting parameters
+        if component == 'symmetric':
+            name_spec = 'sym_spec'
+            name_file = 'sym'
+        elif component == 'antisymmetric':
+            name_spec = 'asym_spec'
+            name_file = 'asym'
+        else:
+            raise ValueError(f"Invalid component option '{component}'. Choose either 'symmetric' or 'antisymmetric'.")
+        
+        data_spec_obs = self.power_spectra[name_spec].sel(dataset='obs')
+        data_spec_sim = self.power_spectra[name_spec].sel(dataset='sim')
+        
+        sim_name_file = self.sim_name.replace(' ', '-')
+        obs_name_file = self.obs_name.replace(' ', '-')
+
+        year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
+
+
+        # Generate power spectrum plot
+        power_spectrum_plot, _ = plot.plot_power_spectrum_two(data_spec_obs, data_spec_sim, component=component, x_lim=x_lim, y_lim=y_lim, title_1=self.obs_name, 
+                                                              title_2=self.sim_name, suptitle=f'{component.capitalize()} power spectrum ({year_range})', 
+                                                              levels=levels, mjo_box=mjo_box)
+
+        plot.save_or_show_plot(power_spectrum_plot, output_path, plot_filename=f"power_spectrum_{name_file}_{sim_name_file}_{obs_name_file}_{year_range}",
+                               plot_name=f"{component.capitalize()} power spectrum plot")
 
         return
 
@@ -2521,10 +2710,11 @@ class ScientificEvaluation:
 
     def compute_mjo_scores(self, data_name=None, start_year_mjo=None, end_year_mjo=None, start_year_ref=None, end_year_ref=None,
                            lat_range=(-15, 15), rolling_window_size=120, n_harmonics=3, normalize_std=False, n_modes=2,
-                           threshold_active_days=None):
+                           threshold_active_days=None, spectrum_var='rlut', seg_size=96, n_overlap=60):
         """
-        Initialize and compute RMM indices and derived scalar scores following (M.C. Wheeler et al., 2004) 
-        for a selected dataset.
+        Initialize and compute Real-Time Multivariate MJO (RMM) indices following (M.C. Wheeler & 
+        H.H. Hendon, 2004) and MJO wavenumber-frequency power spectra following (M.C. Wheeler & 
+        G.N. Kiladis, 1999), and derived scalar scores for a selected dataset.
 
         Parameters
         ----------
@@ -2550,11 +2740,17 @@ class ScientificEvaluation:
         threshold_active_days : float
             Threshold for the amplitude of the first two PCs to consider the MJO active at a given 
             day. If None, the mean MJO amplitude over the entire period is used as a threshold.
+        spectrum_var : str
+            Variable to be used for the spectral analysis (default: 'rlut').
+        seg_size : int
+            Size of the segments to perform the spectral analysis on, in days (default: 96).
+        n_overlap : int
+            Number of overlapping points between segments, in days (default: 60).
 
         Returns
         -------
         mjo_analysis : MJOEvaluation
-            MJOEvaluation object containing the computed RMM MJO indices and scalar scores.
+            MJOEvaluation object containing the computed RMM MJO indices, power spectra and scalar scores.
         """
 
         # Validate input
@@ -2575,7 +2771,8 @@ class ScientificEvaluation:
         print(f"Performing MJO analysis for dataset '{data_name}':", flush=True)
         mjo_analysis = MJOEvaluation(data_sim=data_MJO, start_year_mjo=start_year_mjo, end_year_mjo=end_year_mjo, start_year_ref=start_year_ref, 
                                      end_year_ref=end_year_ref, lat_range=lat_range, rolling_window_size=rolling_window_size, n_harmonics=n_harmonics, 
-                                     normalize_std=normalize_std, n_modes=n_modes, threshold_active_days=threshold_active_days)
+                                     normalize_std=normalize_std, n_modes=n_modes, threshold_active_days=threshold_active_days, spectrum_var=spectrum_var, 
+                                     seg_size=seg_size, n_overlap=n_overlap)
 
         return mjo_analysis
     

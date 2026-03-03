@@ -32,9 +32,6 @@ def remove_seasonal_cycle(data, start_year_ref, end_year_ref, n_harmonics=3):
     if not isinstance(data, xr.DataArray):
         raise TypeError("'data' must be an xarray.DataArray.")
 
-    # Remove leap days (February 29th) to avoid issues with data shape
-    data = data.sel(time=~((data['time'].dt.month == 2) & (data['time'].dt.day == 29)))
-
     # Compute climatology over the reference period (assuming the data is daily and ignoring leap days)
     data_ref = data.sel(time=slice(str(start_year_ref), str(end_year_ref)))
     clim = data_ref.groupby("time.dayofyear").mean("time")
@@ -111,7 +108,7 @@ def remove_longer_time_scale_components(data, start_year_ref, end_year_ref, lat_
 
 
     # Pre-filter data for all variables
-    # Select time period and remove leap days to avoid issues with data shape
+    # Select time period and remove leap days (February 29th) to avoid issues with data shape
     # data = data.sel(time=slice(str(start_year_ref), str(end_year_ref)))
     data_filtered = data.sel(time=~((data['time'].dt.month == 2) & (data['time'].dt.day == 29)))
 
@@ -329,7 +326,7 @@ def perform_CEOF_analysis(data=None, ceof_model=None, n_modes=2, vars_order=['ua
 def correct_CEOFs(ceof_new, ceof_ref, n_modes=2):
     """
     Correct sign and order of the first 'n_modes' CCEOF (typically following 
-    (M.Wheeler et al., (2004))).
+    (M.C. Wheeler & H.H. Hendon, 2004)).
     NOTE: only working for 'n_modes=2' for now.
 
     Paramters

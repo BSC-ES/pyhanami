@@ -11,12 +11,16 @@ from pathlib import Path
 from matplotlib import colors
 from scipy.stats import bootstrap
 from matplotlib.lines import Line2D
-from pyhanami.utils import data_general
-from pyhanami.config import config_params
 from cartopy.util import add_cyclic_point
-from matplotlib.patches import Polygon, Circle
+from matplotlib.patches import Polygon, Circle, Rectangle
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap, BoundaryNorm
 
+from pyhanami.utils import data_general
+from pyhanami.config import config_params
+from pyhanami.utils.mjo_scores_dir import mjo_spectrum_funcs
+
+
+# General plotting functions
 
 def save_or_show_plot(plot_obj, output_path, plot_filename, plot_name, custom_name=True):
     """
@@ -865,6 +869,404 @@ def plot_matrix(eff_sizes, test_results, test=4, title='Effect sizes replicabili
     return fig, ax
 
 
+def plot_table(data, title='Climate variables', col_labels='', row_labels='', cbar_ticks=['Low', '0', 'High'], colors=('RdBu_r'),
+               limits=None, reference=True, decimals=1):
+    """ 
+    Generate a table plot with climate data.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        2D array with the data to display in the table.
+    title : str
+        Title of the table.
+    col_labels : list
+        Column labels. Note, the row labels will be added as the first column, hence,
+        the length of col_labels must be equal to number of columns in data + 1.
+    row_labels : list
+        Row labels.
+    cbar_ticks : list
+        Labels for the colorbar ticks (default: ['Low', '0', 'High']).
+    colors : tuple
+        Colormap (default: ('RdBu_r')).
+    limits : np.ndarray
+        Colormap limits (min, max) for each column in the table. If None, the limits will
+        be automatically set as the maximum and minimum values in each column.
+    reference : bool
+        Whether to use the first row of data as reference (not colored) (default: True).
+    decimals : int
+        Number of decimals to round the data values (default: 1).
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        Generated table plot.
+    ax : matplotlib.axes._subplots.AxesSubplot
+        Plot axis.
+    """
+
+    # Validate input
+    if data is None or not isinstance(data, np.ndarray):
+        raise TypeError("The data must be a np.ndarray.")
+    if data.ndim != 2:
+        raise ValueError("The data array must be 2-dimensional.")
+    if len(row_labels) != data.shape[0]:
+        raise ValueError("The number of row labels must match the number of rows in the data.")
+    if len(col_labels)-1 != data.shape[1]:
+        raise ValueError("The number of column labels must match the number of columns in the data.")
+    if limits is not None and (limits.shape[0] != data.shape[1] or limits.shape[1] != 2):
+        raise ValueError("Limits must be a 2D array with shape (n_columns, 2).")
+
+
+    # Create figure with adjusted height based on number of rows
+    n_rows = len(row_labels)
+    n_cols = len(col_labels)
+    height = max(3, n_rows * 0.6)
+    width = 4
+    fig, ax = plt.subplots(figsize=(width, height), dpi=200)
+    
+    ax.axis('off')
+    ax.set_title(title, fontsize=16, pad=20)
+
+    formatted_data = np.array([[f"{val:.{decimals}f}" for val in row] for row in data])
+    cell_text = np.column_stack((np.reshape(row_labels, (-1, 1)), formatted_data))
+    table = plt.table(cellText=cell_text, colLabels=col_labels, loc='center', cellLoc='center')
+    table.auto_set_font_size(False)
+    table.set_fontsize(14)
+    # table.scale(1.1, 1.4)
+
+
+    # Automatically adjust width of first column (row labels)
+    table.auto_set_column_width(0)
+    row_label_width_inch = table.get_celld()[(0,0)].get_width()
+
+    axes_width_inches = width * ax.get_position().width
+    row_label_length = row_label_width_inch / axes_width_inches
+    
+    # Calculate proportional widths for other columns based on label lengths
+    col_label_lengths = [len(str(label)) for label in col_labels[1:]]
+    total_col_length = np.sum(col_label_lengths) + row_label_length
+
+    col_widths = [(length / total_col_length) for length in col_label_lengths]
+    col_widths_inch = [w * axes_width_inches for w in col_widths]
+
+    # Fix cell height in points and convert to fraction of axes height (1 point = 1/72 inch)
+    cell_height_pt = 30
+    axes_height_inches = height * ax.get_position().height
+    cell_height_inch = (cell_height_pt / 72.0) / axes_height_inches
+
+
+    # Customize first column (row labels)
+    table[(0, 0)].set_facecolor('whitesmoke')
+    table.get_celld()[(0, 0)].get_text().set_fontsize(12)
+    for row in range(1, n_rows+1):
+        table[(row,0)].get_text().set_ha('left')
+    for row in range(n_rows+1):
+        table.get_celld()[(row, 0)].set_width(row_label_width_inch)
+        table.get_celld()[(row, 0)].set_height(cell_height_inch)
+
+    # Customize other columns (data cells)
+    start_color_cell = 1 if reference else 0
+    custom_norm = True if limits is not None else False
+    cmap = LinearSegmentedColormap.from_list(*colors)
+    for col in range(1, n_cols):
+        for row in range(n_rows+1): 
+            table.get_celld()[(row, col)].set_width(col_widths_inch[col-1])
+            table.get_celld()[(row, col)].set_height(cell_height_inch)
+
+        if reference:
+            # Paint the cells in the first row (corresponding to the reference data) with light gray
+            table[(1, col)].set_facecolor('lightgray')
+
+        # Color the remaining cells (rows 2-on if `reference` is True, else all rows)
+        if custom_norm:
+            vmin, vmax = limits[col-1]
+        else:
+            values = data[start_color_cell:, col-1]
+            vmin, vmax = values.min(), values.max()
+        if vmin == vmax:
+            vmin = vmax - 1e-6
+        norm = plt.Normalize(vmin, vmax)
+
+        # if custom_norm:
+        #     norm = plt.Normalize(vmin, vmax)
+        # else:
+        #     values = data[start_color_cell:, col-1]
+        #     vmin, vmax = values.min(), values.max()
+
+        #     abs_max = max(abs(vmin), abs(vmax))
+        #     norm = plt.Normalize(-abs_max, abs_max)
+
+        for row in range(start_color_cell+1, n_rows+1):
+            val = data[row-1, col-1]
+            color = cmap(norm(val))
+            table[(row, col)].set_facecolor(color)
+
+        
+    # Add a horizontal colorbar below the table
+    cbar = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax, 
+                        orientation='horizontal', pad=0.1, shrink=1.7, aspect=35)
+
+    # Add ticks to bar
+    left_tick = norm.vmin + (norm.vmax - norm.vmin) * 0.07  # 7% from left
+    middle_tick = norm.vmin + (norm.vmax - norm.vmin) * 0.5  # middle
+    right_tick = norm.vmax - (norm.vmax - norm.vmin) * 0.07  # 7% from right
+    cbar.set_ticks([left_tick, middle_tick, right_tick])
+    cbar.set_ticklabels(cbar_ticks)
+    cbar.ax.tick_params(labelsize=12, length=0)
+    
+        
+    return fig, ax
+
+
+def plot_grouped_bars(data, x_values=None, title='Grouped bar plot', x_label='', y_label='', labels=None):
+    """
+    Generate a grouped bar plot.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        2D array with the data to display in the bar plot.
+    x_values : list
+        Values for the x-axis. If None, default integer 
+        values will be used.
+    title : str
+        Title of plot (default: 'Grouped bar plot').
+    x_label : str
+        Label for the x-axis (default: '').
+    y_label : str
+        Label for the y-axis (default: '').
+    labels : list
+        Labels for each group in the bar plot.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        Generated table plot.
+    ax : matplotlib.axes._subplots.AxesSubplot
+        Plot axis.
+    """
+
+    # Validate input
+    if not isinstance(data, np.ndarray):
+        raise TypeError("The data must be a np.ndarray.")
+    
+    # Prepare plotting parameters
+    if x_values is None:
+        x_values = np.arange(data.shape[1])
+
+    n_bars = data.shape[0]
+    total_width = 0.75
+    bar_width = total_width / n_bars
+    
+
+    # Create figure
+    fig, ax = plt.subplots(figsize=(8, 5), dpi=150)
+
+    # Plot bars
+    for i, dataset in enumerate(data):
+        ax.bar(x_values - (total_width/2) + (i+0.5)*bar_width, dataset, width=bar_width, label=labels[i] if labels else None, zorder=2)
+    
+    # Plot formatting
+    ax.set_xticks(x_values)
+    ax.set_xlabel(x_label, fontsize=11)
+    ax.set_ylabel(y_label, fontsize=11)
+    ax.set_title(title, fontsize=13, pad=15)
+
+    ax.legend(loc='lower right', fontsize=10, framealpha=0.9)
+    ax.grid(zorder=0, alpha=0.8)
+    plt.tight_layout()
+
+    return fig, ax
+
+
+def plot_two_grouped_bars(data_1, data_2, x1_values=None, x2_values=None, suptitle='Grouped bar plot', title_1='First bar plot', 
+                          title_2='Second bar plot', x1_label='', x2_label='', y1_label='', y2_label='', labels=None):
+    """
+    Generate two grouped bar plots side by side.
+
+    Parameters
+    ----------
+    data_1, data_2 : np.ndarray
+        2D arrays with the data to display in the bar plots.
+    x1_values, x2_values : list
+        Values for the x-axes of the individual bar plots. If None,
+        default integer values will be used.
+    suptitle : str
+        Title of the entire figure (default: 'Grouped bar plot').
+    title_1, title_2 : str
+        Titles for the individual bar plots (default: 'First bar plot', 
+        'Second bar plot').
+    x1_label, x2_label : str
+        Labels for the x-axes of the individual bar plots (default: '').
+    y1_label, y2_label : str
+        Labels for the y-axes of the individual bar plots (default: '').
+    labels : list
+        Labels for each group in the bar plots (assuming same for both plots).
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        Generated table plot.
+    axs : matplotlib.axes._subplots.AxesSubplot
+        Plot axes.
+    """
+
+    # Validate input
+    if not isinstance(data_1, np.ndarray) or not isinstance(data_2, np.ndarray) or \
+       data_1.shape[0] != data_2.shape[0]:
+        raise TypeError("The data must be np.ndarrays with the same number of rows.")
+    
+    # Prepare plotting parameters
+    if x1_values is None:
+        x1_values = np.arange(data_1.shape[1])
+    if x2_values is None:
+        x2_values = np.arange(data_2.shape[1])
+
+
+    # Create figure
+    fig, axs = plt.subplots(1, 2, figsize=(10, 4), dpi=150)
+
+    # Plot each dataset
+    total_width = 0.75
+    for i, (data, x_values, x_label, y_label, title) in enumerate(zip([data_1, data_2], [x1_values, x2_values], [x1_label, x2_label], [y1_label, y2_label], [title_1, title_2])):
+        if data.shape[1] != len(x_values):
+            raise ValueError("The number of columns in the data must match the length of x_values.")
+        
+        n_bars = data.shape[0]
+        bar_width = total_width / n_bars
+
+        # Plot bars
+        for j, dataset in enumerate(data):
+            axs[i].bar(x_values - (total_width/2) + (j+0.5)*bar_width, dataset, width=bar_width, label=labels[j] if labels else None, zorder=2)
+        
+        # Plot formatting
+        axs[i].set_xticks(x_values)
+        axs[i].tick_params(axis='both', labelsize=8)
+
+        axs[i].set_xlabel(x_label, fontsize=10)
+        axs[i].set_ylabel(y_label, fontsize=10)
+        axs[i].set_title(title, fontsize=12, pad=15)
+
+        axs[i].legend(loc='lower right', fontsize=7, framealpha=0.9)
+        axs[i].grid(zorder=0, alpha=0.8)
+
+
+    # Add shared title and adjust layout
+    fig.suptitle(suptitle, fontsize=14)  
+    plt.tight_layout()
+
+    return fig, axs
+
+
+def plot_dots_two_axes(data_1, data_2, x_values=None, x_values_minor=None, title='Two y-axes dot plot', x_label='', y1_label='', 
+                       y2_label='', y1_lim=None, y2_lim=None, labels=None):
+    """
+    Generate two dots plots together one on the left y-axis and 
+    the other on the right y-axis.
+
+    Parameters
+    ----------
+    data_1, data_2 : np.ndarray
+        2D array with the data to display in the dot plot on the 
+        left y-axis and right y-axis, respectively.
+    x_values : list
+        Values for the x-axis. If None, default integer values 
+        will be used.
+    x_values_minor : list
+        Values for the minor ticks on the x-axis used for the grid.
+        If None, the grid will use the major x-axis ticks.
+    title : str
+        Title of plot (default: 'Two y-axes dot plot').
+    x_label : str
+        Label for the x-axis (default: '').
+    y1_label, y2_label : str
+        Labels for the left and right y-axes (default: '').
+    y1_lim, y2_lim : tuple
+        Limits for the left and right y-axes.
+    labels : list
+        Labels for each group in the bar plot.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        Generated table plot.
+    axs  : tuple[matplotlib.axes._subplots.AxesSubplot]
+        Plot axes.
+    """
+
+    # Validate input
+    if not isinstance(data_1, np.ndarray) or not isinstance(data_2, np.ndarray) or \
+        data_1.shape != data_2.shape:
+        raise TypeError("The data must be np.ndarrays with the same shape.")
+    
+    # Prepare plotting parameters
+    if x_values is None:
+        x_values = np.arange(data_1.shape[1])
+    n_datasets = data_1.shape[0]
+    total_span = 0.75
+    dot_spacing = total_span / n_datasets
+
+    
+    # Create figure 
+    fig, ax1 = plt.subplots(figsize=(8, 5), dpi=150)
+    ax2 = ax1.twinx()
+
+    # Plot data
+    for i, (dataset_1, dataset_2) in enumerate(zip(data_1, data_2)):
+        sc1 = ax1.scatter(x_values - (total_span/2) + (i+0.5)*dot_spacing, dataset_1, label=labels[i] if labels else None, 
+                          marker='o', linewidth=1, zorder=2)
+        sc2 = ax2.scatter(x_values - (total_span/2) + (i+0.5)*dot_spacing, dataset_2, label=labels[i] if labels else None, 
+                          marker='s', linewidth=1, zorder=2)
+
+        # Adjust markers' colors
+        edge_color = sc1.get_facecolor()[0]
+        edge_color_rgb = colors.to_rgb(edge_color)
+        face_color = tuple(min(1, max(0, c*1.3)) for c in edge_color_rgb)
+
+        sc1.set_edgecolor(edge_color)
+        sc1.set_facecolor(face_color)
+
+        sc2.set_edgecolor(edge_color)
+        sc2.set_facecolor(face_color)
+
+
+    # Plot formatting
+    ax1.set_xticks(x_values)
+    ax1.tick_params(axis='x', which='minor', bottom=False, top=False)
+    ax1.set_xlabel(x_label, fontsize=11)
+
+    ax1.set_ylabel(y1_label + ' (circles)', fontsize=11)
+    if y1_lim is not None:
+        ax1.set_ylim(y1_lim)
+    ax2.set_ylabel(y2_label + ' (squares)', fontsize=11)
+    if y2_lim is not None:
+        ax2.set_ylim(y2_lim)
+
+    if x_values_minor is not None:
+        ax1.set_xticks(x_values_minor, minor=True)
+        ax1.grid(which='minor', axis='x', zorder=0, alpha=0.8)
+    else:
+        ax1.grid(axis='x', zorder=0, alpha=0.8)
+    
+    # Create custom legend with colored rectangles
+    if labels:
+        legend_elements = []
+        for i, label in enumerate(labels):
+            # Get the color from the first scatter plot
+            color = ax1.collections[i].get_facecolors()[0]
+            legend_elements.append(plt.Rectangle((0, 0), 1, 1, facecolor=color, label=label))
+        ax1.legend(handles=legend_elements, fontsize=8)
+
+    ax1.set_title(title, fontsize=13, pad=15)
+    plt.tight_layout()
+
+    return fig, (ax1, ax2)
+
+
+
+# Specific ISO evaluation plotting functions
+
 def plot_eeofs(eeof, clon=0, title='ISO convection patterns', cb_label='scaled EEOF', cmap='RdBu_r', levels=13, vmin=None, vmax=None):
     """ 
     Generate plot of Empirical Orthogonal Functions (EOFs) for each ISO mode (MJO and BSISO)
@@ -1180,6 +1582,9 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
     return fig, ax
 
 
+
+# Specific MJO evaluation plotting functions
+
 def plot_ceofs(ceofs, title='MJO Multivariate EOFs', vars_colors={'ua850':'#1f77b4','ua200':'#ff7f0e','rlut':'#2ca02c'},
                labels_linestyles={'Dataset 1':'-', 'Dataset 2':'--', 'Dataset 3':':'}):
     """
@@ -1202,8 +1607,8 @@ def plot_ceofs(ceofs, title='MJO Multivariate EOFs', vars_colors={'ua850':'#1f77
     -------
     fig : matplotlib.figure.Figure
         Generated plot.
-    ax : matplotlib.axes._subplots.AxesSubplot
-        Plot axis.
+    axs : matplotlib.axes._subplots.AxesSubplot
+        Plot axes.
     """
 
     # Validate input
@@ -1306,399 +1711,251 @@ def plot_ceofs(ceofs, title='MJO Multivariate EOFs', vars_colors={'ua850':'#1f77
     fig.add_artist(dataset_legend)
 
     fig.suptitle(title, fontsize=14, y=0.99) 
+    plt.tight_layout()
     return fig, axs
 
 
-def plot_grouped_bars(data, x_values=None, title='Grouped bar plot', x_label='', y_label='', labels=None):
+def plot_power_spectrum(spectrum, component='symmetric', x_lim=[-10, 10], y_lim=[0.01, 0.25], title='Symmetric power spectrum', 
+                        cmap=None, levels=None, vmin=None, vmax=None, mjo_box=True):
     """
-    Generate a grouped bar plot.
-
+    Generate symmetric power spectrum plot with theoretical dispersion curves
+    overlaid.
+    
     Parameters
-    ----------
-    data : np.ndarray
-        2D array with the data to display in the bar plot.
-    x_values : list
-        Values for the x-axis. If None, default integer 
-        values will be used.
+    ---------
+    spectrum: xr.DataArray
+        Power spectrum data (with 'wavenumber' and 'frequency' coordinates).
+    component : str
+        Component and dispersion curves to plot, either 'symmetric' or 
+        'antisymmetric' (default: 'symmetric').
+    x_lim : list[float]
+        Limits for the x-axis (default: [-10, 10]).
+    y_lim : list[float]
+        Limits for the y-axis (default: [0.01, 0.25]).
     title : str
-        Title of plot (default: 'Grouped bar plot').
-    x_label : str
-        Label for the x-axis (default: '').
-    y_label : str
-        Label for the y-axis (default: '').
-    labels : list
-        Labels for each group in the bar plot.
+        Title of the plot (default: 'Symmetric power spectrum').
+    cmap : matplotlib colormap
+        Colormap.
+    levels : np.ndarray
+        Contour levels.
+    vmin, vmax : float
+        Min. and max. values for the colormap.
+    mjo_box : bool
+        Whether to draw a dashed box around the MJO region (default: True).
 
     Returns
     -------
     fig : matplotlib.figure.Figure
-        Generated table plot.
+        Generated plot.
     ax : matplotlib.axes._subplots.AxesSubplot
         Plot axis.
     """
-
+    
     # Validate input
-    if not isinstance(data, np.ndarray):
-        raise TypeError("The data must be a np.ndarray.")
+    if not isinstance(spectrum, xr.DataArray):
+        raise ValueError("The spectrum must be an xr.DataArray")
     
-    # Prepare plotting parameters
-    if x_values is None:
-        x_values = np.arange(data.shape[1])
-
-    n_bars = data.shape[0]
-    total_width = 0.75
-    bar_width = total_width / n_bars
-    
-
-    # Create figure
-    fig, ax = plt.subplots(figsize=(8, 5), dpi=150)
-
-    # Plot bars
-    for i, dataset in enumerate(data):
-        ax.bar(x_values - (total_width/2) + (i+0.5)*bar_width, dataset, width=bar_width, label=labels[i] if labels else None, zorder=2)
-    
-    # Plot formatting
-    ax.set_xticks(x_values)
-    ax.set_xlabel(x_label, fontsize=11)
-    ax.set_ylabel(y_label, fontsize=11)
-    ax.set_title(title, fontsize=13, pad=15)
-
-    ax.legend(loc='lower right', fontsize=10, framealpha=0.9)
-    ax.grid(zorder=0, alpha=0.8)
-    plt.tight_layout()
-
-    return fig, ax
-
-
-def plot_two_grouped_bars(data_1, data_2, x1_values=None, x2_values=None, suptitle='Grouped bar plot', title_1='First bar plot', 
-                          title_2='Second bar plot', x1_label='', x2_label='', y1_label='', y2_label='', labels=None):
-    """
-    Generate two grouped bar plots side by side.
-
-    Parameters
-    ----------
-    data_1, data_2 : np.ndarray
-        2D arrays with the data to display in the bar plots.
-    x1_values, x2_values : list
-        Values for the x-axes of the individual bar plots. If None,
-        default integer values will be used.
-    suptitle : str
-        Title of the entire figure (default: 'Grouped bar plot').
-    title_1, title_2 : str
-        Titles for the individual bar plots (default: 'First bar plot', 
-        'Second bar plot').
-    x1_label, x2_label : str
-        Labels for the x-axes of the individual bar plots (default: '').
-    y1_label, y2_label : str
-        Labels for the y-axes of the individual bar plots (default: '').
-    labels : list
-        Labels for each group in the bar plots (assuming same for both plots).
-
-    Returns
-    -------
-    fig : matplotlib.figure.Figure
-        Generated table plot.
-    ax : matplotlib.axes._subplots.AxesSubplot
-        Plot axis.
-    """
-
-    # Validate input
-    if not isinstance(data_1, np.ndarray) or not isinstance(data_2, np.ndarray) or \
-       data_1.shape[0] != data_2.shape[0]:
-        raise TypeError("The data must be np.ndarrays with the same number of rows.")
-    
-    # Prepare plotting parameters
-    if x1_values is None:
-        x1_values = np.arange(data_1.shape[1])
-    if x2_values is None:
-        x2_values = np.arange(data_2.shape[1])
-
-
-    # Create figure
-    fig, axs = plt.subplots(1, 2, figsize=(10, 4), dpi=150)
-
-    # Plot each dataset
-    total_width = 0.75
-    for i, (data, x_values, x_label, y_label, title) in enumerate(zip([data_1, data_2], [x1_values, x2_values], [x1_label, x2_label], [y1_label, y2_label], [title_1, title_2])):
-        if data.shape[1] != len(x_values):
-            raise ValueError("The number of columns in the data must match the length of x_values.")
-        
-        n_bars = data.shape[0]
-        bar_width = total_width / n_bars
-
-        # Plot bars
-        for j, dataset in enumerate(data):
-            axs[i].bar(x_values - (total_width/2) + (j+0.5)*bar_width, dataset, width=bar_width, label=labels[j] if labels else None, zorder=2)
-        
-        # Plot formatting
-        axs[i].set_xticks(x_values)
-        axs[i].tick_params(axis='both', labelsize=8)
-
-        axs[i].set_xlabel(x_label, fontsize=10)
-        axs[i].set_ylabel(y_label, fontsize=10)
-        axs[i].set_title(title, fontsize=12, pad=15)
-
-        axs[i].legend(loc='lower right', fontsize=7, framealpha=0.9)
-        axs[i].grid(zorder=0, alpha=0.8)
-
-
-    # Add shared title and adjust layout
-    fig.suptitle(suptitle, fontsize=14)  
-    plt.tight_layout()
-
-    return fig, axs
-
-
-def plot_dots_two_axes(data_1, data_2, x_values=None, x_values_minor=None, title='Two y-axes dot plot', x_label='', y1_label='', 
-                       y2_label='', y1_lim=None, y2_lim=None, labels=None):
-    """
-    Generate two dots plots together one on the left y-axis and 
-    the other on the right y-axis.
-
-    Parameters
-    ----------
-    data_1, data_2 : np.ndarray
-        2D array with the data to display in the dot plot on the 
-        left y-axis and right y-axis, respectively.
-    x_values : list
-        Values for the x-axis. If None, default integer values 
-        will be used.
-    x_values_minor : list
-        Values for the minor ticks on the x-axis used for the grid.
-        If None, the grid will use the major x-axis ticks.
-    title : str
-        Title of plot (default: 'Two y-axes dot plot').
-    x_label : str
-        Label for the x-axis (default: '').
-    y1_label, y2_label : str
-        Labels for the left and right y-axes (default: '').
-    y1_lim, y2_lim : tuple
-        Limits for the left and right y-axes.
-    labels : list
-        Labels for each group in the bar plot.
-
-    Returns
-    -------
-    fig : matplotlib.figure.Figure
-        Generated table plot.
-    ax : matplotlib.axes._subplots.AxesSubplot
-        Plot axis.
-    """
-
-    # Validate input
-    if not isinstance(data_1, np.ndarray) or not isinstance(data_2, np.ndarray) or \
-        data_1.shape != data_2.shape:
-        raise TypeError("The data must be np.ndarrays with the same shape.")
-    
-    # Prepare plotting parameters
-    if x_values is None:
-        x_values = np.arange(data_1.shape[1])
-    n_datasets = data_1.shape[0]
-    total_span = 0.75
-    dot_spacing = total_span / n_datasets
-
-    
-    # Create figure 
-    fig, ax1 = plt.subplots(figsize=(8, 5), dpi=150)
-    ax2 = ax1.twinx()
-
-    # Plot data
-    for i, (dataset_1, dataset_2) in enumerate(zip(data_1, data_2)):
-        sc1 = ax1.scatter(x_values - (total_span/2) + (i+0.5)*dot_spacing, dataset_1, label=labels[i] if labels else None, 
-                          marker='o', linewidth=1, zorder=2)
-        sc2 = ax2.scatter(x_values - (total_span/2) + (i+0.5)*dot_spacing, dataset_2, label=labels[i] if labels else None, 
-                          marker='s', linewidth=1, zorder=2)
-
-        # Adjust markers' colors
-        edge_color = sc1.get_facecolor()[0]
-        edge_color_rgb = colors.to_rgb(edge_color)
-        face_color = tuple(min(1, max(0, c*1.3)) for c in edge_color_rgb)
-
-        sc1.set_edgecolor(edge_color)
-        sc1.set_facecolor(face_color)
-
-        sc2.set_edgecolor(edge_color)
-        sc2.set_facecolor(face_color)
-
-
-    # Plot formatting
-    ax1.set_xticks(x_values)
-    ax1.tick_params(axis='x', which='minor', bottom=False, top=False)
-    ax1.set_xlabel(x_label, fontsize=11)
-
-    ax1.set_ylabel(y1_label + ' (circles)', fontsize=11)
-    if y1_lim is not None:
-        ax1.set_ylim(y1_lim)
-    ax2.set_ylabel(y2_label + ' (squares)', fontsize=11)
-    if y2_lim is not None:
-        ax2.set_ylim(y2_lim)
-
-    if x_values_minor is not None:
-        ax1.set_xticks(x_values_minor, minor=True)
-        ax1.grid(which='minor', axis='x', zorder=0, alpha=0.8)
+    if component == 'symmetric':
+        ii_range = [3, 4, 5]
+    elif component == 'antisymmetric':
+        ii_range = [0, 1, 2]
     else:
-        ax1.grid(axis='x', zorder=0, alpha=0.8)
+        raise ValueError(f"Invalid component option '{component}'. Choose either 'symmetric' or 'antisymmetric'.")
+
+
+    # Get data for the theoretical dispersion curves:
+    swfreq,swwn = mjo_spectrum_funcs.gen_dispersion_curves()
+
+    # Prepare data
+    swf = np.where(swfreq == 1e20, np.nan, swfreq)
+    swk = np.where(swwn == 1e20, np.nan, swwn)
+
+    z = spectrum.transpose().sel(frequency=slice(0,0.5), wavenumber=slice(-15,15))
+    z.loc[{'frequency':0}] = np.nan
+    kmesh0, vmesh0 = np.meshgrid(z['wavenumber'], z['frequency'])
+
+    # Prepare plotting parameters
+    if cmap is None: 
+        colors_custom = [
+        # "#FFFFFF",   # White
+        "#C6DBEF",   # Light blue
+        "#6BAED6",   # Medium blue
+        "#2171B5",   # Dark blue
+        "#41AB5D",   # Light green
+        "#9dd561",   # Dark green
+        "#facc0a",   # Light yellow
+        "#f4a604",   # Darker yellow
+        "#C70039",   # Light red
+        "#900C3F",   # Medium red
+        "#581845"    # Dark red
+    ]
+    cmap = colors.ListedColormap(colors_custom)
+
+    if vmin is None:
+        vmin = np.nanmin(z)
+    if vmax is None:
+        vmax = np.nanmax(z)
+    if levels is None:
+        levels = np.linspace(vmin, vmax, 12)
+    norm = BoundaryNorm(levels, len(levels))
+
+
+    # Create plot
+    fig, ax = plt.subplots()
     
-    # Create custom legend with colored rectangles
-    if labels:
-        legend_elements = []
-        for i, label in enumerate(labels):
-            # Get the color from the first scatter plot
-            color = ax1.collections[i].get_facecolors()[0]
-            legend_elements.append(plt.Rectangle((0, 0), 1, 1, facecolor=color, label=label))
-        ax1.legend(handles=legend_elements, fontsize=8)
+    # Plot spectrum
+    img = ax.contourf(kmesh0, vmesh0, z, cmap=cmap, levels=levels, vmin=vmin, vmax=vmax, norm=norm, extend='max', zorder=0) 
+    
+    # Add dispersion curves
+    color_disp_curves = 'black'
+    lw_disp_curves = 0.5
+    for ii in ii_range:
+        ax.plot(swk[ii, 0,:], swf[ii,0,:], color=color_disp_curves, lw=lw_disp_curves, zorder=1)
+        ax.plot(swk[ii, 1,:], swf[ii,1,:], color=color_disp_curves, lw=lw_disp_curves, zorder=1)
+        ax.plot(swk[ii, 2,:], swf[ii,2,:], color=color_disp_curves, lw=lw_disp_curves, zorder=1)
+    ax.axvline(0, linestyle='dashed', color='lightgray', zorder=1)
 
-    ax1.set_title(title, fontsize=13, pad=15)
-    plt.tight_layout()
+    # Add dashed box around MJO region if requested
+    if mjo_box:
+        mjo_box = Rectangle((0, 1/80), width=4, height=1/30-1/80, edgecolor='black', facecolor='none', linestyle='dashed', lw=1.5, zorder=2)
+        ax.add_patch(mjo_box)
 
-    return fig, (ax1, ax2)
+    # Plot formatting
+    ax.set_xlim(x_lim)
+    ax.set_ylim(y_lim) 
+    ax.set_xlabel('zonal wavenumber')
+    ax.set_ylabel('frequency (1/day)')
+    ax.set_title(title)
+
+    fig.colorbar(img, ax=ax, label='normalized power')
+
+    return fig, ax
 
 
-def plot_table(data, title='Climate variables', col_labels='', row_labels='', cbar_ticks=['Low', '0', 'High'], colors=('RdBu_r'),
-               limits=None, reference=True, decimals=1):
-    """ 
-    Generate a table plot with climate data.
-
+def plot_power_spectrum_two(spectrum_1, spectrum_2, component='symmetric', x_lim=[-10, 10], y_lim=[0.01, 0.25], title_1='Spectrum 1', 
+                            title_2='Spectrum 2', suptitle='Symmetric power spectrum', cmap=None, levels=None, vmin=None, 
+                            vmax=None, mjo_box=True):
+    """
+    Generate symmetric power spectrum plot with theoretical dispersion curves
+    overlaid.
+    
     Parameters
-    ----------
-    data : np.ndarray
-        2D array with the data to display in the table.
+    ---------
+    spectrum_1, spectrum_2: xr.DataArray
+        Power spectrum data (with 'wavenumber' and 'frequency' coordinates).
+    component : str
+        Component and dispersion curves to plot, either 'symmetric' or 
+        'antisymmetric' (default: 'symmetric').
+    x_lim : list[float]
+        Limits for the x-axis (default: [-10, 10]).
+    y_lim : list[float]
+        Limits for the y-axis (default: [0.01, 0.25]).
     title : str
-        Title of the table.
-    col_labels : list
-        Column labels. Note, the row labels will be added as the first column, hence,
-        the length of col_labels must be equal to number of columns in data + 1.
-    row_labels : list
-        Row labels.
-    cbar_ticks : list
-        Labels for the colorbar ticks (default: ['Low', '0', 'High']).
-    colors : tuple
-        Colormap (default: ('RdBu_r')).
-    limits : np.ndarray
-        Colormap limits (min, max) for each column in the table. If None, the limits will
-        be automatically set as the maximum and minimum values in each column.
-    reference : bool
-        Whether to use the first row of data as reference (not colored) (default: True).
-    decimals : int
-        Number of decimals to round the data values (default: 1).
+        Title of the plot (default: 'Symmetric power spectrum').
+    cmap : matplotlib colormap
+        Colormap.
+    levels : np.ndarray
+        Contour levels.
+    vmin, vmax : float
+        Min. and max. values for the colormap.
+    mjo_box : bool
+        Whether to draw a dashed box around the MJO region (default: True).
 
     Returns
     -------
     fig : matplotlib.figure.Figure
-        Generated table plot.
+        Generated plot.
     ax : matplotlib.axes._subplots.AxesSubplot
         Plot axis.
     """
-
+    
     # Validate input
-    if data is None or not isinstance(data, np.ndarray):
-        raise TypeError("The data must be a np.ndarray.")
-    if data.ndim != 2:
-        raise ValueError("The data array must be 2-dimensional.")
-    if len(row_labels) != data.shape[0]:
-        raise ValueError("The number of row labels must match the number of rows in the data.")
-    if len(col_labels)-1 != data.shape[1]:
-        raise ValueError("The number of column labels must match the number of columns in the data.")
-    if limits is not None and (limits.shape[0] != data.shape[1] or limits.shape[1] != 2):
-        raise ValueError("Limits must be a 2D array with shape (n_columns, 2).")
-
-
-    # Create figure with adjusted height based on number of rows
-    n_rows = len(row_labels)
-    n_cols = len(col_labels)
-    height = max(3, n_rows * 0.6)
-    width = 4
-    fig, ax = plt.subplots(figsize=(width, height), dpi=200)
+    if not isinstance(spectrum_1, xr.DataArray) or not isinstance(spectrum_2, xr.DataArray):
+        raise ValueError("Both spectra must be xr.DataArray")
     
-    ax.axis('off')
-    ax.set_title(title, fontsize=16, pad=20)
-
-    formatted_data = np.array([[f"{val:.{decimals}f}" for val in row] for row in data])
-    cell_text = np.column_stack((np.reshape(row_labels, (-1, 1)), formatted_data))
-    table = plt.table(cellText=cell_text, colLabels=col_labels, loc='center', cellLoc='center')
-    table.auto_set_font_size(False)
-    table.set_fontsize(14)
-    # table.scale(1.1, 1.4)
+    if component == 'symmetric':
+        ii_range = [3, 4, 5]
+    elif component == 'antisymmetric':
+        ii_range = [0, 1, 2]
+    else:
+        raise ValueError(f"Invalid component option '{component}'. Choose either 'symmetric' or 'antisymmetric'.")
 
 
-    # Automatically adjust width of first column (row labels)
-    table.auto_set_column_width(0)
-    row_label_width_inch = table.get_celld()[(0,0)].get_width()
+    # Get data for the theoretical dispersion curves:
+    swfreq, swwn = mjo_spectrum_funcs.gen_dispersion_curves()
 
-    axes_width_inches = width * ax.get_position().width
-    row_label_length = row_label_width_inch / axes_width_inches
+    # Prepare data
+    swf = np.where(swfreq == 1e20, np.nan, swfreq)
+    swk = np.where(swwn == 1e20, np.nan, swwn)
+
+    z_1 = spectrum_1.transpose().sel(frequency=slice(0,0.5), wavenumber=slice(-15,15))
+    z_1.loc[{'frequency':0}] = np.nan
+    kmesh0_1, vmesh0_1 = np.meshgrid(z_1['wavenumber'], z_1['frequency'])
+
+    z_2 = spectrum_2.transpose().sel(frequency=slice(0,0.5), wavenumber=slice(-15,15))
+    z_2.loc[{'frequency':0}] = np.nan
+    kmesh0_2, vmesh0_2 = np.meshgrid(z_2['wavenumber'], z_2['frequency'])
+
+
+    # Prepare plotting parameters
+    if cmap is None: 
+        colors_custom = [
+        # "#FFFFFF",   # White
+        "#C6DBEF",   # Light blue
+        "#6BAED6",   # Medium blue
+        "#2171B5",   # Dark blue
+        "#41AB5D",   # Light green
+        "#9dd561",   # Dark green
+        "#facc0a",   # Light yellow
+        "#f4a604",   # Darker yellow
+        "#C70039",   # Light red
+        "#900C3F",   # Medium red
+        "#581845"    # Dark red
+    ]
+    cmap = colors.ListedColormap(colors_custom)
+
+    if vmin is None:
+        vmin = np.nanmin([z_1, z_2])
+    if vmax is None:
+        vmax = np.nanmax([z_1, z_2])
+    if levels is None:
+        levels = np.linspace(vmin, vmax, 12)
+    norm = BoundaryNorm(levels, len(levels))
+
+
+    # Create plot
+    fig, axs = plt.subplots(1, 2, figsize=(13, 5), constrained_layout=True)
+
+    # Separate subplots
+    # plt.subplots_adjust(wspace=0.2)  
     
-    # Calculate proportional widths for other columns based on label lengths
-    col_label_lengths = [len(str(label)) for label in col_labels[1:]]
-    total_col_length = np.sum(col_label_lengths) + row_label_length
-
-    col_widths = [(length / total_col_length) for length in col_label_lengths]
-    col_widths_inch = [w * axes_width_inches for w in col_widths]
-
-    # Fix cell height in points and convert to fraction of axes height (1 point = 1/72 inch)
-    cell_height_pt = 30
-    axes_height_inches = height * ax.get_position().height
-    cell_height_inch = (cell_height_pt / 72.0) / axes_height_inches
-
-
-    # Customize first column (row labels)
-    table[(0, 0)].set_facecolor('whitesmoke')
-    table.get_celld()[(0, 0)].get_text().set_fontsize(12)
-    for row in range(1, n_rows+1):
-        table[(row,0)].get_text().set_ha('left')
-    for row in range(n_rows+1):
-        table.get_celld()[(row, 0)].set_width(row_label_width_inch)
-        table.get_celld()[(row, 0)].set_height(cell_height_inch)
-
-    # Customize other columns (data cells)
-    start_color_cell = 1 if reference else 0
-    custom_norm = True if limits is not None else False
-    cmap = LinearSegmentedColormap.from_list(*colors)
-    for col in range(1, n_cols):
-        for row in range(n_rows+1): 
-            table.get_celld()[(row, col)].set_width(col_widths_inch[col-1])
-            table.get_celld()[(row, col)].set_height(cell_height_inch)
-
-        if reference:
-            # Paint the cells in the first row (corresponding to the reference data) with light gray
-            table[(1, col)].set_facecolor('lightgray')
-
-        # Color the remaining cells (rows 2-on if `reference` is True, else all rows)
-        if custom_norm:
-            vmin, vmax = limits[col-1]
-        else:
-            values = data[start_color_cell:, col-1]
-            vmin, vmax = values.min(), values.max()
-        if vmin == vmax:
-            vmin = vmax - 1e-6
-        norm = plt.Normalize(vmin, vmax)
-
-        # if custom_norm:
-        #     norm = plt.Normalize(vmin, vmax)
-        # else:
-        #     values = data[start_color_cell:, col-1]
-        #     vmin, vmax = values.min(), values.max()
-
-        #     abs_max = max(abs(vmin), abs(vmax))
-        #     norm = plt.Normalize(-abs_max, abs_max)
-
-        for row in range(start_color_cell+1, n_rows+1):
-            val = data[row-1, col-1]
-            color = cmap(norm(val))
-            table[(row, col)].set_facecolor(color)
-
-        
-    # Add a horizontal colorbar below the table
-    cbar = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax, 
-                        orientation='horizontal', pad=0.1, shrink=1.7, aspect=35)
-
-    # Add ticks to bar
-    left_tick = norm.vmin + (norm.vmax - norm.vmin) * 0.07  # 7% from left
-    middle_tick = norm.vmin + (norm.vmax - norm.vmin) * 0.5  # middle
-    right_tick = norm.vmax - (norm.vmax - norm.vmin) * 0.07  # 7% from right
-    cbar.set_ticks([left_tick, middle_tick, right_tick])
-    cbar.set_ticklabels(cbar_ticks)
-    cbar.ax.tick_params(labelsize=12, length=0)
+    # Plot spectrum
+    img = axs[0].contourf(kmesh0_1, vmesh0_1, z_1, cmap=cmap, levels=levels, vmin=vmin, vmax=vmax, norm=norm, extend='max', zorder=0) 
+    img = axs[1].contourf(kmesh0_2, vmesh0_2, z_2, cmap=cmap, levels=levels, vmin=vmin, vmax=vmax, norm=norm, extend='max', zorder=0)
     
-        
-    return fig, ax
+    # Add dispersion curves
+    color_disp_curves = 'black'
+    lw_disp_curves = 0.5
+    for ax, title in zip(axs, [title_1, title_2]):
+        for ii in ii_range:
+            ax.plot(swk[ii, 0,:], swf[ii,0,:], color=color_disp_curves, lw=lw_disp_curves, zorder=1)
+            ax.plot(swk[ii, 1,:], swf[ii,1,:], color=color_disp_curves, lw=lw_disp_curves, zorder=1)
+            ax.plot(swk[ii, 2,:], swf[ii,2,:], color=color_disp_curves, lw=lw_disp_curves, zorder=1)
+        ax.axvline(0, linestyle='dashed', color='lightgray', zorder=1)
+
+        # Add dashed box around MJO region if requested
+        if mjo_box:
+            mjo_box = Rectangle((0, 1/80), width=4, height=1/30-1/80, edgecolor='black', facecolor='none', linestyle='dashed', lw=1.5, zorder=2)
+            ax.add_patch(mjo_box)
+
+        # Plot formatting
+        ax.set_xlim(x_lim)
+        ax.set_ylim(y_lim) 
+        ax.set_xlabel('zonal wavenumber', fontsize=12)
+        ax.set_ylabel('frequency (1/day)', fontsize=12)
+        ax.set_title(title, fontsize=13)
+
+    fig.suptitle(suptitle, fontsize=14)
+    fig.colorbar(img, ax=axs, label='normalized power')
+
+    return fig, axs
