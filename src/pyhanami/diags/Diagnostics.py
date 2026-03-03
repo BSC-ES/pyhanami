@@ -11,9 +11,9 @@ import multiprocessing as mp
 from tqdm import tqdm
 from scipy.stats import ttest_ind
 from collections.abc import Iterable
+from matplotlib.colors import LinearSegmentedColormap
 
 from pyhanami.config import config_params
-from matplotlib.colors import LinearSegmentedColormap
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
 from pyhanami.utils import data_general, plot, statistics
