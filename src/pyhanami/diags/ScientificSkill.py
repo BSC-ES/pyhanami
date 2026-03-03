@@ -18,8 +18,8 @@ from matplotlib.colors import LinearSegmentedColormap
 from pyhanami.config import config_params
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
-from pyhanami.utils.mjo_scores_dir import mjo_spectrum_funcs
-from pyhanami.utils import data_general, iso_scores, mjo_scores, plot, statistics
+from pyhanami.utils import data_general, iso_scores, plot, statistics
+from pyhanami.utils.mjo_scores import mjo_ceof_funcs, mjo_spectrum_funcs
 from pyhanami.utils.tcs_scores import tcs_tempestextremes, tcs_ibtracs, tcs_cymep_main
 
 VARIABLES = data_general.load_yaml_file(config_params.VARIABLES_PATH)
@@ -148,9 +148,9 @@ class GeneralEvaluation:
         ----------
         args : tuple
             List containing:
-                data_sim_mean : xarray.DataArray
+                data_sim_mean : xr.DataArray
                     Time averaged simulation data.
-                data_obs : xarray.DataArray
+                data_obs : xr.DataArray
                     Observational data.
                 var_name : str
                     Climate variable.
@@ -186,9 +186,9 @@ class GeneralEvaluation:
 
         Parameters
         ----------
-        data_sim : xarray.DataArray
+        data_sim : xr.DataArray
             Simulation data.
-        data_obs : xarray.DataArray
+        data_obs : xr.DataArray
             Observational data.
 
         Returns
@@ -224,9 +224,9 @@ class GeneralEvaluation:
         ----------
         args : tuple
             List containing:
-                data_sim : xarray.DataArray
+                data_sim : xr.DataArray
                     Simulation data.
-                data_obs : xarray.DataArray
+                data_obs : xr.DataArray
                     Observational data.
                 var_name : str
                     Climate variable.
@@ -262,9 +262,9 @@ class GeneralEvaluation:
 
         Parameters
         ----------
-        data_sim : xarray.DataArray
+        data_sim : xr.DataArray
             Simulation data.
-        data_obs : xarray.DataArray
+        data_obs : xr.DataArray
             Observational data.
 
         Returns
@@ -296,9 +296,9 @@ class GeneralEvaluation:
         ----------
         args : tuple
             List containing:
-                data_sim : xarray.DataArray
+                data_sim : xr.DataArray
                     Simulation data.
-                data_obs : xarray.DataArray
+                data_obs : xr.DataArray
                     Observational data.
                 var_name : str
                     Climate variable.
@@ -342,9 +342,9 @@ class GeneralEvaluation:
 
         Parameters
         ----------
-        data_sim : xarray.DataArray
+        data_sim : xr.DataArray
             Simulation data.
-        data_obs : xarray.DataArray
+        data_obs : xr.DataArray
             Observational data.
 
         Returns
@@ -490,21 +490,21 @@ class ISOEvaluation:
         Whether to use observational data.
     correct_pc : bool
         Whether to adjust simulated PCs with observational data.
-    eeof_summer : xarray.DataArray
+    eeof_summer : xr.DataArray
         EEOFs for boreal summer.
-    eeof_winter : xarray.DataArray
+    eeof_winter : xr.DataArray
         EEOFs for boreal winter.
     start_year_eeof, end_year_eeof : int
         Initial and end years to perform Extended Empirical Orthogonal Function (EEOF) analysis for.
-    pcs_sim : xarray.DataArray
+    pcs_sim : xr.DataArray
         PCs computed from the simulation data.
-    pcs_obs : xarray.DataArray or None
+    pcs_obs : xr.DataArray or None
         PCs from observational data, or None if not computed.
     start_year_pc, end_year_pc : int
         Initial and end years to compute Principal Components (PCs) for.
-    freq_sim : xarray.DataArray
+    freq_sim : xr.DataArray
         Mean monthly frequency of occurrence for simulation data.
-    freq_obs : xarray.DataArray or None
+    freq_obs : xr.DataArray or None
         Mean monthly frequency of occurrence for observational data, or None if not computed.
     scores : dict
         Dictionary containing various scalar scores comparing simulations and observational data:
@@ -610,11 +610,11 @@ class ISOEvaluation:
         -------
         data_sim : xr.Dataset
             Regridded simulation data if regridding was necessary, otherwise the original data.
-        eeof_summer : xarray.DataArray
+        eeof_summer : xr.DataArray
             EEOFs for boreal summer from observations.
-        eeof_winter : xarray.DataArray
+        eeof_winter : xr.DataArray
             EEOFs for boreal winter from observations.
-        pcs_obs : xarray.DataArray
+        pcs_obs : xr.DataArray
             PCs from observations.
         """
 
@@ -695,7 +695,7 @@ class ISOEvaluation:
         
         Parameters
         ----------
-        data_sim : xarray.DataArray
+        data_sim : xr.DataArray
             Filtered simulation data.
         lag : int
             Lag timesteps (default: 5).
@@ -706,9 +706,9 @@ class ISOEvaluation:
 
         Returns
         -------
-        eeof_summer : xarray.DataArray
+        eeof_summer : xr.DataArray
             EEOFs for boreal summer for simulated data.
-        eeof_winter : xarray.DataArray
+        eeof_winter : xr.DataArray
             EEOFs for boreal winter for simulated data.
         """
 
@@ -726,12 +726,12 @@ class ISOEvaluation:
         
         Parameters
         ----------
-        data_sim : xarray.DataArray
+        data_sim : xr.DataArray
             Filtered simulation data.
 
         Returns
         -------
-        pcs_sim : xarray.DataArray
+        pcs_sim : xr.DataArray
             PCs computed from the simulation data.
         alpha : float
             Ratio between simulated and observed PCs' amplitude.
@@ -1249,10 +1249,10 @@ class MJOEvaluation:
             end_year_ref = self.end_year_mjo
 
         # Filter data and remove longer-time-scale components
-        filtered_obs, anom_obs, std_obs = mjo_scores.remove_longer_time_scale_components(data_obs_vars, start_year_ref, end_year_ref, lat_range, 
-                                                                                         rolling_window_size, n_harmonics, normalize_std)
-        filtered_sim, anom_sim, std_sim = mjo_scores.remove_longer_time_scale_components(data_sim_vars_regrid, start_year_ref, end_year_ref, lat_range,
-                                                                                         rolling_window_size, n_harmonics, normalize_std)
+        filtered_obs, anom_obs, std_obs = mjo_ceof_funcs.remove_longer_time_scale_components(data_obs_vars, start_year_ref, end_year_ref, lat_range, 
+                                                                                             rolling_window_size, n_harmonics, normalize_std)
+        filtered_sim, anom_sim, std_sim = mjo_ceof_funcs.remove_longer_time_scale_components(data_sim_vars_regrid, start_year_ref, end_year_ref, lat_range,
+                                                                                             rolling_window_size, n_harmonics, normalize_std)
 
         return filtered_sim, anom_sim, std_sim, filtered_obs, anom_obs, std_obs
     
@@ -1291,8 +1291,8 @@ class MJOEvaluation:
 
         # Perform observational CEOF analysis (correct sign of the first mode to match the typical
         # MJO pattern from (M.Wheeler et al., (2004))
-        model_mjo_obs = mjo_scores.fit_CEOF_model_xeofs(self.data_ceof_obs, n_modes)
-        ceof_obs = mjo_scores.perform_CEOF_analysis(None, model_mjo_obs, n_modes)
+        model_mjo_obs = mjo_ceof_funcs.fit_CEOF_model_xeofs(self.data_ceof_obs, n_modes)
+        ceof_obs = mjo_ceof_funcs.perform_CEOF_analysis(None, model_mjo_obs, n_modes)
         ceof_obs['ceof'].loc[dict(mode=0)] *= -1
         ceof_obs['pc'].loc[dict(mode=0)] *= -1
         ceof_obs.attrs['EOFs source'] = f"Observations '{self.obs_name}'"
@@ -1315,8 +1315,8 @@ class MJOEvaluation:
 
 
         # Perform and correct CEOF analysis on simulations projecting on themselves
-        ceof_sim_on_sim = mjo_scores.perform_CEOF_analysis(self.data_ceof_sim, None, n_modes)
-        ceof_sim_on_sim = mjo_scores.correct_CEOFs(ceof_sim_on_sim, ceof_obs)
+        ceof_sim_on_sim = mjo_ceof_funcs.perform_CEOF_analysis(self.data_ceof_sim, None, n_modes)
+        ceof_sim_on_sim = mjo_ceof_funcs.correct_CEOFs(ceof_sim_on_sim, ceof_obs)
         ceof_sim_on_sim.attrs['EOFs source'] = f"Simulations '{self.sim_name}'"
         ceof_sim_on_sim.attrs['PCs source'] = f"Simulations '{self.sim_name}' projected on Simulations '{self.sim_name}' CEOFs"
 
@@ -1337,8 +1337,8 @@ class MJOEvaluation:
         """
 
         # Compute correlation between observed and simulated CEOFs
-        ceof_obs_corr = mjo_scores.compute_CEOFs_corr(self.ceof_obs['ceof'], self.ceof_obs['ceof'])
-        ceof_sim_corr = mjo_scores.compute_CEOFs_corr(self.ceof_obs['ceof'], self.ceof_sim_on_sim['ceof'])
+        ceof_obs_corr = mjo_ceof_funcs.compute_CEOFs_corr(self.ceof_obs['ceof'], self.ceof_obs['ceof'])
+        ceof_sim_corr = mjo_ceof_funcs.compute_CEOFs_corr(self.ceof_obs['ceof'], self.ceof_sim_on_sim['ceof'])
     
 
         # Retrieve explained variance of the CEOFs (absolute value and bias)
@@ -1384,17 +1384,17 @@ class MJOEvaluation:
 
         # Compute days for observations
         pcs_obs = self.ceof_obs['pc'].sel(time=slice(str(self.start_year_mjo), str(self.end_year_mjo)))
-        phase_counts_obs = mjo_scores.compute_phase_counts(pcs_obs, threshold)
+        phase_counts_obs = mjo_ceof_funcs.compute_phase_counts(pcs_obs, threshold)
         # phase_counts_obs.attrs['PCs source'] = self.ceof_obs.attrs['PCs source']
 
         # Compute days for simulations projected on observed CEOFs
         pcs_sim_on_obs = self.ceof_sim_on_obs['pc']
-        phase_counts_sim_on_obs = mjo_scores.compute_phase_counts(pcs_sim_on_obs, threshold)
+        phase_counts_sim_on_obs = mjo_ceof_funcs.compute_phase_counts(pcs_sim_on_obs, threshold)
         # phase_counts_sim_on_obs.attrs['PCs source'] = self.ceof_sim_on_obs.attrs['PCs source']
         
         # Compute days for simulations projected on their own CEOFs
         pcs_sim_on_sim = self.ceof_sim_on_sim['pc']
-        phase_counts_sim_on_sim = mjo_scores.compute_phase_counts(pcs_sim_on_sim, threshold)
+        phase_counts_sim_on_sim = mjo_ceof_funcs.compute_phase_counts(pcs_sim_on_sim, threshold)
         # phase_counts_sim_on_sim.attrs['PCs source'] = self.ceof_sim_on_sim.attrs['PCs source']
 
         # Compile all phase counts into a single dataset
@@ -1486,8 +1486,8 @@ class MJOEvaluation:
             end_year_ref = self.end_year_mjo
 
         # Filter data and remove seasonal cycle
-        filtered_obs = mjo_scores.remove_seasonal_cycle(data_obs_vars[spectrum_var], start_year_ref, end_year_ref, n_harmonics)
-        filtered_sim = mjo_scores.remove_seasonal_cycle(data_sim_vars_regrid[spectrum_var], start_year_ref, end_year_ref, n_harmonics)
+        filtered_obs = mjo_ceof_funcs.remove_seasonal_cycle(data_obs_vars[spectrum_var], start_year_ref, end_year_ref, n_harmonics)
+        filtered_sim = mjo_ceof_funcs.remove_seasonal_cycle(data_sim_vars_regrid[spectrum_var], start_year_ref, end_year_ref, n_harmonics)
 
         return filtered_sim, filtered_obs
 

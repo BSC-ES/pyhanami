@@ -17,7 +17,7 @@ from matplotlib.colors import LinearSegmentedColormap, ListedColormap, BoundaryN
 
 from pyhanami.utils import data_general
 from pyhanami.config import config_params
-from pyhanami.utils.mjo_scores_dir import mjo_spectrum_funcs
+from pyhanami.utils.mjo_scores import mjo_spectrum_funcs
 
 
 # General plotting functions
@@ -68,7 +68,7 @@ def plot_time_series(time_series, title='Mean time series', y_label='', labels=N
 
     Parameters
     ----------
-    time_series : xarray.DataArray or list[xr.DataArray]
+    time_series : xr.DataArray or list[xr.DataArray]
         Time series data.
     title : str
         Title of the plot (default: 'Mean time series').
@@ -293,7 +293,7 @@ def plot_spatial(data, clon=0, title='Spatial plot', cb_label='', cmap=cmocean.c
 
     Parameters
     ----------
-    data : xarray.DataArray
+    data : xr.DataArray
         2D dataset to plot with dimensions (lat, lon).
     clon : int
         Central longitude for the spatial map.
@@ -490,9 +490,9 @@ def two_spatial_plots(data_1, data_2, clon=0, title_1='Spatial plot 1', title_2=
 
     Parameters
     ----------
-    data_1 : xarray.DataArray
+    data_1 : xr.DataArray
         First 2D dataset to plot with dimensions (lat, lon).
-    data_2 : xarray.DataArray
+    data_2 : xr.DataArray
         Second 2D dataset to plot with dimensions (lat, lon).
     clon : int
         Central longitude for the spatial maps.
@@ -1275,7 +1275,7 @@ def plot_eeofs(eeof, clon=0, title='ISO convection patterns', cb_label='scaled E
 
     Parameters
     ----------
-    eeof : xarray.Dataset
+    eeof : xr.Dataset
         EEOFs data (including variables `eeof`, `eigval` and `var_frac`, containing
         the EEOFs, eigenvalues and variance fractions, respectively).
     clon : int
@@ -1385,7 +1385,7 @@ def plot_pcs(pcs, title='Bimodal ISO indices', normalized=True):
 
     Parameters
     ----------
-    pcs : xarray.Dataset
+    pcs : xr.Dataset
         PCs data.
     title : str
         Title of the plot.
@@ -1480,9 +1480,9 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
 
     Parameters
     ----------
-    freq_ISO_sim : xarray.Dataset
+    freq_ISO_sim : xr.Dataset
         Mean monthly frequency of occurrence data for simulated data.
-    freq_ISO_obs : xarray.Dataset
+    freq_ISO_obs : xr.Dataset
         Mean monthly frequency of occurrence data for observations.
     alpha : float
         Ratio between simulated and observed standarized PCs' amplitudes.

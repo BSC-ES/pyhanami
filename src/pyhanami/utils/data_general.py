@@ -76,14 +76,14 @@ def cyclic_wrapper(data, dim="lon"):
 
     Parameters
     ----------
-    data : xarray.DataArray
+    data : xr.DataArray
         Input data array.
     dim : str
         Dimension along which to add the cyclic point (default: "lon").
 
     Returns
     -------
-    wrapped_data : xarray.DataArray
+    wrapped_data : xr.DataArray
         Data array with cyclic point added.
     """
 
@@ -117,9 +117,9 @@ def regrid_data(source_ds, target_ds, var=None, method='bilinear', cyclic_point=
 
         Parameters
         ----------
-        source_ds : xarray.Dataset
+        source_ds : xr.Dataset
             Source dataset.
-        target_ds : xarray.Dataset
+        target_ds : xr.Dataset
             Target dataset.
         var : str
             Variable to regrid.
@@ -132,7 +132,7 @@ def regrid_data(source_ds, target_ds, var=None, method='bilinear', cyclic_point=
 
         Returns
         -------
-        regridded_ds : xarray.Dataset
+        regridded_ds : xr.Dataset
             Regridded dataset.
         """
 

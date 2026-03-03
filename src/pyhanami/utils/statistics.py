@@ -31,9 +31,9 @@ def exp_RK_index(data_sim, data_obs, var_name):
 
     Arguments
     ---------
-    data_sim : xarray.Dataset
+    data_sim : xr.Dataset
         Climate simulation ensemble.
-    data_obs : xarray.Dataset
+    data_obs : xr.Dataset
         Climate observations ensemble.
     var_name : str
         Climate variable.
@@ -78,14 +78,14 @@ def ilamb_crms(data, var_name):
 
     Arguments
     ---------
-    data : xarray.Dataset
+    data : xr.Dataset
         Climate simulation ensemble.
     var_name : str
         Climate variable.
 
     Returns
     -------
-    v : xarray.Dataset
+    v : xr.Dataset
         Centralized RMS for each grid cell and ensemble member.
     """
 
@@ -115,16 +115,16 @@ def ilamb_crmse(data_sim, data_obs, var_name):
     
     Arguments
     ---------
-    data_sim : xarray.Dataset
+    data_sim : xr.Dataset
         Climate simulation ensemble.
-    data_obs : xarray.Dataset
+    data_obs : xr.Dataset
         Climate observations ensemble.
     var_name : str
         Climate variable.
 
     Returns
     -------
-    vs : xarray.Dataset
+    vs : xr.Dataset
         Centralized RMSE for each grid cell and ensemble member.
     """
 
@@ -165,9 +165,9 @@ def ilamb_weighted_bias(data_sim, data_obs, var_name):
 
     Arguments
     ---------
-    data_sim : xarray.Dataset
+    data_sim : xr.Dataset
         Climate simulation ensemble.
-    data_obs : xarray.Dataset
+    data_obs : xr.Dataset
         Climate observations ensemble.
     var_name : str
         Climate variable.
@@ -213,9 +213,9 @@ def ilamb_weighted_RMSE(data_sim, data_obs, var_name):
 
     Arguments
     ---------
-    data_sim : xarray.Dataset
+    data_sim : xr.Dataset
         Climate simulation ensemble.
-    data_obs : xarray.Dataset
+    data_obs : xr.Dataset
         Climate observations ensemble.
     var_name : str
         Climate variable.
@@ -259,9 +259,9 @@ def abs_weighted_bias(data_sim, data_obs, var_name):
 
     Arguments
     ---------
-    data_sim : xarray.Dataset
+    data_sim : xr.Dataset
         Climate simulation ensemble.
-    data_obs : xarray.Dataset
+    data_obs : xr.Dataset
         Climate observations ensemble.
     var_name : str
         Climate variable.
@@ -303,9 +303,9 @@ def abs_weighted_RMSE(data_sim, data_obs, var_name):
 
     Arguments
     ---------
-    data_sim : xarray.Dataset
+    data_sim : xr.Dataset
         Climate simulation ensemble.
-    data_obs : xarray.Dataset
+    data_obs : xr.Dataset
         Climate observations ensemble.
     var_name : str
         Climate variable.

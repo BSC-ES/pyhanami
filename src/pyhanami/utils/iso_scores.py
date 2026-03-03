@@ -86,7 +86,7 @@ def apply_lanczos_bandpass(data, window=141, low_freq=1/90, high_freq=1/25):
 
     Parameters
     ----------
-    data : xarray.DataArray
+    data : xr.DataArray
         Input data to be filtered.
     window_size : int
         Length of the filter kernel (default: 141).
@@ -97,7 +97,7 @@ def apply_lanczos_bandpass(data, window=141, low_freq=1/90, high_freq=1/25):
 
     Returns
     -------
-    filtered_data : xarray.DataArray
+    filtered_data : xr.DataArray
         Filtered data.
     """
     
@@ -160,7 +160,7 @@ def extract_season_blocks(data, start_year, end_year, season, cutoff_points=90):
 
     Parameters
     ----------
-    data : xarray.DataArray
+    data : xr.DataArray
         Input data.
     start_year : int
         Start year for filtering.
@@ -173,7 +173,7 @@ def extract_season_blocks(data, start_year, end_year, season, cutoff_points=90):
 
     Returns
     -------
-    blocks : list[xarray.DataArray]
+    blocks : list[xr.DataArray]
         Extracted season blocks.
     """
 
@@ -334,7 +334,7 @@ def generate_lagged_matrix(data, lags):
 
     Parameters
     ----------
-    data : xarray.Dataset
+    data : xr.Dataset
         Input data.
     lags : list[int]
         Lag values to add (a value of n is equivalent to a delay of n timesteps).

@@ -25,7 +25,7 @@ class SimulationData:
         Path to the dataset file or catalogue interface if provided; None if dataset was passed directly.
     name : str
         Name of the simulation instance.
-    data : xarray.Dataset
+    data : xr.Dataset
         Loaded dataset object with climate variables.
     """
 
