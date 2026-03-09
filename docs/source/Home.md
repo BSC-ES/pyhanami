@@ -13,7 +13,7 @@ Key features of the package include:
 
 - **Easy input handling:** load climate simulation ensembles from a NetCDF file or an `xarray.Dataset` object (in future releases, also from an intake catalogue) using the `SimulationData` class. 
 - **Diagnostics plotting:** generate visualizations comparing two previously loaded simulation ensembles for selected variables using the `DataDiagnostics` class. 
-These include time series plots (with the `time_series_plots` method) and spatial plots (with the `spatial_plots` method). The latter generates two plots, one for the absolute difference and another for the effect size (Cohen's _d)_ between both ensembles.
+These include time series and spatial plots. The latter involves plots displaying the absolute difference and the effect size (Cohen's _d)_ between two ensembles, and bias plots comparing the simulations to reference observations.
 - **Replicability testing:** perform a replicability test checking the statistical indistinguishability between two previously loaded simulation ensembles using the `ReplicabilityTest` class.
 - **Scientific skill evaluation:** compute scalar scores evaluating the following phenomena using the `ScientificEvaluation` class:
     - <u> General skill:</u> this includes the computation of general scalar scores (bias (BIAS), Root Mean Square Error (RMSE), and spatial Pearson correlation ($r_{xy}$)) for any variable in the simulation dataset comparing to observations.
@@ -31,6 +31,7 @@ For quick start instructions, see the README on the [project's GitHub repository
 
 ## Contact people
 
+Main developer:
 - Marta Alerany Solé (BSC-CNS): [marta.alerany@bsc.es](mailto:marta.alerany@bsc.es)
 
 <!--Significant contributors:
