@@ -45,7 +45,7 @@ class GeneralEvaluation:
         Name of the observational dataset to compare to (default: config_params.GEN_OBS_NAME).
     obs_path : str
         Path to the observations database (default: config_params.GEN_OBS_PATH).
-    start_year, end_year : int
+    start_year, end_year : int, optional
         Initial and end years to perform the general analysis for.
 
     Attributes
@@ -77,8 +77,8 @@ class GeneralEvaluation:
                 Area-weighted Pearson correlation coefficient.
     """
 
-    def __init__(self,  data_sim : SimulationData, var_names : str | list[str] = None, obs_name : str = config_params.GEN_OBS_NAME, 
-                 obs_path : str = config_params.GEN_OBS_PATH, start_year : int = None, end_year : int = None):
+    def __init__(self, data_sim, var_names=None, obs_name=config_params.GEN_OBS_NAME, 
+                 obs_path=config_params.GEN_OBS_PATH, start_year=None, end_year=None):
 
         # Validate input
         if not isinstance(data_sim, SimulationData):
@@ -457,9 +457,9 @@ class ISOEvaluation:
         Simulation dataset to use.
     var_name : str
         Name given to the TOA Outgoing Longwave Radiation (OLR) variable (default: 'rlut').
-    start_year_eeof, end_year_eeof : int
+    start_year_eeof, end_year_eeof : int, optional
         Initial and end years to perform Extended Empirical Orthogonal Function (EEOF) analysis for.
-    start_year_pc, end_year_pc : int
+    start_year_pc, end_year_pc : int, optional
         Initial and end years to compute Principal Components (PCs) for.
     obs : bool
         If True, also plot observational data if available (default: False).
@@ -518,10 +518,9 @@ class ISOEvaluation:
                 Taylor Skill Score.
     """
 
-    def __init__(self, data_sim : SimulationData, var_name : str = 'rlut', start_year_eeof : int = None, end_year_eeof : int = None, 
-                 start_year_pc : int = None, end_year_pc : int = None, obs : bool = False, correct_pc : bool = False,
-                 lat_range : tuple = (-30, 30), lag : int = 5, n_lags : int = 3, n_modes : int = 2, window : int = 141, 
-                 low_freq : float = 1/90, high_freq : float = 1/25):
+    def __init__(self, data_sim, var_name='rlut', start_year_eeof=None, end_year_eeof=None, start_year_pc=None, 
+                 end_year_pc=None, obs=False, correct_pc=False, lat_range=(-30, 30), lag=5, n_lags=3, 
+                 n_modes=2, window=141, low_freq=1/90, high_freq=1/25):
 
         # Validate input
         if not isinstance(data_sim, SimulationData):
@@ -1009,9 +1008,9 @@ class MJOEvaluation:
     ----------
     data_sim : SimulationData
         Simulation dataset to use.
-    start_year_mjo, end_year_mjo : int
+    start_year_mjo, end_year_mjo : int, optional
         Initial and end years to perform the analysis for.
-    start_year_ref, end_year_ref : int
+    start_year_ref, end_year_ref : int, optional
         Initial and end years for computing the reference seasonal cycle. If None, taken as
         the initial and end years for the whole MJO analysis.
     lat_range : tuple
@@ -1997,8 +1996,7 @@ class TCEvaluation:
         Colorbar colors for correlation tables.
     """
 
-    def __init__(self, data_sim : SimulationData, start_year_tc: int = None, end_year_tc: int = None, obs: bool = True, 
-                 wind_factor: float = 1.0, min_wind: float = 10.0, bin_size : float = 2.5):
+    def __init__(self, data_sim, start_year_tc=None, end_year_tc=None, obs=True, wind_factor=1.0, min_wind=10.0, bin_size=2.5):
         
         # Validate input
         if not isinstance(data_sim, SimulationData):
@@ -2555,7 +2553,7 @@ class ScientificEvaluation:
         Configuration dictionary mapping variable names to display metadata.
     """    
 
-    def __init__(self, datasets: Iterable[SimulationData] = None):        
+    def __init__(self, datasets=None):        
         if datasets is None:
             self.datasets = []
         else:

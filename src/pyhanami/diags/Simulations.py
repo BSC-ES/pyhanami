@@ -14,7 +14,7 @@ class SimulationData:
 
     Parameters
     ----------
-    data_source : Union[str, Path, xr.Dataset]
+    data_source :  str or Path or xr.Dataset
         Path to a dataset file or catalogue interface, or an already loaded xarray.Dataset object.
     name : str
         Name of the simulation instance (default: 'sim').
@@ -29,7 +29,7 @@ class SimulationData:
         Loaded dataset object with climate variables.
     """
 
-    def __init__(self, data_source: str, name: str = 'sim'):
+    def __init__(self, data_source, name='sim'):
         if isinstance(data_source, (str, Path)):
             self.data_path = Path(data_source)
             if not self.data_path.exists():
