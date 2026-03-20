@@ -1,0 +1,157 @@
+# Parameters for Tropical Intraseasonal Oscillation evaluation
+# Reference: (K. Kikuchi et al., 2012)
+iso:
+
+  # Bandpass filtering parameters
+  lat_range:
+    value: (-30, 30)
+    type: tuple
+    units: "degrees"
+    description: Geographic latitude bounds
+  window_size:
+    value: 141
+    type: int
+    description: Length of the filter kernel
+  low_freq:
+    value: 1/90
+    type: float
+    description: Lower cutoff frequency 
+  high_freq:
+    value: 1/25
+    type: float
+    description: Upper cutoff frequency
+
+  # EEOF analysis parameters
+  lag:
+    value: 5
+    type: int
+    description: Lag timesteps
+  n_lags:
+    value: 3
+    type: int
+    description: Number of lag copies
+  n_modes:
+    value: 2
+    type: int
+    description: Number of EEOF modes to compute
+
+
+# Parameters for Madden-Julian Oscillation evaluation
+# Reference: (M.C. Wheeler & H.H. Hendon, 2004), (M.C. Wheeler & G.N. Kiladis, 1999)
+mjo:
+
+  # Filtering (removing longer-time-scale components) parameters
+  lat_range:
+    value: (-15, 15)
+    type: tuple
+    units: "degrees"
+    description: Geographic latitude bounds 
+  rolling_window_size:
+    value: 120
+    type: int
+    units: "days"
+    description: Window size for rolling mean to remove low-frequency variability
+  n_harmonics:
+    value: 3
+    type: int
+    description: Number of harmonics to remove from seasonal cycle
+  normalize_std:
+    value: false
+    type: bool
+    description: Whether to normalize anomalies by fixed standard deviations when removing the seasonal cycle
+
+  # CEOF analysis parameters
+  n_modes:
+    value: 2
+    type: int
+    description: Number of CEOFs to compute
+
+  # Spectral analysis parameters
+  seg_size:
+    value: 96
+    type: int
+    units: "days"
+    description: Size of the segments to perform the spectral analysis on
+  n_overlap:
+    value: 60
+    type: int
+    units: "days"
+    description: Number of overlapping points between segments
+  # spectrum_var:
+  #   value: 'rlut'
+  #   type: str
+  #   description: Variable to be used for the spectral analysis
+
+
+# Parameters for Tropical Cyclones evaluation
+# Reference: (C.M. Zarzycki & P.A. Ullrich, 2017).
+tc:
+  
+  # DetectNodes parameters
+  psl_delta:
+    value: 200.0
+    type: float
+    units: "Pa"
+    description: Strength of local psl minimum 
+  psl_dist:
+    value: 5.5
+    type: float
+    units: "degrees"
+    description: Allowable distance from local psl minimum for psl closed contour
+  z_delta:
+    value: -6.0
+    type: float
+    units: "m"
+    description: Strength of warm core anomaly given by zg maximum
+  z_dist:
+    value: 6.5
+    type: float
+    units: "degrees"
+    description: Allowable distance from warm core anomaly for z closed contour
+  z_offset:
+    value: 1.0
+    type: float
+    units: "degrees"
+    description: Maximum separation between psl minimum and zg maximum
+  merge_dist:
+    value: 6.0
+    type: float
+    units: "degrees"
+    description: Minimum allowable distance between two candidates
+
+  # StitchNodes parameters
+  traj_range:
+    value: 8.0
+    type: float
+    units: "degrees"
+    description: Maximum travel distance for a cyclone in 6h
+  traj_min_length:
+    value: 10
+    type: int
+    units: "6h-intervals"
+    description: Minimum cyclone lifetime
+  traj_max_gap:
+    value: 3
+    type: int
+    units: "6h-intervals"
+    description: Maximum allowable gap in cyclone trajectory
+  # min_wind:
+  #   value: 10.0
+  #   type: float
+  #   units: "m s**-1"
+  #   description: Minimum 10 m wind speed
+  min_len:
+    value: 10
+    type: int
+    units: "6h-intervals"
+    description: Minimum track length
+  max_lat:
+    value: 50.0
+    type: float
+    units: "degrees"
+    description: Maximum latitude of psl minimum
+  max_topo:
+    value: 1500.0
+    type: float
+    units: "m"
+    description: Maximum topography height
