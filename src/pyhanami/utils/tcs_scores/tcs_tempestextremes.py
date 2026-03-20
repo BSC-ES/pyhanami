@@ -5,7 +5,7 @@ Original author: Paul Ullrich
 License: BSD 2-Clause License
 Copyright (c) 2025, Paul Ullrich
 
-The criteria for Tropical Cyclones (TCs) detection is taken from (C.M. Zarzycki & P.A. Ullrich, 2017; https://doi.org/10.1002/2016GL071606).
+The criteria for Tropical Cyclones (TCs) detection and tracking is taken from (C.M. Zarzycki & P.A. Ullrich, 2017).
 From Section '3.4 Sample Optimization' in the paper (param_name_here (param_name_in_paper) = default_value): 
 - psl_delta (pslFOmag) = 2 hPa
 - z_offset (wcMaxOffset) = 1°
@@ -14,13 +14,15 @@ From Section '3.4 Sample Optimization' in the paper (param_name_here (param_name
 - traj_max_gap (trajMaxGap) = 18 h
 - maxTopo = 1500 m
 - max_lat (maxLat) = 50°
-- min_wind (minWind) = 10 m s−1
+- min_wind (minWind) = 10 m s**-1
 - psl_dist (pslFOdist) = 5.5°
 - z_delta (scFOmax) = −6 m
 - z_dist (wcFOdist) = 6.5°
 - traj_min_length (trajMinLen) = 60 h
-NOTE: We recommend adjusting the min_wind parameter (i.e. 10 m wind speed threshold) according to the model's (or reanalysis') horizontal 
-resolution following the criteria established in (K.J.E. Walsh et al., 2007; https://doi.org/10.1175/JCLI4074.1).
+The default values are defined in the configuration file `pyhanami.config.scientific_evaluation_parameters.yaml`.
+
+NOTE: We recommend adjusting the min_wind parameter (i.e. 10 m wind speed threshold) according to the model's 
+(or reanalysis') horizontal resolution following the criteria established in (K.J.E. Walsh et al., 2007).
 """
 
 import shutil
@@ -104,17 +106,17 @@ def detect_nodes(input_file, output_file="detected_nodes.txt", psl_delta=200.0, 
     output_file : str
         Output .txt file to write down the detected nodal features (default: "detected_nodes.txt").
     psl_delta : float
-        Strength of local psl minimum in hPa (default: 200.0).
+        Strength of local psl minimum, in Pa (default: 200.0).
     psl_dist : float
-        Allowable distance from local psl minimum for psl closed contour in degrees (default: 5.5).
+        Allowable distance from local psl minimum for psl closed contour, in degrees (default: 5.5).
     z_delta : float
-        Strength of warm core anomaly given by zg maximum in m (default: -6.0).
+        Strength of warm core anomaly given by zg maximum, in m (default: -6.0).
     z_dist : float
-        Allowable distance from warm core anomaly for z closed contour in degrees (default: 6.5).
+        Allowable distance from warm core anomaly for z closed contour, in degrees (default: 6.5).
     z_offset : float
-        Maximum separation between psl minimum and zg maximum in degrees (default: 1.0).
+        Maximum separation between psl minimum and zg maximum, in degrees (default: 1.0).
     merge_dist : float
-        Minimum allowable distance between two candidates in degrees (default: 6.0).
+        Minimum allowable distance between two candidates, in degrees (default: 6.0).
     """
 
     cmd = [
@@ -146,17 +148,17 @@ def stitch_nodes(input_file, output_file="cyclones_trajectories.txt", traj_range
     output_file : str
         Output .txt file to write down a filtered list of TC candidates (default: "cyclones_trajectories.txt").
     traj_range : float
-        Maximum travel distance for a cyclone in 6h in degrees (default: 8.0).
+        Maximum travel distance for a cyclone in 6h, in degrees (default: 8.0).
     traj_min_length : int
-        Minimum cyclone lifetime in 6h (default: 10).
+        Minimum cyclone lifetime, in 6h-intervals (default: 10).
     traj_max_gap : int
-        Maximum allowable gap in cyclone trajectory in 6h (default: 3).
+        Maximum allowable gap in cyclone trajectory, in 6h-intervals (default: 3).
     min_wind : float
-        Minimum 10 m wind speed in m/s (default: 10.0).
+        Minimum 10 m wind speed, in m/s (default: 10.0).
     min_len : int
-        Minimum track length in 6h (default: 10).
+        Minimum track length, in 6h-intervals (default: 10).
     max_lat : float
-        Maximum latitude of psl minimum in degrees (default: 50.0).
+        Maximum latitude of psl minimum, in degrees (default: 50.0).
     format_str : str
         Format of columns to be added in the output_file, note the following are 
         automatically added as final columns in the output: year (yyyy), month (mm), day (dd), 
@@ -205,7 +207,9 @@ def histogram_nodes(input_file, output_file="cyclones_trajectories.nc", ilon_col
     subprocess.run(cmd, check=True)
 
 
-def track_tcs(data_name, input_path, output_path, min_wind=10.0, hist=False):
+def track_tcs(data_name, input_path, output_path, hist=False, psl_delta=200.0, psl_dist=5.5, z_delta=-6.0, z_dist=6.5, 
+              z_offset=1.0, merge_dist=6.0, traj_range=8.0, traj_min_length=10, traj_max_gap=3, min_wind=10.0, 
+              min_len=10, max_lat=50.0):
     """
     Identify tracks of Tropical Cyclones (TCs) in the input data using TempestExtremes.
 
@@ -217,10 +221,32 @@ def track_tcs(data_name, input_path, output_path, min_wind=10.0, hist=False):
         Input .nc file path.
     output_path : str
         Output path.
-    min_wind : float
-        Minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
     hist : bool
         If True, generate a histogram of TC detections as a .nc file (default: False).
+    psl_delta : float
+        Strength of local psl minimum, in Pa (default: 200.0).
+    psl_dist : float
+        Allowable distance from local psl minimum for psl closed contour, in degrees (default: 5.5).
+    z_delta : float
+        Strength of warm core anomaly given by zg maximum, in m (default: -6.0).
+    z_dist : float
+        Allowable distance from warm core anomaly for z closed contour, in degrees (default: 6.5).
+    z_offset : float
+        Maximum separation between psl minimum and zg maximum, in degrees (default: 1.0).
+    merge_dist : float
+        Minimum allowable distance between two candidates, in degrees (default: 6.0).
+    traj_range : float
+        Maximum travel distance for a cyclone in 6h, in degrees (default: 8.0).
+    traj_min_length : int
+        Minimum cyclone lifetime, in 6h-intervals (default: 10).
+    traj_max_gap : int
+        Maximum allowable gap in cyclone trajectory, in 6h-intervals (default: 3).
+    min_wind : float
+        Minimum 10 m wind speed for TCs detection, in m/s (default: 10.0).
+    min_len : int
+        Minimum track length, in 6h-intervals (default: 10).
+    max_lat : float
+        Maximum latitude of psl minimum, in degrees (default: 50.0).
     """
 
     # Check input and output paths
@@ -241,11 +267,13 @@ def track_tcs(data_name, input_path, output_path, min_wind=10.0, hist=False):
 
     # Run DetectNodes from TempestExtremes
     nodes_path = output_path / f"detected_nodes_{data_name}.txt"
-    detect_nodes(input_path, nodes_path)
+    detect_nodes(input_path, nodes_path, psl_delta=psl_delta, psl_dist=psl_dist, z_delta=z_delta, z_dist=z_dist, 
+                 z_offset=z_offset, merge_dist=merge_dist)
 
     # Run StitchNodes from TempestExtremes
     tracks_path = output_path / f"cyclones_trajectories_{data_name}.txt"
-    stitch_nodes(nodes_path, tracks_path, min_wind=min_wind)
+    stitch_nodes(nodes_path, tracks_path, traj_range=traj_range, traj_min_length=traj_min_length, traj_max_gap=traj_max_gap, 
+                 min_wind=min_wind, min_len=min_len, max_lat=max_lat)
 
     # Run HistogramNodes from TempestExtremes if requested
     if hist:
@@ -261,7 +289,9 @@ def track_tcs(data_name, input_path, output_path, min_wind=10.0, hist=False):
     return tracks_path
 
 
-def run_tempestExtremes(data, data_name, output_path, min_wind=10.0, tracks_hist=False):
+def run_tempestExtremes(data, data_name, output_path, tracks_hist=False, psl_delta=200.0, psl_dist=5.5, z_delta=-6.0, 
+                        z_dist=6.5, z_offset=1.0, merge_dist=6.0, traj_range=8.0, traj_min_length=10, traj_max_gap=3, 
+                        min_wind=10.0, min_len=10, max_lat=50.0):
     """
     Main function to run TempestExtremes for identifying Tropical Cyclones (TCs) tracks.
 
@@ -273,10 +303,32 @@ def run_tempestExtremes(data, data_name, output_path, min_wind=10.0, tracks_hist
         Name of the dataset.
     output_path : str
         Output path.
-    min_wind : float
-        Minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
     tracks_hist : bool
         If True, generate a histogram of TC detections as a .nc file (default: False).
+    psl_delta : float
+        Strength of local psl minimum, in Pa (default: 200.0).
+    psl_dist : float
+        Allowable distance from local psl minimum for psl closed contour, in degrees (default: 5.5).
+    z_delta : float
+        Strength of warm core anomaly given by zg maximum, in m (default: -6.0).
+    z_dist : float
+        Allowable distance from warm core anomaly for z closed contour, in degrees (default: 6.5).
+    z_offset : float
+        Maximum separation between psl minimum and zg maximum, in degrees (default: 1.0).
+    merge_dist : float
+        Minimum allowable distance between two candidates, in degrees (default: 6.0).
+    traj_range : float
+        Maximum travel distance for a cyclone in 6h, in degrees (default: 8.0).
+    traj_min_length : int
+        Minimum cyclone lifetime, in 6h-intervals (default: 10).
+    traj_max_gap : int
+        Maximum allowable gap in cyclone trajectory, in 6h-intervals (default: 3).
+    min_wind : float
+        Minimum 10 m wind speed for TCs detection, in m/s (default: 10.0).
+    min_len : int
+        Minimum track length, in 6h-intervals (default: 10).
+    max_lat : float
+        Maximum latitude of psl minimum, in degrees (default: 50.0).
 
     Returns
     -------
@@ -293,7 +345,9 @@ def run_tempestExtremes(data, data_name, output_path, min_wind=10.0, tracks_hist
     data_tempestExtremes.to_netcdf(data_tempestExtremes_path)
 
     # Run TempestExtremes to identify TCs tracks
-    tracks_path = track_tcs(data_name, data_tempestExtremes_path, output_path, min_wind=min_wind, hist=tracks_hist)
+    tracks_path = track_tcs(data_name, data_tempestExtremes_path, output_path, hist=tracks_hist, psl_delta=psl_delta, psl_dist=psl_dist, z_delta=z_delta, 
+                            z_dist=z_dist, z_offset=z_offset, merge_dist=merge_dist, traj_range=traj_range, traj_min_length=traj_min_length, 
+                            traj_max_gap=traj_max_gap, min_wind=min_wind, min_len=min_len, max_lat=max_lat)
     data_tempestExtremes_path.unlink(missing_ok=True)
 
     return tracks_path

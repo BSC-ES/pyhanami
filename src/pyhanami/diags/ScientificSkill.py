@@ -18,8 +18,8 @@ from matplotlib.colors import LinearSegmentedColormap
 from pyhanami.config import config_params
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
-from pyhanami.utils import data_general, iso_scores, plot, statistics
 from pyhanami.utils.mjo_scores import mjo_ceof_funcs, mjo_spectrum_funcs
+from pyhanami.utils import data_general, config_scores, iso_scores, plot, statistics
 from pyhanami.utils.tcs_scores import tcs_tempestextremes, tcs_ibtracs, tcs_cymep_main
 
 VARIABLES = data_general.load_yaml_file(config_params.VARIABLES_PATH)
@@ -135,7 +135,8 @@ class GeneralEvaluation:
             coords = {'variable': self.var_names},
         )
 
-        print(f"\nGeneral scalar scores computation completed between years {self.start_year} and {self.end_year}.", flush=True)
+        print(f"\nGeneral scalar scores computation completed between years {self.start_year} and {self.end_year}. "
+              f"See attribute 'scores' for results.", flush=True)
         return
  
 
@@ -465,20 +466,10 @@ class ISOEvaluation:
         If True, also plot observational data if available (default: False).
     correct_pc : bool
         Whether to adjust simulated PCs by dividing by alpha (default: False).
-    lat_range : tuple
-        Geographic latitude bounds (default: (-30, 30)).
-    lag : int
-        Lag timesteps (default: 5).
-    n_lags : int
-        Number of lag copies (default: 3).
-    n_modes : int
-        Number of EEOFs modes to compute (default: 2).
-    window_size : int
-        Length of the filter kernel (default: 141).
-    low_freq : float
-        Lower cutoff frequency (default: 1/90).
-    high_freq : float
-        Upper cutoff frequency (default: 1/25).
+    iso_config : ISOConfig
+        Configuration dataclass with parameters necessary for the ISO evaluation. If None, default values 
+        from the configuration file `pyhanami.config.scientific_evaluation_parameters.yaml` will be used.
+
 
     Attributes
     ----------
@@ -519,8 +510,7 @@ class ISOEvaluation:
     """
 
     def __init__(self, data_sim, var_name='rlut', start_year_eeof=None, end_year_eeof=None, start_year_pc=None, 
-                 end_year_pc=None, obs=False, correct_pc=False, lat_range=(-30, 30), lag=5, n_lags=3, 
-                 n_modes=2, window=141, low_freq=1/90, high_freq=1/25):
+                 end_year_pc=None, obs=False, correct_pc=False, iso_config=None):
 
         # Validate input
         if not isinstance(data_sim, SimulationData):
@@ -532,6 +522,13 @@ class ISOEvaluation:
         self.obs_name = None
         self.obs = obs
         self.correct_pc = correct_pc
+
+        # Load ISO evaluation parameters
+        if iso_config is None:
+            iso_config = config_scores.ISOConfig()
+        elif not isinstance(iso_config, config_scores.ISOConfig):
+            raise TypeError("'iso_config' must be an instance of the ISOConfig dataclass defined in 'pyhanami.utils.config_scores'.")
+
 
         # Select years for EEOF analysis and PCs computation
         if self.obs:
@@ -558,13 +555,13 @@ class ISOEvaluation:
                   " See attributes `eeof_summer`, `eeof_winter` and `pcs_obs` for results.", flush=True)
 
         # Filter simulation data
-        data_unfiltered_sim = data_sim.data[var_name].sortby("lat").sel(lat=slice(*lat_range)).compute()
-        data_filtered_sim = iso_scores.apply_lanczos_bandpass_filter(data_unfiltered_sim, window, low_freq, high_freq)
+        data_unfiltered_sim = data_sim.data[var_name].sortby("lat").sel(lat=slice(*iso_config.lat_range)).compute()
+        data_filtered_sim = iso_scores.apply_lanczos_bandpass_filter(data_unfiltered_sim, iso_config.window_size, iso_config.low_freq, iso_config.high_freq)
         print("\tSimulation data filtered for ISO timescales.", flush=True)
         
         if not self.obs:
             # Compute EEOFs from simulation data
-            eeof_summer, eeof_winter = self._compute_EEOFs(data_filtered_sim, lag, n_lags, n_modes)
+            eeof_summer, eeof_winter = self._compute_EEOFs(data_filtered_sim, iso_config.lag, iso_config.n_lags, iso_config.n_modes)
             self.pcs_obs = None
             self.eeof_summer = eeof_summer.compute()
             self.eeof_winter = eeof_winter.compute()
@@ -1013,27 +1010,16 @@ class MJOEvaluation:
     start_year_ref, end_year_ref : int, optional
         Initial and end years for computing the reference seasonal cycle. If None, taken as
         the initial and end years for the whole MJO analysis.
-    lat_range : tuple
-        Geographic latitude bounds (default: (-15, 15)).
-    rolling_window_size : int
-        Window size for rolling mean to remove low-frequency variability (default: 120 days).
-    n_harmonics : int
-        Number of harmonics to remove from the seasonal cycle (default: 3).
-    normalize_std : bool
-        Whether to normalize anomalies by fixed standard deviations when removing the 
-        seasonal cycle (default: False).
-    n_modes : int
-        Number of CEOFs to compute (default: 2).
     threshold_active_days : float
         Threshold for the amplitude of the first two PCs to consider the MJO active at 
         a given day. If None, the mean MJO amplitude over the entire considered time
         period is used as a threshold.
     spectrum_var : str
         Variable to be used for the spectral analysis (default: 'rlut').
-    seg_size : int
-        Size of the segments to perform the spectral analysis on, in days (default: 96).
-    n_overlap : int
-        Number of overlapping points between segments, in days (default: 60).
+    mjo_config : MJOConfig
+        Configuration dataclass with parameters necessary for the MJO evaluation. If None, default values 
+        from the configuration file `pyhanami.config.scientific_evaluation_parameters.yaml` will be used.
+
 
     Attributes
     ----------
@@ -1092,8 +1078,7 @@ class MJOEvaluation:
     """
 
     def __init__(self, data_sim, start_year_mjo=None, end_year_mjo=None, start_year_ref=None, end_year_ref=None,
-                 lat_range=(-15, 15), rolling_window_size=120, n_harmonics=3, normalize_std=False, n_modes=2,
-                 threshold_active_days=None, spectrum_var='rlut', seg_size=96, n_overlap=60):
+                 threshold_active_days=None, spectrum_var='rlut', mjo_config=None):
 
         # Validate input
         if not isinstance(data_sim, SimulationData):
@@ -1102,6 +1087,13 @@ class MJOEvaluation:
         self.obs_name = 'Obs'    #'NOAA+ERA5'
         self.data_res = config_params.MJO_OBS_RES
         self.spectrum_var = spectrum_var
+
+        # Load MJO evaluation parameters
+        if mjo_config is None:
+            mjo_config = config_scores.MJOConfig()
+        elif not isinstance(mjo_config, config_scores.MJOConfig):
+            raise TypeError("'mjo_config' must be an instance of the MJOConfig dataclass defined in 'pyhanami.utils.config_scores'.")
+
 
         # Select years for MJO analysis
         self.start_year_mjo, self.end_year_mjo = data_general.validate_year_range(data_sim, start_year_mjo, end_year_mjo, process_name='MJO')
@@ -1113,14 +1105,14 @@ class MJOEvaluation:
 
 
         # Prepare data for the CEOF analysis (regrid simulations to match observations, if needed, and filter seasonal cycle and interannual variability)
-        self.data_ceof_sim, _, _, self.data_ceof_obs, _, _ = self._prepare_ceof_data(data_sim_filtered_time, start_year_ref, end_year_ref, lat_range,
-                                                                                     rolling_window_size, n_harmonics, normalize_std)
+        self.data_ceof_sim, _, _, self.data_ceof_obs, _, _ = self._prepare_ceof_data(data_sim_filtered_time, start_year_ref, end_year_ref, mjo_config.lat_range,
+                                                                                     mjo_config.rolling_window_size, mjo_config.n_harmonics, mjo_config.normalize_std)
         print(f'\tObservations and simulations data prepared for the CEOF analysis by removing longer-time-scale components between {self.start_year_mjo}'
               f' and {self.end_year_mjo}. See attributes `data_ceof_sim` and `data_ceof_obs` for results.', flush=True)
         
 
         # Perform CEOF analysis (projecting on observed and simulated EOFs)
-        self.ceof_obs, self.ceof_sim_on_obs, self.ceof_sim_on_sim = self._perform_CEOF_analysis(n_modes)
+        self.ceof_obs, self.ceof_sim_on_obs, self.ceof_sim_on_sim = self._perform_CEOF_analysis(mjo_config.n_modes)
         print(f"\tCEOF analyses completed. See attributes `ceof_obs`, `ceof_sim_on_obs`, and `ceof_sim_on_sim` for results.", flush=True)
         
 
@@ -1137,12 +1129,12 @@ class MJOEvaluation:
 
         # Prepare data for the power spectra analysis (regrid simulations, if needed, and remove seasonal cycle)
         self.data_spectra_sim, self.data_spectra_obs = self._prepare_spectra_data(data_sim_filtered_time, start_year_ref, end_year_ref, 
-                                                                                  self.spectrum_var, n_harmonics)
+                                                                                  self.spectrum_var, mjo_config.n_harmonics)
         print(f"\tObservations and simulations data prepared for the power spectra analysis by removing the seasonal cycle between "
               f"{self.start_year_mjo} and {self.end_year_mjo}. See attributes `data_spectra_sim` and `data_spectra_obs` for results.", flush=True)
         
         # Compute wavenumber-frequency power spectra
-        self.power_spectra = self._compute_power_spectra(seg_size, n_overlap, lat_range)
+        self.power_spectra = self._compute_power_spectra(mjo_config.seg_size, mjo_config.n_overlap, mjo_config.lat_range)
         print(f"\tWavenumber-frequency power spectra computation completed. See attribute `power_spectra` for results.", flush=True)
         
 
@@ -1256,7 +1248,7 @@ class MJOEvaluation:
         return filtered_sim, anom_sim, std_sim, filtered_obs, anom_obs, std_obs
     
 
-    def _perform_CEOF_analysis(self, n_modes):
+    def _perform_CEOF_analysis(self, n_modes=2):
         """
         Perform Combined Empirical Orthogonal Function (CEOF) analyses on observational and 
         simulation data. For the latter, projecting the data both on the observed CEOFs and
@@ -1265,7 +1257,7 @@ class MJOEvaluation:
         Parameters
         ----------
         n_modes : int
-            Number of CEOF modes to compute.
+            Number of CEOF modes to compute (default: 2).
 
         Returns
         -------
@@ -1460,6 +1452,10 @@ class MJOEvaluation:
         filtered_obs : xr.DataArray
             Filtered observational data for the selected variable.
         """
+        # Validate input
+        vars_mjo = ['ua850', 'ua200', 'rlut']
+        if spectrum_var not in vars_mjo:
+            raise ValueError(f"Variable '{spectrum_var}' not valid for the spectral analysis. Choose one of {vars_mjo}.")
 
         # Load observational data (NOAA)
         try:
@@ -1585,7 +1581,7 @@ class MJOEvaluation:
 
 
         # Save power spectra
-        power_spectra_path = output_path / f"power_spectra_{sim_name_file}_{obs_name_file}_{year_range}.nc"
+        power_spectra_path = output_path / f"power_spectra_{self.spectrum_var}_{sim_name_file}_{obs_name_file}_{year_range}.nc"
         self.power_spectra.to_netcdf(power_spectra_path)
         print(f"Power spectra for both observations and simulations saved to '{power_spectra_path}'.", flush=True)
         
@@ -1923,7 +1919,7 @@ class MJOEvaluation:
                                                               title_2=self.sim_name, suptitle=f'{component.capitalize()} power spectrum ({year_range})', 
                                                               levels=levels, mjo_box=mjo_box)
 
-        plot.save_or_show_plot(power_spectrum_plot, output_path, plot_filename=f"power_spectrum_{name_file}_{sim_name_file}_{obs_name_file}_{year_range}",
+        plot.save_or_show_plot(power_spectrum_plot, output_path, plot_filename=f"power_spectrum__{self.spectrum_var}_{name_file}_{sim_name_file}_{obs_name_file}_{year_range}",
                                plot_name=f"{component.capitalize()} power spectrum plot")
 
         return
@@ -1951,6 +1947,9 @@ class TCEvaluation:
         Minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
     bin_size : float
         Size of the bins in degrees for computing the TCs metrics with CyMeP (default: 2.5).
+    tc_config : TCConfig
+        Configuration dataclass with parameters necessary for the TC evaluation. If None, default values 
+        from the configuration file `pyhanami.config.scientific_evaluation_parameters.yaml` will be used.
 
     Attributes
     ----------
@@ -1996,7 +1995,8 @@ class TCEvaluation:
         Colorbar colors for correlation tables.
     """
 
-    def __init__(self, data_sim, start_year_tc=None, end_year_tc=None, obs=True, wind_factor=1.0, min_wind=10.0, bin_size=2.5):
+    def __init__(self, data_sim, start_year_tc=None, end_year_tc=None, obs=True, wind_factor=1.0, min_wind=10.0, bin_size=2.5,
+                 tc_config=None):
         
         # Validate input
         if not isinstance(data_sim, SimulationData):
@@ -2012,6 +2012,12 @@ class TCEvaluation:
         self.config_cymep = {}
         self.bin_size = bin_size
         self.metrics_metadata = data_general.load_yaml_file(config_params.TCS_METRICS_PATH)
+
+        # Load TC evaluation parameters
+        if tc_config is None:
+            tc_config = config_scores.TCConfig()
+        elif not isinstance(tc_config, config_scores.TCConfig):
+            raise TypeError("'tc_config' must be an instance of the TCConfig dataclass defined in 'pyhanami.utils.config_scores'.")
 
 
         # Select years for TCs analysis
@@ -2035,7 +2041,7 @@ class TCEvaluation:
 
         # Prepare simulation data
         print("\tStarting simulation data TCs tracking. TempestExtremes output:", flush=True)
-        self._prepare_sim_data(data_sim_tcs, wind_factor=wind_factor)
+        self._prepare_sim_data(data_sim_tcs, wind_factor=wind_factor, tc_config=tc_config)
         print(f"\tSimulation data TCs tracking completed and saved to '{self.config_cymep[self.sim_name][0]}'.", flush=True)
         
 
@@ -2113,7 +2119,7 @@ class TCEvaluation:
         return
 
 
-    def _prepare_sim_data(self, data_sim, wind_factor=1.0):
+    def _prepare_sim_data(self, data_sim, wind_factor=1.0, tc_config=None):
         """
         Prepare simulation data for the TCs metrics computation (detect 
         and track TCs with TempestExtremes).
@@ -2124,10 +2130,15 @@ class TCEvaluation:
             Simulation data.
         wind_factor : float
             Wind speed correction factor (to normalize the provided wind to 10 m wind) for simulations (default: 1.0).
+        tc_config : TCConfig
+            Configuration dataclass with parameters necessary for the TempestExtremes functions.
         """
 
         # Run TempestExtremes tracking on simulated data
-        tracks_sim_path = tcs_tempestextremes.run_tempestExtremes(data_sim, self.sim_name, self.tracks_path, min_wind=self.min_wind)
+        tracks_sim_path = tcs_tempestextremes.run_tempestExtremes(data_sim, self.sim_name, self.tracks_path, min_wind=self.min_wind, psl_delta=tc_config.psl_delta, 
+                                                                  psl_dist=tc_config.psl_dist, z_delta=tc_config.z_delta, z_dist=tc_config.z_dist, z_offset=tc_config.z_offset, 
+                                                                  merge_dist=tc_config.merge_dist, traj_range=tc_config.traj_range, traj_min_length=tc_config.traj_min_length,
+                                                                  traj_max_gap=tc_config.traj_max_gap, min_len=tc_config.min_len, max_lat=tc_config.max_lat,)
         new_sim_path = self.tracks_path / f"{self.sim_name.replace(' ', '-')}_{self.start_year_tc}-{self.end_year_tc}_{self.min_wind:.1f}_False_1_{wind_factor:.1f}.txt"
         os.rename(tracks_sim_path, new_sim_path)
 
@@ -2624,26 +2635,26 @@ class ScientificEvaluation:
         if data_name is None:
             if len(self.datasets) < 1:
                 raise ValueError("At least one dataset is required for the general evaluation.")
-            data_general = self.datasets[0]
-            data_name = data_general.name
+            data_General = self.datasets[0]
+            data_name = data_General.name
         elif isinstance(data_name, str):
-            data_general = [ds for ds in self.datasets if ds.name == data_name]
-            if not data_general:
+            data_General = [ds for ds in self.datasets if ds.name == data_name]
+            if not data_General:
                 raise ValueError(f"Dataset with name '{data_name}' not found in the ScientificEvaluation object.")
-            data_general = data_general[0]
+            data_General = data_General[0]
         else:
             raise TypeError("'data_name' must be a string representing a dataset name.")
         
         # Create GeneralEvaluation object and compute scores
         print(f"Performing general scalar analysis for dataset '{data_name}':", flush=True)
-        general_analysis = GeneralEvaluation(data_sim=data_general, var_names=var_names, obs_name=obs_name, 
+        general_analysis = GeneralEvaluation(data_sim=data_General, var_names=var_names, obs_name=obs_name, 
                                              obs_path=obs_path, start_year=start_year, end_year=end_year)
 
         return general_analysis
 
 
     def compute_iso_scores(self, data_name=None, start_year_eeof=None, end_year_eeof=None, start_year_pc=None, end_year_pc=None, obs=False, 
-                            correct_pc=False, lat_range=(-30, 30), lag=5, n_lags=3, n_modes=2, window=141, low_freq=1/90, high_freq=1/25):
+                            correct_pc=False, iso_config=None):
         """
         Initialize and compute bimodal ISO indices (following (K. Kikuchi, 2020)) and derive scalar 
         scores (following (M. Nakano et al., 2019)) for a selected dataset.
@@ -2662,25 +2673,14 @@ class ScientificEvaluation:
             If True, use EEOFs from observational data (default: False).
         correct_pc : bool
             Whether to adjust simulated PCs by dividing by alpha (default: False).
-        lat_range : tuple
-            Geographic latitude bounds (default: (-30, 30)).
-        lag : int
-            Lag timesteps (default: 5).
-        n_lags : int
-            Number of lag copies (default: 3).
-        n_modes : int)
-            Number of EEOFs modes to compute (default: 2).
-        window_size : int
-            Length of the filter kernel (default: 141).
-        low_freq : float
-            Lower cutoff frequency (default: 1/90).
-        high_freq : float
-            Upper cutoff frequency (default: 1/25).
+        iso_config : ISOConfig
+            Configuration dataclass with parameters necessary for the ISO evaluation. If None, default values 
+            from the configuration file `pyhanami.config.scientific_evaluation_parameters.yaml` will be used.
 
         Returns
         -------
         iso_analysis : ISOEvaluation
-            ISOEvaluation object containing the computed bimodal ISO indices and scalar scores.
+            ISOEvaluation object containing the computed bimodal ISO indices and related scalar scores.
         """
 
         # Validate input
@@ -2700,15 +2700,13 @@ class ScientificEvaluation:
         # Create ISOEvaluation object and compute scores
         print(f"Performing ISO analysis for dataset '{data_name}':", flush=True)
         iso_analysis = ISOEvaluation(data_sim=data_ISO, start_year_eeof=start_year_eeof, end_year_eeof=end_year_eeof, start_year_pc=start_year_pc, 
-                                      end_year_pc=end_year_pc, obs=obs, correct_pc=correct_pc, lat_range=lat_range, lag=lag, n_lags=n_lags,
-                                      n_modes=n_modes, window=window, low_freq=low_freq, high_freq=high_freq)
+                                      end_year_pc=end_year_pc, obs=obs, correct_pc=correct_pc, iso_config=iso_config)
 
         return iso_analysis
     
 
     def compute_mjo_scores(self, data_name=None, start_year_mjo=None, end_year_mjo=None, start_year_ref=None, end_year_ref=None,
-                           lat_range=(-15, 15), rolling_window_size=120, n_harmonics=3, normalize_std=False, n_modes=2,
-                           threshold_active_days=None, spectrum_var='rlut', seg_size=96, n_overlap=60):
+                           threshold_active_days=None, spectrum_var='rlut', mjo_config=None):
         """
         Initialize and compute Real-Time Multivariate MJO (RMM) indices following (M.C. Wheeler & 
         H.H. Hendon, 2004) and MJO wavenumber-frequency power spectra following (M.C. Wheeler & 
@@ -2724,26 +2722,14 @@ class ScientificEvaluation:
         start_year_ref, end_year_ref : int
             Initial and end years for computing the reference seasonal cycle. If None, taken as the
             initial and end years for the whole MJO analysis.
-        lat_range : tuple
-            Geographic latitude bounds (default: (-15, 15)).
-        rolling_window_size : int
-            Window size for rolling mean to remove low-frequency variability (default: 120 days).
-        n_harmonics : int
-            Number of harmonics to remove from the seasonal cycle (default: 3).
-        normalize_std : bool
-            Whether to normalize anomalies by fixed standard deviations when removing the seasonal
-            cycle (default: False).
-        n_modes : int
-            Number of CEOFs to compute (default: 2).
         threshold_active_days : float
             Threshold for the amplitude of the first two PCs to consider the MJO active at a given 
             day. If None, the mean MJO amplitude over the entire period is used as a threshold.
         spectrum_var : str
             Variable to be used for the spectral analysis (default: 'rlut').
-        seg_size : int
-            Size of the segments to perform the spectral analysis on, in days (default: 96).
-        n_overlap : int
-            Number of overlapping points between segments, in days (default: 60).
+        mjo_config : MJOConfig
+            Configuration dataclass with parameters necessary for the MJO evaluation. If None, default values 
+            from the configuration file `pyhanami.config.scientific_evaluation_parameters.yaml` will be used.
 
         Returns
         -------
@@ -2768,15 +2754,14 @@ class ScientificEvaluation:
         # Create MJOEvaluation object and compute scores
         print(f"Performing MJO analysis for dataset '{data_name}':", flush=True)
         mjo_analysis = MJOEvaluation(data_sim=data_MJO, start_year_mjo=start_year_mjo, end_year_mjo=end_year_mjo, start_year_ref=start_year_ref, 
-                                     end_year_ref=end_year_ref, lat_range=lat_range, rolling_window_size=rolling_window_size, n_harmonics=n_harmonics, 
-                                     normalize_std=normalize_std, n_modes=n_modes, threshold_active_days=threshold_active_days, spectrum_var=spectrum_var, 
-                                     seg_size=seg_size, n_overlap=n_overlap)
+                                     end_year_ref=end_year_ref, threshold_active_days=threshold_active_days, spectrum_var=spectrum_var,
+                                     mjo_config=mjo_config)
 
         return mjo_analysis
     
 
     def compute_tc_scores(self, data_name=None, start_year_tc=None, end_year_tc=None, obs=True, wind_factor=1.0, min_wind=10, 
-                           bin_size=2.5):
+                           bin_size=2.5, tc_config=None):
         """
         Compute Tropical Cyclones (TCs) metrics and derive scalar scores following (C.M. Zarzycki et al., 2021) 
         and plot results.
@@ -2796,6 +2781,9 @@ class ScientificEvaluation:
             Minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
         bin_size : float
             Size of the bins in degrees for computing the TCs metrics with CyMeP (default: 2.5).
+        tc_config : TCConfig
+            Configuration dataclass with parameters necessary for the TC evaluation. If None, default values 
+            from the configuration file `pyhanami.config.scientific_evaluation_parameters.yaml` will be used.
 
         Returns
         -------
@@ -2820,7 +2808,7 @@ class ScientificEvaluation:
         # Create a TCEvaluation object and compute scores
         print(f"Performing TCs analysis for dataset '{data_name}':", flush=True)
         tc_analysis = TCEvaluation(data_sim=data_TC, start_year_tc=start_year_tc, end_year_tc=end_year_tc, obs=obs, 
-                                   wind_factor=wind_factor, min_wind=min_wind, bin_size=bin_size)
+                                   wind_factor=wind_factor, min_wind=min_wind, bin_size=bin_size, tc_config=tc_config)
 
         return tc_analysis
 
