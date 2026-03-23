@@ -8,6 +8,7 @@ This guide provides detailed instructions and examples for using _pyhanami_ to e
 Before using _pyhanami_, ensure that the configuration files explained in the [Configuration](./Configuration.md) guide are properly set up. In particular, pay attention to the following aspects:
 
 - **Variables:** for each variable to be analyzed, ensure it is defined in `src/pyhanami/config/variables.yaml` following CMIP conventions (see [Configuration](./Configuration.md#variables.yaml)). It is required that each variable (as a xarray.DataArray) has as attribute the corresponding `units`.
+- **Scientific evaluation parameters:** for each climate phenomenon to be evaluated, the relevant parameters and their default values are defined in `src/pyhanami/config/scientific_evaluation_parameters.yaml` (see [Configuration](./Configuration.md#scientific_evaluation_parameters.yaml)). Ensure that the default values for the parameters are appropriate for your analysis. If necessary, modify them permanently in the configuration file or temporarily when calling the corresponding method (see []()). 
 
 <!-- TO DO: finish explanation of configuration files.-->
 
@@ -43,8 +44,11 @@ data_sim_1 = xr.open_dataset('/path/to/simulation_1.nc')
 sim_1 = pyhanami.SimulationData(data_sim_1, name='name_sim_1')
 ```
 
+## Diagnostic visualizations
 
-## Time series plots
+The following subsections demonstrate how to use the diagnostic visualization methods included in the `DataDiagnostics` class.
+
+### Time series plots
 
 To generate **time series plots** between `year_init` and `year_end` for a given climate variable `var_name`, initialize the `DataDiagnostics` class with the `SimulationData` objects that you want to analyze and use the `time_series_plot` method:
 
@@ -92,7 +96,7 @@ To take into account when using this `time_series_plot` method:
 - If no `start_year` and `end_year` are specified, the whole period covered by the dataset(s) is used by default. In this case, when plotting for multiple datasets, they must have overlapping time periods.
 
 
-## Spatial plots
+### Spatial plots
 
 To generate **spatial plots** comparing two datasets between `year_init` and `year_end`, initialize the `DataDiagnostics` class with the `SimulationData` objects that you want to analyze and use the following methods:
 
@@ -168,7 +172,11 @@ tester.matrix_plot(['name_sim_1', 'name_sim_2'], 'output_path')
 ```
 
 
-## General scientific skill analysis
+## Scientific skill
+
+The following subsections demonstrate how to use the methods in the `ScientificEvaluation` class to evaluate the scientific skill of simulation datasets, i.e., how well they reproduce real-world observations.
+
+### General analysis
 
 To perform a general scientific skill evaluation of a simulation dataset, initialize the `ScientificEvaluation` class with the `SimulationData` object that you want to analyze and use the `compute_general_scores` method. This method computes several scalar scores related to the general scientific skill of the model by comparing to a reference observational dataset. It can be performed on any of the variables listed in `src/pyhanami/config/variables.yaml`. 
 
@@ -200,7 +208,7 @@ general_analysis.scores_table('var_name', 'output_path')
 <!-- TO DO: Explain the colors in the summary table plot.-->
 
 
-## Tropical IntraSeasonal Oscillation (ISO) analysis
+### Tropical IntraSeasonal Oscillation (ISO) analysis
 
 To evaluate the simulation of the ISO, initialize the `ScientificEvaluation` class with the `SimulationData` object that you want to analyze and use the `compute_iso_scores` method. This method computes scalar scores related to ISO and requires **daily Top of Atmosphere Outgoing Longwave Radiation** (`rlut`) data, preferably covering a period of 10 years or more (ideally, at least 30 years).
 
@@ -264,7 +272,7 @@ To summarize, the `ISOEvaluation` class includes methods to generate the followi
 3. **Frequency plot** (`ISOEvaluation.freq_plot`): mean monthly frequency (seasonality) of ISO events for both MJO and BSISO, computed over the entire period covered by the dataset. If observations are set to `True`, these are included in the  frequency plot, which also shows the scalar scores ($\alpha$, $R$, $\sigma$ and $\text{TSS}$) comparing simulations and observations.
 
 
-## Specific Madden-Julian Oscillation (MJO) analysis
+### Specific Madden-Julian Oscillation (MJO) analysis
 
 To evaluate the simulation of the MJO specifically, initialize the `ScientificEvaluation` class with the `SimulationData` object that you want to analyze and use the `compute_mjo_scores` method. This method computes several scalar scores related to MJO (see [Methodology](./Methodology.md#madden-julian-oscillation-mjo)) and requires the following variables with a **daily** frequency:
 - **Top of atmosphere outgoing longwave radiation** (`rlut`)
@@ -320,7 +328,7 @@ To summarize, the `MJOEvaluation` class includes methods to generate the followi
 4. **Power spectrum plots** (`MJOEvaluation.power_spectrum_plots`): wavenumber-frequency spectrum comparing simulations and observations. By default, the symmetric component of the spectrum is plotted, but it is also possible to plot the antisymmetric component with the argument `component='antisymmetric'`. Besides, a dashed box around the MJO region is included in the plots by default, pass the argument `mjo_box=False` to remove it.
 
 
-## Tropical Cyclones (TCs) analysis
+### Tropical Cyclones (TCs) analysis
 
 To evaluate the simulation of TCs, initialize the `ScientificEvaluation` class with the `SimulationData` object that you want to analyze and use the `compute_tc_scores` method. This method computes several scalar scores related to TCs (see [Methodology](./Methodology.md#tropical-cyclones-tcs)) and requires the following variables with a **6-hourly** frequency:
 - **Sea level pressure** (`psl`)
@@ -369,8 +377,48 @@ Note that, in the bias table plots, each column is colored independently, with t
 
 Considerations regarding the 10 m wind speed:
 - By default, a threshold of 10 m/s is used for TC detection. However, we recommend adjusting it according to the model's (or reanalysis') horizontal 
-resolution following the criteria established in [(K.J.E. Walsh et al., 2007)](https://doi.org/10.1175/JCLI4074.1). This can be done by passing the argument `min_wind` when calling the `compute_tc_scores` method.
+resolution following the criteria established in [(K.J.E. Walsh et al., 2007)](https://doi.org/10.1175/JCLI4074.1) (see [Methodology](./Methodology.md#tropical-cyclones-tcs)). This can be done by passing the argument `min_wind` when calling the `compute_tc_scores` method.
 - By default, it is assumed that the wind provided is at 10 m height. If the wind data corresponds to a different height, it can still be used by passing the argument `wind_factor` when calling the `compute_tc_scores` method. This factor will be used to scale the wind data to approximate the 10 m wind speed. 
+
+
+### Configuration of scientific evaluation parameters
+
+All climate phenomena analyses require several parameters, whose default values are defined in the configuration file `src/pyhanami/config/scientific_evaluation_parameters.yaml`. These parameters can be modified permanently in the configuration file or on a case-by-case basis when calling the corresponding methods. To do so, specific configuration dataclasses are available for each phenomenon:
+- Tropical IntraSeasonal Oscillation (ISO): `ISOConfig`
+- Madden-Julian Oscillation (MJO): `MJOConfig`
+- Tropical Cyclones (TCs): `TCConfig`
+
+The following snippet exemplifies how to modify default parameters for the ISO analysis when calling the `compute_iso_scores` method. Parameters for other phenomena can be modified in a similar way by using the corresponding dataclass and method:
+
+```python
+# Initialize ScientificEvaluation class with a SimulationData object
+# (If you have already added this dataset to an existing ScientificEvaluation object, 
+# you can skip this step)
+sciskill = pyhanami.ScientificEvaluation(sim_1)
+
+# Create a custom ISO configuration dataclass with modified parameters
+iso_config = pyhanami.ISOConfig(
+    lat_range=(-15,15),
+    lag=10,
+    n_lags=4
+)
+
+# Compute bimodal ISO indices performing an EEOF analysis on simulated data
+iso_analysis = sciskill.compute_iso_scores(
+    'name_sim_1',
+    iso_config=iso_config
+)
+```
+
+Note that parameter values can also be modified after creating the `ISOConfig` instance by directly updating the corresponding attributes, as shown below:
+
+```python
+# Create an ISO configuration dataclass with default parameters
+iso_config = pyhanami.ISOConfig()
+
+# Modify the default value of the lag parameter
+iso_config.lag = 20
+```
 
 
 ## General considerations

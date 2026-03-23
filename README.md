@@ -12,7 +12,7 @@ Key features of the package include:
 
 - **Easy input handling:** load climate simulation ensembles from a NetCDF file or an `xarray.Dataset` object (in future releases, also from an intake catalogue) using the `SimulationData` class. 
 - **Diagnostics plotting:** generate visualizations comparing two previously loaded simulation ensembles for selected variables using the `DataDiagnostics` class. 
-These include time series plots (with the `time_series_plot` method) and spatial plots (with the `spatial_plots` method). The latter generates two plots, one for the absolute difference and another for the effect size (Cohen's _d)_ between both ensembles.
+These include time series and spatial plots. The latter involves plots displaying the absolute difference and the effect size (Cohen's _d)_ between two ensembles, and bias plots comparing the simulations to reference observations.
 - **Replicability testing:** perform a replicability test checking the statistical indistinguishability between two previously loaded simulation ensembles using the `ReplicabilityTest` class.
 - **Scientific skill evaluation:** compute scalar scores evaluating the following phenomena using the `ScientificEvaluation` class:
     - Tropical IntraSeasonal Oscillation (ISO): this includes the computation of the bimodal ISO indices (for MJO and BSISO), as well as the calculation of related scalar scores comparing the indices between simulations and observations (amplitude ratio ($\alpha$), temporal correlation ($R$), standard deviation ratio ($\sigma$), and Taylor Skill Score (TSS)).
@@ -162,7 +162,7 @@ iso_analysis.scores
 ```
 
 #### Madden-Julian Oscillation (MJO)
-Assess simulation of the Madden-Julian Oscillation (MJO) by computing the Real-time Multivariate MJO (RMM) indices and related scalar scores comparing to observations:
+Assess simulation of the Madden-Julian Oscillation (MJO) by computing the Real-time Multivariate MJO (RMM) indices, the power spectrum and related scalar scores comparing to observations:
 ```python
 # Perform the MJO analysis
 mjo_analysis = sciskill.compute_mjo_scores(
@@ -307,7 +307,11 @@ This work, along with the replicability test methodology implemented in this pac
 
 Gahtan, J., Knapp, K.R., Schreck, C.J., Diamond, H.J., Kossin, J.P., & Kruk, M.C. International Best Track Archive for Climate Stewardship (IBTrACS) Project, Version 4r01, Subset since1980. NOAA National Centers for Environmental Information (2024). https://doi.org/10.25921/82ty-9e16 (access date: 2025-11-31)
 
+<!--
 Keller, K.R., Alerany Solé, M., & Acosta, M., Replicability in Earth System Models. EGUsphere [preprint] (2025). https://doi.org/10.5194/egusphere-2025-1367
+-->
+
+Keller, K.R., Alerany Solé, M., & Acosta, M., Replicability in Earth System Models. Geosci. Model Dev., 18, 10221-10243 (2025) https://doi.org/10.5194/gmd-18-10221-2025
 
 Kikuchi, K., Wang, B. & Kajikawa, Y., Bimodal representation of the tropical intraseasonal oscillation. Clim Dyn 38, 1989–2000 (2012). https://doi.org/10.1007/s00382-011-1159-1
 
