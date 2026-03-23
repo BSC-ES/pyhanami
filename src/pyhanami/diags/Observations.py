@@ -45,7 +45,7 @@ class ObservationData:
         Regridding method (default: bilinear).
     """
 
-    def __init__(self, data_path: str, sim: xr.Dataset, name: str = 'obs', realization: int = 0, regrid_method: str = 'bilinear'):
+    def __init__(self, data_path, sim, name='obs', realization=0, regrid_method='bilinear'):
         if isinstance(data_path, (str, Path)):
             self.data_path = Path(data_path)
         else:

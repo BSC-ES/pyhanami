@@ -8,6 +8,9 @@ from scipy.stats import ks_2samp, ttest_ind, mannwhitneyu
 # Path to available variables and metadata
 VARIABLES_PATH = Path(__file__).parent / "variables.yaml"
 
+# Path to scientific evaluation parameters and metadata
+SCI_EVAL_PARAMS_PATH = Path(__file__).parent / "scientific_evaluation_parameters.yaml"
+
 # Path to TCs metrics and metadata
 TCS_METRICS_PATH = Path(__file__).parent / "tc_metrics.yaml"
 
@@ -19,10 +22,10 @@ DATA_PATH = Path(__file__).parent.parent / "data"
 
 # Related to general scalar evaluation data
 GEN_OBS_NAME = "ERA5"
-GEN_OBS_PATH = DATA_PATH / "era5"
+GEN_OBS_PATH = "Not available yet"  #DATA_PATH / "era5"
 
 # Related to NOAA data
-NOAA_PATH = DATA_PATH / "noaa/data_obs_noaa_1974-2022_rlut.nc"
+NOAA_PATH = "Not available yet"     #DATA_PATH / "noaa/data_obs_noaa_1974-2022_rlut.nc"
 NOAA_GRID_PATH = DATA_PATH / "noaa/noaa_grid.nc"
 NOAA_EEOF_SUMMER_PATH = DATA_PATH / "noaa/eeof_boreal_summer_noaa_1975-2020.nc"
 NOAA_EEOF_WINTER_PATH = DATA_PATH / "noaa/eeof_boreal_winter_noaa_1975-2020.nc"
@@ -30,18 +33,16 @@ NOAA_PC_PATH = DATA_PATH / "noaa/pc_noaa_1975-2020.nc"
 NOAA_START_YEAR = 1975
 NOAA_END_YEAR = 2020
 
-
 # Related to MJO data
 MJO_DATA_PATH = DATA_PATH / "mjo"
-MJO_VARS_PATH = MJO_DATA_PATH / "data_obs_1975-2022_mjo.nc"
-MJO_MODEL_PATH = MJO_DATA_PATH / "mjo_obs_model_1975-2020"
+MJO_VARS_PATH = "Not available yet"  #MJO_DATA_PATH / "data_obs_1975-2022_mjo.nc"
+MJO_MODEL_PATH = "Not available yet"  #MJO_DATA_PATH / "mjo_obs_model_1975-2020"
 MJO_GRID_PATH = NOAA_GRID_PATH
 MJO_OBS_RES = 2.5
 MJO_START_YEAR = 1975
 MJO_END_YEAR = 2022
 
-
-# Related to Tropical Cyclones data
+# Related to TCs data
 TC_DATA_PATH = DATA_PATH / "tropical_cyclones"
 
 IBTRACS_URL = "https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/v04r01/access/netcdf/IBTrACS.since1980.v04r01.nc"

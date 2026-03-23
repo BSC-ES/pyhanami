@@ -42,7 +42,7 @@ class DataDiagnostics:
         Number of parallel workers used for grid-level computations.
     """
 
-    def __init__(self, datasets: Iterable[SimulationData] = None):
+    def __init__(self, datasets=None):
         if datasets is None:
             self.datasets = []
         elif isinstance(datasets, SimulationData):
@@ -671,8 +671,8 @@ class DataDiagnostics:
         if data_name is None:
             if len(self.datasets) < 1:
                 raise ValueError("At least one dataset is required for bias plots. Please add a dataset.")
-            data_plot = self.datasets[0]
-            data_name = data_plot.name
+            data_plot = [self.datasets[0]]
+            data_name = data_plot[0].name
         elif isinstance(data_name, str):
             data_plot = [ds for ds in self.datasets if ds.name == data_name]
             if not data_plot:
