@@ -29,8 +29,8 @@ myst_heading_anchors = 2
 
 # MyST parser configuration to properly render math equations
 myst_enable_extensions = [
-    "dollarmath",
-    "amsmath",
+    "dollarmath",   # for $$ ... $$ support
+    "amsmath",      # for \begin{aligned} ... \end{aligned}
 ]
 
 # Mock imports for packages that might not be available during doc building

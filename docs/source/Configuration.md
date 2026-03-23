@@ -18,6 +18,23 @@ variable_name:  # Variable shortname
 
 Note that additional fields to check the physical plausibility of a variable, such as `max`, `min` and/or `boundaries`, can be added.
 
+## scientific_evaluation_parameters.yaml
+
+The `scientific_evaluation_parameters.yaml` file contains default parameters and their associated metadata for the scientific evaluation of several climate phenomena. It is organized into sections for each phenomenon, including:
+- Tropical Intraseasonal Oscillation (ISO): `iso`
+- Madden-Julian Oscillation (MJO): `mjo`
+- Tropical Cyclones (TCs): `tc`
+
+### Parameter definitions
+Within each section, parameters are defined with the following required fields:
+```yaml
+parameter_name:  # Parameter shortname
+  value: int | float | str  # Default value
+  type: str  # Data type (e.g., int, float, tuple, str)
+  units: str  # Units (if applicable)
+  description: str  # Description of the parameter
+```
+
 <!-- TO DO: add explanation of `config_params.py`. -->
 
-<!-- For practical examples of using these configurations, see the [User Guide](User-Guide.md). -->
+For practical examples of using these configurations, see the [User Guide](User-Guide.md).
