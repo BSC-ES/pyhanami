@@ -464,6 +464,9 @@ class ISOEvaluation:
         Initial and end years to compute Principal Components (PCs) for.
     obs : bool
         If True, also plot observational data if available (default: False).
+    obs_path : str
+        Path to the observational NOAA data file (default: config_params.NOAA_PATH). As of now, only 
+        necessary if the resolution of the NOAA data (2.5°x2.5°) is higher than that of the simulation data.
     correct_pc : bool
         Whether to adjust simulated PCs by dividing by alpha (default: False).
     iso_config : ISOConfig
@@ -510,7 +513,7 @@ class ISOEvaluation:
     """
 
     def __init__(self, data_sim, var_name='rlut', start_year_eeof=None, end_year_eeof=None, start_year_pc=None, 
-                 end_year_pc=None, obs=False, correct_pc=False, iso_config=None):
+                 end_year_pc=None, obs=False, obs_path=config_params.NOAA_PATH, correct_pc=False, iso_config=None):
 
         # Validate input
         if not isinstance(data_sim, SimulationData):
@@ -550,7 +553,7 @@ class ISOEvaluation:
         # Compute/load EEOFs
         if self.obs:
             self.obs_name = 'NOAA'
-            data_sim.data, self.eeof_summer, self.eeof_winter, self.pcs_obs = self._load_and_regrid_obs_data(data_sim.data)
+            data_sim.data, self.eeof_summer, self.eeof_winter, self.pcs_obs = self._load_and_regrid_obs_data(data_sim.data, obs_path)
             print(f"\tEEOF analysis loaded for '{self.obs_name}' observations between {self.start_year_eeof} and {self.end_year_eeof}."
                   " See attributes `eeof_summer`, `eeof_winter` and `pcs_obs` for results.", flush=True)
 
@@ -592,7 +595,7 @@ class ISOEvaluation:
         return
 
 
-    def _load_and_regrid_obs_data(self, data_sim):
+    def _load_and_regrid_obs_data(self, data_sim, obs_path=None):
         """
         Load observational data and regrid simulation or observational data if needed
         to match resolutions.
@@ -601,6 +604,9 @@ class ISOEvaluation:
         ----------
         data_sim : xr.Dataset
             Simulation data.
+        obs_path : str
+            Path to the observational NOAA data file. As of now, only necessary if the 
+            resolution of the NOAA data (2.5°x2.5°) is higher than that of the simulation data.
 
         Returns
         -------
@@ -660,9 +666,9 @@ class ISOEvaluation:
         # Regrid observations if their resolution is higher
         elif obs_resolution < sim_resolution:
             try:
-                data_obs = xr.open_dataset(config_params.NOAA_PATH)
+                data_obs = xr.open_dataset(obs_path)
             except FileNotFoundError:
-                raise FileNotFoundError(f"NOAA observations data file not found at '{config_params.NOAA_PATH}'")
+                raise FileNotFoundError(f"NOAA observations data file not found at '{obs_path}'")
             data_obs_regrid = data_general.regrid_data(data_obs, data_sim)
 
             eeof_summer, eeof_winter, pcs_obs = iso_scores.prepare_NOAA_iso_data(data_obs_regrid)
@@ -1005,6 +1011,9 @@ class MJOEvaluation:
     ----------
     data_sim : SimulationData
         Simulation dataset to use.
+    obs_path : str
+        Path to the observational data file with the necessary variables for the MJO analysis
+        (default: config_params.MJO_VARS_PATH).
     start_year_mjo, end_year_mjo : int, optional
         Initial and end years to perform the analysis for.
     start_year_ref, end_year_ref : int, optional
@@ -1077,8 +1086,8 @@ class MJOEvaluation:
         and simulations ('sim').      
     """
 
-    def __init__(self, data_sim, start_year_mjo=None, end_year_mjo=None, start_year_ref=None, end_year_ref=None,
-                 threshold_active_days=None, spectrum_var='rlut', mjo_config=None):
+    def __init__(self, data_sim, obs_path=config_params.MJO_VARS_PATH, start_year_mjo=None, end_year_mjo=None, start_year_ref=None, 
+                 end_year_ref=None, threshold_active_days=None, spectrum_var='rlut', mjo_config=None):
 
         # Validate input
         if not isinstance(data_sim, SimulationData):
@@ -1105,8 +1114,9 @@ class MJOEvaluation:
 
 
         # Prepare data for the CEOF analysis (regrid simulations to match observations, if needed, and filter seasonal cycle and interannual variability)
-        self.data_ceof_sim, _, _, self.data_ceof_obs, _, _ = self._prepare_ceof_data(data_sim_filtered_time, start_year_ref, end_year_ref, mjo_config.lat_range,
-                                                                                     mjo_config.rolling_window_size, mjo_config.n_harmonics, mjo_config.normalize_std)
+        self.data_ceof_sim, _, _, self.data_ceof_obs, _, _ = self._prepare_ceof_data(data_sim_filtered_time, obs_path, start_year_ref, end_year_ref,
+                                                                                     mjo_config.lat_range, mjo_config.rolling_window_size, 
+                                                                                     mjo_config.n_harmonics, mjo_config.normalize_std)
         print(f'\tObservations and simulations data prepared for the CEOF analysis by removing longer-time-scale components between {self.start_year_mjo}'
               f' and {self.end_year_mjo}. See attributes `data_ceof_sim` and `data_ceof_obs` for results.', flush=True)
         
@@ -1128,7 +1138,7 @@ class MJOEvaluation:
 
 
         # Prepare data for the power spectra analysis (regrid simulations, if needed, and remove seasonal cycle)
-        self.data_spectra_sim, self.data_spectra_obs = self._prepare_spectra_data(data_sim_filtered_time, start_year_ref, end_year_ref, 
+        self.data_spectra_sim, self.data_spectra_obs = self._prepare_spectra_data(data_sim_filtered_time, obs_path, start_year_ref, end_year_ref, 
                                                                                   self.spectrum_var, mjo_config.n_harmonics)
         print(f"\tObservations and simulations data prepared for the power spectra analysis by removing the seasonal cycle between "
               f"{self.start_year_mjo} and {self.end_year_mjo}. See attributes `data_spectra_sim` and `data_spectra_obs` for results.", flush=True)
@@ -1173,7 +1183,7 @@ class MJOEvaluation:
         return data_sim_regrid
 
 
-    def _prepare_ceof_data(self, data_sim, start_year_ref, end_year_ref, lat_range=(-15, 15), 
+    def _prepare_ceof_data(self, data_sim, obs_path, start_year_ref, end_year_ref, lat_range=(-15, 15), 
                           rolling_window_size=120, n_harmonics=3, normalize_std=False):
         """
         Regrid simulation data if needed to match the resolution of the observations, then filter the data to
@@ -1184,6 +1194,8 @@ class MJOEvaluation:
         ----------
         data_sim : xr.Dataset
             Simulation data containing variables ('ua850', 'ua200', 'rlut').
+        obs_path : str
+            Path to the observational data file with the necessary variables for the CEOF analysis.
         start_year_ref, end_year_ref : int
             Initial and end years for computing the reference seasonal cycle.
         lat_range : tuple
@@ -1217,9 +1229,9 @@ class MJOEvaluation:
 
         # Load observational data (NOAA + ERA5)
         try:
-            data_obs_vars = xr.open_dataset(config_params.MJO_VARS_PATH)
+            data_obs_vars = xr.open_dataset(obs_path)
         except FileNotFoundError:
-            raise FileNotFoundError(f"Observations MJO data file not found at '{config_params.MJO_VARS_PATH}'")
+            raise FileNotFoundError(f"Observations MJO data file not found at '{obs_path}'")
         data_obs_vars = data_obs_vars[vars_mjo].sel(time=slice(str(self.start_year_mjo), str(self.end_year_mjo)))
 
 
@@ -1428,7 +1440,7 @@ class MJOEvaluation:
         return phase_counts_bias, cbar_ticks_bias, colors_bias
 
 
-    def _prepare_spectra_data(self, data_sim, start_year_ref, end_year_ref, spectrum_var='rlut',
+    def _prepare_spectra_data(self, data_sim, obs_path, start_year_ref, end_year_ref, spectrum_var='rlut',
                               n_harmonics=3):
         """
         Regrid simulation data if needed to match the resolution of the observations, then filter the data to
@@ -1438,6 +1450,8 @@ class MJOEvaluation:
         ----------
         data_sim : xr.Dataset
             Simulation data containing the selected variable.
+        obs_path : str
+            Path to the observational data file with the necessary variables for the spectral analysis.
         start_year_ref, end_year_ref : int
             Initial and end years for computing the reference seasonal cycle.
         spectrum_var : str
@@ -1459,9 +1473,9 @@ class MJOEvaluation:
 
         # Load observational data (NOAA)
         try:
-            data_obs_vars = xr.open_dataset(config_params.MJO_VARS_PATH)
+            data_obs_vars = xr.open_dataset(obs_path)
         except FileNotFoundError:
-            raise FileNotFoundError(f"Observations MJO data file not found at '{config_params.MJO_VARS_PATH}'")
+            raise FileNotFoundError(f"Observations MJO data file not found at '{obs_path}'")
         data_obs_vars = data_obs_vars[[spectrum_var]].sel(time=slice(str(self.start_year_mjo), str(self.end_year_mjo)))
 
 
@@ -2654,7 +2668,7 @@ class ScientificEvaluation:
 
 
     def compute_iso_scores(self, data_name=None, start_year_eeof=None, end_year_eeof=None, start_year_pc=None, end_year_pc=None, obs=False, 
-                            correct_pc=False, iso_config=None):
+                           obs_path=None, correct_pc=False, iso_config=None):
         """
         Initialize and compute bimodal ISO indices (following (K. Kikuchi, 2020)) and derive scalar 
         scores (following (M. Nakano et al., 2019)) for a selected dataset.
@@ -2671,6 +2685,9 @@ class ScientificEvaluation:
             Initial and end years to compute Principal Components (PCs) for.
         obs : bool
             If True, use EEOFs from observational data (default: False).
+        obs_path : str
+            Path to the observational NOAA data file. As of now, only necessary if the resolution of the 
+            NOAA data (2.5°x2.5°) is higher than that of the simulation data.
         correct_pc : bool
             Whether to adjust simulated PCs by dividing by alpha (default: False).
         iso_config : ISOConfig
@@ -2700,12 +2717,12 @@ class ScientificEvaluation:
         # Create ISOEvaluation object and compute scores
         print(f"Performing ISO analysis for dataset '{data_name}':", flush=True)
         iso_analysis = ISOEvaluation(data_sim=data_ISO, start_year_eeof=start_year_eeof, end_year_eeof=end_year_eeof, start_year_pc=start_year_pc, 
-                                      end_year_pc=end_year_pc, obs=obs, correct_pc=correct_pc, iso_config=iso_config)
+                                      end_year_pc=end_year_pc, obs=obs, obs_path=obs_path, correct_pc=correct_pc, iso_config=iso_config)
 
         return iso_analysis
     
 
-    def compute_mjo_scores(self, data_name=None, start_year_mjo=None, end_year_mjo=None, start_year_ref=None, end_year_ref=None,
+    def compute_mjo_scores(self, data_name=None, obs_path=None, start_year_mjo=None, end_year_mjo=None, start_year_ref=None, end_year_ref=None,
                            threshold_active_days=None, spectrum_var='rlut', mjo_config=None):
         """
         Initialize and compute Real-Time Multivariate MJO (RMM) indices following (M.C. Wheeler & 
@@ -2717,6 +2734,8 @@ class ScientificEvaluation:
         data_name : str, optional
             Name of simulation ensemble to use. If None, the first dataset in the ScientificEvaluation 
             object is used.
+        obs_path : str
+            Path to the observational data file with the necessary variables for the MJO analysis.
         start_year_mjo, end_year_mjo : int
             Initial and end years to perform the analysis for.
         start_year_ref, end_year_ref : int
@@ -2753,9 +2772,9 @@ class ScientificEvaluation:
         
         # Create MJOEvaluation object and compute scores
         print(f"Performing MJO analysis for dataset '{data_name}':", flush=True)
-        mjo_analysis = MJOEvaluation(data_sim=data_MJO, start_year_mjo=start_year_mjo, end_year_mjo=end_year_mjo, start_year_ref=start_year_ref, 
-                                     end_year_ref=end_year_ref, threshold_active_days=threshold_active_days, spectrum_var=spectrum_var,
-                                     mjo_config=mjo_config)
+        mjo_analysis = MJOEvaluation(data_sim=data_MJO, obs_path=obs_path, start_year_mjo=start_year_mjo, end_year_mjo=end_year_mjo, 
+                                     start_year_ref=start_year_ref, end_year_ref=end_year_ref, threshold_active_days=threshold_active_days, 
+                                     spectrum_var=spectrum_var, mjo_config=mjo_config)
 
         return mjo_analysis
     
