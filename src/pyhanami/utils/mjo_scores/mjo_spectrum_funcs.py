@@ -698,7 +698,7 @@ def gen_dispersion_curves(n_wave_type=6, n_planetary_wave=50, rlat=0.0, ahe=[50.
 
 
 
-# Original functions (not adapted from the wavenumber_frequency repository)
+# Original functions to compute the power spectra (not adapted from the wavenumber_frequency repository)
 
 def variable_smooth_wavefreq(data, freq_dim='frequency', wavenum_dim='wavenumber'):
     """
@@ -831,3 +831,175 @@ def wavenum_freq_analysis(data, seg_size=96, n_overlap=60, lat_range=(-15, 15)):
     background.name = 'background'
 
     return nspec_sym, nspec_asy, z2_sym, z2_asy, background
+
+
+# Original functions to postprocess the power spectra (not adapted from the wavenumber_frequency repository)
+def sum_power_over_area(power, freq_bounds=None, wavenum_bounds=None, freq_dim='frequency', 
+                        wavenum_dim='wavenumber'):
+    """
+    Sum power over a specified area in wavenumber-frequency space.
+
+    Parameters
+    ----------
+    power : xr.DataArray
+        Power spectrum data.
+    freq_bounds : tuple
+        Frequency bounds for summation. If None, all values
+        are included.
+    wavenum_bounds : tuple
+        Wavenumber bounds for summation. If None, all values
+        are included.
+    freq_dim : str
+        Name of the frequency dimension (default: 'frequency').
+    wavenum_dim : str
+        Name of the wavenumber dimension (default: 'wavenumber').
+
+    Returns
+    -------
+    power_sum : float
+        Sum of power over the specified area.
+    """
+
+    # Validate input
+    if not isinstance(power, xr.DataArray):
+        raise ValueError("Input power must be an xr.DataArray.")
+    if freq_dim not in power.dims or wavenum_dim not in power.dims:
+        raise ValueError(f"Specified dimensions '{freq_dim}' and/or '{wavenum_dim}' not found in the power xr.DataArray.")
+    
+    # Select the area in wavenumber-frequency space
+    if freq_bounds is not None:
+        if freq_bounds[0] > freq_bounds[1]:
+            raise ValueError("Invalid frequency bounds: lower bound must be smaller than upper bound.")
+        power_freq_filtered = power.sel({freq_dim: slice(freq_bounds[0], freq_bounds[1])})
+    else:
+        power_freq_filtered = power
+    if wavenum_bounds is not None:
+        if wavenum_bounds[0] > wavenum_bounds[1]:
+            raise ValueError("Invalid wavenumber bounds: lower bound must be smaller than upper bound.")
+        power_filtered = power_freq_filtered.sel({wavenum_dim: slice(wavenum_bounds[0], wavenum_bounds[1])})
+    else:
+        power_filtered = power_freq_filtered
+
+
+    # Sum over the specified area (both over wavenumber and frequency)
+    power_sum = power_filtered.sum(skipna=True).item()
+
+    return power_sum
+
+
+def compute_eastward_westward_ratio(power, freq_bounds=None, wavenum_bounds=None, freq_dim='frequency', 
+                                    wavenum_dim='wavenumber'):
+    """
+    Compute the ratio of eastward to westward power in a specified area of wavenumber-frequency space.
+
+    Parameters
+    ----------
+    power : xr.DataArray
+        Power spectrum data.
+    freq_bounds : tuple
+        Frequency bounds for summation.
+    wavenum_bounds : tuple
+        Positive wavenumber bounds for summation.
+    freq_dim : str
+        Name of the frequency dimension (default: 'frequency').
+    wavenum_dim : str
+        Name of the wavenumber dimension (default: 'wavenumber').
+
+    Returns
+    -------
+    ratio : float
+        Ratio of eastward to westward power in the specified area.
+    eastward_sum : float
+        Sum of eastward power in the specified area.
+    westward_sum : float
+        Sum of westward power in the specified area.
+    """
+
+    # Validate input
+    if not isinstance(power, xr.DataArray):
+        raise ValueError("Input power must be an xr.DataArray.")
+    if freq_bounds is None or freq_bounds[0] > freq_bounds[1]:
+        raise ValueError("Frequency bounds 'freq_bounds' must be specified and valid (lower bound must be smaller than upper bound).")
+    if wavenum_bounds is None or wavenum_bounds[0] < 0 or wavenum_bounds[1] < 0 or wavenum_bounds[0] > wavenum_bounds[1]:
+        raise ValueError("Wavenumber bounds 'wavenum_bounds' must be specified, positive and valid (lower bound must be smaller than upper bound).")
+    if freq_dim not in power.dims or wavenum_dim not in power.dims:
+        raise ValueError(f"Specified dimensions '{freq_dim}' and/or '{wavenum_dim}' not found in the power xr.DataArray.")
+
+
+    # Compute eastward and westward sums
+    eastward_sum = sum_power_over_area(power, freq_bounds, wavenum_bounds, freq_dim, wavenum_dim)
+    westward_sum = sum_power_over_area(power, freq_bounds, (-wavenum_bounds[1], -wavenum_bounds[0]), freq_dim, wavenum_dim)
+
+    # Compute ratio
+    if westward_sum == 0:
+        raise ValueError("Westward power sum is zero, cannot compute eastward/westward ratio.")
+    else:
+        ratio = eastward_sum / westward_sum
+
+    return ratio, eastward_sum, westward_sum
+
+
+def compute_power_periodicity(power, freq_bounds=None, wavenum_bounds=None, freq_dim='frequency', 
+                              wavenum_dim='wavenumber'):
+    """
+    Compute the power-weighted mean period from the wavenumber-frequency power spectra (P_WFPS) 
+    in a specified area.
+
+    Parameters:
+    power : xr.DataArray
+        Power spectrum data.
+    freq_bounds : tuple
+        Frequency bounds for analysis. If None, all frequencies
+        are included.
+    wavenum_bounds : tuple
+        Wavenumber bounds for analysis. If None, all wavenumbers
+        are included.
+    freq_dim : str
+        Name of the frequency dimension (default: 'frequency').
+    wavenum_dim : str
+        Name of the wavenumber dimension (default: 'wavenumber').
+
+    Returns:
+    -------
+    pwfps : float
+        Power-weighted mean period in the specified area.
+    """
+
+    # Validate input
+    if not isinstance(power, xr.DataArray):
+        raise ValueError("Input power must be an xr.DataArray.")
+    if freq_dim not in power.dims or wavenum_dim not in power.dims:
+        raise ValueError(f"Specified dimensions '{freq_dim}' and/or '{wavenum_dim}' not found in the power xr.DataArray.")
+
+    # Select the area in wavenumber-frequency space
+    if freq_bounds is not None:
+        if freq_bounds[0] > freq_bounds[1]:
+            raise ValueError("Invalid frequency bounds: lower bound must be smaller than upper bound.")
+        power_freq_filtered = power.sel({freq_dim: slice(freq_bounds[0], freq_bounds[1])})
+    else:
+        power_freq_filtered = power
+    if wavenum_bounds is not None:
+        if wavenum_bounds[0] > wavenum_bounds[1]:
+            raise ValueError("Invalid wavenumber bounds: lower bound must be smaller than upper bound.")
+        power_filtered = power_freq_filtered.sel({wavenum_dim: slice(wavenum_bounds[0], wavenum_bounds[1])})
+    else:
+        power_filtered = power_freq_filtered
+
+    
+    # Compute power-weighted sum of periods
+    freq_values = power_filtered[freq_dim].values
+    if np.any(freq_values == 0):
+        raise ValueError("Frequency values include zero, cannot compute periods (1/freq).")
+
+    period_values = 1 / freq_values
+    power_weighted_periods = (power_filtered * period_values).sum(skipna=True).item()
+
+    # Compute total power in the area
+    total_power = power_filtered.sum(skipna=True).item()
+    if total_power == 0:
+        raise ValueError("Total power in the specified area is zero, cannot compute periodicity.")
+    
+    # Compute period from the wavenumber-frequency power spectra (P_WFPS)
+    pwfps = power_weighted_periods / total_power
+
+    return pwfps
