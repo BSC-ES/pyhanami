@@ -195,7 +195,7 @@ def plot_time_series(time_series, title='Mean time series', y_label='', labels=N
     ax.tick_params(axis='both', labelsize=12)
     ax.set_title(title, fontsize=18)
     ax.legend(fontsize=14)
-    ax.grid()
+    ax.grid(linestyle=':')
 
     plt.tight_layout()
 
@@ -527,8 +527,8 @@ def two_spatial_plots(data_1, data_2, clon=0, title_1='Spatial plot 1', title_2=
     -------
     new_fig : matplotlib.figure.Figure
         Generated plot.
-    ax : matplotlib.axes._subplots.AxesSubplot
-        Plot axis.
+    axs : list[matplotlib.axes._subplots.AxesSubplot]
+        Plot axes.
     """
 
     # Validate inputs
@@ -870,8 +870,8 @@ def plot_matrix(eff_sizes, test_results, test=4, title='Effect sizes replicabili
     return fig, ax
 
 
-def plot_table(data, title='Climate variables', col_labels='', row_labels='', cbar_ticks=['Low', '0', 'High'], colors=('RdBu_r'),
-               limits=None, reference=True, decimals=1):
+def plot_table(data, title='Climate variables', col_labels='', row_labels='', cbar_ticks=['Low', '', 'High'], 
+               colors=("RedGreen", ['tab:red', 'white', 'tab:green']), limits=None, reference=True, decimals=1):
     """ 
     Generate a table plot with climate data.
 
@@ -889,7 +889,7 @@ def plot_table(data, title='Climate variables', col_labels='', row_labels='', cb
     cbar_ticks : list
         Labels for the colorbar ticks (default: ['Low', '0', 'High']).
     colors : tuple
-        Colormap (default: ('RdBu_r')).
+        Colormap (default: ("RedGreen", ['tab:red', 'white', 'tab:green'])).
     limits : np.ndarray
         Colormap limits (min, max) for each column in the table. If None, the limits will
         be automatically set as the maximum and minimum values in each column.
@@ -1020,6 +1020,197 @@ def plot_table(data, title='Climate variables', col_labels='', row_labels='', cb
     return fig, ax
 
 
+def plot_two_tables(data_1, data_2, title='Climate variables', col_labels=['', ''], row_labels=['', ''], common_bar=True,
+                    cbar_ticks=[['Low', '', 'High'], ['Low', '', 'High']], colors=("RedGreen", ['tab:red', 'white', 'tab:green']), 
+                    limits=[None, None], references=[True, True], decimals=[1, 1]):
+    """ 
+    Generate a table plot with climate data.
+
+    Parameters
+    ----------
+    data_1 : np.ndarray
+        2D array with the data to display in the first table.
+    data_2 : np.ndarray
+        2D array with the data to display in the second table.
+    title : str
+        Title of the plot.
+    col_labels : list[list]
+        Column labels for each table. Note, the row labels will be added as the first column, 
+        hence, the length of each col_labels must be equal to number of columns in the 
+        corresponding data + 1.
+    row_labels : list[list]
+        Row labels for each table.
+    common_bar : bool
+        Whether to use a common colorbar for both tables (default: True).
+    cbar_ticks : list[list]
+        Labels for the colorbar ticks for each table (default: [['Low', '', 'High'], 
+        ['Low', '', 'High']]).
+    colors : tuple
+        Colormap (default: ("RedGreen", ['tab:red', 'white', 'tab:green'])).
+    limits : list[np.ndarray]
+        Colormap limits (min, max) for each column in each table. If None, the limits will
+        be automatically set as the maximum and minimum values in each column.
+    references : list[bool]
+        Whether to use the first row of data as reference (not colored) for each table 
+        (default: [True, True]).
+    decimals : list[int]
+        Number of decimals to round the data values for each table (default: [1, 1]).
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        Generated table plot.
+    axs : list[matplotlib.axes._subplots.AxesSubplot]
+        Plot axes.
+    """
+
+    # Validate input
+    if data_1 is None or not isinstance(data_1, np.ndarray) or data_2 is None or not isinstance(data_2, np.ndarray):
+        raise TypeError("Both data must be a np.ndarray.")
+    if data_1.ndim != 2 or data_2.ndim != 2:
+        raise ValueError("Both data arrays must be 2-dimensional.")
+    if len(row_labels[0]) != data_1.shape[0] or len(row_labels[1]) != data_2.shape[0]:
+        raise ValueError("The number of row labels must match the number of rows in both data arrays.")
+    if len(col_labels[0])-1 != data_1.shape[1] or len(col_labels[1])-1 != data_2.shape[1]:
+        raise ValueError("The number of column labels must match the number of columns in both data arrays.")
+    if limits is not None and (limits[0].shape[0] != data_1.shape[1] or limits[1].shape[0] != data_2.shape[1] 
+                               or limits[0].shape[1] != 2 or limits[1].shape[1] != 2):
+        raise ValueError("Limits must be a list of 2D arrays with shape (n_columns, 2) for both data arrays.")
+
+
+    # Create figure with adjusted height based on number of rows
+    n_rows = [len(rows) for rows in row_labels]
+    n_cols = [len(cols) for cols in col_labels]
+    height = max(5, sum(n_rows) * 0.6)
+    width = 4
+    fig, axs = plt.subplots(2,1, figsize=(width, height), dpi=200)
+    fig.suptitle(title, fontsize=16)
+
+
+    # Fix cell height in points and convert to fraction of axes height (1 point = 1/72 inch)
+    cell_height_pt = 30
+    axes_height_inches = height * axs[1].get_position().height
+    cell_height_inch = (cell_height_pt / 72.0) / axes_height_inches
+    
+
+    # Add one table to each subplot
+    for ax, data, decimal, row_label, col_label, n_row, n_col, limit, reference in zip(axs, [data_1, data_2], decimals, row_labels, col_labels, n_rows, n_cols, limits, references):
+        # Add data
+        formatted_data = np.array([[f"{val:.{decimal}f}" for val in row] for row in data])
+        cell_text = np.column_stack((np.reshape(row_label, (-1, 1)), formatted_data))
+        table = ax.table(cellText=cell_text, colLabels=col_label, loc='center', cellLoc='center')
+        table.auto_set_font_size(False)
+        table.set_fontsize(14)
+        # table.scale(1.1, 1.4)
+        ax.axis('off')
+
+
+        # Automatically adjust width of first column (row labels)
+        table.auto_set_column_width(0)
+        row_label_width_inch = table.get_celld()[(0,0)].get_width()
+
+        axes_width_inches = width * ax.get_position().width
+        row_label_length = row_label_width_inch / axes_width_inches
+
+        # Calculate proportional widths for other columns based on label lengths
+        col_label_lengths = [len(str(label)) for label in col_label[1:]]
+        total_col_length = np.sum(col_label_lengths) + row_label_length
+
+        col_widths = [(length / total_col_length) for length in col_label_lengths]
+        col_widths_inch = [w * axes_width_inches for w in col_widths]
+
+
+        # Customize first column (row labels)
+        table[(0, 0)].set_facecolor('whitesmoke')
+        table.get_celld()[(0, 0)].get_text().set_fontsize(12)
+        for row in range(1, n_row+1):
+            table[(row,0)].get_text().set_ha('left')
+        for row in range(n_row+1):
+            table.get_celld()[(row, 0)].set_width(row_label_width_inch)
+            table.get_celld()[(row, 0)].set_height(cell_height_inch)
+
+        # Customize other columns (data cells)
+        start_color_cell = 1 if reference else 0
+        custom_norm = True if limit is not None else False
+        cmap = LinearSegmentedColormap.from_list(*colors)
+        for col in range(1, n_col):
+            for row in range(n_row+1): 
+                table.get_celld()[(row, col)].set_width(col_widths_inch[col-1])
+                table.get_celld()[(row, col)].set_height(cell_height_inch)
+
+            if reference:
+                # Paint the cells in the first row (corresponding to the reference data) with light gray
+                table[(1, col)].set_facecolor('lightgray')
+
+            # Color the remaining cells (rows 2-on if `reference` is True, else all rows)
+            if custom_norm:
+                vmin, vmax = limit[col-1]
+            else:
+                values = data[start_color_cell:, col-1]
+                vmin, vmax = values.min(), values.max()
+            if vmin == vmax:
+                vmin = vmax - 1e-6
+            norm = plt.Normalize(vmin, vmax)
+
+            # if custom_norm:
+            #     norm = plt.Normalize(vmin, vmax)
+            # else:
+            #     values = data[start_color_cell:, col-1]
+            #     vmin, vmax = values.min(), values.max()
+
+            #     abs_max = max(abs(vmin), abs(vmax))
+            #     norm = plt.Normalize(-abs_max, abs_max)
+
+            for row in range(start_color_cell+1, n_row+1):
+                val = data[row-1, col-1]
+                color = cmap(norm(val))
+                table[(row, col)].set_facecolor(color)
+
+
+    
+    if common_bar:   
+        # Save space for colorbar
+        fig.subplots_adjust(bottom=0.15)
+
+        # Create fixed cax (colorbar axes); if not done, the tables will be resized when adding the colorbar
+        left = axs[0].get_position().extents[0]
+        right =  axs[-1].get_position().extents[2]
+        bottom = axs[-1].get_position().extents[1]
+
+        x_offset = 0.35    
+        cb_ax = fig.add_axes([
+            left - x_offset,  # x position
+            bottom - 0.1,  # y position
+            right + 2*x_offset - left,  # x width
+            0.04  # y width
+        ])
+
+        # Add horizontal colorbar in the fixed cax
+        cbar = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cb_ax, orientation='horizontal', 
+                            pad=0.05, shrink=0.5, aspect=40)
+
+
+        # Create mappable for colorbar
+        # mappable = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
+        # mappable.set_array([])  # avoid warnings for empty mappable
+        
+        # # Create fix cax (colorbar axes) positioned below both tables' axes
+        # cbar = add_colorbar(fig=fig, mappable=mappable, ax_l=axs[0], ax_r=axs[-1], ax_b=axs[-1], label='', 
+        #                     fontsize=12, levels=None, dist=0.1, width=0.03, shrink=0.5, aspect=40)
+
+        # Add ticks to bar
+        left_tick = norm.vmin + (norm.vmax - norm.vmin) * 0.07  # 7% from left
+        middle_tick = norm.vmin + (norm.vmax - norm.vmin) * 0.5  # middle
+        right_tick = norm.vmax - (norm.vmax - norm.vmin) * 0.07  # 7% from right
+        cbar.set_ticks([left_tick, middle_tick, right_tick])
+        cbar.set_ticklabels(cbar_ticks)
+        cbar.ax.tick_params(labelsize=12, length=0)
+    else:
+        raise NotImplementedError('One colorbar per table is not implemented yet.')
+
+    return fig, axs
+
+
 def plot_grouped_bars(data, x_values=None, title='Grouped bar plot', x_label='', y_label='', labels=None):
     """
     Generate a grouped bar plot.
@@ -1075,7 +1266,7 @@ def plot_grouped_bars(data, x_values=None, title='Grouped bar plot', x_label='',
     ax.set_title(title, fontsize=13, pad=15)
 
     ax.legend(loc='lower right', fontsize=10, framealpha=0.9)
-    ax.grid(zorder=0, alpha=0.8)
+    ax.grid(zorder=0, linestyle=':')
     plt.tight_layout()
 
     return fig, ax
@@ -1150,7 +1341,7 @@ def plot_two_grouped_bars(data_1, data_2, x1_values=None, x2_values=None, suptit
         axs[i].set_title(title, fontsize=12, pad=15)
 
         axs[i].legend(loc='lower right', fontsize=7, framealpha=0.9)
-        axs[i].grid(zorder=0, alpha=0.8)
+        axs[i].grid(zorder=0, linestyle=':')
 
 
     # Add shared title and adjust layout
@@ -1246,9 +1437,9 @@ def plot_dots_two_axes(data_1, data_2, x_values=None, x_values_minor=None, title
 
     if x_values_minor is not None:
         ax1.set_xticks(x_values_minor, minor=True)
-        ax1.grid(which='minor', axis='x', zorder=0, alpha=0.8)
+        ax1.grid(which='minor', axis='x', zorder=0, linestyle=':')
     else:
-        ax1.grid(axis='x', zorder=0, alpha=0.8)
+        ax1.grid(axis='x', zorder=0, linestyle=':')
     
     # Create custom legend with colored rectangles
     if labels:
@@ -1448,7 +1639,7 @@ def plot_pcs(pcs, title='Bimodal ISO indices', normalized=True):
         axs[i].set_ylabel(f'Normalized PC', fontsize=10)
         axs[i].set_title(labels[i], fontsize=12)
         axs[i].legend(fontsize=8, loc='upper right')
-        axs[i].grid()
+        axs[i].grid(linestyle=':')
 
     # Plot amplitudes
     for i, data in enumerate([amp_MJO, amp_BSISO]):
@@ -1461,7 +1652,7 @@ def plot_pcs(pcs, title='Bimodal ISO indices', normalized=True):
     axs[2].set_ylabel(f'|Normalized PCs|', fontsize=10)
     axs[2].set_title('Amplitude', fontsize=12)
     axs[2].legend(fontsize=8, loc='upper right')
-    axs[2].grid()
+    axs[2].grid(linestyle=':')
 
     axs[2].set_xticklabels(tick_labels, rotation=45, ha='right')
     axs[2].set_xlabel('time', fontsize=10)
@@ -1578,7 +1769,7 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
     ax.set_ylabel('frequency of occurrence', fontsize=10)
     
     ax.set_title(title, fontsize=12)
-    ax.grid(alpha=0.8, zorder=0)
+    ax.grid(zorder=0, linestyle=':')
 
     return fig, ax
 
@@ -1586,12 +1777,12 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
 
 # Specific MJO evaluation plotting functions
 
-def plot_ceofs(ceofs, title='MJO Multivariate EOFs', vars_colors={'ua850':'#1f77b4','ua200':'#ff7f0e','rlut':'#2ca02c'},
+def plot_ceofs(ceofs, title='Combined EOFs', vars_colors={'ua850':'#1f77b4','ua200':'#ff7f0e','rlut':'#2ca02c'},
                labels_linestyles={'Dataset 1':'-', 'Dataset 2':'--', 'Dataset 3':':'}):
     """
     Generate plot of the first two Combined Empirical Orthogonal Functions (CEOFs) 
-    for the MJO, including all three variables (ua850, ua200 and rlut) in the 
-    same plot, for up to three different datasets.    
+    including all three variables (ua850, ua200 and rlut) in the same plot, for 
+    up to three different datasets.    
 
     Parameters
     ----------
@@ -1656,9 +1847,9 @@ def plot_ceofs(ceofs, title='MJO Multivariate EOFs', vars_colors={'ua850':'#1f77
         ax.set_xlabel("longitude (°E)" , fontsize=12)
         if j == 0:
             ax.set_ylabel("normalized amplitude", fontsize=12)
-        ax.set_title(f"Multivariate EOF{j+1}", fontsize=13)
+        ax.set_title(f"Combined EOF{j+1}", fontsize=13)
         ax.margins(x=0)  # remove whitespace before first data point
-        ax.grid(alpha=0.8)
+        ax.grid(linestyle=':')  #alpha=0.8
         ax.axhline(0, color='black', linestyle='-')
         ax.tick_params(axis='both', which='major', labelsize=11)
 
@@ -1717,7 +1908,8 @@ def plot_ceofs(ceofs, title='MJO Multivariate EOFs', vars_colors={'ua850':'#1f77
 
 
 def plot_power_spectrum(spectrum, component='symmetric', x_lim=[-10, 10], y_lim=[0.01, 0.25], title='Symmetric power spectrum', 
-                        cmap=None, levels=None, vmin=None, vmax=None, mjo_box=True):
+                        cmap=None, levels=None, vmin=None, vmax=None, mjo_box=True, mjo_freq_bounds=(1/96, 1/30), 
+                        mjo_wavenum_bounds=(0, 4)):
     """
     Generate symmetric power spectrum plot with theoretical dispersion curves
     overlaid.
@@ -1743,6 +1935,10 @@ def plot_power_spectrum(spectrum, component='symmetric', x_lim=[-10, 10], y_lim=
         Min. and max. values for the colormap.
     mjo_box : bool
         Whether to draw a dashed box around the MJO region (default: True).
+    mjo_freq_bounds : tuple
+        Frequency bounds corresponding to the MJO band in the wavenumber-frequency space (default: (1/96, 1/30)).
+    mjo_wavenum_bounds : tuple
+        Wavenumber bounds corresponding to the MJO band in the wavenumber-frequency space (default: (0, 4)).
 
     Returns
     -------
@@ -1818,7 +2014,9 @@ def plot_power_spectrum(spectrum, component='symmetric', x_lim=[-10, 10], y_lim=
 
     # Add dashed box around MJO region if requested
     if mjo_box:
-        mjo_box = Rectangle((0, 1/80), width=4, height=1/30-1/80, edgecolor='black', facecolor='none', linestyle='dashed', lw=1.5, zorder=2)
+        mjo_box = Rectangle((mjo_wavenum_bounds[0], mjo_freq_bounds[0]), width=mjo_wavenum_bounds[1]-mjo_wavenum_bounds[0], 
+                             height=mjo_freq_bounds[1]-mjo_freq_bounds[0], edgecolor='black', facecolor='none', 
+                             linestyle='dashed', lw=1.5, zorder=2)
         ax.add_patch(mjo_box)
 
     # Plot formatting
@@ -1835,7 +2033,7 @@ def plot_power_spectrum(spectrum, component='symmetric', x_lim=[-10, 10], y_lim=
 
 def plot_power_spectrum_two(spectrum_1, spectrum_2, component='symmetric', x_lim=[-10, 10], y_lim=[0.01, 0.25], title_1='Spectrum 1', 
                             title_2='Spectrum 2', suptitle='Symmetric power spectrum', cmap=None, levels=None, vmin=None, 
-                            vmax=None, mjo_box=True):
+                            vmax=None, mjo_box=True, mjo_freq_bounds=(1/96, 1/30), mjo_wavenum_bounds=(0, 4)):
     """
     Generate symmetric power spectrum plot with theoretical dispersion curves
     overlaid.
@@ -1861,6 +2059,10 @@ def plot_power_spectrum_two(spectrum_1, spectrum_2, component='symmetric', x_lim
         Min. and max. values for the colormap.
     mjo_box : bool
         Whether to draw a dashed box around the MJO region (default: True).
+    mjo_freq_bounds : tuple
+        Frequency bounds corresponding to the MJO band in the wavenumber-frequency space (default: (1/96, 1/30)).
+    mjo_wavenum_bounds : tuple
+        Wavenumber bounds corresponding to the MJO band in the wavenumber-frequency space (default: (0, 4)).
 
     Returns
     -------
@@ -1946,7 +2148,9 @@ def plot_power_spectrum_two(spectrum_1, spectrum_2, component='symmetric', x_lim
 
         # Add dashed box around MJO region if requested
         if mjo_box:
-            mjo_box = Rectangle((0, 1/80), width=4, height=1/30-1/80, edgecolor='black', facecolor='none', linestyle='dashed', lw=1.5, zorder=2)
+            mjo_box = Rectangle((mjo_wavenum_bounds[0], mjo_freq_bounds[0]), width=mjo_wavenum_bounds[1]-mjo_wavenum_bounds[0], 
+                                height=mjo_freq_bounds[1]-mjo_freq_bounds[0], edgecolor='black', facecolor='none', 
+                                linestyle='dashed', lw=1.5, zorder=2)
             ax.add_patch(mjo_box)
 
         # Plot formatting
