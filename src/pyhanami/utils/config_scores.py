@@ -45,7 +45,8 @@ def parse_value(value, expected_type_str):
     # Handle structured types
     elif expected_type_str in ["tuple", "list", "dict"]:
         try:
-            aux_value = ast.literal_eval(value)
+            aux_value = eval(value, {"__builtins__": {}}, {})   # Use eval in a restricted environment for safety; 
+                                                                # alternartive (it does not work with fractions like '(1/80, 1/30)' though): ast.literal_eval(value)
         except Exception as e:
             raise TypeError(f"Value '{value}' cannot be parsed as type '{expected_type_str}'. Error: {e}")
 
@@ -124,7 +125,7 @@ def make_config_class(phenomenon):
         default_value = parse_value(param_value, param_type_str)
         
         # Add parameter to dataclass fields
-        dataclass_fields.append((param_name, param_type, field(default=default_value)))
+        dataclass_fields.append((param_name, param_type, field(default=default_value, metadata={'description': param_info['description']})))
 
 
     # Validate types of user-provided parameters

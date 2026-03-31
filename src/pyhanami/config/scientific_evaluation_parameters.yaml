@@ -81,6 +81,15 @@ mjo:
   #   value: 'rlut'
   #   type: str
   #   description: Variable to be used for the spectral analysis
+  mjo_freq_bounds:
+    value: (1/80, 1/30)
+    type: tuple
+    units: "days**-1"
+    description: Frequency bounds corresponding to the MJO band in the wavenumber-frequency space
+  mjo_wavenum_bounds:
+    value: (0, 4) 
+    type: tuple
+    description: Wavenumber bounds corresponding to the MJO band in the wavenumber-frequency space
 
 
 # Parameters for Tropical Cyclones evaluation
