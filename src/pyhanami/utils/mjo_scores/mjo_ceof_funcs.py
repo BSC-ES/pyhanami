@@ -2,6 +2,8 @@ import xeofs
 import numpy as np
 import xarray as xr
 
+from scipy.stats import pearsonr
+
 from pyhanami.utils import statistics
 
 
@@ -312,8 +314,9 @@ def perform_CEOF_analysis(data=None, ceof_model=None, n_modes=2, vars_order=['ua
     ceofs, eigvals, var_frac, pcs, _ = retrieve_CEOFs_xeofs(ceof_model, vars_order)
 
     # Compile CEOF analysis output as a xr.Dataset
+    vars_coords = np.array(vars_order, dtype=f'U{max(len(v) for v in vars_order)}') # Correct variables dimension format
     ceof_analysis_data = xr.Dataset({
-        "ceof": ceofs,
+        "ceof": ceofs.assign_coords(variable=vars_coords),
         "eigval": eigvals,
         "var_frac": var_frac,
         "pc": pcs
@@ -438,6 +441,119 @@ def compute_CEOFs_corr(ceof_1, ceof_2, n_modes=2):
     )
     
     return ceof_corr
+
+
+def compute_lead_lag_correlation(pcs, max_lag=30):
+    """
+    Compute lead-lag correlation between the first two Principal Components (PCs)
+    from an Empirical Orthogonal Function (EOF) analysis.
+    
+    Parameters
+    ----------
+    pcs : xr.DataArray
+        PCs with dimensions ['time' (in days), 'mode'].
+    max_lag : int
+        Maximum lag to compute the correlation for, in days (default: 30).
+    
+    Returns
+    -------
+    lead_lag_corr_ds : xr.Dataset
+        Lead-lag correlation values with dimensions ['lag'].
+    """
+
+    # Validate input
+    if not isinstance(pcs, xr.DataArray):
+        raise ValueError("Input PCs must be an xarray.DataArray.")
+    if not isinstance(max_lag, int) or max_lag < 0:
+        raise ValueError("'max_lag' must be a non-negative integer.")
+    
+    # Extract first two PCs
+    pc1 = pcs.sel(mode=0).values
+    pc2 = pcs.sel(mode=1).values
+
+    
+    # Compute lead-lag correlation for lags from -max_lag to +max_lag
+    lags = np.arange(-max_lag, max_lag + 1)
+    lead_lag_corr = []
+
+    for lag in lags:
+        if lag < 0:
+            # PC1 leads PC2
+            corr, _ = pearsonr(pc1[:lag], pc2[-lag:])
+        elif lag > 0:
+            # PC2 leads PC1
+            corr, _ = pearsonr(pc1[lag:], pc2[:-lag])
+        else:
+            # Zero lag
+            corr, _ = pearsonr(pc1, pc2)
+        
+        lead_lag_corr.append(corr)
+
+    # Save to xarray.Dataset
+    lead_lag_corr_ds = xr.Dataset(
+        data_vars = {'lead_lag_corr': (['lag'], lead_lag_corr)}, 
+        coords={'lag': lags},
+    )
+
+    return lead_lag_corr_ds
+
+
+def compute_max_correlation(correlation):
+    """
+    Compute the maximum correlation value from a lead-lag correlation curve,
+    defined as the mean of the absolute minimum and maximum correlation values.
+
+    Parameters
+    ----------
+    correlation : xr.DataArray
+        Lead-lag correlation values with dimensions ['lag'].
+
+    Returns
+    -------
+    max_corr : float
+        Maximum correlation value.
+    """
+
+    # Validate input
+    if not isinstance(correlation, xr.DataArray):
+        raise ValueError("Input correlation must be an xarray.DataArray.")
+    
+    # Compute maximum correlation
+    abs_min = abs(correlation.min().values)
+    abs_max = abs(correlation.max().values)
+    max_corr = np.mean([abs_min, abs_max])
+    
+    return max_corr
+
+
+def compute_ceof_periodicity(correlation):
+    """
+    Compute periodicity from the CEOF analysis (P_CEOF), defined as twice the time
+    interval between the maximum and minimum lead-lag correlation values.
+
+    Parameters
+    ----------
+    correlation : xr.DataArray
+        Lead-lag correlation values with dimensions ['lag'].
+
+    Returns
+    -------
+    pceof : float
+        Periodicity from the CEOF analysis.
+    """
+
+    # Validate input
+    if not isinstance(correlation, xr.DataArray):
+        raise ValueError("Input correlation must be an xarray.DataArray.")
+    
+    # Find lag values corresponding to maximum and minimum correlation
+    max_lag = correlation['lag'].values[correlation.argmax().values]
+    min_lag = correlation['lag'].values[correlation.argmin().values]
+
+    # Compute periodicity as twice the time interval between max and min correlation
+    pceof = 2 * abs(max_lag - min_lag)
+    
+    return pceof
 
 
 def deteremine_phases(pcs):
