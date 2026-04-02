@@ -16,7 +16,7 @@ These include time series and spatial plots. The latter involves plots displayin
 - **Replicability testing:** perform a replicability test checking the statistical indistinguishability between two previously loaded simulation ensembles using the `ReplicabilityTest` class.
 - **Scientific skill evaluation:** compute scalar scores evaluating the following phenomena using the `ScientificEvaluation` class:
     - Tropical IntraSeasonal Oscillation (ISO): this includes the computation of the bimodal ISO indices (for MJO and BSISO), as well as the calculation of related scalar scores comparing the indices between simulations and observations (amplitude ratio ($\alpha$), temporal correlation ($R$), standard deviation ratio ($\sigma$), and Taylor Skill Score (TSS)).
-    - Madden-Julian Oscillation (MJO): this includes the computation of the Real-Time Multivariate MJO (RMM) indices and the MJO power spectrum, as well as the calculation of related scalar scores (Pearson correlation ($r_{\text{var,mode}}$) and bias ($\bar{b}$)) comparing the MJO spatial patterns and activity between simulations and observations. 
+    - Madden-Julian Oscillation (MJO): this includes the computation of the Real-Time Multivariate MJO (RMM) indices and the MJO power spectrum, as well as the calculation of related scalar scores (Pearson correlation ($r_{\text{var,mode}}$) and bias ($b$)) comparing the MJO spatial patterns, activity and power between simulations and observations. 
     - Tropical Cyclones (TCs): this includes the computation of various scalar scores (bias ($\bar{b}$), spatial Pearson correlation ($r_{xy}$), and temporal Spearman rank correlation ($\rho_s$)) for several TC metrics (counts, TC days (TCD), accumulated cyclone energy (ACE), pressure ACE (PACE), and latitude of lifetime-maximum intensity (LMI)).
 - **Flexible data management:** add and compare datasets in the `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes even after initialization.
 
@@ -175,16 +175,18 @@ mjo_analysis = sciskill.compute_mjo_scores(
 # Save results of the analysis to 'output_path'
 mjo_analysis.save_data('output_path')
 
-# Create plots for CEOFs, MJO activity per phase and power spectrum and save them to 'output_path'
+# Create plots for CEOFs, lead-lag correlation, MJO activity per phase and power spectrum 
+# and save them to 'output_path'
 mjo_analysis.ceof_plots('output_path')
+mjo_analysis.lead_lag_corr_plot('output_path')
 mjo_analysis.activity_per_phase_plots('output_path')
 mjo_analysis.power_spectrum_plots('output_path')
 
 # Create table plots summarizing the computed scalar scores and save them to 'output_path'
+mjo_analysis.ceof_bias_table('output_path')
 mjo_analysis.ceof_corr_table('output_path')
-mjo_analysis.explained_var_bias_table('output_path')
-mjo_analysis.mean_amplitude_bias_table('output_path')
-mjo_analysis.active_days_bias_table('output_path')
+mjo_analysis.activity_per_phase_bias_tables('output_path')
+mjo_analysis.power_bias_table('output_path')
 ```
 
 #### Tropical Cyclones (TCs)
@@ -297,13 +299,15 @@ Significant contributors:
 
 Thanks to:
 - Chihiro Kodama (JAMSTEC): kodamac@jamstec.go.jp
-- Iker Gonzalez (BSC-CNS): iker.gonzalez@bsc.es
+- Iker Gonzalez Yeregui (BSC-CNS): iker.gonzalez@bsc.es
 - Tomoe Nasuno (JAMSTEC): nasuno@jamstec.go.jp
 <!-- - JAMSTEC - Research Center for Environmental Modeling and Application (CEMA) -->
 
 This work, along with the replicability test methodology implemented in this package, were developed as part of the [Hpc AlliaNce for Applications and supercoMputing Innovation (HANAMI) project](https://hanami-project.com/), which received funding from the European High Performance Computing Joint Undertaking (EuroHPC JU) under the European Union’s Horizon Europe framework program for research and innovation and Grant Agreement No. 101136269.
 
 ### Scientific References
+
+Ahn, M.-S., Kim, D., Sperber, K.R., Kang, I.-S., Maloney, E., Waliser, D., & Hendon, H., MJO simulation in CMIP5 climate models: MJO skill metrics and process-oriented diagnosis. Clim. Dyn., 49, 4023–4045 (2017). https://doi.org/10.1007/s00382-017-3558-4
 
 Gahtan, J., Knapp, K.R., Schreck, C.J., Diamond, H.J., Kossin, J.P., & Kruk, M.C. International Best Track Archive for Climate Stewardship (IBTrACS) Project, Version 4r01, Subset since1980. NOAA National Centers for Environmental Information (2024). https://doi.org/10.25921/82ty-9e16 (access date: 2025-11-31)
 
@@ -313,9 +317,9 @@ Keller, K.R., Alerany Solé, M., & Acosta, M., Replicability in Earth System Mod
 
 Keller, K.R., Alerany Solé, M., & Acosta, M., Replicability in Earth System Models. Geosci. Model Dev., 18, 10221-10243 (2025) https://doi.org/10.5194/gmd-18-10221-2025
 
-Kikuchi, K., Wang, B. & Kajikawa, Y., Bimodal representation of the tropical intraseasonal oscillation. Clim Dyn 38, 1989–2000 (2012). https://doi.org/10.1007/s00382-011-1159-1
+Kikuchi, K., Wang, B., & Kajikawa, Y., Bimodal representation of the tropical intraseasonal oscillation. Clim. Dyn. 38, 1989–2000 (2012). https://doi.org/10.1007/s00382-011-1159-1
 
-Kikuchi, K., Extension of the bimodal intraseasonal oscillation index using JRA-55 reanalysis. Clim Dyn 54, 919–933 (2020). https://doi.org/10.1007/s00382-019-05037-z
+Kikuchi, K., Extension of the bimodal intraseasonal oscillation index using JRA-55 reanalysis. Clim. Dyn. 54, 919–933 (2020). https://doi.org/10.1007/s00382-019-05037-z
 
 Knapp, K.R., Kruk, M.C., Levinson, D.H., Diamond, H.J., & Neumann, C.J., The International Best Track Archive for Climate Stewardship (IBTrACS): Unifying tropical cyclone best track data. Bulletin of the American Meteorological Society, 91, 363-376 (2010). https://doi.org/10.1175/2009BAMS2755.1
 
