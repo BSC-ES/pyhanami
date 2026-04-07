@@ -2,7 +2,7 @@
 # conda env create -f environment.yaml
 
 name:
-  pyhanami-env_v0.1.0
+  pyhanami-env_v0.2.0
 channels:
   - conda-forge
   - nodefaults  # To exclude the 'defaults' channel (only use explicitly listed channels)

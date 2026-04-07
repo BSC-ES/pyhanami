@@ -5,11 +5,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyhanami"
-version = "0.1.0"
+version = "0.2.0"
 authors = [
     {name = "Marta Alerany Solé", email = "marta.alerany@bsc.es"},
-    {name = "Kai Keller", email = "kai.keller@bsc.es"},
-    {name = "Masuo Nakano", email = "masuo@jamstec.go.jp"}
+    {name = "Kai Keller", email = "kai.keller@bsc.es"}
 ]
 
 description = "pyhanami is a tool designed to evaluate the replicability and scientific skill of Earth System Models"
