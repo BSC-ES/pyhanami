@@ -39,7 +39,7 @@ cd pyhanami
 conda env create -f environment.yaml
 
 # Activate the newly created environment
-conda activate pyhanami-env_v0.1.0
+conda activate pyhanami-env_v0.2.0
 ```
 
 <!--
