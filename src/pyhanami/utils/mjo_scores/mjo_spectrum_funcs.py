@@ -833,6 +833,28 @@ def wavenum_freq_analysis(data, seg_size=96, n_overlap=60, lat_range=(-15, 15)):
     return nspec_sym, nspec_asy, z2_sym, z2_asy, background
 
 
+def wavenum_freq_analysis_wrapper(args):
+    """
+    Wrapper function to perform wavenumber-frequency analysis with a single argument, 
+    for use with multiprocessing.
+
+    Parameters
+    ----------
+    args : tuple
+        Tuple containing (data, seg_size, n_overlap, lat_range).
+
+    Returns
+    -------
+    result : tuple
+        Result of wavenumber_freq_analysis.
+    """
+
+    data, seg_size, n_overlap, lat_range = args
+    result = wavenum_freq_analysis(data, seg_size, n_overlap, lat_range)
+    
+    return result
+
+
 # Original functions to postprocess the power spectra (not adapted from the wavenumber_frequency repository)
 def sum_power_over_area(power, freq_bounds=None, wavenum_bounds=None, freq_dim='frequency', 
                         wavenum_dim='wavenumber'):
