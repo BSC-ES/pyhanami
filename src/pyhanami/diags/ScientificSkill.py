@@ -9,9 +9,9 @@ from pyhanami.diags.scientific_evaluation import general, iso, mjo, tc
 
 class ScientificEvaluation:
     """
-    Compute and plot metrics for scientific model skill evaluation.
+    Compute and plot scores for scientific model skill evaluation.
 
-    This class provides functionality for computing and visualizing metrics to evaluate how well a model 
+    This class provides functionality for computing and visualizing metric to evaluate how well a model 
     reproduces several phenomena. Currently, it includes methods for bimodal ISO indices.
     
     Parameters
@@ -172,7 +172,7 @@ class ScientificEvaluation:
     
 
     def compute_mjo_scores(self, data_name=None, obs_path=None, start_year_mjo=None, end_year_mjo=None, start_year_ref=None, end_year_ref=None,
-                           threshold_active_days=None, spectrum_var='rlut', mjo_config=None):
+                           threshold_active_days=None, mjo_config=None, mjo_vars=['ua850', 'ua200', 'rlut']):
         """
         Initialize and compute Real-Time Multivariate MJO (RMM) indices following (M.C. Wheeler & 
         H.H. Hendon, 2004) and MJO wavenumber-frequency power spectra following (M.C. Wheeler & 
@@ -194,11 +194,11 @@ class ScientificEvaluation:
         threshold_active_days : float
             Threshold for the amplitude of the first two PCs to consider the MJO active at a given 
             day. If None, the mean MJO amplitude over the entire period is used as a threshold.
-        spectrum_var : str
-            Variable to be used for the spectral analysis (default: 'rlut').
         mjo_config : MJOConfig
             Configuration dataclass with parameters necessary for the MJO evaluation. If None, default values 
             from the configuration file `pyhanami.config.scientific_evaluation_parameters.yaml` will be used.
+        mjo_vars : list[str]
+            Variables to be usd for the MJO analysis (default: ['ua850', 'ua200', 'rlut']).
 
         Returns
         -------
@@ -224,7 +224,7 @@ class ScientificEvaluation:
         print(f"Performing MJO analysis for dataset '{data_name}':", flush=True)
         mjo_analysis = mjo.MJOEvaluation(data_sim=data_MJO, obs_path=obs_path, start_year_mjo=start_year_mjo, end_year_mjo=end_year_mjo,
                                          start_year_ref=start_year_ref, end_year_ref=end_year_ref, threshold_active_days=threshold_active_days,
-                                         spectrum_var=spectrum_var, mjo_config=mjo_config)
+                                         mjo_config=mjo_config, mjo_vars=mjo_vars)
 
         return mjo_analysis
     

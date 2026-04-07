@@ -1,6 +1,9 @@
+
 import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
+
+from pathlib import Path
 
 from pyhanami.config import config_params
 from pyhanami.diags.Simulations import SimulationData
@@ -35,11 +38,11 @@ class MJOEvaluation:
         Threshold for the amplitude of the RMM indices (first two PCs) to consider the MJO active at 
         a given day. If None, the mean MJO amplitude over the entire considered time period is used 
         as a threshold.
-    spectrum_var : str
-        Variable to be used for the spectral analysis (default: 'rlut').
     mjo_config : MJOConfig
         Configuration dataclass with parameters necessary for the MJO evaluation. If None, default values 
         from the configuration file `pyhanami.config.scientific_evaluation_parameters.yaml` will be used.
+    mjo_vars : list[str]
+        Variables to be usd for the MJO analysis (default: ['ua850', 'ua200', 'rlut']).
 
 
     Attributes
@@ -52,10 +55,12 @@ class MJOEvaluation:
         Resolution of the data used for the MJO analysis.
     start_year_mjo, end_year_mjo : int
         Initial and end years to perform the MJO analysis for.
+    mjo_vars : list[str]
+        Climate variables used for the MJO analysis.
     data_ceof_sim : xr.DataArray
-        Simulation data with longer-time-scale components removed for all three variables.
+        Simulation data with longer-time-scale components removed for all MJO variables.
     data_ceof_obs : xr.DataArray
-        Observational data with longer-time-scale components removed for all three variables.
+        Observational data with longer-time-scale components removed for all MJO variables.
     ceof_obs : xr.Dataset
         Output of CEOF analysis for observational data ('ceof', 'eigval', 'var_frac' 
         and 'pc' for the first 'n_modes').
@@ -70,7 +75,8 @@ class MJOEvaluation:
         observed CEOFs ('ceof_corr') per mode, the explained variance for each CEOF ('explained_var',
         'explained_var_bias') for variable and mode, the lead-lag correlation between the RMM indices 
         ('lead_lag_corr'), its maximum value ('max_lead_lag_corr', 'max_lead_lag_corr_bias') and the
-        MJO period ('pceof', 'pceof_bias').
+        MJO period ('pceof', 'pceof_bias') for observations ('obs'), simulations projected on observed 
+        CEOFs ('sim_on_obs'), and simulations projected on their own CEOFs ('sim_on_sim').
     activity_per_phase : xr.Dataset
         Absolute values and bias in mean amplitude and days per phase (total and only for active MJO 
         days). It contains the following variables: 'mean_amplitude', 'mean_amplitude_bias', 
@@ -78,17 +84,15 @@ class MJOEvaluation:
         'active_counts' and 'active_counts_bias' per phase for observations ('obs'), simulations 
         projected on observed CEOFs ('sim_on_obs'), and simulations projected on their own CEOFs 
         ('sim_on_sim').
-    spectrum_var : str
-        Climate variable used for the spectral analysis.
     data_spectra_sim : xr.DataArray
-        Simulation data with seasonal cycle removed for the selected variable.
+        Simulation data with seasonal cycle removed for all MJO variables.
     data_spectra_obs : xr.DataArray
-        Observational data with seasonal cycle removed for the selected variable.
+        Observational data with seasonal cycle removed for all MJO variables.
     power_spectra : xr.Dataset
         Power spectra. It contains the following variables: 'sym_spec' (normalized 
         symmetric spectrum), 'asym_spec' (normalized antisymmetric spectrum), and 
         'background' (smoothed background spectrum) for both observations ('obs')
-        and simulations ('sim').
+        and simulations ('sim') and for all MJO variables. 
     mjo_freq_bounds : tuple
         Frequency bounds corresponding to the MJO band in the wavenumber-frequency space.
     mjo_wavenum_bounds : tuple
@@ -98,7 +102,7 @@ class MJOEvaluation:
         power ratio ('ew_ratio', 'ew_ratio_bias'), the eastward/observed power ratio ('eo_ratio', 
         'eo_ratio_bias') and the dominant eastward period from the wavenumber-frequency power 
         spectra ('pwfps', 'pwfps_bias') in the MJO band, for both observations ('obs') and 
-        simulations ('sim').
+        simulations ('sim') and for all MJO variables.
     cbar_ticks_bias : list[str]
         Colorbar ticks labels for bias tables.
     colors_bias : tuple
@@ -106,7 +110,7 @@ class MJOEvaluation:
     """
 
     def __init__(self, data_sim, obs_path=config_params.MJO_VARS_PATH, start_year_mjo=None, end_year_mjo=None, start_year_ref=None, 
-                 end_year_ref=None, threshold_active_days=None, spectrum_var='rlut', mjo_config=None):
+                 end_year_ref=None, threshold_active_days=None, mjo_config=None, mjo_vars=['ua850', 'ua200', 'rlut']):
 
         # Validate input
         if not isinstance(data_sim, SimulationData):
@@ -114,7 +118,7 @@ class MJOEvaluation:
         self.sim_name = data_sim.name
         self.obs_name = 'Obs'    #'NOAA+ERA5'
         self.data_res = config_params.MJO_OBS_RES
-        self.spectrum_var = spectrum_var
+        self.mjo_vars = mjo_vars
 
         # Load MJO evaluation parameters
         if mjo_config is None:
@@ -130,10 +134,13 @@ class MJOEvaluation:
                              f" ({config_params.MJO_START_YEAR} and {config_params.MJO_END_YEAR}).")
         print(f"\tYears selected for MJO scores computation: {self.start_year_mjo}-{self.end_year_mjo}.", flush=True)
         data_sim_filtered_time = data_sim.data.sel(time=slice(str(self.start_year_mjo), str(self.end_year_mjo))).compute()    
+        
+        # Prepare data for the MJO analysis
+        data_mjo_obs, data_mjo_sim = self._prepare_mjo_data(data_sim_filtered_time, obs_path)
 
 
         # Prepare data for the CEOF analysis (regrid simulations to match observations, if needed, and filter seasonal cycle and interannual variability)
-        self.data_ceof_sim, _, _, self.data_ceof_obs, _, _ = self._prepare_ceof_data(data_sim_filtered_time, obs_path, start_year_ref, end_year_ref,
+        self.data_ceof_sim, _, _, self.data_ceof_obs, _, _ = self._prepare_ceof_data(data_mjo_sim, data_mjo_obs, start_year_ref, end_year_ref,
                                                                                      mjo_config.lat_range, mjo_config.rolling_window_size, 
                                                                                      mjo_config.n_harmonics, mjo_config.normalize_std)
         print(f'\tObservations and simulations data prepared for the CEOF analysis by removing longer-time-scale components between {self.start_year_mjo}'
@@ -157,8 +164,8 @@ class MJOEvaluation:
 
 
         # Prepare data for the power spectra analysis (regrid simulations, if needed, and remove seasonal cycle)
-        self.data_spectra_sim, self.data_spectra_obs = self._prepare_spectra_data(data_sim_filtered_time, obs_path, start_year_ref, end_year_ref, 
-                                                                                  self.spectrum_var, mjo_config.n_harmonics)
+        self.data_spectra_sim, self.data_spectra_obs = self._prepare_spectra_data(data_mjo_sim, data_mjo_obs, start_year_ref, end_year_ref, 
+                                                                                  mjo_config.n_harmonics)
         print(f"\tObservations and simulations data prepared for the power spectra analysis by removing the seasonal cycle between "
               f"{self.start_year_mjo} and {self.end_year_mjo}. See attributes `data_spectra_sim` and `data_spectra_obs` for results.", flush=True)
         
@@ -176,6 +183,7 @@ class MJOEvaluation:
         self.cbar_ticks_bias = ['Negative bias', 'No bias', 'Positive bias']
         self.colors_bias = ("RedGreen", ['tab:red', 'white', 'tab:green'])   #("BlueRed", ['tab:blue', 'white', 'tab:red'])
 
+        del data_mjo_obs, data_mjo_sim
         print(f"\nMadden-Julian Oscillation scores computation completed between years {self.start_year_mjo} and {self.end_year_mjo}.", flush=True)
         return
     
@@ -211,19 +219,52 @@ class MJOEvaluation:
         return data_sim_regrid
 
 
-    def _prepare_ceof_data(self, data_sim, obs_path, start_year_ref, end_year_ref, lat_range=(-15, 15), 
+    def _prepare_mjo_data(self, data_sim, obs_path):
+        """
+        Retrieve MJO variables from the simulation and observational datasets, and regrid simulation 
+        data if needed to match the resolution of the observations
+        
+        Parameters
+        ----------
+        data_obs_vars : xr.Dataset
+            Simulation data containing MJO variables.
+        data_sim_vars_regrid : xr.Dataset
+            Simulation data containing MJO variables.
+        """
+
+        # Load observational data (NOAA + ERA5)
+        try:
+            data_obs_vars = xr.open_dataset(obs_path)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Observations MJO data file not found at '{obs_path}'")
+        data_obs_vars = data_obs_vars[self.mjo_vars].sel(time=slice(str(self.start_year_mjo), str(self.end_year_mjo)))
+
+
+        # Extract MJO variables from simulation data
+        for var_name in self.mjo_vars:
+            if var_name not in data_sim.data_vars:
+                raise ValueError(f"Variable '{var_name}' required for the CEOF analysis not found in the simulated dataset '{self.sim_name}'.")
+        data_sim_vars = data_sim[self.mjo_vars]
+
+        # Regrid simulations if needed to match observations' resolution
+        data_sim_vars_regrid = self._match_obs_resolution(data_sim_vars)
+
+        return data_obs_vars, data_sim_vars_regrid
+
+
+    def _prepare_ceof_data(self, data_sim_mjo, data_obs_mjo, start_year_ref, end_year_ref, lat_range=(-15, 15), 
                           rolling_window_size=120, n_harmonics=3, normalize_std=False):
         """
-        Regrid simulation data if needed to match the resolution of the observations, then filter the data to
-        remove longer-time-scale components (seasonal cycle and interannual variability) at the grid point 
-        level and concatenate into a single dataset all three variables necessary for the CEOF analysis.
+        Filter the data to remove longer-time-scale components (seasonal cycle and interannual variability) 
+        at the grid point level and concatenate into a single dataset all three variables necessary for the 
+        CEOF analysis.
 
         Parameters
         ----------
-        data_sim : xr.Dataset
-            Simulation data containing variables ('ua850', 'ua200', 'rlut').
-        obs_path : str
-            Path to the observational data file with the necessary variables for the CEOF analysis.
+        data_sim_mjo : xr.Dataset
+            Simulation data containing MJO variables ('ua850', 'ua200', 'rlut').
+        data_obs_mjo : xr.Dataset
+            Observational data containing MJO variables ('ua850', 'ua200', 'rlut').
         start_year_ref, end_year_ref : int
             Initial and end years for computing the reference seasonal cycle.
         lat_range : tuple
@@ -252,27 +293,6 @@ class MJOEvaluation:
             Standard deviations in observational data for each variable.
         """
 
-        vars_mjo = ['ua850', 'ua200', 'rlut']
-
-
-        # Load observational data (NOAA + ERA5)
-        try:
-            data_obs_vars = xr.open_dataset(obs_path)
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Observations MJO data file not found at '{obs_path}'")
-        data_obs_vars = data_obs_vars[vars_mjo].sel(time=slice(str(self.start_year_mjo), str(self.end_year_mjo)))
-
-
-        # Extract MJO variables from simulation data
-        for var_name in vars_mjo:
-            if var_name not in data_sim.data_vars:
-                raise ValueError(f"Variable '{var_name}' required for the CEOF analysis not found in the simulated dataset '{self.sim_name}'.")
-        data_sim_vars = data_sim[vars_mjo]
-
-        # Regrid simulations if needed to match observations' resolution
-        data_sim_vars_regrid = self._match_obs_resolution(data_sim_vars)
-
-
         # Prepare reference years
         if start_year_ref is None:
             start_year_ref = self.start_year_mjo
@@ -280,9 +300,9 @@ class MJOEvaluation:
             end_year_ref = self.end_year_mjo
 
         # Filter data and remove longer-time-scale components
-        filtered_obs, anom_obs, std_obs = mjo_ceof_funcs.remove_longer_time_scale_components(data_obs_vars, start_year_ref, end_year_ref, lat_range, 
+        filtered_obs, anom_obs, std_obs = mjo_ceof_funcs.remove_longer_time_scale_components(data_obs_mjo, start_year_ref, end_year_ref, lat_range, 
                                                                                              rolling_window_size, n_harmonics, normalize_std)
-        filtered_sim, anom_sim, std_sim = mjo_ceof_funcs.remove_longer_time_scale_components(data_sim_vars_regrid, start_year_ref, end_year_ref, lat_range,
+        filtered_sim, anom_sim, std_sim = mjo_ceof_funcs.remove_longer_time_scale_components(data_sim_mjo, start_year_ref, end_year_ref, lat_range,
                                                                                              rolling_window_size, n_harmonics, normalize_std)
 
         return filtered_sim, anom_sim, std_sim, filtered_obs, anom_obs, std_obs
@@ -337,10 +357,10 @@ class MJOEvaluation:
 
         pc_sim_on_obs = model_mjo_obs.transform(self.data_ceof_sim)
 
-        # Correct PCs to match eofs.xarray.Eof output
+        # Correct PCs to match eofs.xarray.Eof output and match the typical MJO pattern from (M.Wheeler et al., (2004)
         pc_sim_on_obs = pc_sim_on_obs.assign_coords(mode=[0, 1]).transpose('time', 'mode')
         pc_sim_on_obs = pc_sim_on_obs/np.sqrt(ceof_sim_on_obs['eigval'])
-        pc_sim_on_obs.loc[dict(mode=0)] *= -1
+        # pc_sim_on_obs.loc[dict(mode=0)] *= -1     # This should be done twice, so it stays the same
         pc_sim_on_obs.attrs.pop('solver_kwargs', None)
         ceof_sim_on_obs['pc'] = pc_sim_on_obs
 
@@ -359,7 +379,7 @@ class MJOEvaluation:
         Compute scalar scores related to the CEOF analysis, including the Pearson 
         correlation between observed and simulated CEOFs, the bias in the associated 
         explained variance per variable and mode, the lead-lag correlation between  
-        the first two PCs, its maximum value and the MJO period.
+        the RMM indices (first two PCs), its maximum value and the MJO period.
 
         Alternative: compute variance explained by the first two modes together (add 1
         and 2), and average the spatial correlation coefficients between both modes to 
@@ -373,69 +393,130 @@ class MJOEvaluation:
             'max_lead_lag_corr_bias', 'pceof', 'pceof_bias').
         """
 
-        # Compute correlation between observed and simulated CEOFs
-        ceof_obs_corr = mjo_ceof_funcs.compute_CEOFs_corr(self.ceof_obs['ceof'], self.ceof_obs['ceof'])
-        ceof_sim_corr = mjo_ceof_funcs.compute_CEOFs_corr(self.ceof_obs['ceof'], self.ceof_sim_on_sim['ceof'])
+        # Compute absolute values of scores
+        abs_scores = []
+        names = ['obs', 'sim_on_obs', 'sim_on_sim']
+        datasets = [self.ceof_obs, self.ceof_sim_on_obs, self.ceof_sim_on_sim]
+
+        for dataset in datasets:
+            # Compute correlation between observed and simulated CEOFs
+            ceof_corr = mjo_ceof_funcs.compute_CEOFs_corr(self.ceof_obs['ceof'], dataset['ceof'])
+            
+            # Retrieve explained variance of the CEOFs
+            expl_var = dataset[['var_frac']].rename({'var_frac': 'explained_var'})
+
+            # Compute lead-lag correlation between the RMM indices (first two PCs)
+            lead_lag_corr = mjo_ceof_funcs.compute_lead_lag_correlation(dataset['pc'])
+
+            # Compute maximum lead-lag correlation
+            max_corr_value = mjo_ceof_funcs.compute_max_correlation(lead_lag_corr['lead_lag_corr'])
+            max_corr = xr.DataArray(max_corr_value, name='max_lead_lag_corr')
+
+            # Compute periodicity from the ceof analysis
+            pceof_value = mjo_ceof_funcs.compute_ceof_periodicity(lead_lag_corr['lead_lag_corr'])
+            pceof = xr.DataArray(pceof_value, name='pceof')
+
+            # Store everything in a single dataset
+            abs_scores_one = xr.merge([
+                ceof_corr,
+                expl_var,
+                lead_lag_corr,
+                max_corr.to_dataset(),
+                pceof.to_dataset()
+            ])
+            abs_scores.append(abs_scores_one)
+
+        # Combine scores from all datasets
+        ceof_scores = xr.concat(abs_scores, dim='dataset')
+        ceof_scores = ceof_scores.assign_coords(dataset=names)
+
+
+        # Compute biases of scores with respect to observations
+        reference = ceof_scores.sel(dataset='obs')
+
+        ceof_scores['explained_var_bias'] = xr.where(
+            ceof_scores.dataset == 'obs', 
+            ceof_scores['explained_var'],
+            ceof_scores['explained_var'] - reference['explained_var']
+        )
+
+        ceof_scores['max_lead_lag_corr_bias'] = xr.where(
+            ceof_scores.dataset == 'obs',
+            ceof_scores['max_lead_lag_corr'],
+            ceof_scores['max_lead_lag_corr'] - reference['max_lead_lag_corr']
+        )
+
+        ceof_scores['pceof_bias'] = xr.where(
+            ceof_scores.dataset == 'obs',
+            ceof_scores['pceof'],
+            ceof_scores['pceof'] - reference['pceof']
+        )
+
+
+        # # Compute correlation between observed and simulated CEOFs
+        # ceof_obs_corr = mjo_ceof_funcs.compute_CEOFs_corr(self.ceof_obs['ceof'], self.ceof_obs['ceof'])
+        # ceof_sim_corr = mjo_ceof_funcs.compute_CEOFs_corr(self.ceof_obs['ceof'], self.ceof_sim_on_sim['ceof'])
     
-        # Retrieve explained variance of the CEOFs (absolute value and bias)
-        ceof_obs_expl_var = self.ceof_obs['var_frac'].rename('explained_var')
-        ceof_sim_expl_var = self.ceof_sim_on_sim['var_frac'].rename('explained_var')
+        # # Retrieve explained variance of the CEOFs (absolute value and bias)
+        # ceof_obs_expl_var = self.ceof_obs['var_frac'].rename('explained_var')
+        # ceof_sim_expl_var = self.ceof_sim_on_sim['var_frac'].rename('explained_var')
 
-        ceof_obs_expl_var_bias = ceof_obs_expl_var.rename('explained_var_bias')
-        ceof_sim_expl_var_bias = (ceof_sim_expl_var - ceof_obs_expl_var).rename('explained_var_bias') 
+        # ceof_obs_expl_var_bias = ceof_obs_expl_var.rename('explained_var_bias')
+        # ceof_sim_expl_var_bias = (ceof_sim_expl_var - ceof_obs_expl_var).rename('explained_var_bias') 
 
 
-        # Compute lead-lag correlation between the RMM indices (first two PCs)
-        lead_lag_corr_obs = mjo_ceof_funcs.compute_lead_lag_correlation(self.ceof_obs['pc'])
-        lead_lag_corr_sim = mjo_ceof_funcs.compute_lead_lag_correlation(self.ceof_sim_on_sim['pc'])
+        # # Compute lead-lag correlation between the first two PCs
+        # lead_lag_corr_obs = mjo_ceof_funcs.compute_lead_lag_correlation(self.ceof_obs['pc'])
+        # lead_lag_corr_sim = mjo_ceof_funcs.compute_lead_lag_correlation(self.ceof_sim_on_sim['pc'])
 
-        # Compute absolute value and vias in maximum lead-lag correlation
-        max_corr_obs_value = mjo_ceof_funcs.compute_max_correlation(lead_lag_corr_obs['lead_lag_corr'])
-        max_corr_sim_value = mjo_ceof_funcs.compute_max_correlation(lead_lag_corr_sim['lead_lag_corr'])
+        # # Compute absolute value and vias in maximum lead-lag correlation
+        # max_corr_obs_value = mjo_ceof_funcs.compute_max_correlation(lead_lag_corr_obs['lead_lag_corr'])
+        # max_corr_sim_value = mjo_ceof_funcs.compute_max_correlation(lead_lag_corr_sim['lead_lag_corr'])
 
-        max_corr_obs = xr.DataArray(max_corr_obs_value, name='max_lead_lag_corr')
-        max_corr_sim = xr.DataArray(max_corr_sim_value, name='max_lead_lag_corr')
+        # max_corr_obs = xr.DataArray(max_corr_obs_value, name='max_lead_lag_corr')
+        # max_corr_sim = xr.DataArray(max_corr_sim_value, name='max_lead_lag_corr')
 
-        max_corr_obs_bias = max_corr_obs.rename('max_lead_lag_corr_bias')
-        max_corr_sim_bias = xr.DataArray(max_corr_sim - max_corr_obs, name='max_lead_lag_corr_bias')
+        # max_corr_obs_bias = max_corr_obs.rename('max_lead_lag_corr_bias')
+        # max_corr_sim_bias = xr.DataArray(max_corr_sim - max_corr_obs, name='max_lead_lag_corr_bias')
 
         
-        # Compute absolute value and bias in periodicity from the ceof analysis
-        pceof_obs = mjo_ceof_funcs.compute_ceof_periodicity(lead_lag_corr_obs['lead_lag_corr'])
-        pceof_sim = mjo_ceof_funcs.compute_ceof_periodicity(lead_lag_corr_sim['lead_lag_corr'])
+        # # Compute absolute value and bias in periodicity from the ceof analysis
+        # pceof_obs = mjo_ceof_funcs.compute_ceof_periodicity(lead_lag_corr_obs['lead_lag_corr'])
+        # pceof_sim = mjo_ceof_funcs.compute_ceof_periodicity(lead_lag_corr_sim['lead_lag_corr'])
 
-        pceof_obs_ds = xr.DataArray(pceof_obs, name='pceof')
-        pceof_sim_ds = xr.DataArray(pceof_sim, name='pceof')
+        # pceof_obs_ds = xr.DataArray(pceof_obs, name='pceof')
+        # pceof_sim_ds = xr.DataArray(pceof_sim, name='pceof')
 
-        pceof_obs_bias = pceof_obs_ds.rename('pceof_bias')
-        pceof_sim_bias = (pceof_sim_ds - pceof_obs_ds).rename('pceof_bias')
+        # pceof_obs_bias = pceof_obs_ds.rename('pceof_bias')
+        # pceof_sim_bias = (pceof_sim_ds - pceof_obs_ds).rename('pceof_bias')
 
 
-        # Store all scores in a single dataset
-        obs_ds = xr.merge([
-            ceof_obs_corr,
-            ceof_obs_expl_var.to_dataset(),
-            ceof_obs_expl_var_bias.to_dataset(),
-            lead_lag_corr_obs,
-            max_corr_obs.to_dataset(),
-            max_corr_obs_bias.to_dataset(),
-            pceof_obs_ds.to_dataset(),
-            pceof_obs_bias.to_dataset()
-        ])
+        # # Store all scores in a single dataset
+        # obs_ds = xr.merge([
+        #     ceof_obs_corr,
+        #     ceof_obs_expl_var.to_dataset(),
+        #     ceof_obs_expl_var_bias.to_dataset(),
+        #     lead_lag_corr_obs,
+        #     max_corr_obs.to_dataset(),
+        #     max_corr_obs_bias.to_dataset(),
+        #     pceof_obs_ds.to_dataset(),
+        #     pceof_obs_bias.to_dataset()
+        # ])
 
-        sim_ds = xr.merge([
-            ceof_sim_corr,
-            ceof_sim_expl_var.to_dataset(),
-            ceof_sim_expl_var_bias.to_dataset(),
-            lead_lag_corr_sim,
-            max_corr_sim.to_dataset(),
-            max_corr_sim_bias.to_dataset(),
-            pceof_sim_ds.to_dataset(),
-            pceof_sim_bias.to_dataset()
-        ])
+        # sim_ds = xr.merge([
+        #     ceof_sim_corr,
+        #     ceof_sim_expl_var.to_dataset(),
+        #     ceof_sim_expl_var_bias.to_dataset(),
+        #     lead_lag_corr_sim,
+        #     max_corr_sim.to_dataset(),
+        #     max_corr_sim_bias.to_dataset(),
+        #     pceof_sim_ds.to_dataset(),
+        #     pceof_sim_bias.to_dataset()
+        # ])
 
-        ceof_scores = xr.concat([obs_ds, sim_ds], dim='dataset')
-        ceof_scores = ceof_scores.assign_coords(dataset=['obs', 'sim'])
+        # ceof_scores = xr.concat([obs_ds, sim_ds], dim='dataset')
+        # ceof_scores = ceof_scores.assign_coords(dataset=['obs', 'sim'])
+
 
         return ceof_scores
 
@@ -498,53 +579,29 @@ class MJOEvaluation:
         return activity_per_phase
 
 
-    def _prepare_spectra_data(self, data_sim, obs_path, start_year_ref, end_year_ref, spectrum_var='rlut',
-                              n_harmonics=3):
+    def _prepare_spectra_data(self, data_sim_mjo, data_obs_mjo, start_year_ref, end_year_ref, n_harmonics=3):
         """
         Regrid simulation data if needed to match the resolution of the observations, then filter the data to
         remove the seasonal cycle at the grid point level for the selected variable for the spectral analysis.
 
         Parameters
         ----------
-        data_sim : xr.Dataset
-            Simulation data containing the selected variable.
-        obs_path : str
-            Path to the observational data file with the necessary variables for the spectral analysis.
+        data_sim_mjo : xr.Dataset
+            Simulation data containing MJO variables ('ua850', 'ua200', 'rlut').
+        data_obs_mjo : xr.Dataset
+            Observational data containing MJO variables ('ua850', 'ua200', 'rlut').
         start_year_ref, end_year_ref : int
             Initial and end years for computing the reference seasonal cycle.
-        spectrum_var : str
-            Variable to be used for the spectral analysis (default: 'rlut').
         n_harmonics : int
             Number of harmonics to remove from the seasonal cycle (default: 3).
 
         Returns 
         -------
         filtered_sim : xr.DataArray
-            Filtered simulation data for the selected variable.
+            Filtered simulation data for each variable.
         filtered_obs : xr.DataArray
-            Filtered observational data for the selected variable.
+            Filtered observational data for each variable.
         """
-        # Validate input
-        vars_mjo = ['ua850', 'ua200', 'rlut']
-        if spectrum_var not in vars_mjo:
-            raise ValueError(f"Variable '{spectrum_var}' not valid for the spectral analysis. Choose one of {vars_mjo}.")
-
-        # Load observational data (NOAA)
-        try:
-            data_obs_vars = xr.open_dataset(obs_path)
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Observations MJO data file not found at '{obs_path}'")
-        data_obs_vars = data_obs_vars[[spectrum_var]].sel(time=slice(str(self.start_year_mjo), str(self.end_year_mjo)))
-
-
-        # Extract MJO variable from simulation data
-        if spectrum_var not in data_sim.data_vars:
-            raise ValueError(f"Variable '{spectrum_var}' required for the spectral analysis not found in the simulated dataset '{self.sim_name}'.")
-        data_sim_vars = data_sim[[spectrum_var]]
-
-        # Regrid simulations if needed to match observations' resolution
-        data_sim_vars_regrid = self._match_obs_resolution(data_sim_vars)
-
 
         # Prepare reference years
         if start_year_ref is None:
@@ -553,8 +610,21 @@ class MJOEvaluation:
             end_year_ref = self.end_year_mjo
 
         # Filter data and remove seasonal cycle
-        filtered_obs = mjo_ceof_funcs.remove_seasonal_cycle(data_obs_vars[spectrum_var], start_year_ref, end_year_ref, n_harmonics)
-        filtered_sim = mjo_ceof_funcs.remove_seasonal_cycle(data_sim_vars_regrid[spectrum_var], start_year_ref, end_year_ref, n_harmonics)
+        filtered_obs_all_vars = []
+        filtered_sim_all_vars = []
+        for var_name in self.mjo_vars:
+            filtered_obs_one_var = mjo_ceof_funcs.remove_seasonal_cycle(data_obs_mjo[var_name], start_year_ref, end_year_ref, n_harmonics)
+            filtered_obs_all_vars.append(filtered_obs_one_var)
+
+            filtered_sim_one_var = mjo_ceof_funcs.remove_seasonal_cycle(data_sim_mjo[var_name], start_year_ref, end_year_ref, n_harmonics)
+            filtered_sim_all_vars.append(filtered_sim_one_var)
+
+        # Store all variables in a single dataset for obs and sim separately
+        filtered_obs = xr.concat(filtered_obs_all_vars, dim='variable')
+        filtered_obs = filtered_obs.assign_coords(variable=self.mjo_vars)
+
+        filtered_sim = xr.concat(filtered_sim_all_vars, dim='variable')
+        filtered_sim = filtered_sim.assign_coords(variable=self.mjo_vars)
 
         return filtered_sim, filtered_obs
 
@@ -567,8 +637,6 @@ class MJOEvaluation:
 
         Parameters
         ----------
-        data : xr.DataArray
-            Data to compute the power spectra of.
         seg_size : int
             Size of the segments to perform the spectral analysis on, in days (default: 96).
         n_overlap : int
@@ -582,20 +650,41 @@ class MJOEvaluation:
             Power spectra. It contains the following variables: 'sym_spec' (normalized 
             symmetric spectrum), 'asym_spec' (normalized antisymmetric spectrum), and 
             'background' (smoothed background spectrum) for both observations ('obs')
-            and simulations ('sim').            
+            and simulations ('sim') and for all MJO variables.            
         """
 
         # Compute power spectra for observations
-        spec_obs_sim, spec_obs_asym, _, _, background_obs = mjo_spectrum_funcs.wavenum_freq_analysis(self.data_spectra_obs, seg_size, 
-                                                                                                     n_overlap, lat_range)
-        power_spectra_obs = xr.merge([spec_obs_sim.drop_vars('component'), spec_obs_asym.drop_vars('component'), background_obs])
+        power_spectra_obs_all_vars = []
+        for var_name in self.mjo_vars:
+            # spec_obs_sim, spec_obs_asym, _, _, background_obs = mjo_spectrum_funcs.wavenum_freq_analysis(self.data_spectra_obs.sel(variable=var_name), 
+            #                                                                                              seg_size, n_overlap, lat_range)
+            # power_spectra_obs_one_var = xr.merge([spec_obs_sim.drop_vars('component'), spec_obs_asym.drop_vars('component'), background_obs])
+
+            spec_obs_sim, spec_obs_asym, _, _, _ = mjo_spectrum_funcs.wavenum_freq_analysis(self.data_spectra_obs.sel(variable=var_name), 
+                                                                                                         seg_size, n_overlap, lat_range)
+            power_spectra_obs_one_var = xr.merge([spec_obs_sim.drop_vars('component'), spec_obs_asym.drop_vars('component')])
+            power_spectra_obs_all_vars.append(power_spectra_obs_one_var)
+
+        power_spectra_obs = xr.concat(power_spectra_obs_all_vars, dim='variable')
+        power_spectra_obs = power_spectra_obs.assign_coords(variable=self.mjo_vars)
+
 
         # Compute power spectra for simulations
-        spec_sim_sim, spec_sim_asym, _, _, background_sim = mjo_spectrum_funcs.wavenum_freq_analysis(self.data_spectra_sim, seg_size, 
-                                                                                                     n_overlap, lat_range)
-        power_spectra_sim = xr.merge([spec_sim_sim.drop_vars('component'), spec_sim_asym.drop_vars('component'), background_sim])
+        power_spectra_sim_all_vars = []
+        for var_name in self.mjo_vars:
+            # spec_sim_sim, spec_sim_asym, _, _, background_sim = mjo_spectrum_funcs.wavenum_freq_analysis(self.data_spectra_sim.sel(variable=var_name), 
+            #                                                                                              seg_size, n_overlap, lat_range)
+            # power_spectra_sim_one_var = xr.merge([spec_sim_sim.drop_vars('component'), spec_sim_asym.drop_vars('component'), background_sim])
 
+            spec_sim_sim, spec_sim_asym, _, _, _ = mjo_spectrum_funcs.wavenum_freq_analysis(self.data_spectra_sim.sel(variable=var_name), 
+                                                                                                         seg_size, n_overlap, lat_range)
+            power_spectra_sim_one_var = xr.merge([spec_sim_sim.drop_vars('component'), spec_sim_asym.drop_vars('component')])
+            power_spectra_sim_all_vars.append(power_spectra_sim_one_var)
 
+        power_spectra_sim = xr.concat(power_spectra_sim_all_vars, dim='variable')
+        power_spectra_sim = power_spectra_sim.assign_coords(variable=self.mjo_vars)
+
+        
         # Store all spectra in a single dataset
         power_spectra = xr.concat([power_spectra_obs, power_spectra_sim], dim='dataset')
         power_spectra = power_spectra.assign_coords(dataset=['obs', 'sim'])
@@ -629,46 +718,59 @@ class MJOEvaluation:
             'eo_ratio_bias', 'pwfps' and 'pwfps_bias').
         """
 
-        # Compute ratio and eastward power for observations
-        ratio_obs, eastward_obs, _ = mjo_spectrum_funcs.compute_eastward_westward_ratio(self.power_spectra['sym_spec'].sel(dataset='obs'), 
-                                                                                        freq_bounds, wavenum_bounds, freq_dim, wavenum_dim)
-        if eastward_obs == 0:
-            raise ValueError("Eastward power in observations is zero in the selected MJO band, cannot compute eastward/observed power ratio.")
+        # Compute ratio and eastward power for observations for all variables
+        ratio_obs = []
+        eastward_obs = []
+        for var_name in self.mjo_vars:
+            ratio_obs_one_var, eastward_obs_one_var, _ = mjo_spectrum_funcs.compute_eastward_westward_ratio(self.power_spectra['sym_spec'].sel(variable=var_name, dataset='obs'), 
+                                                                                                            freq_bounds, wavenum_bounds, freq_dim, wavenum_dim)
+            if eastward_obs_one_var == 0:
+                raise ValueError(f"Eastward power in observations is zero in the selected MJO band for variable '{var_name}'," 
+                                "cannot compute eastward/observed power ratio.")
+            ratio_obs.append(ratio_obs_one_var)
+            eastward_obs.append(eastward_obs_one_var)
 
-        # Compute ratio and eastward power for simulations
+        
+        # Compute ratio and eastward power for simulations for all variables
         ew_ratios = [ratio_obs]
-        eo_ratios = [1.0]
+        eo_ratios = [[1.0]*len(ratio_obs)]
 
         n_datasets = self.power_spectra.dataset.size
         for i in range(1, n_datasets):
-            ratio_sim, eastward_sim, _ = mjo_spectrum_funcs.compute_eastward_westward_ratio(self.power_spectra['sym_spec'].isel(dataset=i), 
-                                                                                            freq_bounds, wavenum_bounds, freq_dim, wavenum_dim)
+            ratio_sim = []
+            eastward_sim = []
+            for var_name in self.mjo_vars:
+                ratio_sim_one_var, eastward_sim_one_var, _ = mjo_spectrum_funcs.compute_eastward_westward_ratio(self.power_spectra['sym_spec'].sel(variable=var_name).isel(dataset=i), 
+                                                                                                                freq_bounds, wavenum_bounds, freq_dim, wavenum_dim)
+                ratio_sim.append(ratio_sim_one_var)
+                eastward_sim.append(eastward_sim_one_var)
+
             ew_ratios.append(ratio_sim)
-            eo_ratios.append(eastward_sim/eastward_obs)
+            eo_ratios.append([sim/obs for sim, obs in zip(eastward_sim, eastward_obs)])
 
 
-        # Compute power-weighted mean period (MJO periodicity) for all datasets
-        pwfps = [mjo_spectrum_funcs.compute_power_periodicity(self.power_spectra['sym_spec'].isel(dataset=i), freq_bounds, wavenum_bounds, 
-                                                              freq_dim, wavenum_dim) for i in range(n_datasets)]
+        # Compute power-weighted mean period (MJO periodicity) for all datasets and all variables
+        pwfps = [[mjo_spectrum_funcs.compute_power_periodicity(self.power_spectra['sym_spec'].sel(variable=var).isel(dataset=i), freq_bounds, wavenum_bounds, 
+                                                               freq_dim, wavenum_dim) for var in self.mjo_vars] for i in range(n_datasets)]
 
 
         # Compute bias for all scores
-        ew_ratios_bias = [ratio_obs] + [ratio_sim - ratio_obs for ratio_sim in ew_ratios[1:]]
-        eo_ratios_bias = [1.0] + [eo_sim - 1.0 for eo_sim in eo_ratios[1:]]
-        pwfps_bias = [pwfps[0]] + [pwfps_sim - pwfps[0] for pwfps_sim in pwfps[1:]]
+        ew_ratios_bias = [ratio_obs] + [[sim - obs for sim, obs in zip(ratio_sim, ratio_obs)] for ratio_sim in ew_ratios[1:]]
+        eo_ratios_bias = [[1.0]*len(ratio_obs)] + [[sim - 1.0 for sim in eo_sim] for eo_sim in eo_ratios[1:]]
+        pwfps_bias = [pwfps[0]] + [[sim - obs for sim, obs in zip(pwfps_sim, pwfps[0])] for pwfps_sim in pwfps[1:]]
 
 
         # Store all scores in a single dataset
         power_scores = xr.Dataset(
             data_vars = {
-                'ew_ratio': (['dataset'], ew_ratios),
-                'eo_ratio': (['dataset'], eo_ratios),
-                'pwfps': (['dataset'], pwfps),
-                'ew_ratio_bias': (['dataset'], ew_ratios_bias),
-                'eo_ratio_bias': (['dataset'], eo_ratios_bias),
-                'pwfps_bias': (['dataset'], pwfps_bias)
+                'ew_ratio': (['dataset', 'mjo_variable'], ew_ratios),
+                'eo_ratio': (['dataset', 'mjo_variable'], eo_ratios),
+                'pwfps': (['dataset', 'mjo_variable'], pwfps),
+                'ew_ratio_bias': (['dataset', 'mjo_variable'], ew_ratios_bias),
+                'eo_ratio_bias': (['dataset', 'mjo_variable'], eo_ratios_bias),
+                'pwfps_bias': (['dataset', 'mjo_variable'], pwfps_bias)
             }, 
-            coords={'dataset': self.power_spectra.dataset.values}
+            coords={'mjo_variable': self.mjo_vars, 'dataset': self.power_spectra.dataset.values}
         )
 
         return power_scores
@@ -720,11 +822,11 @@ class MJOEvaluation:
 
 
         # Save power spectra and related scalar scores
-        power_spectra_path = output_path / f"power_spectra_{self.spectrum_var}_{sim_name_file}_{obs_name_file}_{year_range}.nc"
+        power_spectra_path = output_path / f"power_spectra_{sim_name_file}_{obs_name_file}_{year_range}.nc"
         self.power_spectra.to_netcdf(power_spectra_path)
         print(f"Power spectra for both observations and simulations saved to '{power_spectra_path}'.", flush=True)
 
-        power_scores_path = output_path / f"power_scores_{self.spectrum_var}_{sim_name_file}_{obs_name_file}_{year_range}.nc"
+        power_scores_path = output_path / f"power_scores_{sim_name_file}_{obs_name_file}_{year_range}.nc"
         self.power_scores.to_netcdf(power_scores_path)
         print(f"Scalar scores related to power spectra for both observations and simulations saved to '{power_scores_path}'.", flush=True)
         
@@ -786,9 +888,12 @@ class MJOEvaluation:
         lags = self.ceof_scores.lag.values
         lead_lag_corrs = self.ceof_scores['lead_lag_corr']
 
+        names = [self.obs_name, f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
+        datasets = [lead_lag_corrs.sel(dataset='obs'), lead_lag_corrs.sel(dataset='sim_on_obs'), lead_lag_corrs.sel(dataset='sim_on_sim')]
+
         # Generate lead-lag correlation plot
         plt.figure(figsize=(10, 6))
-        for lead_lag_corr, name in zip([lead_lag_corrs.sel(dataset='obs'), lead_lag_corrs.sel(dataset='sim')], [self.obs_name, self.sim_name]):
+        for lead_lag_corr, name in zip(datasets, names):
             plt.plot(lags, lead_lag_corr, '-', linewidth=2, label=name)
 
         plt.axhline(0, color='black', linestyle='-', zorder=1)
@@ -818,7 +923,7 @@ class MJOEvaluation:
         """
 
         # Prepare data and plotting parameters
-        ceof_corr = self.ceof_scores['ceof_corr'].values
+        ceof_corr = self.ceof_scores['ceof_corr'].sel(dataset=['obs', 'sim_on_sim']).values
         data_ceof_corr = ceof_corr.reshape(ceof_corr.shape[0], -1)
         sim_name_file = self.sim_name.replace(' ', '-')
         obs_name_file = self.obs_name.replace(' ', '-')
@@ -871,7 +976,7 @@ class MJOEvaluation:
             fr'$b_{{\text{{max lead-lag corr}}}}$ (-)', 
             fr'$b_{{\text{{MJO period}}}}$ (days)'
         ]
-        rows_ceof_bias = [self.obs_name, self.sim_name]
+        rows_ceof_bias = [self.obs_name, f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
 
         maxs_ceof_bias = np.max(np.abs(data_ceof_bias[1:, :]), axis=0)
         limits_ceof_bias = np.stack([-maxs_ceof_bias, maxs_ceof_bias], axis=1)
@@ -1116,8 +1221,9 @@ class MJOEvaluation:
         return
 
 
-    def power_spectrum_plots(self, output_path=None, component='symmetric', x_lim=[-10, 10], y_lim=[0.01, 0.25],
-                            levels=[1.1, 1.4, 1.7, 2, 2.3, 2.6, 2.9, 3.2, 3.5, 3.8], mjo_box=True):
+    def power_spectrum_plots(self, output_path=None, spectrum_var='rlut', component='symmetric', x_lim=[-10, 10], 
+                            y_lim=[0.01, 0.25], levels=[1.1, 1.4, 1.7, 2, 2.3, 2.6, 2.9, 3.2, 3.5, 3.8], 
+                            mjo_box=True):
         """
         Generate and save/display wavenumber-frequency power spectrum plots for the selected 
         component for both observations and simulations.
@@ -1127,6 +1233,8 @@ class MJOEvaluation:
         ----------
         output_path : str, optional
             Path to save the plot. If None, the plot is displayed but not saved.
+        spectrum_var : str
+            Variable to plot the power spectra for (default: 'rlut').
         component : str
             Component to plot, either 'symmetric' or 'antisymmetric' (default: 'symmetric').
         x_lim : list[float]
@@ -1138,6 +1246,10 @@ class MJOEvaluation:
         mjo_box : bool
             Whether to draw a dashed box around the MJO region (default: True).
         """
+        
+        # Validate input
+        if spectrum_var not in self.mjo_vars:
+            raise ValueError(f"Variable '{spectrum_var}' not valid for the spectrum plots. Choose one of {self.mjo_vars}.")
 
         # Prepare data and plotting parameters
         if component == 'symmetric':
@@ -1149,8 +1261,8 @@ class MJOEvaluation:
         else:
             raise ValueError(f"Invalid component option '{component}'. Choose either 'symmetric' or 'antisymmetric'.")
         
-        data_spec_obs = self.power_spectra[name_spec].sel(dataset='obs')
-        data_spec_sim = self.power_spectra[name_spec].sel(dataset='sim')
+        data_spec_obs = self.power_spectra[name_spec].sel(variable=spectrum_var, dataset='obs')
+        data_spec_sim = self.power_spectra[name_spec].sel(variable=spectrum_var, dataset='sim')
         
         sim_name_file = self.sim_name.replace(' ', '-')
         obs_name_file = self.obs_name.replace(' ', '-')
@@ -1160,11 +1272,11 @@ class MJOEvaluation:
 
         # Generate power spectrum plot
         power_spectrum_plot, _ = plot.plot_power_spectrum_two(data_spec_obs, data_spec_sim, component=component, x_lim=x_lim, y_lim=y_lim, title_1=self.obs_name, 
-                                                              title_2=self.sim_name, suptitle=f"{component.capitalize()} '{self.spectrum_var}' power spectrum ({year_range})", 
+                                                              title_2=self.sim_name, suptitle=f"{component.capitalize()} '{spectrum_var}' power spectrum ({year_range})", 
                                                               levels=levels, mjo_box=mjo_box, mjo_freq_bounds=self.mjo_freq_bounds, 
                                                               mjo_wavenum_bounds=self.mjo_wavenum_bounds)
 
-        plot.save_or_show_plot(power_spectrum_plot, output_path, plot_filename=f"power_spectrum_{self.spectrum_var}_{name_file}_{sim_name_file}_{obs_name_file}_{year_range}",
+        plot.save_or_show_plot(power_spectrum_plot, output_path, plot_filename=f"power_spectrum_{spectrum_var}_{name_file}_{sim_name_file}_{obs_name_file}_{year_range}",
                                plot_name=f"{component.capitalize()} power spectrum plot")
 
         return
@@ -1183,16 +1295,16 @@ class MJOEvaluation:
 
         # Prepare data and plotting parameters
         power_bias = self.power_scores[['ew_ratio_bias', 'eo_ratio_bias', 'pwfps_bias']].to_array().values
-        data_power_bias = power_bias.transpose()
+        data_power_bias = power_bias.transpose(1,0,2).reshape(power_bias.shape[1], -1)
         sim_name_file = self.sim_name.replace(' ', '-')
         obs_name_file = self.obs_name.replace(' ', '-')
 
         year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
         cols_power_bias = [
             f'{self.data_res}° x {self.data_res}°', 
-            fr'$b_{{\text{{E/W, {self.spectrum_var}}}}}$ (-)', 
-            fr'$b_{{\text{{E/O, {self.spectrum_var}}}}}$ (-)', 
-            fr'$b_{{\text{{MJO period, {self.spectrum_var}}}}}$ (days)'
+            *[fr'$b^{{\text{{E/W}}}}_{{\text{{{var_name}}}}}$' for var_name in self.mjo_vars], 
+            *[fr'$b_{{\text{{{var_name}}}}}^{{\text{{E/O}}}}$' for var_name in self.mjo_vars], 
+            *[fr'$b_{{\text{{{var_name}}}}}^{{\text{{period}}}}$ (days)' for var_name in self.mjo_vars]
         ]
         rows_power_bias = [self.obs_name, self.sim_name]
 
@@ -1200,10 +1312,36 @@ class MJOEvaluation:
         limits_power_bias = np.stack([-maxs_power_bias, maxs_power_bias], axis=1)
 
         # Generate power bias table
-        power_bias_table, _ = plot.plot_table(data_power_bias, title=f"Bias derived from '{self.spectrum_var}' power spectra ({year_range})", col_labels=cols_power_bias, 
-                                              row_labels=rows_power_bias, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias, limits=limits_power_bias, 
-                                              decimals=2)
-        plot.save_or_show_plot(power_bias_table, output_path, plot_filename=f"power_bias_table_{self.spectrum_var}_{sim_name_file}_{obs_name_file}_{year_range}",
-                               plot_name=f"Bias derived from '{self.spectrum_var}' power spectra table plot")
+        power_bias_table, _ = plot.plot_table(data_power_bias, title=f"Bias derived from power spectra ({year_range})", col_labels=cols_power_bias, 
+                                              row_labels=rows_power_bias, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias, 
+                                              limits=limits_power_bias, decimals=2)
+        plot.save_or_show_plot(power_bias_table, output_path, plot_filename=f"power_bias_table_{sim_name_file}_{obs_name_file}_{year_range}",
+                               plot_name=f"Bias derived from power spectra table plot")
+
+
+        # # Prepare data and plotting parameters
+        # power_bias = self.power_scores[['ew_ratio_bias', 'eo_ratio_bias', 'pwfps_bias']].to_array().values
+        # data_power_bias = power_bias.transpose()
+        # sim_name_file = self.sim_name.replace(' ', '-')
+        # obs_name_file = self.obs_name.replace(' ', '-')
+
+        # year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
+        # cols_power_bias = [
+        #     f'{self.data_res}° x {self.data_res}°', 
+        #     fr'$b_{{\text{{E/W, {self.spectrum_var}}}}}$ (-)', 
+        #     fr'$b_{{\text{{E/O, {self.spectrum_var}}}}}$ (-)', 
+        #     fr'$b_{{\text{{MJO period, {self.spectrum_var}}}}}$ (days)'
+        # ]
+        # rows_power_bias = [self.obs_name, self.sim_name]
+
+        # maxs_power_bias = np.max(np.abs(data_power_bias[1:, :]), axis=0)
+        # limits_power_bias = np.stack([-maxs_power_bias, maxs_power_bias], axis=1)
+
+        # # Generate power bias table
+        # power_bias_table, _ = plot.plot_table(data_power_bias, title=f"Bias derived from '{self.spectrum_var}' power spectra ({year_range})", col_labels=cols_power_bias, 
+        #                                       row_labels=rows_power_bias, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias, limits=limits_power_bias, 
+        #                                       decimals=2)
+        # plot.save_or_show_plot(power_bias_table, output_path, plot_filename=f"power_bias_table_{self.spectrum_var}_{sim_name_file}_{obs_name_file}_{year_range}",
+        #                        plot_name=f"Bias derived from '{self.spectrum_var}' power spectra table plot")
         return
     
