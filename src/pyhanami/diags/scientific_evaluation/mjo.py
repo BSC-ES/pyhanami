@@ -1,6 +1,7 @@
 
 import numpy as np
 import xarray as xr
+import concurrent.futures
 import matplotlib.pyplot as plt
 
 from pathlib import Path
@@ -653,33 +654,44 @@ class MJOEvaluation:
             and simulations ('sim') and for all MJO variables.            
         """
 
-        # Compute power spectra for observations
-        power_spectra_obs_all_vars = []
-        for var_name in self.mjo_vars:
-            # spec_obs_sim, spec_obs_asym, _, _, background_obs = mjo_spectrum_funcs.wavenum_freq_analysis(self.data_spectra_obs.sel(variable=var_name), 
-            #                                                                                              seg_size, n_overlap, lat_range)
-            # power_spectra_obs_one_var = xr.merge([spec_obs_sim.drop_vars('component'), spec_obs_asym.drop_vars('component'), background_obs])
+        # Compute power spectra for observations sequentially (not used anymore, kept for reference)
+        # power_spectra_obs_all_vars = []
+        # for var_name in self.mjo_vars:
+        #     spec_obs_sim, spec_obs_asym, _, _, _ = mjo_spectrum_funcs.wavenum_freq_analysis(self.data_spectra_obs.sel(variable=var_name), 
+        #                                                                                                  seg_size, n_overlap, lat_range)
+        #     power_spectra_obs_one_var = xr.merge([spec_obs_sim.drop_vars('component'), spec_obs_asym.drop_vars('component')])
+        #     power_spectra_obs_all_vars.append(power_spectra_obs_one_var)
 
-            spec_obs_sim, spec_obs_asym, _, _, _ = mjo_spectrum_funcs.wavenum_freq_analysis(self.data_spectra_obs.sel(variable=var_name), 
-                                                                                                         seg_size, n_overlap, lat_range)
-            power_spectra_obs_one_var = xr.merge([spec_obs_sim.drop_vars('component'), spec_obs_asym.drop_vars('component')])
-            power_spectra_obs_all_vars.append(power_spectra_obs_one_var)
+        # # Compute power spectra for simulations sequentially (not used anymore, kept for reference)
+        # power_spectra_sim_all_vars = []
+        # for var_name in self.mjo_vars:
+        #     spec_sim_sim, spec_sim_asym, _, _, _ = mjo_spectrum_funcs.wavenum_freq_analysis(self.data_spectra_sim.sel(variable=var_name), 
+        #                                                                                                  seg_size, n_overlap, lat_range)
+        #     power_spectra_sim_one_var = xr.merge([spec_sim_sim.drop_vars('component'), spec_sim_asym.drop_vars('component')])
+        #     power_spectra_sim_all_vars.append(power_spectra_sim_one_var)
+
+
+        # Compute power spectra for observations for all variables in parallel
+        power_spectra_obs_all_vars = [None] * len(self.mjo_vars)
+        tasks = [(self.data_spectra_obs.sel(variable=var_name), seg_size, n_overlap, lat_range) for var_name in self.mjo_vars]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=config_params.MAX_WORKERS_VARS) as executor:
+            for idx, value in enumerate(executor.map(mjo_spectrum_funcs.wavenum_freq_analysis_wrapper, tasks)):
+                spec_obs_sim, spec_obs_asym, _, _, _ = value
+                power_spectra_obs_one_var = xr.merge([spec_obs_sim.drop_vars('component'), spec_obs_asym.drop_vars('component')])
+                power_spectra_obs_all_vars[idx] = power_spectra_obs_one_var
 
         power_spectra_obs = xr.concat(power_spectra_obs_all_vars, dim='variable')
         power_spectra_obs = power_spectra_obs.assign_coords(variable=self.mjo_vars)
 
 
-        # Compute power spectra for simulations
-        power_spectra_sim_all_vars = []
-        for var_name in self.mjo_vars:
-            # spec_sim_sim, spec_sim_asym, _, _, background_sim = mjo_spectrum_funcs.wavenum_freq_analysis(self.data_spectra_sim.sel(variable=var_name), 
-            #                                                                                              seg_size, n_overlap, lat_range)
-            # power_spectra_sim_one_var = xr.merge([spec_sim_sim.drop_vars('component'), spec_sim_asym.drop_vars('component'), background_sim])
-
-            spec_sim_sim, spec_sim_asym, _, _, _ = mjo_spectrum_funcs.wavenum_freq_analysis(self.data_spectra_sim.sel(variable=var_name), 
-                                                                                                         seg_size, n_overlap, lat_range)
-            power_spectra_sim_one_var = xr.merge([spec_sim_sim.drop_vars('component'), spec_sim_asym.drop_vars('component')])
-            power_spectra_sim_all_vars.append(power_spectra_sim_one_var)
+        # Compute power spectra for simulations for all variables in parallel
+        power_spectra_sim_all_vars = [None] * len(self.mjo_vars)
+        tasks = [(self.data_spectra_sim.sel(variable=var_name), seg_size, n_overlap, lat_range) for var_name in self.mjo_vars]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=config_params.MAX_WORKERS_VARS) as executor:
+            for idx, value in enumerate(executor.map(mjo_spectrum_funcs.wavenum_freq_analysis_wrapper, tasks)):
+                spec_sim_sim, spec_sim_asym, _, _, _ = value
+                power_spectra_sim_one_var = xr.merge([spec_sim_sim.drop_vars('component'), spec_sim_asym.drop_vars('component')])
+                power_spectra_sim_all_vars[idx] = power_spectra_sim_one_var
 
         power_spectra_sim = xr.concat(power_spectra_sim_all_vars, dim='variable')
         power_spectra_sim = power_spectra_sim.assign_coords(variable=self.mjo_vars)
