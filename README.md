@@ -291,10 +291,10 @@ Create an issue or contact the authors below.
 
 Main developer: 
 - Marta Alerany Solé (BSC-CNS): marta.alerany@bsc.es
+- Kai Keller (BSC-CNS): kai.keller@bsc.es
 
 Significant contributors:
 - Bernardo Maraldi (BSC-CNS): bernardo.maraldi@bsc.es
-- Kai Keller (BSC-CNS): kai.keller@bsc.es
 - Masuo Nakano (JAMSTEC): masuo@jamstec.go.jp
 
 Thanks to:
