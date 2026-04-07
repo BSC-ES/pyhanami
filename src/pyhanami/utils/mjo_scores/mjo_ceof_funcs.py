@@ -327,7 +327,7 @@ def perform_CEOF_analysis(data=None, ceof_model=None, n_modes=2, vars_order=['ua
 
 def correct_CEOFs(ceof_new, ceof_ref, n_modes=2):
     """
-    Correct sign and order of the first 'n_modes' CCEOF (typically following 
+    Correct sign and order of the first 'n_modes' CEOFs (typically following 
     (M.C. Wheeler & H.H. Hendon, 2004)).
     NOTE: only working for 'n_modes=2' for now.
 
@@ -594,6 +594,85 @@ def deteremine_phases(pcs):
     return phases
 
 
+def compute_mean_phase_counts(pcs, threshold=None):
+    """
+    Compute the mean over years of number of MJO days and active MJO days per phase 
+    based on the amplitude of the first two Principal Components (PCs).
+
+    Parameters
+    ----------
+    pcs : xr.DataArray
+        Principal Components (PCs) from CEOF analysis, with dimensions 
+        ['time', 'mode'].
+    threshold : float
+        Threshold for the amplitude of the first two PCs to consider the  
+        MJO active at a given day. If None, the mean MJO amplitude over 
+        the entire time period is used as a threshold.
+
+    Returns
+    -------
+    mean_phase_counts : xr.Dataset
+        Average of the years of mean amplitude and days per phase (total and only for 
+        active MJO days). It contains the following variables: 'mean_amplitude', 
+        'mean_active_amplitude', 'total_counts' and 'active_counts' per phase.
+    """
+
+    # Validate input
+    if not isinstance(pcs, xr.DataArray):
+        raise TypeError("'pcs' must be an xarray.DataArray.")
+    
+    # Compute and filter amplitude
+    amplitude = np.sqrt(pcs.isel(mode=0)**2 + pcs.isel(mode=1)**2)
+    if threshold is None:
+        threshold = amplitude.mean(dim='time')
+        active_days = amplitude > threshold
+    else:
+        active_days = amplitude > threshold
+
+
+    # Determine phase for each day
+    phases = deteremine_phases(pcs)
+
+    # Compute average over years of mean amplitude per phase
+    mean_amplitude_per_phase = []
+    mean_active_amplitude_per_phase = []
+    for phase in range(1, 9):
+        phase_mask = phases == phase
+        if phase_mask.sum() > 0:
+            mean_amp = amplitude.where(phase_mask).resample(time='1YS').mean().mean(dim='time').values.item()
+            mean_active_amp = amplitude.where(phase_mask & active_days).resample(time='1YS').mean().mean(dim='time').values.item()
+        else:
+            mean_amp = 0.0
+            mean_active_amp = 0.0
+        mean_amplitude_per_phase.append(mean_amp)
+        mean_active_amplitude_per_phase.append(mean_active_amp)
+
+
+    # Compute average over years of total counts and active counts per phase
+    phase_pandas = phase.to_pandas()
+
+    yearly_total_counts = (phase_pandas.groupby(phase_pandas.index.year).value_counts().unstack(fill_value=0).sort_index(axis=1))
+    total_counts = yearly_total_counts.mean(axis=0)
+
+    yearly_active_counts = (phase_pandas[active_days.values].groupby(phase_pandas.index.year).value_counts().unstack(fill_value=0).sort_index(axis=1))
+    active_counts = yearly_active_counts.mean(axis=0)
+
+
+    # Compile results into a xr.Dataset
+    mean_phase_counts = xr.Dataset(
+        {
+            'mean_amplitude': ('phase', mean_amplitude_per_phase),
+            'mean_active_amplitude': ('phase', mean_active_amplitude_per_phase),
+            'total_counts': ('phase', total_counts.reindex(range(1, 9), fill_value=0).values),
+            'active_counts': ('phase', active_counts.reindex(range(1, 9), fill_value=0).values)
+        },
+        coords={'phase': np.arange(1, 9)}
+    )
+
+    return mean_phase_counts
+
+
+# Not used anymore, kept for reference
 def compute_phase_counts(pcs, threshold=None):
     """
     Compute the number of MJO days and active MJO days per phase based 
