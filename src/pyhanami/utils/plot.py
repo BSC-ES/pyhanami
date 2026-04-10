@@ -740,7 +740,7 @@ def plot_matrix(eff_sizes, test_results, test=4, title='Effect sizes replicabili
     # Define the grid
     n_rows, n_cols, n_indices = abs_eff_sizes.shape
     fig_size = (22, 16)
-    fig, ax = plt.subplots(figsize=fig_size)
+    fig, ax = plt.subplots(figsize=fig_size, dpi=150)
 
     x_labels = [f'{s1} {s2}' for s1 in seasons for s2 in regions]
     y_labels = variables
@@ -1274,8 +1274,9 @@ def plot_grouped_bars(data, x_values=None, title='Grouped bar plot', x_label='',
     return fig, ax
 
 
-def plot_two_grouped_bars(data_1, data_2, x1_values=None, x2_values=None, suptitle='Grouped bar plot', title_1='First bar plot', 
-                          title_2='Second bar plot', x1_label='', x2_label='', y1_label='', y2_label='', labels=None):
+def plot_two_grouped_bars(data_1, data_2, x1_values=None, x2_values=None, x1_values_minor=None, x2_values_minor=None, 
+                          suptitle='Grouped bar plot', title_1='First bar plot', title_2='Second bar plot', 
+                          x1_label='', x2_label='', y1_label='', y2_label='', labels=None):
     """
     Generate two grouped bar plots side by side.
 
@@ -1286,6 +1287,9 @@ def plot_two_grouped_bars(data_1, data_2, x1_values=None, x2_values=None, suptit
     x1_values, x2_values : list
         Values for the x-axes of the individual bar plots. If None,
         default integer values will be used.
+    x1_values_minor, x2_values_minor : list
+        Values for the minor ticks on the x-axes used for the grids. If
+        None, the grid will use the corresponding major x-axis ticks.
     suptitle : str
         Title of the entire figure (default: 'Grouped bar plot').
     title_1, title_2 : str
@@ -1323,7 +1327,8 @@ def plot_two_grouped_bars(data_1, data_2, x1_values=None, x2_values=None, suptit
 
     # Plot each dataset
     total_width = 0.75
-    for i, (data, x_values, x_label, y_label, title) in enumerate(zip([data_1, data_2], [x1_values, x2_values], [x1_label, x2_label], [y1_label, y2_label], [title_1, title_2])):
+    for i, (data, x_values, x_values_minor, x_label, y_label, title) in enumerate(zip([data_1, data_2], [x1_values, x2_values], [x1_values_minor, x2_values_minor], 
+                                                                                      [x1_label, x2_label], [y1_label, y2_label], [title_1, title_2])):
         if data.shape[1] != len(x_values):
             raise ValueError("The number of columns in the data must match the length of x_values.")
         
@@ -1343,7 +1348,13 @@ def plot_two_grouped_bars(data_1, data_2, x1_values=None, x2_values=None, suptit
         axs[i].set_title(title, fontsize=12, pad=15)
 
         axs[i].legend(loc='lower right', fontsize=7, framealpha=0.9)
-        axs[i].grid(zorder=0, linestyle=':')
+
+        if x_values_minor is not None:
+            axs[i].set_xticks(x_values_minor, minor=True)
+            axs[i].grid(which='minor', axis='x', zorder=0, linestyle=':')
+        else:
+            axs[i].grid(axis='x', zorder=0, linestyle=':')
+        axs[i].grid(axis='y', zorder=0, linestyle=':')
 
 
     # Add shared title and adjust layout
@@ -1353,11 +1364,113 @@ def plot_two_grouped_bars(data_1, data_2, x1_values=None, x2_values=None, suptit
     return fig, axs
 
 
+def plot_grouped_bars_two_axes(data_1, data_2, x_values=None, x_values_minor=None, title='Two y-axes grouped bar plot', x_label='',
+                            y1_label='', y2_label='', y1_lim=None, y2_lim=None, labels=None):
+    """
+    Generate a grouped bar plot with a left y-axis with solid bars plotted to
+    the left of the corresponding x-axis values and a right y-axis with hatched
+    bars plotted to the right of the corresponding x-axis values.
+
+    Parameters
+    ----------
+    data_1 : np.ndarray
+        2D array with the data to display in the solid bar plot on the left y-axis.
+    data_2 : np.ndarray
+        2D array with the data to display in the hatched bar plot on the right y-axis.
+    x_values : list
+        Values for the x-axis. If None, default values will 
+        be used (e.g., ['Group 1', 'Group 2', ...]).
+    x_values_minor : list
+        Values for the minor ticks on the x-axis used for the grid.
+        If None, the grid will use the major x-axis ticks.
+    title : str
+        Title of plot (default: 'Two y-axes grouped bar plot').
+    x_label : str
+        Label for the x-axis (default: '').
+    y1_label, y2_label : str
+        Labels for the left and right y-axes (default: '').
+    y1_lim, y2_lim : tuple
+        Limits for the left and right y-axes.
+    labels : list
+        Labels for each group in the bar plot.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        Generated table plot.
+    ax : matplotlib.axes._subplots.AxesSubplot
+        Plot axis.
+    """
+
+    # Validate input
+    if not isinstance(data_1, np.ndarray) or not isinstance(data_2, np.ndarray):
+        raise TypeError("The data must be np.ndarrays.")
+    if data_1.shape != data_2.shape:
+        raise ValueError("The two data arrays must have the same shape.")
+    
+    # Prepare plotting parameters
+    if x_values is None:
+        x_values = np.arange(data_1.shape[1])
+    n_bars = data_1.shape[0]
+    total_width = 0.4
+    epsilon = 0.02
+    bar_width = total_width / n_bars
+    
+
+    # Create figure
+    fig, ax1 = plt.subplots(figsize=(10, 4), dpi=150)
+
+    # Plot solid left bars on the left y-axis
+    colors = []
+    for i, dataset in enumerate(data_1):
+        bar1 = ax1.bar(x_values - (total_width + epsilon) + (i+0.5)*bar_width, dataset, width=bar_width, label=labels[i] if labels else None, zorder=2)
+        colors.append(bar1.patches[0].get_facecolor())
+    
+    # Plot hatched right bars on the right y-axis
+    ax2 = ax1.twinx()
+    plt.rcParams['hatch.linewidth'] = 1.7
+    for i, dataset in enumerate(data_2):
+        ax2.bar(x_values + epsilon + (i+0.5)*bar_width, dataset, width=bar_width*0.8, hatch="//", facecolor='white', edgecolor=colors[i], 
+                linewidth=1.7, label=labels[i] if labels else None, zorder=2)
+        
+
+    # Plot formatting
+    ax1.set_xticks(x_values)
+    ax1.set_xlabel(x_label, fontsize=10)
+
+    ax1.set_ylabel(y1_label + ' (solid bars)', fontsize=10)
+    if y1_lim is not None:
+        ax1.set_ylim(y1_lim)
+    ax2.set_ylabel(y2_label + ' (hatched bars)', fontsize=10)
+    if y2_lim is not None:
+        ax2.set_ylim(y2_lim)
+
+    if x_values_minor is not None:
+        ax1.set_xticks(x_values_minor, minor=True)
+        ax1.grid(which='minor', axis='x', zorder=0, linestyle=':')
+    else:
+        ax1.grid(axis='x', zorder=0, linestyle=':')
+    ax1.grid(axis='y', zorder=0, linestyle=':')
+
+    ax1.set_title(title, fontsize=14, pad=15)
+
+    # Create custom legend with colored rectangles
+    if labels:
+        legend_elements = []
+        for i, label in enumerate(labels):
+            legend_elements.append(plt.Rectangle((0, 0), 1, 1, facecolor=colors[i], label=label))
+        ax2.legend(handles=legend_elements, loc='lower right', fontsize=7, framealpha=0.9)
+
+    plt.tight_layout()
+
+    return fig, ax1
+
+
 def plot_dots_two_axes(data_1, data_2, x_values=None, x_values_minor=None, title='Two y-axes dot plot', x_label='', y1_label='', 
                        y2_label='', y1_lim=None, y2_lim=None, labels=None):
     """
     Generate two dots plots together one on the left y-axis and 
-    the other on the right y-axis.
+    the other on the right y-axis with different symbols.
 
     Parameters
     ----------
@@ -2000,7 +2113,7 @@ def plot_power_spectrum(spectrum, component='symmetric', x_lim=[-10, 10], y_lim=
 
 
     # Create plot
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(dpi=150)
     
     # Plot spectrum
     img = ax.contourf(kmesh0, vmesh0, z, cmap=cmap, levels=levels, vmin=vmin, vmax=vmax, norm=norm, extend='max', zorder=0) 
@@ -2129,7 +2242,7 @@ def plot_power_spectrum_two(spectrum_1, spectrum_2, component='symmetric', x_lim
 
 
     # Create plot
-    fig, axs = plt.subplots(1, 2, figsize=(13, 5), constrained_layout=True)
+    fig, axs = plt.subplots(1, 2, figsize=(13, 5), constrained_layout=True, dpi=150)
 
     # Separate subplots
     # plt.subplots_adjust(wspace=0.2)  

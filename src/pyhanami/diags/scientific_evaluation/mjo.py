@@ -524,9 +524,9 @@ class MJOEvaluation:
 
     def _compute_activity_per_phase(self, threshold=None):
         """
-        Compute absolute value and bias in the number of MJO days and MJO active
-        days per phase for both simulations and observations, including simulations 
-        projected on observed CEOFs and on their own CEOFs.
+        Compute climatological (averaged over years) absolute value and bias in the number 
+        of MJO days and MJO active days per phase for both simulations and observations, 
+        including simulations projected on observed CEOFs and on their own CEOFs.
 
         Parameters
         ----------
@@ -538,27 +538,30 @@ class MJOEvaluation:
         Returns
         -------
         activity_per_phase : xr.Dataset
-            Mean amplitude and days per phase (total and only for active MJO days). 
-            It contains the following variables: 'mean_amplitude', 'mean_amplitude_bias',
+            Climatological mean amplitude and days per phase (total and only for active MJO days). 
+            days). It contains the following variables: 'mean_amplitude', 'mean_amplitude_bias',
             'mean_active_amplitude', 'mean_active_amplitude_bias', 'total_counts',
             'total_counts_bias', 'active_counts' and 'active_counts_bias' per phase 
             for observations ('obs'), simulations projected on observed CEOFs 
             ('sim_on_obs'), and simulations projected on their own CEOFs ('sim_on_sim').
         """
+        # NOTE: to compute the absolute values over the whole period instead of the average over 
+        # the years, just change the function 'mjo_ceof_funcs.compute_climatological_phase_counts'
+        # to 'mjo_ceof_funcs.compute_phase_counts'
 
         # Compute days for observations
         pcs_obs = self.ceof_obs['pc'].sel(time=slice(str(self.start_year_mjo), str(self.end_year_mjo)))
-        phase_counts_obs = mjo_ceof_funcs.compute_phase_counts(pcs_obs, threshold)
+        phase_counts_obs = mjo_ceof_funcs.compute_climatological_phase_counts(pcs_obs, threshold)
         # phase_counts_obs.attrs['PCs source'] = self.ceof_obs.attrs['PCs source']
 
         # Compute days for simulations projected on observed CEOFs
         pcs_sim_on_obs = self.ceof_sim_on_obs['pc']
-        phase_counts_sim_on_obs = mjo_ceof_funcs.compute_phase_counts(pcs_sim_on_obs, threshold)
+        phase_counts_sim_on_obs = mjo_ceof_funcs.compute_climatological_phase_counts(pcs_sim_on_obs, threshold)
         # phase_counts_sim_on_obs.attrs['PCs source'] = self.ceof_sim_on_obs.attrs['PCs source']
         
         # Compute days for simulations projected on their own CEOFs
         pcs_sim_on_sim = self.ceof_sim_on_sim['pc']
-        phase_counts_sim_on_sim = mjo_ceof_funcs.compute_phase_counts(pcs_sim_on_sim, threshold)
+        phase_counts_sim_on_sim = mjo_ceof_funcs.compute_climatological_phase_counts(pcs_sim_on_sim, threshold)
         # phase_counts_sim_on_sim.attrs['PCs source'] = self.ceof_sim_on_sim.attrs['PCs source']
 
         
@@ -1006,8 +1009,8 @@ class MJOEvaluation:
 
     def mean_active_amplitude_plot(self, output_path=None):
         """
-        Generate and save/display bar plot with mean MJO amplitude in the active 
-        days per phase for each dataset.
+        Generate and save/display bar plot with climatological (annually averaged)
+        mean MJO amplitude in the active days per phase for each dataset.
         
         Parameters
         ----------
@@ -1026,19 +1029,18 @@ class MJOEvaluation:
         labels_mean_amp = [f"{self.obs_name}", f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
 
         # Generate bar plot
-        mean_amp_bar_plot, _ = plot.plot_grouped_bars(data_mean_active_amp, x_values=x_values, title=f'Mean MJO amplitude per phase ({year_range})', 
+        mean_amp_bar_plot, _ = plot.plot_grouped_bars(data_mean_active_amp, x_values=x_values, title=f'Climatological mean MJO amplitude per phase ({year_range})', 
                                                      x_label='MJO phase', y_label='mean amplitude', labels=labels_mean_amp)
         
         plot.save_or_show_plot(mean_amp_bar_plot, output_path, plot_filename=f"mean_amplitude_{sim_name_file}_{obs_name_file}_{year_range}",
-                               plot_name=f"Mean MJO amplitude in the active days per phase bar plot")
-
+                               plot_name=f"Climatological mean MJO amplitude in the active days per phase bar plot")
         return
     
     
     def active_days_plot(self, output_path=None):
         """
-        Generate and save/display bar plot with active MJO days per phase for each
-        dataset.
+        Generate and save/display bar plot with climatological (annually averaged) 
+        active MJO days per phase for each dataset.
         
         Parameters
         ----------
@@ -1057,19 +1059,19 @@ class MJOEvaluation:
         labels_active_days = [f"{self.obs_name}", f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
 
         # Generate bar plot
-        active_days_bar_plot, _ = plot.plot_grouped_bars(data_active_days, x_values=x_values, title=f'Active MJO days per phase ({year_range})', 
-                                                     x_label='MJO phase', y_label='number of active days (days)', labels=labels_active_days)
+        active_days_bar_plot, _ = plot.plot_grouped_bars(data_active_days, x_values=x_values, title=f'Climatological active MJO days per phase ({year_range})', 
+                                                     x_label='MJO phase', y_label='number of active days per year', labels=labels_active_days)
         
         plot.save_or_show_plot(active_days_bar_plot, output_path, plot_filename=f"active_days_{sim_name_file}_{obs_name_file}_{year_range}",
-                               plot_name=f"Active MJO days per phase bar plot")
-
+                               plot_name=f"Climatological active MJO days per phase bar plot")
         return
 
 
     def activity_per_phase_plots(self, output_path=None, layout='separate'):
         """
-        Generate and save/display plot with mean MJO amplitude in the active days 
-        and active MJO days per phase for each dataset together.
+        Generate and save/display plot with climatological (annually averaged) mean MJO  
+        amplitude in the active days and climatological (annually averaged) active MJO 
+        days per phase for each dataset together.
         
         Parameters
         ----------
@@ -1098,25 +1100,27 @@ class MJOEvaluation:
         # Generate bar plot
         if layout == 'separate':
             mean_amp_active_days_plot, _ = plot.plot_two_grouped_bars(data_mean_active_amp, data_active_days, x1_values=x_values, x2_values=x_values,
-                                                                        suptitle=f'MJO activity per phase ({year_range})', title_1='Mean MJO amplitude per phase', 
-                                                                        title_2='Active MJO days per phase', x1_label=x_label, x2_label=x_label, 
-                                                                        y1_label='mean amplitude', y2_label='number of active days (days)', labels=labels)
+                                                                      suptitle=f'Climatological MJO activity per phase ({year_range})',
+                                                                      title_1='Climatological mean MJO amplitude per phase', 
+                                                                      title_2='Climatological active MJO days per phase', x1_label=x_label, x2_label=x_label,  
+                                                                      y1_label='mean amplitude', y2_label='number of active days per year', labels=labels)
         elif layout == 'together':
-            mean_amp_active_days_plot, _ = plot.plot_dots_two_axes(data_mean_active_amp, data_active_days, x_values=x_values, x_values_minor=x_values_minor, 
-                                                                       title=f'MJO activity per phase ({year_range})', x_label=x_label, y1_label='mean amplitude', 
-                                                                       y2_label='number of active days (days)', labels=labels)
+            mean_amp_active_days_plot, _ = plot.plot_grouped_bars_two_axes(data_mean_active_amp, data_active_days, x_values=x_values, x_values_minor=x_values_minor, 
+                                                                            title=f'Climatological MJO activity per phase ({year_range})', x_label=x_label, y1_label='mean amplitude', 
+                                                                            y2_label='number of active days per year', labels=labels)
         else:
             raise ValueError(f"Invalid layout option '{layout}'. Choose either 'separate' or 'together'.")
         
         plot.save_or_show_plot(mean_amp_active_days_plot, output_path, plot_filename=f"activity_per_phase_{layout}_{sim_name_file}_{obs_name_file}_{year_range}",
-                               plot_name=f"MJO activity (mean MJO amplitude and active days) per phase {layout} plot")
+                               plot_name=f"Climatological MJO activity (mean MJO amplitude and active days) per phase {layout} plot")
 
         return
 
 
     def mean_amplitude_bias_table(self, output_path=None):
         """
-        Generate and save/display table plot with mean MJO amplitude per phase bias.
+        Generate and save/display table plot with climatological (annually averaged) 
+        mean MJO amplitude per phase bias.
         
         Parameters
         ----------
@@ -1138,19 +1142,20 @@ class MJOEvaluation:
         limits_mean_amp_bias = np.stack([-maxs_mean_amp_bias, maxs_mean_amp_bias], axis=1)
         
         # Generate table plot
-        mean_amp_bias_table_plot, _ = plot.plot_table(data_mean_amp_bias, title=f'Bias in mean MJO amplitude per phase ({year_range})', col_labels=cols_mean_amp_bias, 
+        mean_amp_bias_table_plot, _ = plot.plot_table(data_mean_amp_bias, title=f'Bias in climatological mean MJO amplitude per phase ({year_range})', col_labels=cols_mean_amp_bias, 
                                                       row_labels=rows_mean_amp_bias, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias, 
                                                       limits=limits_mean_amp_bias, decimals=2)
         
         plot.save_or_show_plot(mean_amp_bias_table_plot, output_path, plot_filename=f"mean_amplitude_bias_table_{sim_name_file}_{obs_name_file}_{year_range}",
-                               plot_name=f"Bias in mean MJO amplitude per phase table plot")
+                               plot_name=f"Bias in climatological mean MJO amplitude per phase table plot")
 
         return
 
 
     def active_days_bias_table(self, output_path=None):
         """
-        Generate and save/display table plot with active MJO days per phase bias.
+        Generate and save/display table plot with climatological (annually averaged) 
+        active MJO days per phase bias.
         
         Parameters
         ----------
@@ -1172,20 +1177,20 @@ class MJOEvaluation:
         limits_active_days_bias = np.stack([-maxs_active_days_bias, maxs_active_days_bias], axis=1)
         
         # Generate table plot
-        active_days_bias_table_plot, _ = plot.plot_table(data_active_days_bias, title=f'Bias in active MJO days per phase ({year_range})', col_labels=cols_active_days_bias, 
+        active_days_bias_table_plot, _ = plot.plot_table(data_active_days_bias, title=f'Bias in climatological active MJO days per phase ({year_range})', col_labels=cols_active_days_bias, 
                                                          row_labels=rows_active_days_bias, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias, 
                                                          limits=limits_active_days_bias, decimals=0)
         
         plot.save_or_show_plot(active_days_bias_table_plot, output_path, plot_filename=f"active_days_bias_table_{sim_name_file}_{obs_name_file}_{year_range}",
-                               plot_name=f"Bias in active MJO days per phase table plot")
+                               plot_name=f"Bias in climatological active MJO days per phase table plot")
 
         return
 
 
     def activity_per_phase_bias_tables(self, output_path=None):
         """
-        Generate and save/display table plots with mean MJO amplitude and active MJO
-        days per phase bias.
+        Generate and save/display table plots with climatological (annually averaged) mean 
+        MJO amplitude and active MJO days per phase bias.
         
         Parameters
         ----------
@@ -1202,8 +1207,8 @@ class MJOEvaluation:
         year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
 
         # Column labels
-        cols_mean_amp_bias = [f'Bias in Mean amplitude'] + [fr'$\overline{{b}}_{{ph\, {phase}}}$ (-)' for phase in self.activity_per_phase.phase.values]
-        cols_active_days_bias = [f'Bias in Active days'] + [fr'$\overline{{b}}_{{ph\, {phase}}}$ (days)' for phase in self.activity_per_phase.phase.values]
+        cols_mean_amp_bias = [f'Bias in Climatological mean amplitude'] + [fr'$\overline{{b}}_{{ph\, {phase}}}$ (-)' for phase in self.activity_per_phase.phase.values]
+        cols_active_days_bias = [f'Bias in Climatological active days'] + [fr'$\overline{{b}}_{{ph\, {phase}}}$ (days)' for phase in self.activity_per_phase.phase.values]
         cols = [cols_mean_amp_bias, cols_active_days_bias]
 
         # Row labels
@@ -1223,12 +1228,12 @@ class MJOEvaluation:
 
 
         # Generate table plots
-        mean_amp_active_days_table_plot, _ = plot.plot_two_tables(data_mean_amp_bias, data_active_days_bias, title=f'Bias in MJO activity per phase ({year_range})',
+        mean_amp_active_days_table_plot, _ = plot.plot_two_tables(data_mean_amp_bias, data_active_days_bias, title=f'Bias in climatological MJO activity per phase ({year_range})',
                                                                   col_labels=cols, row_labels=rows, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias,
                                                                   limits=limits, decimals=[2, 0])
 
         plot.save_or_show_plot(mean_amp_active_days_table_plot, output_path, plot_filename=f"activity_per_phase_bias_tables_{sim_name_file}_{obs_name_file}_{year_range}",
-                               plot_name=f"Bias in MJO activity per phase table plot")
+                               plot_name=f"Bias in climatological MJO activity per phase table plot")
         
         return
 

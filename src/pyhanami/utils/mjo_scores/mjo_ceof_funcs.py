@@ -594,10 +594,10 @@ def deteremine_phases(pcs):
     return phases
 
 
-def compute_mean_phase_counts(pcs, threshold=None):
+def compute_climatological_phase_counts(pcs, threshold=None):
     """
-    Compute the mean over years of number of MJO days and active MJO days per phase 
-    based on the amplitude of the first two Principal Components (PCs).
+    Compute the climatological (annually averaged) number of MJO days and active MJO days  
+    per phase based on the amplitude of the first two Principal Components (PCs).
 
     Parameters
     ----------
@@ -612,7 +612,7 @@ def compute_mean_phase_counts(pcs, threshold=None):
     Returns
     -------
     mean_phase_counts : xr.Dataset
-        Average of the years of mean amplitude and days per phase (total and only for 
+        Climatological mean amplitude and days per phase (total and only for 
         active MJO days). It contains the following variables: 'mean_amplitude', 
         'mean_active_amplitude', 'total_counts' and 'active_counts' per phase.
     """
@@ -624,7 +624,7 @@ def compute_mean_phase_counts(pcs, threshold=None):
     # Compute and filter amplitude
     amplitude = np.sqrt(pcs.isel(mode=0)**2 + pcs.isel(mode=1)**2)
     if threshold is None:
-        threshold = amplitude.mean(dim='time')
+        threshold = float(amplitude.mean(dim='time').values)
         active_days = amplitude > threshold
     else:
         active_days = amplitude > threshold
@@ -648,13 +648,14 @@ def compute_mean_phase_counts(pcs, threshold=None):
         mean_active_amplitude_per_phase.append(mean_active_amp)
 
 
-    # Compute average over years of total counts and active counts per phase
-    phase_pandas = phase.to_pandas()
-
+    # Compute average over years of total counts and active counts per phase (group data per year, count phase occurrences within each year,
+    # convert to table filling missing combinations with 0, sort by phase and compute mean over years)
+    phase_pandas = phases.to_pandas()
     yearly_total_counts = (phase_pandas.groupby(phase_pandas.index.year).value_counts().unstack(fill_value=0).sort_index(axis=1))
     total_counts = yearly_total_counts.mean(axis=0)
 
-    yearly_active_counts = (phase_pandas[active_days.values].groupby(phase_pandas.index.year).value_counts().unstack(fill_value=0).sort_index(axis=1))
+    phase_active_pandas = phase_pandas[active_days.values]
+    yearly_active_counts = (phase_active_pandas.groupby(phase_active_pandas.index.year).value_counts().unstack(fill_value=0).sort_index(axis=1))
     active_counts = yearly_active_counts.mean(axis=0)
 
 
@@ -675,8 +676,8 @@ def compute_mean_phase_counts(pcs, threshold=None):
 # Not used anymore, kept for reference
 def compute_phase_counts(pcs, threshold=None):
     """
-    Compute the number of MJO days and active MJO days per phase based 
-    on the amplitude of the first two Principal Components (PCs).
+    Compute the absolute number of MJO days and active MJO days per phase
+    based on the amplitude of the first two Principal Components (PCs).
 
     Parameters
     ----------
