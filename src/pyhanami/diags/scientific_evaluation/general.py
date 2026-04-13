@@ -376,7 +376,7 @@ class GeneralEvaluation:
         return
 
     
-    def scores_table(self, var_names=None, output_path=None):
+    def scores_table(self, var_names=None, output_path=None, reference=True):
         """
         Generate and save/display table plot with general scalar scores for the given variable(s).
 
@@ -386,6 +386,8 @@ class GeneralEvaluation:
             Climate variable(s) name(s). If None, all variables in the analysis will be used.
         output_path : str, optional
             Path to save the table plot. If None, the table is displayed but not saved.
+        reference : bool
+            Whether to display reference values in the first row (not colored) (default: True).
         """
 
         # Validate input
@@ -399,12 +401,21 @@ class GeneralEvaluation:
                                  f"Available variables: {self.var_names}")
 
 
-        # Prepare plot parameters        
-        rows = [self.obs_name, self.sim_name]
+        # Prepare plot parameters  
+        sim_name_file = self.sim_name.replace(' ', '-')
+        obs_name_file = self.obs_name.replace(' ', '-')
+        if reference:
+            data_ref = np.array([1, 1, 1])
+            rows = [self.obs_name, self.sim_name]
+            name_file = f"{sim_name_file}_ref_{obs_name_file}"
+        else:
+            rows = [self.sim_name]
+            name_file = f"{sim_name_file}_no_ref_{obs_name_file}"
+
         cbar_ticks = ['Worse performance', ' ', 'Better performance']
         colors = ("RedGreen", ['tab:red', 'white', 'tab:green'])
-        data_ref = np.array([1, 1, 1])
 
+        # Plot each variable separately
         for var_name in var_names:
             var_name_title = VARIABLES[var_name]['long_name']
             year_range = f"{self.start_year}-{self.end_year}"
@@ -420,12 +431,13 @@ class GeneralEvaluation:
 
             # Prepare plot data
             data_sim = self.scores[['bias_rel', 'rmse_rel', 'pcorr']].sel(variable=var_name).to_array().values
-            data_plot = np.stack([data_ref, data_sim])
+            data_plot = np.stack([data_ref, data_sim]) if reference else data_sim.reshape(-1, data_sim.shape[0])
 
             # Generate and save/display plot
-            general_scores_plot, _ = plot.plot_table(data_plot, title=title, col_labels=cols, row_labels=rows, cbar_ticks=cbar_ticks, colors=colors, decimals=3)
+            general_scores_plot, _ = plot.plot_table(data_plot, title=title, col_labels=cols, row_labels=rows, cbar_ticks=cbar_ticks, colors=colors, 
+                                                     reference=reference, decimals=3)
 
-            plot.save_or_show_plot(general_scores_plot, output_path, plot_filename=f"general_scalar_scores_table_{var_name}_{self.sim_name.replace(' ', '-')}_{year_range}",
+            plot.save_or_show_plot(general_scores_plot, output_path, plot_filename=f"general_scalar_scores_table_{var_name}_{name_file}_{year_range}",
                                    plot_name="General scalar scores table plot")
 
         return

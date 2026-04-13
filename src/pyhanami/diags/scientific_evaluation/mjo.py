@@ -927,7 +927,7 @@ class MJOEvaluation:
         return
 
 
-    def ceof_corr_table(self, output_path=None):
+    def ceof_corr_table(self, output_path=None, reference=True):
         """
         Generate and save/display table with CEOF correlation for each dataset together.
 
@@ -935,18 +935,28 @@ class MJOEvaluation:
         ----------
         output_path : str, optional
             Path to save the table. If None, the table is displayed but not saved.
+        reference : bool
+            Whether to display reference values in the first row (not colored) (default: True).
         """
 
         # Prepare data and plotting parameters
-        ceof_corr = self.ceof_scores['ceof_corr'].sel(dataset=['obs', 'sim_on_sim']).values
-        data_ceof_corr = ceof_corr.reshape(ceof_corr.shape[0], -1)
         sim_name_file = self.sim_name.replace(' ', '-')
         obs_name_file = self.obs_name.replace(' ', '-')
+        if reference: 
+            ceof_corr = self.ceof_scores['ceof_corr'].sel(dataset=['obs', 'sim_on_sim']).values
+            data_ceof_corr = ceof_corr.reshape(ceof_corr.shape[0], -1)
+            name_file = f"{sim_name_file}_ref_{obs_name_file}"
+            rows_ceof_corr = [self.obs_name, self.sim_name]
+        else:
+            ceof_corr = self.ceof_scores['ceof_corr'].sel(dataset=['sim_on_sim']).values
+            data_ceof_corr = ceof_corr.reshape(ceof_corr.shape[0], -1)
+            name_file = f"{sim_name_file}_no_ref_{obs_name_file}"
+            rows_ceof_corr = [self.sim_name]
 
         year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
         cols_ceof_corr = [f'{self.data_res}° x {self.data_res}°'] + [fr'$r_{{\text{{{var}}}, {mode}}}$' for var in self.ceof_scores['variable'].values 
                                                                      for mode in self.ceof_scores['mode'].values]
-        rows_ceof_corr = [self.obs_name, self.sim_name]
+        
 
         cbar_ticks_corr = ['Negative correlation (-1)', 'No correlation (0)', 'Positive correlation (1)']
         colors_corr = ("RedGreen", ['tab:red', 'white', 'tab:green']) 
@@ -955,34 +965,50 @@ class MJOEvaluation:
         # Generate CEOF scores table
         ceof_scores_table, _ = plot.plot_table(data_ceof_corr, title=f"Correlation between Combined EOFs ({year_range})", col_labels=cols_ceof_corr,
                                                row_labels=rows_ceof_corr, cbar_ticks=cbar_ticks_corr, colors=colors_corr, limits=limits_corr,
-                                               decimals=2)
+                                               reference=reference, decimals=2)
         
-        plot.save_or_show_plot(ceof_scores_table, output_path, plot_filename=f"ceof_corr_table_{sim_name_file}_{obs_name_file}_{year_range}",
+        plot.save_or_show_plot(ceof_scores_table, output_path, plot_filename=f"ceof_corr_table_{name_file}_{year_range}",
                                plot_name=f"Correlation in Combined EOFs table plot")
 
         return
 
 
-    def ceof_bias_table(self, output_path=None):
+    def ceof_bias_table(self, output_path=None, reference=True):
         """
-        Generate and save/display table plot with the bias scalar scores derived from
-        the CEOF analysis.
+        Generate and save/display table plot with the bias scalar scores derived from the
+        CEOF analysis.
         
         Parameters
         ----------
         output_path : str, optional
             Path to save the table plot. If None, the table is displayed but not saved.
+        reference : bool
+            Whether to display reference values in the first row (not colored) (default: True).
         """
 
         # Prepare data and plotting parameters
-        expl_var_bias = self.ceof_scores['explained_var_bias'].values
-        data_expl_var_bias = expl_var_bias.reshape(expl_var_bias.shape[0], -1)
-
-        data_ceof_bias = np.concatenate([data_expl_var_bias, self.ceof_scores['max_lead_lag_corr_bias'].values.reshape(-1, 1), 
-                                         self.ceof_scores['pceof_bias'].values.reshape(-1, 1)], axis=1)
-
         sim_name_file = self.sim_name.replace(' ', '-')
         obs_name_file = self.obs_name.replace(' ', '-')
+
+        if reference:
+            expl_var_bias = self.ceof_scores['explained_var_bias'].values
+            data_expl_var_bias = expl_var_bias.reshape(expl_var_bias.shape[0], -1)
+            data_ceof_bias = np.concatenate([data_expl_var_bias, self.ceof_scores['max_lead_lag_corr_bias'].values.reshape(-1, 1), 
+                                            self.ceof_scores['pceof_bias'].values.reshape(-1, 1)], axis=1)
+            
+            name_file = f"{sim_name_file}_ref_{obs_name_file}"
+            rows_ceof_bias = [self.obs_name, f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
+            sim_init = 1
+        else:
+            ceof_socres_only_sim = self.ceof_scores.isel(dataset=slice(1, None))
+            expl_var_bias = ceof_socres_only_sim['explained_var_bias'].values
+            data_expl_var_bias = expl_var_bias.reshape(expl_var_bias.shape[0], -1)
+            data_ceof_bias = np.concatenate([data_expl_var_bias, ceof_socres_only_sim['max_lead_lag_corr_bias'].values.reshape(-1, 1), 
+                                            ceof_socres_only_sim['pceof_bias'].values.reshape(-1, 1)], axis=1)
+            
+            name_file = f"{sim_name_file}_no_ref_{obs_name_file}"
+            rows_ceof_bias = [f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
+            sim_init = 0
 
         year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
         cols_ceof_bias = [
@@ -991,17 +1017,16 @@ class MJOEvaluation:
             fr'$b_{{\text{{max lead-lag corr}}}}$ (-)', 
             fr'$b_{{\text{{MJO period}}}}$ (days)'
         ]
-        rows_ceof_bias = [self.obs_name, f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
 
-        maxs_ceof_bias = np.max(np.abs(data_ceof_bias[1:, :]), axis=0)
+        maxs_ceof_bias = np.max(np.abs(data_ceof_bias[sim_init:, :]), axis=0)
         limits_ceof_bias = np.stack([-maxs_ceof_bias, maxs_ceof_bias], axis=1)
         
         # Generate table plot
         ceof_bias_table_plot, _ = plot.plot_table(data_ceof_bias, title=f'Bias derived from Combined EOF analysis ({year_range})', col_labels=cols_ceof_bias, 
                                                   row_labels=rows_ceof_bias, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias, limits=limits_ceof_bias, 
-                                                  decimals=2)
+                                                  reference=reference, decimals=2)
         
-        plot.save_or_show_plot(ceof_bias_table_plot, output_path, plot_filename=f"ceof_bias_table_{sim_name_file}_{obs_name_file}_{year_range}",
+        plot.save_or_show_plot(ceof_bias_table_plot, output_path, plot_filename=f"ceof_bias_table_{name_file}_{year_range}",
                                plot_name=f"Bias derived from Combined EOF analysis table plot")
 
         return
@@ -1030,7 +1055,7 @@ class MJOEvaluation:
 
         # Generate bar plot
         mean_amp_bar_plot, _ = plot.plot_grouped_bars(data_mean_active_amp, x_values=x_values, title=f'Climatological mean MJO amplitude per phase ({year_range})', 
-                                                     x_label='MJO phase', y_label='mean amplitude', labels=labels_mean_amp)
+                                                     x_label='MJO phase', y_label='mean amplitude per year', labels=labels_mean_amp)
         
         plot.save_or_show_plot(mean_amp_bar_plot, output_path, plot_filename=f"mean_amplitude_{sim_name_file}_{obs_name_file}_{year_range}",
                                plot_name=f"Climatological mean MJO amplitude in the active days per phase bar plot")
@@ -1103,11 +1128,11 @@ class MJOEvaluation:
                                                                       suptitle=f'Climatological MJO activity per phase ({year_range})',
                                                                       title_1='Climatological mean MJO amplitude per phase', 
                                                                       title_2='Climatological active MJO days per phase', x1_label=x_label, x2_label=x_label,  
-                                                                      y1_label='mean amplitude', y2_label='number of active days per year', labels=labels)
+                                                                      y1_label='mean amplitude per year', y2_label='number of active days per year', labels=labels)
         elif layout == 'together':
             mean_amp_active_days_plot, _ = plot.plot_grouped_bars_two_axes(data_mean_active_amp, data_active_days, x_values=x_values, x_values_minor=x_values_minor, 
-                                                                            title=f'Climatological MJO activity per phase ({year_range})', x_label=x_label, y1_label='mean amplitude', 
-                                                                            y2_label='number of active days per year', labels=labels)
+                                                                            title=f'Climatological MJO activity per phase ({year_range})', x_label=x_label, 
+                                                                            y1_label='mean amplitude per year', y2_label='number of active days per year', labels=labels)
         else:
             raise ValueError(f"Invalid layout option '{layout}'. Choose either 'separate' or 'together'.")
         
@@ -1117,7 +1142,7 @@ class MJOEvaluation:
         return
 
 
-    def mean_amplitude_bias_table(self, output_path=None):
+    def mean_amplitude_bias_table(self, output_path=None, reference=True):
         """
         Generate and save/display table plot with climatological (annually averaged) 
         mean MJO amplitude per phase bias.
@@ -1126,33 +1151,43 @@ class MJOEvaluation:
         ----------
         output_path : str, optional
             Path to save the table plot. If None, the table is displayed but not saved.
+        reference : bool
+            Whether to display reference values in the first row (not colored) (default: True).
         """
 
         # Prepare data and plotting parameters
-        data_mean_amp_bias = self.activity_per_phase['mean_active_amplitude_bias'].values
         sim_name_file = self.sim_name.replace(' ', '-')
         obs_name_file = self.obs_name.replace(' ', '-')
+        if reference:
+            data_mean_amp_bias = self.activity_per_phase['mean_active_amplitude_bias'].values
+            name_file = f"{sim_name_file}_ref_{obs_name_file}"
+            rows_mean_amp_bias = [self.obs_name, f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
+            sim_init = 1
+        else:
+            data_mean_amp_bias = self.activity_per_phase['mean_active_amplitude_bias'].isel(dataset=slice(1, None)).values
+            name_file = f"{sim_name_file}_no_ref_{obs_name_file}"
+            rows_mean_amp_bias = [f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
+            sim_init = 0
 
         year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
-        cols_mean_amp_bias = [f'{self.data_res}° x {self.data_res}°'] + [fr'$\overline{{b}}_{{ph\, {phase}}}$ (-)' for phase in self.activity_per_phase.phase.values]
+        cols_mean_amp_bias = [f'{self.data_res}° x {self.data_res}°'] + [fr'$\overline{{b}}_{{ph\, {phase}}}$' for phase in self.activity_per_phase.phase.values]
                                #(['Dataset \ Phase'], [str(phase) for phase in self.activity_per_phase.phase.values])
-        rows_mean_amp_bias = [self.obs_name, f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
 
-        maxs_mean_amp_bias = np.max(np.abs(data_mean_amp_bias[1:, :]), axis=0)
+        maxs_mean_amp_bias = np.max(np.abs(data_mean_amp_bias[sim_init:, :]), axis=0)
         limits_mean_amp_bias = np.stack([-maxs_mean_amp_bias, maxs_mean_amp_bias], axis=1)
         
         # Generate table plot
         mean_amp_bias_table_plot, _ = plot.plot_table(data_mean_amp_bias, title=f'Bias in climatological mean MJO amplitude per phase ({year_range})', col_labels=cols_mean_amp_bias, 
                                                       row_labels=rows_mean_amp_bias, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias, 
-                                                      limits=limits_mean_amp_bias, decimals=2)
+                                                      limits=limits_mean_amp_bias, reference=reference, decimals=2)
         
-        plot.save_or_show_plot(mean_amp_bias_table_plot, output_path, plot_filename=f"mean_amplitude_bias_table_{sim_name_file}_{obs_name_file}_{year_range}",
+        plot.save_or_show_plot(mean_amp_bias_table_plot, output_path, plot_filename=f"mean_amplitude_bias_table_{name_file}_{year_range}",
                                plot_name=f"Bias in climatological mean MJO amplitude per phase table plot")
 
         return
 
 
-    def active_days_bias_table(self, output_path=None):
+    def active_days_bias_table(self, output_path=None, reference=True):
         """
         Generate and save/display table plot with climatological (annually averaged) 
         active MJO days per phase bias.
@@ -1161,33 +1196,43 @@ class MJOEvaluation:
         ----------
         output_path : str, optional
             Path to save the table plot. If None, the table is displayed but not saved.
+        reference : bool
+            Whether to display reference values in the first row (not colored) (default: True).
         """
 
         # Prepare data and plotting parameters
-        data_active_days_bias = self.activity_per_phase['active_counts_bias'].values
         sim_name_file = self.sim_name.replace(' ', '-')
         obs_name_file = self.obs_name.replace(' ', '-')
+        if reference:
+            data_active_days_bias = self.activity_per_phase['active_counts_bias'].values
+            name_file = f"{sim_name_file}_ref_{obs_name_file}"
+            rows_active_days_bias = [self.obs_name, f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
+            sim_init = 1
+        else:
+            data_active_days_bias = self.activity_per_phase['active_counts_bias'].isel(dataset=slice(1, None)).values
+            name_file = f"{sim_name_file}_no_ref_{obs_name_file}"
+            rows_active_days_bias = [f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
+            sim_init = 0
 
         year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
         cols_active_days_bias = [f'{self.data_res}° x {self.data_res}°'] + [fr'$\overline{{b}}_{{ph\, {phase}}}$ (days)' for phase in self.activity_per_phase.phase.values]
                                 #(['Dataset \ Phase'], [str(phase) for phase in self.activity_per_phase.phase.values])
-        rows_active_days_bias = [self.obs_name, f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
 
-        maxs_active_days_bias = np.max(np.abs(data_active_days_bias[1:, :]), axis=0)
+        maxs_active_days_bias = np.max(np.abs(data_active_days_bias[sim_init:, :]), axis=0)
         limits_active_days_bias = np.stack([-maxs_active_days_bias, maxs_active_days_bias], axis=1)
         
         # Generate table plot
         active_days_bias_table_plot, _ = plot.plot_table(data_active_days_bias, title=f'Bias in climatological active MJO days per phase ({year_range})', col_labels=cols_active_days_bias, 
                                                          row_labels=rows_active_days_bias, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias, 
-                                                         limits=limits_active_days_bias, decimals=0)
+                                                         limits=limits_active_days_bias, reference=reference, decimals=0)
         
-        plot.save_or_show_plot(active_days_bias_table_plot, output_path, plot_filename=f"active_days_bias_table_{sim_name_file}_{obs_name_file}_{year_range}",
+        plot.save_or_show_plot(active_days_bias_table_plot, output_path, plot_filename=f"active_days_bias_table_{name_file}_{year_range}",
                                plot_name=f"Bias in climatological active MJO days per phase table plot")
 
         return
 
 
-    def activity_per_phase_bias_tables(self, output_path=None):
+    def activity_per_phase_bias_tables(self, output_path=None, reference=True):
         """
         Generate and save/display table plots with climatological (annually averaged) mean 
         MJO amplitude and active MJO days per phase bias.
@@ -1196,32 +1241,51 @@ class MJOEvaluation:
         ----------
         output_path : str, optional
             Path to save the table plot. If None, the table is displayed but not saved.
+        reference : bool
+            Whether to display reference values in the first row (not colored) (default: True).
         """
 
         # Prepare data and plotting parameters
-        data_mean_amp_bias = self.activity_per_phase['mean_active_amplitude_bias'].values
-        data_active_days_bias = self.activity_per_phase['active_counts_bias'].values
-
         sim_name_file = self.sim_name.replace(' ', '-')
         obs_name_file = self.obs_name.replace(' ', '-')
+        
+        if reference:
+            data_mean_amp_bias = self.activity_per_phase['mean_active_amplitude_bias'].values
+            data_active_days_bias = self.activity_per_phase['active_counts_bias'].values
+            name_file = f"{sim_name_file}_ref_{obs_name_file}"
+
+            # Row labels
+            rows_mean_amp_bias = [self.obs_name, f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
+            rows_active_days_bias = rows_mean_amp_bias
+            rows = [rows_mean_amp_bias, rows_active_days_bias]
+            
+            sim_init = 1
+        else:
+            activity_pre_phase_only_sim = self.activity_per_phase.isel(dataset=slice(1, None))
+            data_mean_amp_bias = activity_pre_phase_only_sim['mean_active_amplitude_bias'].values
+            data_active_days_bias = activity_pre_phase_only_sim['active_counts_bias'].values
+            name_file = f"{sim_name_file}_no_ref_{obs_name_file}"
+
+            # Row labels
+            rows_mean_amp_bias = [f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
+            rows_active_days_bias = rows_mean_amp_bias
+            rows = [rows_mean_amp_bias, rows_active_days_bias]
+
+            sim_init = 0
+
         year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
 
         # Column labels
-        cols_mean_amp_bias = [f'Bias in Climatological mean amplitude'] + [fr'$\overline{{b}}_{{ph\, {phase}}}$ (-)' for phase in self.activity_per_phase.phase.values]
+        cols_mean_amp_bias = [f'Bias in Climatological mean amplitude'] + [fr'$\overline{{b}}_{{ph\, {phase}}}$' for phase in self.activity_per_phase.phase.values]
         cols_active_days_bias = [f'Bias in Climatological active days'] + [fr'$\overline{{b}}_{{ph\, {phase}}}$ (days)' for phase in self.activity_per_phase.phase.values]
         cols = [cols_mean_amp_bias, cols_active_days_bias]
 
-        # Row labels
-        rows_mean_amp_bias = [self.obs_name, f"{self.sim_name} on {self.obs_name}", f"{self.sim_name} on {self.sim_name}"]
-        rows_active_days_bias = rows_mean_amp_bias
-        rows = [rows_mean_amp_bias, rows_active_days_bias]
-
-
+        
         # Limits per column
-        maxs_mean_amp_bias = np.max(np.abs(data_mean_amp_bias[1:, :]), axis=0)
+        maxs_mean_amp_bias = np.max(np.abs(data_mean_amp_bias[sim_init:, :]), axis=0)
         limits_mean_amp_bias = np.stack([-maxs_mean_amp_bias, maxs_mean_amp_bias], axis=1)
 
-        maxs_active_days_bias = np.max(np.abs(data_active_days_bias[1:, :]), axis=0)
+        maxs_active_days_bias = np.max(np.abs(data_active_days_bias[sim_init:, :]), axis=0)
         limits_active_days_bias = np.stack([-maxs_active_days_bias, maxs_active_days_bias], axis=1)
 
         limits = [limits_mean_amp_bias, limits_active_days_bias]
@@ -1230,9 +1294,9 @@ class MJOEvaluation:
         # Generate table plots
         mean_amp_active_days_table_plot, _ = plot.plot_two_tables(data_mean_amp_bias, data_active_days_bias, title=f'Bias in climatological MJO activity per phase ({year_range})',
                                                                   col_labels=cols, row_labels=rows, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias,
-                                                                  limits=limits, decimals=[2, 0])
+                                                                  limits=limits, references=[reference, reference], decimals=[2, 0])
 
-        plot.save_or_show_plot(mean_amp_active_days_table_plot, output_path, plot_filename=f"activity_per_phase_bias_tables_{sim_name_file}_{obs_name_file}_{year_range}",
+        plot.save_or_show_plot(mean_amp_active_days_table_plot, output_path, plot_filename=f"activity_per_phase_bias_tables_{name_file}_{year_range}",
                                plot_name=f"Bias in climatological MJO activity per phase table plot")
         
         return
@@ -1299,7 +1363,7 @@ class MJOEvaluation:
         return
 
 
-    def power_bias_table(self, output_path=None):
+    def power_bias_table(self, output_path=None, reference=True):
         """
         Generate and save/display table with the biases related to the power spectra
         for both observations and simulations.
@@ -1308,13 +1372,28 @@ class MJOEvaluation:
         ----------
         output_path : str, optional
             Path to save the table. If None, the table is displayed but not saved.
+        reference : bool
+            Whether to display reference values in the first row (not colored) (default: True).
         """
 
         # Prepare data and plotting parameters
-        power_bias = self.power_scores[['ew_ratio_bias', 'eo_ratio_bias', 'pwfps_bias']].to_array().values
-        data_power_bias = power_bias.transpose(1,0,2).reshape(power_bias.shape[1], -1)
         sim_name_file = self.sim_name.replace(' ', '-')
         obs_name_file = self.obs_name.replace(' ', '-')
+
+        if reference: 
+            power_bias = self.power_scores[['ew_ratio_bias', 'eo_ratio_bias', 'pwfps_bias']].to_array().values
+            data_power_bias = power_bias.transpose(1,0,2).reshape(power_bias.shape[1], -1)
+            name_file = f"{sim_name_file}_ref_{obs_name_file}"
+
+            rows_power_bias = [self.obs_name, self.sim_name]
+            sim_init = 1
+        else:
+            power_bias = self.power_scores[['ew_ratio_bias', 'eo_ratio_bias', 'pwfps_bias']].isel(dataset=slice(1, None)).to_array().values
+            data_power_bias = power_bias.transpose(1,0,2).reshape(power_bias.shape[1], -1)
+            name_file = f"{sim_name_file}_no_ref_{obs_name_file}"
+
+            rows_power_bias = [self.sim_name]        
+            sim_init = 0
 
         year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
         cols_power_bias = [
@@ -1323,16 +1402,15 @@ class MJOEvaluation:
             *[fr'$b_{{\text{{{var_name}}}}}^{{\text{{E/O}}}}$' for var_name in self.mjo_vars], 
             *[fr'$b_{{\text{{{var_name}}}}}^{{\text{{period}}}}$ (days)' for var_name in self.mjo_vars]
         ]
-        rows_power_bias = [self.obs_name, self.sim_name]
 
-        maxs_power_bias = np.max(np.abs(data_power_bias[1:, :]), axis=0)
+        maxs_power_bias = np.max(np.abs(data_power_bias[sim_init:, :]), axis=0)
         limits_power_bias = np.stack([-maxs_power_bias, maxs_power_bias], axis=1)
 
-        # Generate power bias table
+        # Generate power bias table plot
         power_bias_table, _ = plot.plot_table(data_power_bias, title=f"Bias derived from power spectra ({year_range})", col_labels=cols_power_bias, 
                                               row_labels=rows_power_bias, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias, 
-                                              limits=limits_power_bias, decimals=2)
-        plot.save_or_show_plot(power_bias_table, output_path, plot_filename=f"power_bias_table_{sim_name_file}_{obs_name_file}_{year_range}",
+                                              limits=limits_power_bias, reference=reference, decimals=2)
+        plot.save_or_show_plot(power_bias_table, output_path, plot_filename=f"power_bias_table_{name_file}_{year_range}",
                                plot_name=f"Bias derived from power spectra table plot")
 
 
@@ -1349,16 +1427,6 @@ class MJOEvaluation:
         #     fr'$b_{{\text{{E/O, {self.spectrum_var}}}}}$ (-)', 
         #     fr'$b_{{\text{{MJO period, {self.spectrum_var}}}}}$ (days)'
         # ]
-        # rows_power_bias = [self.obs_name, self.sim_name]
 
-        # maxs_power_bias = np.max(np.abs(data_power_bias[1:, :]), axis=0)
-        # limits_power_bias = np.stack([-maxs_power_bias, maxs_power_bias], axis=1)
-
-        # # Generate power bias table
-        # power_bias_table, _ = plot.plot_table(data_power_bias, title=f"Bias derived from '{self.spectrum_var}' power spectra ({year_range})", col_labels=cols_power_bias, 
-        #                                       row_labels=rows_power_bias, cbar_ticks=self.cbar_ticks_bias, colors=self.colors_bias, limits=limits_power_bias, 
-        #                                       decimals=2)
-        # plot.save_or_show_plot(power_bias_table, output_path, plot_filename=f"power_bias_table_{self.spectrum_var}_{sim_name_file}_{obs_name_file}_{year_range}",
-        #                        plot_name=f"Bias derived from '{self.spectrum_var}' power spectra table plot")
         return
     
