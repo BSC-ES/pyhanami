@@ -1,3 +1,7 @@
+import warnings
+warnings.simplefilter("always")
+
+import numpy as np
 import xarray as xr
 
 from pathlib import Path
@@ -506,7 +510,8 @@ class ISOEvaluation:
             name_file = self.sim_name.replace(' ', '-')
         elif data == 'obs':
             if not self.obs:
-                raise ValueError("Observational PCs are not available. Set 'obs=True' when initializing the bimodalISO object to load them.")
+                raise ValueError("Observational PCs are not available. "
+                                 "Set `obs=True` when calling the `compute_iso_scores` method to load them.")
             pcs_data = self.pcs_obs
             name_title = f"'{self.obs_name}'"
             name_file = self.obs_name.replace(' ', '-')
@@ -545,14 +550,12 @@ class ISOEvaluation:
 
         plot_title = f'Mean monthly frequency of ISO events'
         if self.obs:
-            name_title = f"'{self.sim_name}'_vs_'{self.obs_name}'"
-            name_file = f"{self.sim_name.replace(' ', '-')}_vs_{self.obs_name.replace(' ', '-')}"
+            name_file = f"{self.sim_name.replace(' ', '-')}_{self.obs_name.replace(' ', '-')}"
 
             if self.correct_pc:
                 plot_title += f' (corrected PCs)'
                 name_file += f"_corrected_PCs"
         else:
-            name_title = f"'{self.sim_name}'"
             name_file = f"{self.sim_name.replace(' ', '-')}"
 
         # Plot frequency of ISO events
@@ -561,6 +564,61 @@ class ISOEvaluation:
                                            title=plot_title, sim_label=self.sim_name, obs_label=self.obs_name)
 
         plot.save_or_show_plot(freq_plot, output_path, plot_filename=f"freq_ISO_{name_file}_{self.start_year_pc}-{self.end_year_pc}_projected_{self.start_year_eeof}-{self.end_year_eeof}",
-                               plot_name=f"Mean monthly frequency of ISO events for {name_title} plot")
+                               plot_name=f"Mean monthly frequency of ISO events plot")
+
+        return
+    
+    
+    def scores_table(self, output_path=None, reference=True):
+        """
+        Generate and save/display table plot with ISO scalar scores comparing simulations
+        and observations.
+
+        Parameters
+        ----------
+        output_path : str, optional
+            Path to save the table plot. If None, the table is displayed but not saved.
+        reference : bool
+            Whether to display reference values in the first row (not colored) (default: True).
+        """
+
+        # Validate that scores are available
+        if not self.obs:
+            raise ValueError("Scalar scores cannot be computed without observations. "
+                             "Set `obs=True` when calling the `compute_iso_scores` method to compute them.")
+
+
+        # Prepare data and plotting parameters  
+        sim_name_file = self.sim_name.replace(' ', '-')
+        obs_name_file = self.obs_name.replace(' ', '-')
+
+        year_range = f"{self.start_year_pc}-{self.end_year_pc}"
+        plot_title = f"ISO scalar scores ({year_range})"
+
+        scalar_scores = [self.scores['alpha'], self.scores['R'], self.scores['sigma'], self.scores['TSS']]
+        if reference:
+            data_scalar_scores = np.stack([[1.0, 1.0, 1.0, 1.0], scalar_scores])
+            rows_scalar_scores = [self.obs_name, self.sim_name]
+            name_file = f"{sim_name_file}_ref_{obs_name_file}"
+        else:
+            data_scalar_scores = np.array(scalar_scores).reshape(1, -1)
+            rows_scalar_scores = [self.sim_name]
+            name_file = f"{sim_name_file}_no_ref_{obs_name_file}"
+
+        if self.correct_pc:
+            plot_title += f' (corrected PCs)'
+            name_file += f"_corrected_PCs"
+
+        cols_scalar_scores = ["", r"  $\alpha$  ", r"    $R$    ", r"  $\sigma$  ", r"$\text{TSS}$"]    # Same number of characters needed to get same column width
+        cbar_ticks = ['Worse performance', ' ', 'Better performance']
+        colors = ("RedGreen", ['tab:red', 'white', 'tab:green'])
+
+
+        # Generate and save/display table plot
+        scalar_scores_table, _ = plot.plot_table(data_scalar_scores, title=plot_title, col_labels=cols_scalar_scores, row_labels=rows_scalar_scores,
+                                                 cbar_ticks=cbar_ticks, colors=colors, reference=reference, decimals=2)
+
+        plot.save_or_show_plot(scalar_scores_table, output_path, plot_filename=f"ISO_scalar_scores_table_{name_file}_{year_range}_projected_{self.start_year_eeof}-{self.end_year_eeof}",
+                               plot_name=f"ISO scalar scores table plot")
 
         return
