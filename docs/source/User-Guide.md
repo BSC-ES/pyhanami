@@ -257,11 +257,11 @@ iso_analysis_obs = sciskill.compute_iso_scores(
 ```
 Note that, in this case, it is not necessary to specify `start_year_eeof`and `end_year_eeof`, as the ones used for the reference observational dataset ([NOAA](https://psl.noaa.gov/data/gridded/data.olrcdr.interp.html) by default) are applied automatically.
 
-The same way as before, it is possible to save the computed data and create plots for the EEOFs, the PCs (bimodal indices) for the selected years (`[year_1, year_2, year_3]`), and the mean monthly frequency (seasonality) of ISO events. In this case, the monthly frequency is compared between simulations and observations, and plotted together with the **scalar scores**. The scores can also be retrieved with the `ISOEvaluation.scores` attribute:
+The same way as before, it is possible to save the computed data and create plots for the EEOFs, the PCs (bimodal indices) for the selected years (`[year_1, year_2, year_3]`), and the mean monthly frequency (seasonality) of ISO events. In this case, the monthly frequency is compared between simulations and observations, and plotted together with the **scalar scores**. The scores can also be retrieved with the `ISOEvaluation.scores` attribute and plotted as follows:
 
 ```python
-# Check computed scalar scores
-iso_analysis_obs.scores
+# Save and plot computed scalar scores
+iso_analysis_obs.scores_table('output_path')
 ```
 
 When `obs=True`, the simulated PCs can be adjusted before computing the scores to account for amplitude differences between simulations and observations (see [Methodology](./Methodology.md#tropical-intraseasonal-oscillation-iso) for more details). This correction can be turned on by passing the argument `correct_pc=True`.
@@ -270,6 +270,7 @@ To summarize, the `ISOEvaluation` class includes methods to generate the followi
 1. **EEOF plots** (`ISOEvaluation.eeof_plots`): spatial patterns of the first two EEOFs for boreal winter and boreal summer. The central longitude for these plots is set to 0º by default, but it can be modified with the argument `clon` (e.g., `clon=180`).
 2. **PC plots** (`ISOEvaluation.pc_plots`, passing one year or a list of years): time series of the first two PCs and their amplitude for both MJO and BSISO for the specified years.
 3. **Frequency plot** (`ISOEvaluation.freq_plot`): mean monthly frequency (seasonality) of ISO events for both MJO and BSISO, computed over the entire period covered by the dataset. If observations are set to `True`, these are included in the  frequency plot, which also shows the scalar scores ($\alpha$, $R$, $\sigma$ and $\text{TSS}$) comparing simulations and observations.
+4. **Scalar scores table** (`ISOEvaluation.scores_table`): table summarizing the computed scalar scores. Each column is colored independently, with the best- and worst-performing dataset in a column determining the limits of the colorbar for that column.
 
 
 ### Specific Madden-Julian Oscillation (MJO) analysis
@@ -282,7 +283,7 @@ The following snippet creates a `MJOEvaluation` instance that:
 1. Performs a **Combined Empirical Orthogonal Function (CEOF)** analysis between `year_init_mjo` and `year_end_mjo`
 2. Uses the CEOFs to compute the first two Principal Components (PCs) (**Real-Time Multivariate MJO (RMM) indices**) for the same period, projecting simulations both on the observed and simulated CEOFs
 3. Computes the **lead-lag correlation** between the RMM indices
-4. Determines the **MJO amplitude and active days per phase** based on the RMM indices amplitude
+4. Determines the climatological (annually averaged) **mean MJO amplitude and active days per phase** based on the RMM indices amplitude
 5. Calculates the **MJO power spectrum** (both symmetric and antisymmetric components) between `year_init_mjo` and `year_end_mjo`
 6. Computes various **scalar scores** comparing the simulated CEOFs, RMM indices, MJO activity and power to the observed ones
 
@@ -325,7 +326,7 @@ mjo_analysis.power_bias_table('output_path')
 To summarize, the `MJOEvaluation` class includes methods to generate the following visualization outputs:
 1. **CEOF plots** (`MJOEvaluation.ceof_plots`): longitudinal patterns of the first two Combined EOFs for the three considered variables comparing observations and simulations.
 2. **RMM indices lead-lag correlation plot** (`MJOEvaluation.lead_lag_corr_plot`): correlation between the RMM indices in terms of the termporal lag between them comparing observations and simulations.
-3. **MJO activity per phase plots** (`MJOEvaluation.activity_per_phase_plots`): mean MJO amplitude and number of active MJO days per phase for both observations and simulations. Both quantities are plotted separately using two bar plots by default, but they can also be plotted together in the same dot plot by passing the argument `layout='together'`, allowing to more easily identify the relationship between both quantities.
+3. **MJO activity per phase plots** (`MJOEvaluation.activity_per_phase_plots`): climatological (annually averaged) mean MJO amplitude and number of active MJO days per phase for both observations and simulations. Both quantities are plotted separately using two bar plots by default, but they can also be plotted together in the same bar plot by passing the argument `layout='together'`, allowing to more easily identify the relationship between both quantities.
 4. **Power spectrum plots** (`MJOEvaluation.power_spectrum_plots`): wavenumber-frequency spectrum comparing simulations and observations. By default, the symmetric component of the spectrum is plotted, but it is also possible to plot the antisymmetric component with the argument `component='antisymmetric'`. Besides, a dashed box around the MJO region <!--(wavenumbers 0-4, and frequencies 1/80-1/30) but why??--> is included in the plots by default, pass the argument `mjo_box=False` to remove it. Finally, the plot is created for the radiation `'rlut'` by default. It is also possible to generate it for the wind variables with the argument `spectrum_var='ua200'` or `spectrum_var='ua850'`.
 5. **Scalar score tables** (`MJOEvaluation.coef_corr_table`, `MJOEvaluation.coef_bias_table`, `MJOEvaluation.activity_per_phase_bias_tables`, `MJOEvaluation.power_bias_table`): tables summarizing the computed scalar scores. In each table, columns are colored independently. In the case of bias scores, white (zero bias) indicates the best-performing dataset in that column relative to the reference dataset in the first row. While in the case of correlation scores, dark green (correlation of 1) indicates the best performance.
 
@@ -429,3 +430,4 @@ iso_config.lag = 20
 - `output_path` for functions that generate a single plot can be either a directory path or a full file path including the filename. For functions that generate multiple plots, `output_path` must be a directory path. If `output_path` is not provided, the plots are displayed interactively.
 - `path_obs` must be a path to a directory containing observation datasets, with files named following the pattern `data_obs*_{var_name}.nc`, where `var_name` matches the corresponding variable name in `src/pyhanami/config/variables.yaml`. 
 - For all the spatial plots, the central longitude is set to 0º by default, but it can be modified with the argument `clon` (e.g., `clon=180`).
+- For all table plots, the first row displays values for the reference dataset by default, and subsequent rows show the scores relative to the reference. However, this row can be disabled by passing the argument `reference=False` when calling the corresponding method.

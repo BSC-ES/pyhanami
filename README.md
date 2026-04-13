@@ -157,8 +157,9 @@ iso_analysis.eeof_plots('output_path')
 iso_analysis.pc_plots('output_path', years=[year_1, year_2, year_3])
 iso_analysis.freq_plot('output_path')
 
-# Display computed scores (scalar values measuring how well simulations match observations)
-iso_analysis.scores
+# Create table plot summarizing the computed scalar scores and save them to 'output_path'
+# (scalar values measuring how well simulations match observations)
+iso_analysis.scores_table('output_path')
 ```
 
 #### Madden-Julian Oscillation (MJO)
