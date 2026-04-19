@@ -230,7 +230,7 @@ class ScientificEvaluation:
     
 
     def compute_tc_scores(self, data_name=None, start_year_tc=None, end_year_tc=None, obs=True, wind_factor=1.0, min_wind=10, 
-                           bin_size=2.5, tc_config=None):
+                          basin=-1, bin_size=2.5, tc_config=None):
         """
         Compute Tropical Cyclones (TCs) metrics and derive scalar scores following (C.M. Zarzycki et al., 2021) 
         and plot results.
@@ -248,6 +248,21 @@ class ScientificEvaluation:
             Wind speed correction factor (to normalize the provided wind to 10 m wind) for simulations (default: 1.0).
         min_wind : float
             Minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
+        basin : int
+            Basin/hemisphere to consider for the analysis (default: -1). Codes are:
+                - <0 → GLOB (Global domain)
+                - 1  → NATL (North Atlantic)
+                - 2  → EPAC (Eastern Pacific)
+                - 3  → CPAC (Central Pacific)
+                - 4  → WPAC (Western Pacific)
+                - 5  → NIO (North Indian Ocean)
+                - 6  → SIO (South Indian Ocean)
+                - 7  → SPAC (South Pacific)
+                - 8  → SATL (South Atlantic)
+                - 9  → FLA (Florida)
+                - 20 → NHEMI (Northern Hemisphere)
+                - 21 → SHEMI (Southern Hemisphere)
+                - otherwise → NONE (unrecognized)
         bin_size : float
             Size of the bins in degrees for computing the TCs metrics with CyMeP (default: 2.5).
         tc_config : TCConfig
@@ -277,7 +292,8 @@ class ScientificEvaluation:
         # Create a TCEvaluation object and compute scores
         print(f"Performing TCs analysis for dataset '{data_name}':", flush=True)
         tc_analysis = tc.TCEvaluation(data_sim=data_TC, start_year_tc=start_year_tc, end_year_tc=end_year_tc, obs=obs,
-                                      wind_factor=wind_factor, min_wind=min_wind, bin_size=bin_size, tc_config=tc_config)
+                                      wind_factor=wind_factor, min_wind=min_wind, basin=basin, bin_size=bin_size, 
+                                      tc_config=tc_config)
 
         return tc_analysis
 

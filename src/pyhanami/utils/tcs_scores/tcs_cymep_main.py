@@ -128,9 +128,9 @@ def run_cymep(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilename=confi
     truncate_years : bool
         Whether to filter out years external to styr and enyr (default: True).
     do_defineMYbypres : bool
-        Whether to define the maximum intensity location by psl instead of wind (default: False).
+        Whether to define the maximum intensity location by pressure instead of wind (default: False).
     do_fill_missing_pw : bool
-        Whether to fill missing data with observed pressure-wind curve (default: True).
+        Whether to fill missing data with (J.A. Knaff & R.M. Zehr, 2007) pressure-wind relationship (default: True).
     do_special_filter_obs : bool
         Whether to apply special observational filtering; if True, code modifications are needed (default: False).
     THRESHOLD_ACE_WIND : float
@@ -717,15 +717,15 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
     truncate_years : bool
         Whether to filter out years external to styr and enyr (default: True).
     do_defineMYbypres : bool
-        Whether to define the maximum intensity location by psl instead of wind (default: False).
+        Whether to define the maximum intensity location by pressure instead of wind (default: False).
     do_fill_missing_pw : bool
-        Whether to fill missing data with observed pressure-wind curve (default: True).
+        Whether to fill missing data with (J.A. Knaff & R.M. Zehr, 2007) pressure-wind relationship (default: True).
     do_special_filter_obs : bool
         Whether to apply special observational filtering; if True, code modifications are needed (default: False).
     THRESHOLD_ACE_WIND : float
         Wind speed threshold (in m/s) for ACE calculations; a negative value means no threshold (default: -1.).
     THRESHOLD_PACE_PRES : float
-        psl threshold (in hPa) for PACE calculations; a negative value means no threshold (default: -100.).
+        Pressure threshold (in hPa) for PACE calculations; a negative value means no threshold (default: -100.).
     debug_level : int
         Level of debug to perform and print (0: no debug, 1: semi-verbose, 2: very verbose) (default: 0).
 
@@ -850,7 +850,7 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
         xlonmi[:]  = np.nan
 
 
-        # Fill in missing values of pressure and wind if requested
+        # Fill in missing values of pressure and wind if requested (with (J.A. Knaff & R.M. Zehr, 2007) relationship)
         if do_fill_missing_pw:
             aaa=2.3
             bbb=1010.
@@ -1137,8 +1137,6 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
         # Calculate spatial densities, integrals, and min/maxes
         trackdens, denslat, denslon = tcs_cymep_funcs.track_density(gridsize,0.0,xlat.flatten(),xlon.flatten(),False)
         trackdens = trackdens/nmodyears
-        gendens, denslat, denslon = tcs_cymep_funcs.track_density(gridsize,0.0,xglat.flatten(),xglon.flatten(),False)
-        gendens = gendens/nmodyears
         tcddens, denslat, denslon = tcs_cymep_funcs.track_mean(gridsize,0.0,xlat.flatten(),xlon.flatten(),xtcdpp.flatten(),False,0)
         tcddens = tcddens/nmodyears
         acedens, denslat, denslon = tcs_cymep_funcs.track_mean(gridsize,0.0,xlat.flatten(),xlon.flatten(),xacepp.flatten(),False,0)
@@ -1147,6 +1145,8 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
         pacedens = pacedens/nmodyears
         minpres, denslat, denslon = tcs_cymep_funcs.track_minmax(gridsize,0.0,xlat.flatten(),xlon.flatten(),xpres.flatten(),"min",-1)
         maxwind, denslat, denslon = tcs_cymep_funcs.track_minmax(gridsize,0.0,xlat.flatten(),xlon.flatten(),xwind.flatten(),"max",-1)
+        gendens, denslat, denslon = tcs_cymep_funcs.track_density(gridsize,0.0,xglat.flatten(),xglon.flatten(),False)
+        gendens = gendens/nmodyears
 
 
         # If there are no storms tracked in this particular dataset, set everything to NaN
@@ -1155,9 +1155,9 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
             pacedens=float('NaN')
             acedens=float('NaN')
             tcddens=float('NaN')
-            gendens=float('NaN')
             minpres=float('NaN')
             maxwind=float('NaN')
+            gendens=float('NaN')
 
 
         # If ii = 0, generate master spatial arrays
@@ -1166,27 +1166,27 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
             denslatwgt    = np.cos(deg2rad*denslat)
             print("Generating master spatial arrays...")
             msdict = {}
-            msvars = ['spatial_abs_count','spatial_abs_minpres','spatial_abs_maxwind','spatial_abs_gen','spatial_abs_tcd','spatial_abs_ace','spatial_abs_pace',
-                      'spatial_bias_count','spatial_bias_minpres','spatial_bias_maxwind','spatial_bias_gen','spatial_bias_tcd','spatial_bias_ace','spatial_bias_pace']
+            msvars = ['spatial_abs_count','spatial_abs_tcd','spatial_abs_ace','spatial_abs_pace','spatial_abs_minpres','spatial_abs_maxwind','spatial_abs_gen',
+                      'spatial_bias_count','spatial_bias_tcd','spatial_bias_ace','spatial_bias_pace','spatial_bias_minpres','spatial_bias_maxwind','spatial_bias_gen']
             for x in msvars:
                 msdict[x] = np.empty((nfiles, denslat.size, denslon.size))
 
         # Store this model's data in the master spatial array
         msdict['spatial_abs_count'][ii,:,:] = trackdens[:,:]
-        msdict['spatial_abs_minpres'][ii,:,:] = minpres[:,:]
-        msdict['spatial_abs_maxwind'][ii,:,:] = maxwind[:,:]
-        msdict['spatial_abs_gen'][ii,:,:]  = gendens[:,:]
         msdict['spatial_abs_tcd'][ii,:,:]  = tcddens[:,:]
         msdict['spatial_abs_ace'][ii,:,:]  = acedens[:,:]
         msdict['spatial_abs_pace'][ii,:,:] = pacedens[:,:]
+        msdict['spatial_abs_minpres'][ii,:,:] = minpres[:,:]
+        msdict['spatial_abs_maxwind'][ii,:,:] = maxwind[:,:]
+        msdict['spatial_abs_gen'][ii,:,:]  = gendens[:,:]
 
         msdict['spatial_bias_count'][ii,:,:] = trackdens[:,:] - msdict['spatial_abs_count'][0,:,:]
-        msdict['spatial_bias_minpres'][ii,:,:]   = minpres[:,:]   - msdict['spatial_abs_minpres'][0,:,:]
-        msdict['spatial_bias_maxwind'][ii,:,:]  = maxwind[:,:]  - msdict['spatial_abs_maxwind'][0,:,:]
-        msdict['spatial_bias_gen'][ii,:,:]   = gendens[:,:]   - msdict['spatial_abs_gen'][0,:,:]
         msdict['spatial_bias_tcd'][ii,:,:]  = tcddens[:,:]  - msdict['spatial_abs_tcd'][0,:,:]
         msdict['spatial_bias_ace'][ii,:,:]   = acedens[:,:]   - msdict['spatial_abs_ace'][0,:,:]
         msdict['spatial_bias_pace'][ii,:,:]  = pacedens[:,:]  - msdict['spatial_abs_pace'][0,:,:]
+        msdict['spatial_bias_minpres'][ii,:,:]   = minpres[:,:]   - msdict['spatial_abs_minpres'][0,:,:]
+        msdict['spatial_bias_maxwind'][ii,:,:]  = maxwind[:,:]  - msdict['spatial_abs_maxwind'][0,:,:]
+        msdict['spatial_bias_gen'][ii,:,:]   = gendens[:,:]   - msdict['spatial_abs_gen'][0,:,:]
 
     # Back to the main program
     #for zz in pydict:
@@ -1199,18 +1199,18 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
     # Spatial correlation calculations
     ## Initialize dict
     rxydict={}
-    rxyvars = ["spatial_pcorr_count","spatial_pcorr_gen","spatial_pcorr_maxwind","spatial_pcorr_minpres","spatial_pcorr_tcd","spatial_pcorr_ace","spatial_pcorr_pace"]
+    rxyvars = ["spatial_pcorr_count","spatial_pcorr_tcd","spatial_pcorr_ace","spatial_pcorr_pace","spatial_pcorr_minpres","spatial_pcorr_maxwind","spatial_pcorr_gen"]
     for x in rxyvars:
         rxydict[x] = np.empty(nfiles)
 
     for ii in range(nfiles):
         rxydict['spatial_pcorr_count'][ii] = tcs_cymep_funcs.pattern_cor(msdict['spatial_abs_count'][0,:,:], msdict['spatial_abs_count'][ii,:,:], denslatwgt, 0)
-        rxydict['spatial_pcorr_gen'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_abs_gen'][0,:,:],  msdict['spatial_abs_gen'][ii,:,:],  denslatwgt, 0)
-        rxydict['spatial_pcorr_maxwind'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_abs_maxwind'][0,:,:], msdict['spatial_abs_maxwind'][ii,:,:], denslatwgt, 0)
-        rxydict['spatial_pcorr_minpres'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_abs_minpres'][0,:,:], msdict['spatial_abs_minpres'][ii,:,:], denslatwgt, 0)
         rxydict['spatial_pcorr_tcd'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_abs_tcd'][0,:,:],  msdict['spatial_abs_tcd'][ii,:,:],  denslatwgt, 0)
         rxydict['spatial_pcorr_ace'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_abs_ace'][0,:,:],  msdict['spatial_abs_ace'][ii,:,:],  denslatwgt, 0)
         rxydict['spatial_pcorr_pace'][ii]  = tcs_cymep_funcs.pattern_cor(msdict['spatial_abs_pace'][0,:,:], msdict['spatial_abs_pace'][ii,:,:], denslatwgt, 0)
+        rxydict['spatial_pcorr_minpres'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_abs_minpres'][0,:,:], msdict['spatial_abs_minpres'][ii,:,:], denslatwgt, 0)
+        rxydict['spatial_pcorr_maxwind'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_abs_maxwind'][0,:,:], msdict['spatial_abs_maxwind'][ii,:,:], denslatwgt, 0)
+        rxydict['spatial_pcorr_gen'][ii]   = tcs_cymep_funcs.pattern_cor(msdict['spatial_abs_gen'][0,:,:],  msdict['spatial_abs_gen'][ii,:,:],  denslatwgt, 0)
 
     # Temporal correlation calculations
     # Spearman Rank
@@ -1335,6 +1335,6 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilen
 
     # Create xarray Dataset with all the metrics
     data_cymep = tcs_cymep_funcs.write_cymep_output_pyhanami(pmdict, pydict, acdict, asdict, rsdict, msdict, rxydict, strs, 
-                                                       nyears, nmonths, denslat, denslon, globaldict, metrics_descriptions)
+                                                             nyears, nmonths, denslat, denslon, globaldict, metrics_descriptions)
 
     return data_cymep

@@ -1,3 +1,6 @@
+import warnings
+warnings.simplefilter("always")
+
 import os
 import re
 import shutil
@@ -35,6 +38,21 @@ class TCEvaluation:
         Wind speed correction factor (to normalize the provided wind to 10 m wind) for simulations (default: 1.0).
     min_wind : float
         Minimum 10 m wind speed in m/s for TCs detection (default: 10.0).
+    basin : int
+        Basin/hemisphere to consider for the analysis (default: -1). Codes are:
+            - <0 → GLOB (Global domain)
+            - 1  → NATL (North Atlantic)
+            - 2  → EPAC (Eastern Pacific)
+            - 3  → CPAC (Central Pacific)
+            - 4  → WPAC (Western Pacific)
+            - 5  → NIO (North Indian Ocean)
+            - 6  → SIO (South Indian Ocean)
+            - 7  → SPAC (South Pacific)
+            - 8  → SATL (South Atlantic)
+            - 9  → FLA (Florida)
+            - 20 → NHEMI (Northern Hemisphere)
+            - 21 → SHEMI (Southern Hemisphere)
+            - otherwise → NONE (unrecognized)    
     bin_size : float
         Size of the bins in degrees for computing the TCs metrics with CyMeP (default: 2.5).
     tc_config : TCConfig
@@ -85,8 +103,8 @@ class TCEvaluation:
         Colorbar colors for correlation tables.
     """
 
-    def __init__(self, data_sim, start_year_tc=None, end_year_tc=None, obs=True, wind_factor=1.0, min_wind=10.0, bin_size=2.5,
-                 tc_config=None):
+    def __init__(self, data_sim, start_year_tc=None, end_year_tc=None, obs=True, wind_factor=1.0, min_wind=10.0, basin=-1,  
+                 bin_size=2.5, tc_config=None):
         
         # Validate input
         if not isinstance(data_sim, SimulationData):
@@ -137,7 +155,7 @@ class TCEvaluation:
 
         # Compute TCs metrics
         print("\tStarting Tropical Cyclones metrics computation. CyMeP output:", flush=True)
-        self.data_cymep, self.model_names = self._compute_cymep_metrics()
+        self.data_cymep, self.model_names = self._compute_cymep_metrics(basin=basin, tc_config=tc_config)
         print(f"\tTCs metrics computed. See attribute `data_cymep`.", flush=True)
 
         self.clim_bias, self.storm_bias, self.cbar_ticks_bias, self.colors_bias = self._retrieve_biases()
@@ -239,9 +257,29 @@ class TCEvaluation:
         return
 
 
-    def _compute_cymep_metrics(self):
+    def _compute_cymep_metrics(self, basin=-1, tc_config=None):
         """
         Compute TCs metrics using the CyMeP package.
+
+        Parameters
+        ----------
+        basin : int
+            Basin/hemisphere to consider for the analysis (default: -1). Codes are:
+                - <0 → GLOB (Global domain)
+                - 1  → NATL (North Atlantic)
+                - 2  → EPAC (Eastern Pacific)
+                - 3  → CPAC (Central Pacific)
+                - 4  → WPAC (Western Pacific)
+                - 5  → NIO (North Indian Ocean)
+                - 6  → SIO (South Indian Ocean)
+                - 7  → SPAC (South Pacific)
+                - 8  → SATL (South Atlantic)
+                - 9  → FLA (Florida)
+                - 20 → NHEMI (Northern Hemisphere)
+                - 21 → SHEMI (Southern Hemisphere)
+                - otherwise → NONE (unrecognized)
+        tc_config : TCConfig
+            Configuration dataclass with parameters necessary for the TempestExtremes functions.
 
         Returns 
         -------
@@ -256,8 +294,11 @@ class TCEvaluation:
         tcs_cymep_main.prepare_configs_file(self.config_cymep, output_path=config_cymep_path)
 
         # Run CyMeP TCs metrics computation
-        data_cymep = tcs_cymep_main.run_cymep_pyhanami(self.start_year_tc, self.end_year_tc, output_path=self.tracks_path, 
-                                                            gridsize=self.bin_size, csvfilename=config_cymep_path)
+        data_cymep = tcs_cymep_main.run_cymep_pyhanami(self.start_year_tc, self.end_year_tc, output_path=self.tracks_path, gridsize=self.bin_size, 
+                                                       basin=basin, csvfilename=config_cymep_path, truncate_years=tc_config.truncate_years,
+                                                       do_defineMIbypres=tc_config.do_defineMIbypres, do_fill_missing_pw=tc_config.do_fill_missing_pw, 
+                                                       do_special_filter_obs=tc_config.do_special_filter_obs, THRESHOLD_ACE_WIND=tc_config.threshold_ace_wind,
+                                                       THRESHOLD_PACE_PRES=tc_config.threshold_pace_pres)
         model_names = data_cymep.model.values 
 
         return data_cymep, model_names

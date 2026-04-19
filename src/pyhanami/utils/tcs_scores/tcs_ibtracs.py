@@ -50,9 +50,9 @@ def prepare_ibtracs_data(ib_file, start_idx, end_idx, ms_to_kts=1.94384449, flip
     ib_type : xarray.DataArray
         Storm types along the track.
     ib_wind : xarray.DataArray
-        Wind speeds along the track (in knots).
+        Wind speeds along the track (in m/s).
     ib_pres : xarray.DataArray
-        Pressures along the track (in hPa).
+        Pressures along the track (in Pa).
     ib_time : xarray.DataArray
         Time points along the track.
     ib_name : xarray.DataArray
@@ -95,9 +95,9 @@ def correct_time_data(ib_time, ib_wind, ib_pres, ib_lat, ib_lon, ib_names, valid
     ib_time : xarray.DataArray
         Time points along the storm track.
     ib_wind : xarray.DataArray
-        Wind speeds along the storm track.
+        Wind speeds along the storm track (in m/s).
     ib_pres : xarray.DataArray
-        Pressures along the storm track.
+        Pressures along the storm track (in Pa).
     ib_lat : xarray.DataArray
         Latitudes along the storm track.
     ib_lon : xarray.DataArray
@@ -112,9 +112,9 @@ def correct_time_data(ib_time, ib_wind, ib_pres, ib_lat, ib_lon, ib_names, valid
     ib_time : xarray.DataArray
         Corrected time points.
     ib_wind : xarray.DataArray
-        Masked wind speeds.
+        Masked wind speeds (in m/s).
     ib_pres : xarray.DataArray
-        Masked pressures.
+        Masked pressures (in Pa).
     ib_lat : xarray.DataArray
         Masked latitudes.
     ib_lon : xarray.DataArray
@@ -123,36 +123,45 @@ def correct_time_data(ib_time, ib_wind, ib_pres, ib_lat, ib_lon, ib_names, valid
         Masked storm names.
     """
 
-    # Correct null values
-    ib_time = xr.where(ib_time.notnull(), ib_time, np.datetime64('NaT'))
+    # Round time to the nearest second to fix floating-point errors
+    ib_time = ib_time.dt.round('1s')
 
     # Mask data outside the time range
-    ib_wind = xr.where(valid_time, ib_wind, np.nan)
-    ib_pres = xr.where(valid_time, ib_pres, np.nan)
-    ib_lat = xr.where(valid_time, ib_lat, np.nan)
-    ib_lon = xr.where(valid_time, ib_lon, np.nan)
-    ib_time = xr.where(valid_time, ib_time, np.datetime64('NaT'))
-    ib_names = xr.where(valid_time, ib_names, '')
+    ib_wind = ib_wind.where(valid_time)
+    ib_pres = ib_pres.where(valid_time)
+    ib_lat = ib_lat.where(valid_time)
+    ib_lon = ib_lon.where(valid_time)
+    ib_time = ib_time.where(valid_time)
+    ib_names = ib_names.where(valid_time, other='')
 
     # Mask data at non-standard time steps (not every 6 hours)
     eps = 0.00001
-    hours_since_midnight = ib_time.dt.hour + ib_time.dt.minute/60.0
-    nonstandard_time = (np.mod(hours_since_midnight, 6) >= eps) | (np.mod(hours_since_midnight, 6) <= -eps)
+    hours_since_midnight = ib_time.dt.hour + ib_time.dt.minute/60.0 + ib_time.dt.second/3600.0
+    hours_mod_6 = np.mod(hours_since_midnight, 6)
+    standard_time = (hours_mod_6 <= eps) | (hours_mod_6 >= (6-eps))
 
-    ib_wind = xr.where(nonstandard_time, np.nan, ib_wind)
-    ib_pres = xr.where(nonstandard_time, np.nan, ib_pres)
-    ib_lat = xr.where(nonstandard_time, np.nan, ib_lat)
-    ib_lon = xr.where(nonstandard_time, np.nan, ib_lon)
-    ib_time = xr.where(nonstandard_time, np.datetime64('NaT'), ib_time)
-    ib_names = xr.where(nonstandard_time, '', ib_names)
+    ib_wind = ib_wind.where(standard_time)
+    ib_pres = ib_pres.where(standard_time)
+    ib_lat = ib_lat.where(standard_time)
+    ib_lon = ib_lon.where(standard_time)
+    ib_time = ib_time.where(standard_time)
+    ib_names = ib_names.where(standard_time, other='')
+    
+    # nonstandard_time = (hours_mod_6 >= eps) | (hours_mod_6 <= -eps)
+    # ib_wind = xr.where(nonstandard_time, np.nan, ib_wind)
+    # ib_pres = xr.where(nonstandard_time, np.nan, ib_pres)
+    # ib_lat = xr.where(nonstandard_time, np.nan, ib_lat)
+    # ib_lon = xr.where(nonstandard_time, np.nan, ib_lon)
+    # ib_time = xr.where(nonstandard_time, np.datetime64('NaT'), ib_time)
+    # ib_names = xr.where(nonstandard_time, '', ib_names)
 
     return ib_time, ib_wind, ib_pres, ib_lat, ib_lon, ib_names
 
 
 def correct_wind_pres_data(wind, pres):
     """
-    Apply K&Z 07 relationship to fill missing pressure-wind data
-    when possible, keep NaN values otherwise.
+    Apply (J.A. Knaff & R.M. Zehr, 2007) relationship to fill missing pressure-wind
+    data when possible, keep NaN values otherwise.
 
     Not used anymore, replaced by vectorized version.
     
@@ -185,8 +194,8 @@ def correct_wind_pres_data(wind, pres):
 
 def correct_wind_pres_data_vectorized(wind, pres):
     """
-    Apply K&Z 07 relationship to fill missing pressure-wind data
-    when possible, keep NaN values otherwise.
+    Apply (J.A. Knaff & R.M. Zehr, 2007) relationship to fill missing pressure-wind 
+    data when possible, keep NaN values otherwise.
     
     Parameters
     ----------
@@ -207,6 +216,7 @@ def correct_wind_pres_data_vectorized(wind, pres):
     pres_corr = pres.copy()
 
     a, b, c = 2.3, 1010.0, 0.76
+    # Supress warnings for invalid operations and division by zero as NaN values are already handled by the masks
     with np.errstate(invalid='ignore', divide='ignore'):
         mask1 = np.isnan(wind) & ~np.isnan(pres)
         wind_corr[mask1] = a * np.power((b - pres[mask1]/100.0), c)
@@ -323,7 +333,8 @@ def great_circle_distance(lat1, lon1, lat2, lon2, npts=2, iu=4):
 
 def convert_ibtracs_to_tempest(start_year=config_params.IBTRACS_START_YEAR, end_year=datetime.now().year, min_wind=10.0,
                                flip_grid_180=True, is_grid_2d=False, cut_regional=False, cut_regional_ring_width=8, 
-                               correct_pres_wind=True, dur_thresh=3, print_names=False):
+                               correct_pres_wind=True, dur_thresh=3, print_names=False, topog_file=config_params.TOPOG_PATH,
+                               topog_varname = config_params.TOPOG_VARNAME):
     """
     Convert IBTrACS data to TempestExtremes format and save to a .txt file.
 
@@ -349,6 +360,10 @@ def convert_ibtracs_to_tempest(start_year=config_params.IBTRACS_START_YEAR, end_
         Minimum duration threshold for storms (default: 3).
     print_names : bool
         Whether to print storm names in the output file (default: False).
+    topog_file : str
+        Path to topography data file (default: config_params.TOPOG_PATH).
+    topog_varname : str
+        Variable name for elevation in the topography data file (default: config_params.TOPOG_VARNAME).
     """
 
     # Define constants
@@ -363,6 +378,9 @@ def convert_ibtracs_to_tempest(start_year=config_params.IBTRACS_START_YEAR, end_
     # Find storm bounds for the specified years (first and last instances of valid years)
     ib_year = ib_file.season.values.astype(int)
     valid_years = (ib_year >= start_year-1) & (ib_year <= end_year+1)
+    if not valid_years.any():
+        raise ValueError(f"No storms found between {start_year} and {end_year} in the IBTrACS dataset.")
+    
     start_idx = np.where(valid_years)[0][0]
     end_idx = np.where(valid_years)[0][-1]
 
@@ -382,12 +400,18 @@ def convert_ibtracs_to_tempest(start_year=config_params.IBTRACS_START_YEAR, end_
     ib_stormcount = len(ib_file.season.isel(storm=slice(start_idx, end_idx+1)))
     ib_ntimes = ib_lat.shape[1]  
 
-    # Process storm names (convert from char to str)
-    ib_names_list = [str(ib_name[i].values).replace(',', '') for i in range(ib_stormcount)]
+    # Process storm names (convert from char to str, and broadcast to match 2D dimensions of ib_wind)
+    ib_names_list = [ib_name[i].values.astype(str).item().replace(',', '') for i in range(ib_stormcount)]
+
+    ib_names_2d = np.repeat(
+        np.array(ib_names_list)[:, np.newaxis],
+        repeats=ib_wind.shape[1],
+        axis=1
+    )
     ib_names = xr.DataArray(
-        ib_names_list,
-        dims=ib_name.dims,
-        coords=ib_name.coords,
+        ib_names_2d,
+        dims=ib_wind.dims,
+        coords=ib_wind.coords,
         name='name'
     )
 
@@ -397,7 +421,11 @@ def convert_ibtracs_to_tempest(start_year=config_params.IBTRACS_START_YEAR, end_
     )
 
     # Preload and process grid data if requested
-    topog = xr.open_dataset(config_params.TOPOG_PATH) 
+    try:
+        topog = xr.open_dataset(topog_file) 
+    except Exception as e:
+        raise ValueError("Issue encountered when preparing IBTrACS data for Tropical Cyclones:"
+                         f" Error loading topography data from '{topog_file}': {e}.")
     if is_grid_2d:
         gridlat = topog.XLAT
         gridlon = topog.XLONG
@@ -407,7 +435,6 @@ def convert_ibtracs_to_tempest(start_year=config_params.IBTRACS_START_YEAR, end_
         gridlon = topog.lon
                             
     # Prepare PHIS data
-    topog_varname = config_params.TOPOG_VARNAME
     surf_geopotential = topog[topog_varname] * config_params.G
     phis = surf_geopotential.to_dataset().rename({topog_varname: 'PHIS'}) 
 
@@ -480,11 +507,6 @@ def convert_ibtracs_to_tempest(start_year=config_params.IBTRACS_START_YEAR, end_
                 # Get date components from first valid time point
                 dt = pd.Timestamp(ib_time[ii,ib_start_idx].values)
                 thisdate = (dt.year, dt.month, dt.day, dt.hour)
-
-                # Create and write header string
-                header = ib_names[ii] if print_names else "start"
-                headstr = f"{header}\t{numentries}\t{thisdate[0]}\t{thisdate[1]}\t{thisdate[2]}\t{thisdate[3]}"
-                f.write(f"{headstr}\n")
                 
 
                 # Check for missing pressure and wind data
@@ -498,12 +520,21 @@ def convert_ibtracs_to_tempest(start_year=config_params.IBTRACS_START_YEAR, end_
                 
                 # Handle points missing both pressure and wind
                 if np.array_equal(~np.isnan(ib_lat[ii,:].values), missing_both):
-                    print(f"{ib_names[ii]} in {ib_basin[ii,0].values} is missing all pressure and wind data " 
-                        f"at all times {thisdate[0]}\t{thisdate[1]}\t{thisdate[2]}\t{thisdate[3]}.", flush=True)
+                    print(f"Storm '{ib_names[ii,0].values}' in basin '{ib_basin[ii,0].values}' is missing all pressure and wind data " 
+                          f"at all times for date: {thisdate[0]}-{thisdate[1]}-{thisdate[2]}, {thisdate[3]}h. "
+                          f"NOTE: basin values are '{ib_basin.attrs['Note'].replace(' ',', ')}'.", flush=True)
+                    continue
                 elif np.any(missing_both):
-                    print(f"{ib_names[ii]} is missing some pressure and wind data at same time "
-                          f"{thisdate[0]}\t{thisdate[1]}\t{thisdate[2]}\t{thisdate[3]}.", flush=True)
-                    
+                    print(f"Storm '{ib_names[ii,0].values}' in basin '{ib_basin[ii,0].values}' is missing some pressure and wind data "
+                          f"at same time for date: {thisdate[0]}-{thisdate[1]}-{thisdate[2]}, {thisdate[3]}h. "
+                          f"NOTE: basin values are '{ib_basin.attrs['Note'].replace(' ',', ')}'.", flush=True)
+
+
+                # Create and write header string
+                header = ib_names[ii] if print_names else "start"
+                headstr = f"{header}\t{numentries}\t{thisdate[0]}\t{thisdate[1]}\t{thisdate[2]}\t{thisdate[3]}"
+                f.write(f"{headstr}\n")
+                
 
                 # Process and write trajectory points
                 for jj in range(ib_start_idx, ib_ntimes):
@@ -532,7 +563,7 @@ def convert_ibtracs_to_tempest(start_year=config_params.IBTRACS_START_YEAR, end_
                         f.write(f"{stormstr}\n")
 
 
-    print(f"IBTrACS data in TempestExtremes format saved to {output_path}.", flush=True)
+    print(f"IBTrACS data in TempestExtremes format saved to '{output_path}'.", flush=True)
     return
 
 

@@ -1,4 +1,4 @@
-# Parameters for Tropical Intraseasonal Oscillation evaluation
+# Parameters for Tropical Intraseasonal Oscillation (ISO) evaluation
 # Reference: (K. Kikuchi et al., 2012)
 iso:
 
@@ -36,7 +36,7 @@ iso:
     description: Number of EEOF modes to compute
 
 
-# Parameters for Madden-Julian Oscillation evaluation
+# Parameters for Madden-Julian Oscillation (MJO) evaluation
 # Reference: (M.C. Wheeler & H.H. Hendon, 2004), (M.C. Wheeler & G.N. Kiladis, 1999)
 mjo:
 
@@ -56,7 +56,7 @@ mjo:
     type: int
     description: Number of harmonics to remove from seasonal cycle
   normalize_std:
-    value: false
+    value: False
     type: bool
     description: Whether to normalize anomalies by fixed standard deviations when removing the seasonal cycle
 
@@ -92,8 +92,8 @@ mjo:
     description: Wavenumber bounds corresponding to the MJO band in the wavenumber-frequency space
 
 
-# Parameters for Tropical Cyclones evaluation
-# Reference: (C.M. Zarzycki & P.A. Ullrich, 2017).
+# Parameters for Tropical Cyclones (TCs) evaluation
+# Reference: (C.M. Zarzycki & P.A. Ullrich, 2017), (C.M. Zarzycki et al., 2021)
 tc:
   
   # DetectNodes parameters
@@ -164,3 +164,31 @@ tc:
     type: float
     units: "m"
     description: Maximum topography height
+
+  # TC metrics computation parameters 
+  truncate_years:
+    value: True
+    type: bool
+    description: Whether to filter out years outside of the analysis period
+  do_defineMIbypres:
+    value: False
+    type: bool
+    description: Whether to define the maximum intensity location by pressure instead of wind
+  do_fill_missing_pw:
+    value: True
+    type: bool
+    description: Whether to fill missing data with (J.A. Knaff & R.M. Zehr, 2007) pressure-wind relationship
+  do_special_filter_obs:
+    value: False
+    type: bool
+    description: Whether to apply special observational filtering; if True, code modifications are needed
+  threshold_ace_wind:
+    value: -1.
+    type: float
+    units: "m s**-1"
+    description: Wind speed threshold for ACE caculations, a negative value means no threshold
+  threshold_pace_pres:
+    value: -100.
+    type: float
+    units: "hPa"
+    description: Pressure threshold for PACE caculations, a negative value means no threshold
