@@ -4,7 +4,6 @@ warnings.simplefilter("always")
 import numpy as np
 import xarray as xr
 import concurrent.futures
-import matplotlib.pyplot as plt
 
 from pathlib import Path
 from scipy.stats import bootstrap
@@ -97,9 +96,9 @@ class ReplicabilityTest:
 
         # Validate significance level
         if not isinstance(alpha, (int, float)):
-            raise TypeError(f"The significance level 'alpha' must be numeric.")
+            raise TypeError("The significance level 'alpha' must be numeric.")
         if not (0 <= alpha <= 1):
-            raise ValueError(f"'alpha' must be between 0 and 1.")
+            raise ValueError("'alpha' must be between 0 and 1.")
         self.alpha = alpha
 
         # Load config parameters once
@@ -561,7 +560,7 @@ class ReplicabilityTest:
                 or "realization" not in data_plot[1].data.coords
             ):
                 raise ValueError(
-                    f"All selected datasets must contain a 'realization' coordinate for ensemble computations."
+                    "All selected datasets must contain a 'realization' coordinate for ensemble computations."
                 )
         else:
             raise TypeError(
@@ -802,7 +801,7 @@ class ReplicabilityTest:
             matrix,
             output_path,
             plot_filename=f"replicability_test_matrix_{data_names_str}",
-            plot_name=f"Replicability test matrix plot",
+            plot_name="Replicability test matrix plot",
         )
 
         return

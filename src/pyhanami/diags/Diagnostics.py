@@ -323,11 +323,11 @@ class DataDiagnostics:
                     f"Dataset '{dataset.name}' must contain a 'realization' coordinate for ensemble computations."
                 )
         if not isinstance(alpha, (int, float)):
-            raise TypeError(f"The significance level 'alpha' must be numeric.")
+            raise TypeError("The significance level 'alpha' must be numeric.")
         if not (0 <= alpha <= 1):
-            raise ValueError(f"'alpha' must be between 0 and 1.")
+            raise ValueError("'alpha' must be between 0 and 1.")
         if not callable(stat):
-            raise TypeError(f"'stat' must be callable.")
+            raise TypeError("'stat' must be callable.")
 
         data_sim_1 = data_plot[0].data.persist()
         data_sim_2 = data_plot[1].data.persist()
@@ -751,9 +751,9 @@ class DataDiagnostics:
                     f"Dataset '{dataset.name}' must contain a 'realization' coordinate for ensemble computations."
                 )
         if not isinstance(alpha, (int, float)) or not (0 <= alpha <= 1):
-            raise TypeError(f"The significance level 'alpha' must be a numeric value between 0 and 1.")
+            raise TypeError("The significance level 'alpha' must be a numeric value between 0 and 1.")
         if not callable(stat):
-            raise TypeError(f"'stat' must be callable.")
+            raise TypeError("'stat' must be callable.")
 
         # Validate year range
         for dataset in data_plot:

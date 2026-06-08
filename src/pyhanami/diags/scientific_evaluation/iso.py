@@ -397,12 +397,12 @@ class ISOEvaluation:
         if self.obs:
             # Compute alpha (only with raw PCs' amplitudes)
             alpha_num = (
-                pcs_sim[f"amp_MJO_raw"].mean(dim="time") 
-                + pcs_sim[f"amp_BSISO_raw"].mean(dim="time")
+                pcs_sim["amp_MJO_raw"].mean(dim="time") 
+                + pcs_sim["amp_BSISO_raw"].mean(dim="time")
             )
             alpha_den = (
-                self.pcs_obs[f"amp_MJO_raw"].mean(dim="time") 
-                + self.pcs_obs[f"amp_BSISO_raw"].mean(dim="time")
+                self.pcs_obs["amp_MJO_raw"].mean(dim="time") 
+                + self.pcs_obs["amp_BSISO_raw"].mean(dim="time")
             )
             alpha = ((alpha_num / alpha_den).values).item()
 
@@ -655,11 +655,11 @@ class ISOEvaluation:
 
         # Validate years input
         if years is None:
-            raise ValueError(f"Provide at least one year to plot the PCs for.")
+            raise ValueError("Provide at least one year to plot the PCs for.")
         if isinstance(years, int):
             years = [years]
         if not all(year in pcs_data.time.dt.year for year in years):
-            raise ValueError(f"Some years are missing in the PCs data.")
+            raise ValueError("Some years are missing in the PCs data.")
 
         # Plot PCs for selected years
         custom_name = True if len(years) == 1 else False
@@ -689,13 +689,13 @@ class ISOEvaluation:
             Path to save plots. If None, plots are displayed but not saved.
         """
 
-        plot_title = f"Mean monthly frequency of ISO events"
+        plot_title ="Mean monthly frequency of ISO events"
         if self.obs:
             name_file = f"{self.sim_name.replace(' ', '-')}_{self.obs_name.replace(' ', '-')}"
 
             if self.correct_pc:
-                plot_title += f" (corrected PCs)"
-                name_file += f"_corrected_PCs"
+                plot_title += " (corrected PCs)"
+                name_file += "_corrected_PCs"
         else:
             name_file = f"{self.sim_name.replace(' ', '-')}"
 
@@ -716,7 +716,7 @@ class ISOEvaluation:
             freq_plot,
             output_path,
             plot_filename=f"freq_ISO_{name_file}_{self.start_year_pc}-{self.end_year_pc}_projected_{self.start_year_eeof}-{self.end_year_eeof}",
-            plot_name=f"Mean monthly frequency of ISO events plot",
+            plot_name="Mean monthly frequency of ISO events plot",
         )
 
         return
@@ -765,8 +765,8 @@ class ISOEvaluation:
             name_file = f"{sim_name_file}_no_ref_{obs_name_file}"
 
         if self.correct_pc:
-            plot_title += f" (corrected PCs)"
-            name_file += f"_corrected_PCs"
+            plot_title += " (corrected PCs)"
+            name_file += "_corrected_PCs"
 
         cols_scalar_scores = [
             "",
@@ -794,7 +794,7 @@ class ISOEvaluation:
             scalar_scores_table,
             output_path,
             plot_filename=f"ISO_scalar_scores_table_{name_file}_{year_range}_projected_{self.start_year_eeof}-{self.end_year_eeof}",
-            plot_name=f"ISO scalar scores table plot",
+            plot_name="ISO scalar scores table plot",
         )
 
         return

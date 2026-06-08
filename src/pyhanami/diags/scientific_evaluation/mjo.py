@@ -1008,7 +1008,7 @@ class MJOEvaluation:
             ceof_sim_plot,
             output_path,
             plot_filename=f"ceof_{sim_name_file}_{obs_name_file}_projected_on_sim_{year_range}",
-            plot_name=f"Combined MJO CEOFs plot",
+            plot_name="Combined MJO CEOFs plot",
         )
         return
 
@@ -1064,7 +1064,7 @@ class MJOEvaluation:
             plt.gcf(),
             output_path,
             plot_filename=f"lead_lag_corr_rmm_{sim_name_file}_{obs_name_file}_{year_range}",
-            plot_name=f"Lead-lag correlation of the RMM indices plot",
+            plot_name="Lead-lag correlation of the RMM indices plot",
         )
         return
 
@@ -1123,7 +1123,7 @@ class MJOEvaluation:
             ceof_scores_table,
             output_path,
             plot_filename=f"ceof_corr_table_{name_file}_{year_range}",
-            plot_name=f"Correlation in Combined EOFs table plot",
+            plot_name="Correlation in Combined EOFs table plot",
         )
 
         return
@@ -1216,7 +1216,7 @@ class MJOEvaluation:
             ceof_bias_table_plot,
             output_path,
             plot_filename=f"ceof_bias_table_{name_file}_{year_range}",
-            plot_name=f"Bias derived from Combined EOF analysis table plot",
+            plot_name="Bias derived from Combined EOF analysis table plot",
         )
 
         return
@@ -1261,7 +1261,7 @@ class MJOEvaluation:
             mean_amp_bar_plot,
             output_path,
             plot_filename=f"mean_amplitude_{sim_name_file}_{obs_name_file}_{year_range}",
-            plot_name=f"Climatological mean MJO amplitude in the active days per phase bar plot",
+            plot_name="Climatological mean MJO amplitude in the active days per phase bar plot",
         )
         return
 
@@ -1295,7 +1295,7 @@ class MJOEvaluation:
         active_days_bar_plot, _ = plot.plot_grouped_bars(
             data_active_days,
             x_values=x_values,
-            title=f"Climatological active MJO days per phase ({year_range})",
+            title="Climatological active MJO days per phase ({year_range})",
             x_label="MJO phase",
             y_label="number of active days per year",
             labels=labels_active_days,
@@ -1305,7 +1305,7 @@ class MJOEvaluation:
             active_days_bar_plot,
             output_path,
             plot_filename=f"active_days_{sim_name_file}_{obs_name_file}_{year_range}",
-            plot_name=f"Climatological active MJO days per phase bar plot",
+            plot_name="Climatological active MJO days per phase bar plot",
         )
         return
 
@@ -1451,7 +1451,7 @@ class MJOEvaluation:
             mean_amp_bias_table_plot,
             output_path,
             plot_filename=f"mean_amplitude_bias_table_{name_file}_{year_range}",
-            plot_name=f"Bias in climatological mean MJO amplitude per phase table plot",
+            plot_name="Bias in climatological mean MJO amplitude per phase table plot",
         )
 
         return
@@ -1520,7 +1520,7 @@ class MJOEvaluation:
             active_days_bias_table_plot,
             output_path,
             plot_filename=f"active_days_bias_table_{name_file}_{year_range}",
-            plot_name=f"Bias in climatological active MJO days per phase table plot",
+            plot_name="Bias in climatological active MJO days per phase table plot",
         )
 
         return
@@ -1577,10 +1577,10 @@ class MJOEvaluation:
         year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
 
         # Column labels
-        cols_mean_amp_bias = [f"Bias in Climatological mean amplitude"] + [
+        cols_mean_amp_bias = ["Bias in Climatological mean amplitude"] + [
             rf"$\overline{{b}}_{{ph\, {phase}}}$" for phase in self.activity_per_phase.phase.values
         ]
-        cols_active_days_bias = [f"Bias in Climatological active days"] + [
+        cols_active_days_bias = ["Bias in Climatological active days"] + [
             rf"$\overline{{b}}_{{ph\, {phase}}}$ (days)"
             for phase in self.activity_per_phase.phase.values
         ]
@@ -1614,7 +1614,7 @@ class MJOEvaluation:
             mean_amp_active_days_table_plot,
             output_path,
             plot_filename=f"activity_per_phase_bias_tables_{name_file}_{year_range}",
-            plot_name=f"Bias in climatological MJO activity per phase table plot",
+            plot_name="Bias in climatological MJO activity per phase table plot",
         )
 
         return
