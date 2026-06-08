@@ -62,3 +62,13 @@ include-package-data = true
 homepage = "https://github.com/BSC-ES/pyhanami.git"
 repository = "https://github.com/BSC-ES/pyhanami.git"
 documentation = "https://pyhanami.readthedocs.io/"
+
+
+[tool.ruff]
+# Set the maximum line length
+line-length = 99
+
+[tool.ruff.lint]
+# Add the `line-too-long` rule to the enforced rule set (by default, Ruff 
+# omits rules that overlap with the use of a formatter)
+extend-select = ["E501"]

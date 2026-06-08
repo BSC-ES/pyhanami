@@ -13,10 +13,10 @@ VARIABLES = data_general.load_yaml_file(config_params.VARIABLES_PATH)
 
 
 class GeneralEvaluation:
-    """ 
+    """
     Compute general scientific skill scalar scores.
 
-    This class provides functionality for computing several scalar scores comparing simulations 
+    This class provides functionality for computing several scalar scores comparing simulations
     and observational data:
         - Bias (absolute and relative)
         - Centralized Root Mean Square Error (RMSE) (absolute and relative)
@@ -41,10 +41,10 @@ class GeneralEvaluation:
         List of climate variables names used in the analysis.
     sim_name : str
         Name of the simulation dataset.
-    obs_name : str 
+    obs_name : str
         Name of the observational dataset
     max_workers_grid : int
-        Number of parallel workers used for variable-wise computations (default: 
+        Number of parallel workers used for variable-wise computations (default:
         config_params.MAX_WORKERS_VARS).
     ensemble : bool
         Whether the simulation dataset is a single member or an ensemble.
@@ -76,31 +76,42 @@ class GeneralEvaluation:
             var_names = [var_names]
         for var_name in var_names:
             if var_name not in data_sim.data.data_vars:
-                raise ValueError(f"Variable '{var_name}' not found in the simulated dataset '{data_sim.name}'. "
-                                f"Available variables: {list(data_sim.data.data_vars.keys())}")
-            
+                raise ValueError(
+                    f"Variable '{var_name}' not found in the simulated dataset '{data_sim.name}'. "
+                    f"Available variables: {list(data_sim.data.data_vars.keys())}"
+                )
+
         # Prepare attributes
         self.var_names = var_names
         self.sim_name = data_sim.name
         self.obs_name = obs_name
 
-        self.ensemble = True if 'realization' in data_sim.data.dims else False
+        self.ensemble = True if "realization" in data_sim.data.dims else False
         self.max_workers_vars = config_params.MAX_WORKERS_VARS
 
         # Load observational data
         if obs_path is None or obs_name is None:
-            raise ValueError('Automatic selection of observations is not implemented yet. '
-                             'Please provide a path and a name for the observations database.')
+            raise ValueError(
+                "Automatic selection of observations is not implemented yet. "
+                "Please provide a path and a name for the observations database."
+            )
         elif not isinstance(obs_path, (str, Path)) or not isinstance(obs_name, str):
-            raise TypeError("'obs_path' and 'obs_name' must be strings representing the observations database path and name, respectively.")
+            raise TypeError(
+                "'obs_path' and 'obs_name' must be strings representing the observations database path and name, respectively."
+            )
         else:
             data_obs = ObservationData(obs_path, data_sim.data[[var_name]], obs_name)
-        
+
         # Select year for general analysis
         for dataset in [data_sim, data_obs]:
-            start_year, end_year = data_general.validate_year_range(dataset, start_year, end_year, process_name='general scalar')
+            start_year, end_year = data_general.validate_year_range(
+                dataset, start_year, end_year, process_name="general scalar"
+            )
         self.start_year, self.end_year = start_year, end_year
-        print(f"\tYears selected for general scalar scores computation: {self.start_year}-{self.end_year}.", flush=True)
+        print(
+            f"\tYears selected for general scalar scores computation: {self.start_year}-{self.end_year}.",
+            flush=True,
+        )
         data_sim_filtered = data_sim.data.sel(time=slice(str(self.start_year), str(self.end_year))).compute()
         data_obs_filtered = data_obs.data.sel(time=slice(str(self.start_year), str(self.end_year))).compute()
 
@@ -112,20 +123,23 @@ class GeneralEvaluation:
 
         # Store all scores in an xarray Dataset
         self.scores = xr.Dataset(
-            data_vars = {
-                'bias_abs': (['variable'], bias_abs),
-                'bias_rel': (['variable'], bias_rel),
-                'rmse_abs': (['variable'], rmse_abs),
-                'rmse_rel': (['variable'], rmse_rel),
-                'pcorr': (['variable'], pcorr)
+            data_vars={
+                "bias_abs": (["variable"], bias_abs),
+                "bias_rel": (["variable"], bias_rel),
+                "rmse_abs": (["variable"], rmse_abs),
+                "rmse_rel": (["variable"], rmse_rel),
+                "pcorr": (["variable"], pcorr),
             },
-            coords = {'variable': self.var_names},
+            coords={"variable": self.var_names},
         )
 
-        print(f"\nGeneral scalar scores computation completed between years {self.start_year} and {self.end_year}. "
-              f"See attribute 'scores' for results.", flush=True)
+        print(
+            f"\nGeneral scalar scores computation completed between years {self.start_year} and {self.end_year}. "
+            f"See attribute 'scores' for results.",
+            flush=True,
+        )
         return
- 
+
 
     def _compute_bias_one_var(self, args):
         """
@@ -166,10 +180,10 @@ class GeneralEvaluation:
 
         return bias_abs_one_var, bias_rel_one_var
 
-    
+
     def _compute_bias(self, data_sim, data_obs):
         """
-        Compute bias between simulations and observations as the area-weighted mean 
+        Compute bias between simulations and observations as the area-weighted mean
         of the absolute and relative differences, for all variables in parallel.
 
         Parameters
@@ -188,23 +202,26 @@ class GeneralEvaluation:
         """
 
         # Prepare data
-        data_sim_mean = data_sim.mean(dim='time')
+        data_sim_mean = data_sim.mean(dim="time")
 
         # Compute biases for all variables in parallel
         bias_abs = np.empty(len(self.var_names))
         bias_rel = np.empty(len(self.var_names))
-        tasks = [(data_sim_mean[[var_name]], data_obs[[var_name]], var_name) for var_name in self.var_names]
+        tasks = [
+            (data_sim_mean[[var_name]], data_obs[[var_name]], var_name)
+            for var_name in self.var_names
+        ]
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers_vars) as executor:
             for idx, value in enumerate(executor.map(self._compute_bias_one_var, tasks)):
                 bias_abs[idx], bias_rel[idx] = value
-        
+
         return bias_abs, bias_rel
 
-    
+
     def _compute_rmse_one_var(self, args):
         """
-        Compute root mean square error (RMSE) between simulations and observations 
+        Compute root mean square error (RMSE) between simulations and observations
         as the area-weighted mean of the absolute and relative centralized RMSE
         for the given variable.
 
@@ -241,10 +258,10 @@ class GeneralEvaluation:
 
         return rmse_abs, rmse_rel
 
-    
+
     def _compute_rmse(self, data_sim, data_obs):
         """
-        Compute root mean square error (RMSE) between simulations and observations 
+        Compute root mean square error (RMSE) between simulations and observations
         as the area-weighted mean of the absolute and relative centralized RMSE
         for all variables in parallel
 
@@ -266,7 +283,10 @@ class GeneralEvaluation:
         # Compute RMSE for all variables in parallel
         rmse_abs = np.empty(len(self.var_names))
         rmse_rel = np.empty(len(self.var_names))
-        tasks = [(data_sim[[var_name]], data_obs[[var_name]], var_name) for var_name in self.var_names]
+        tasks = [
+            (data_sim[[var_name]], data_obs[[var_name]], var_name) 
+            for var_name in self.var_names
+        ]
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers_vars) as executor:
             for idx, value in enumerate(executor.map(self._compute_rmse_one_var, tasks)):
@@ -277,7 +297,7 @@ class GeneralEvaluation:
 
     def _compute_pcorr_one_var(self, args):
         """
-        Compute area-weighted Pearson correlation coefficient between simulations 
+        Compute area-weighted Pearson correlation coefficient between simulations
         and observations for the given variable.
 
         Parameters
@@ -292,7 +312,7 @@ class GeneralEvaluation:
                     Climate variable.
 
         Returns
-        -------     
+        -------
         pcorr : float
             Area-weighted Pearson correlation coefficient.
         """
@@ -309,18 +329,18 @@ class GeneralEvaluation:
 
         # With xarray.corr
         # Prepare data
-        data_sim_mean = data_sim[var_name].mean(dim='time') #.stack(spatial=['lat', 'lon'])
-        data_obs_mean = data_obs[var_name].mean(dim='time') #.stack(spatial=['lat', 'lon'])
+        data_sim_mean = data_sim[var_name].mean(dim="time")  # .stack(spatial=['lat', 'lon'])
+        data_obs_mean = data_obs[var_name].mean(dim="time")  # .stack(spatial=['lat', 'lon'])
 
         # Compute area-weighted Pearson correlation coefficient
         weights = statistics.area_weights(data_sim_mean)
-        pcorr = xr.corr(data_sim_mean, data_obs_mean, dim=['lat', 'lon'], weights=weights).values
+        pcorr = xr.corr(data_sim_mean, data_obs_mean, dim=["lat", "lon"], weights=weights).values
 
         # Take ensemble mean when more than one member is present
         if self.ensemble:
             pcorr = np.mean(pcorr)
 
-        return pcorr    
+        return pcorr
 
 
     def _compute_pcorr(self, data_sim, data_obs):
@@ -336,20 +356,23 @@ class GeneralEvaluation:
             Observational data.
 
         Returns
-        -------     
+        -------
         pcorr : np.ndarray
             Pearson correlation coefficient.
         """
 
         # Compute Pearson correlation coefficient for all variables in parallel
         pcorr = np.empty(len(self.var_names))
-        tasks = [(data_sim[[var_name]], data_obs[[var_name]], var_name) for var_name in self.var_names]
+        tasks = [
+            (data_sim[[var_name]], data_obs[[var_name]], var_name) 
+            for var_name in self.var_names
+        ]
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers_vars) as executor:
             for idx, value in enumerate(executor.map(self._compute_pcorr_one_var, tasks)):
                 pcorr[idx] = value
 
-        return pcorr    
+        return pcorr
 
 
     def save_data(self, output_path):
@@ -366,16 +389,16 @@ class GeneralEvaluation:
         output_path.mkdir(parents=True, exist_ok=True)
 
         # Save scalar scores
-        path_sim_name = self.sim_name.replace(' ', '_')
-        path_obs_name = self.obs_name.replace(' ', '_')      
+        path_sim_name = self.sim_name.replace(" ", "_")
+        path_obs_name = self.obs_name.replace(" ", "_")
         scores_path = output_path / f"general_scalar_scores_{path_sim_name}-{path_obs_name}_{self.start_year}-{self.end_year}.nc"
-        
+
         self.scores.to_netcdf(scores_path)
         print(f"General scalar scores saved to '{scores_path}'.", flush=True)
 
         return
 
-    
+
     def scores_table(self, var_names=None, output_path=None, reference=True):
         """
         Generate and save/display table plot with general scalar scores for the given variable(s).
@@ -397,13 +420,14 @@ class GeneralEvaluation:
             var_names = [var_names]
         for var_name in var_names:
             if var_name not in self.var_names:
-                raise ValueError(f"Variable '{var_name}' was not used in the general scalar analysis. "
-                                 f"Available variables: {self.var_names}")
+                raise ValueError(
+                    f"Variable '{var_name}' was not used in the general scalar analysis. "
+                    f"Available variables: {self.var_names}"
+                )
 
-
-        # Prepare plot parameters  
-        sim_name_file = self.sim_name.replace(' ', '-')
-        obs_name_file = self.obs_name.replace(' ', '-')
+        # Prepare plot parameters
+        sim_name_file = self.sim_name.replace(" ", "-")
+        obs_name_file = self.obs_name.replace(" ", "-")
         if reference:
             data_ref = np.array([1, 1, 1])
             rows = [self.obs_name, self.sim_name]
@@ -412,32 +436,64 @@ class GeneralEvaluation:
             rows = [self.sim_name]
             name_file = f"{sim_name_file}_no_ref_{obs_name_file}"
 
-        cbar_ticks = ['Worse performance', ' ', 'Better performance']
-        colors = ("RedGreen", ['tab:red', 'white', 'tab:green'])
+        cbar_ticks = ["Worse performance", " ", "Better performance"]
+        colors = ("RedGreen", ["tab:red", "white", "tab:green"])
 
         # Plot each variable separately
         for var_name in var_names:
-            var_name_title = VARIABLES[var_name]['long_name']
+            var_name_title = VARIABLES[var_name]["long_name"]
             year_range = f"{self.start_year}-{self.end_year}"
             if self.ensemble:
-                # cols = [' ', r'$\overline{\text{BIAS}}$', r'$\overline{\text{eBIAS}}$', r'$\overline{\text{RMSE}}$', 
-                #         r'$\overline{\text{eRMSE}}$', r'$\overline{r}_{xy}$']
-                cols = [' ', r'$\overline{\text{eBIAS}}$', r'$\overline{\text{eRMSE}}$', r'$\overline{r}_{xy}$']
+                # cols = [
+                #   ' ', 
+                #   r'$\overline{\text{BIAS}}$', 
+                #   r'$\overline{\text{eBIAS}}$', 
+                #   r'$\overline{\text{RMSE}}$',
+                #   r'$\overline{\text{eRMSE}}$', 
+                #   r'$\overline{r}_{xy}$'
+                # ]
+                cols = [
+                    " ",
+                    r"$\overline{\text{eBIAS}}$",
+                    r"$\overline{\text{eRMSE}}$",
+                    r"$\overline{r}_{xy}$",
+                ]
                 title = f"Scalar scores for {var_name_title} (ensemble mean) ({year_range})"
             else:
                 # cols = [' ', 'BIAS', 'eBIAS', 'RMSE', 'eRMSE', r'$r_{xy}$']
-                cols = [' ', 'eBIAS', 'eRMSE', r'$r_{xy}$']
+                cols = [" ", "eBIAS", "eRMSE", r"$r_{xy}$"]
                 title = f"Scalar scores for {var_name_title} ({year_range})"
 
             # Prepare plot data
-            data_sim = self.scores[['bias_rel', 'rmse_rel', 'pcorr']].sel(variable=var_name).to_array().values
-            data_plot = np.stack([data_ref, data_sim]) if reference else data_sim.reshape(-1, data_sim.shape[0])
+            data_sim = (
+                self.scores[["bias_rel", "rmse_rel", "pcorr"]]
+                .sel(variable=var_name)
+                .to_array()
+                .values
+            )
+            data_plot = (
+                np.stack([data_ref, data_sim])
+                if reference
+                else data_sim.reshape(-1, data_sim.shape[0])
+            )
 
             # Generate and save/display plot
-            general_scores_plot, _ = plot.plot_table(data_plot, title=title, col_labels=cols, row_labels=rows, cbar_ticks=cbar_ticks, colors=colors, 
-                                                     reference=reference, decimals=3)
+            general_scores_plot, _ = plot.plot_table(
+                data_plot,
+                title=title,
+                col_labels=cols,
+                row_labels=rows,
+                cbar_ticks=cbar_ticks,
+                colors=colors,
+                reference=reference,
+                decimals=3,
+            )
 
-            plot.save_or_show_plot(general_scores_plot, output_path, plot_filename=f"general_scalar_scores_table_{var_name}_{name_file}_{year_range}",
-                                   plot_name="General scalar scores table plot")
+            plot.save_or_show_plot(
+                general_scores_plot,
+                output_path,
+                plot_filename=f"general_scalar_scores_table_{var_name}_{name_file}_{year_range}",
+                plot_name="General scalar scores table plot",
+            )
 
         return

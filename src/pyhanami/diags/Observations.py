@@ -45,14 +45,14 @@ class ObservationData:
         Regridding method (default: bilinear).
     """
 
-    def __init__(self, data_path, sim, name='obs', realization=0, regrid_method='bilinear'):
+    def __init__(self, data_path, sim, name="obs", realization=0, regrid_method="bilinear"):
         if isinstance(data_path, (str, Path)):
             self.data_path = Path(data_path)
         else:
             raise TypeError("'data_path' must be a string or Path object.")
         if not self.data_path.exists():
             raise FileNotFoundError(f"Observational data path {self.data_path} not found.")
-        
+
         if not isinstance(sim, xr.Dataset):
             raise TypeError("Input simulation must be an xarray.Dataset.")
         if not sim.data_vars:
@@ -70,15 +70,15 @@ class ObservationData:
             self.regrid_method = regrid_method
         else:
             raise TypeError("'regrid_method' must be a string.")
-        
+
         self.data = self.load_and_process(sim)
 
 
     def _retrieve_obs(self, sim):
-        """ 
+        """
         Retrieve observations from database for the variables and period
-        available in the given simulation ensemble. 
-        
+        available in the given simulation ensemble.
+
         Parameters
         ----------
         sim : xr.Dataset
@@ -95,7 +95,7 @@ class ObservationData:
             raise TypeError("Input simulation must be an xarray.Dataset.")
         if not sim.data_vars:
             raise ValueError("Input simulation must contain at least one climate variable.")
-        
+
 
         # Load observational data
         data_obs_vars = []
@@ -104,24 +104,32 @@ class ObservationData:
             data_obs_aux = xr.open_dataset(var_path, chunks="auto")
 
             # Select realization if more than one member is present
-            if 'realization' in data_obs_aux.dims:
-                data_obs_aux = data_obs_aux.isel({'realization' : self.realization}, drop=True)
-            if 'realization' in data_obs_aux.coords:
-                data_obs_aux = data_obs_aux.drop_vars('realization')
+            if "realization" in data_obs_aux.dims:
+                data_obs_aux = data_obs_aux.isel({"realization": self.realization}, drop=True)
+            if "realization" in data_obs_aux.coords:
+                data_obs_aux = data_obs_aux.drop_vars("realization")
 
             # Check time coordinate and format
             if "time" not in data_obs_aux.coords or "time" not in sim.coords:
-                raise ValueError(f"'time' coordinate missing in either simulations or observations for variable {var}.")
-            
+                raise ValueError(
+                    f"'time' coordinate missing in either simulations or observations for variable {var}."
+                )
+
             data_obs_time, errors, warnings = data_checker.DataChecker.normalize_time_format(data_obs_aux)
             if len(warnings) != 0:
-                print(f"{len(warnings)} warnings encountered while loading the observations dataset:", flush=True)
+                print(
+                    f"{len(warnings)} warnings encountered while loading the observations dataset:",
+                    flush=True,
+                )
                 for warning in warnings:
-                    print(f'\t - {warning}', flush=True)
+                    print(f"\t - {warning}", flush=True)
             if len(errors) != 0:
-                print(f"{len(errors)} errors encountered while loading the observations dataset:", flush=True)
+                print(
+                    f"{len(errors)} errors encountered while loading the observations dataset:",
+                    flush=True,
+                )
                 for error in errors:
-                    print(f'\t - {error}', flush=True)
+                    print(f"\t - {error}", flush=True)
                 raise RuntimeError("Loading of observations failed due to the errors listed above.")
 
             # Align the time range with the simulations
@@ -130,20 +138,20 @@ class ObservationData:
             except KeyError:
                 raise KeyError(f"Observations missing for some time points in variable {var}.")
             data_obs_vars.append(data_obs_sel)
-        
+
         data_obs = xr.merge(data_obs_vars)
         return data_obs
 
 
     def load_and_process(self, sim):
-        """ 
+        """
         Retrieve and regrid observational data for the variables and period
-        available in the given simulation ensemble. 
-        
+        available in the given simulation ensemble.
+
         Parameters
         ----------
         sim : xr.Dataset
-            Input simulation dataset.     
+            Input simulation dataset.
 
         Returns
         -------
@@ -160,4 +168,4 @@ class ObservationData:
         data_old_grid = self._retrieve_obs(sim)
         data_new_grid = data_general.regrid_data(data_old_grid, sim, method=self.regrid_method)
 
-        return data_new_grid 
+        return data_new_grid

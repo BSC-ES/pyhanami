@@ -29,7 +29,7 @@ class SimulationData:
         Loaded dataset object with climate variables.
     """
 
-    def __init__(self, data_source, name='sim'):
+    def __init__(self, data_source, name="sim"):
         if isinstance(data_source, (str, Path)):
             self.data_path = Path(data_source)
             if not self.data_path.exists():
@@ -40,20 +40,20 @@ class SimulationData:
             self.data = data_source.chunk("auto")
         else:
             raise TypeError("'data_source' must be a path string, Path object, or an xarray.Dataset")
-        
+
         if isinstance(name, str):
             self.name = name
         else:
             raise TypeError("'name' must be a string.")
-        
+
         print(f"Loaded simulation data '{self.name}', starting data checks...", flush=True)
         self.data = self.check_data()
 
 
     def _prepare_data(self):
-        """ 
+        """
         Load data from .netcdf file or catalogue interface.
-        
+
         Returns
         -------
         data_sim : xr.Dataset
@@ -65,15 +65,15 @@ class SimulationData:
 
 
     def check_data(self):
-        """ 
+        """
         Check and correct provided data (available variables, units, coordinates names and format, ...).
-        
+
         Returns
         -------
         data_sim : xr.Dataset
-            Checked simulation data. 
+            Checked simulation data.
         """
 
-        data_checker_ins =  data_checker.DataChecker()
+        data_checker_ins = data_checker.DataChecker()
         data_checked = data_checker_ins.check_data(self.data)
         return data_checked
