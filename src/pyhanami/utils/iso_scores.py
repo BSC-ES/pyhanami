@@ -8,8 +8,8 @@ from pyhanami.config import config_params
 
 
 def math_sinc(x):
-    """ Compute mathematical sinc function, defined as sinc(x)/x."""
-    return np.sinc(x/np.pi)
+    """Compute mathematical sinc function, defined as sinc(x)/x."""
+    return np.sinc(x / np.pi)
 
 
 @cache
@@ -35,26 +35,26 @@ def lanczos_kernel(window_size, low_freq, high_freq):
     # Generate symmetric time vector
     if window_size % 2 == 0:
         raise ValueError("window_size must be odd")
-    
+
     n = window_size // 2
-    t = np.arange(-n, n+1, dtype=float)
+    t = np.arange(-n, n + 1, dtype=float)
 
     # Compute low and high pass filter kernels
-    h_low = 2 * low_freq * math_sinc(2*np.pi*low_freq*t)
-    h_high = 2 * high_freq * math_sinc(2*np.pi*high_freq*t)
+    h_low = 2 * low_freq * math_sinc(2 * np.pi * low_freq * t)
+    h_high = 2 * high_freq * math_sinc(2 * np.pi * high_freq * t)
 
     # Compute Lanczos window to smooth the kernel
-    lanczos = math_sinc(t*np.pi/n)
+    lanczos = math_sinc(t * np.pi / n)
 
     # Combine to compute Lanczos kernel
     h = (h_high - h_low) * lanczos
-    h[t==0] = 2 * (high_freq - low_freq)
+    h[t == 0] = 2 * (high_freq - low_freq)
 
     return h
 
 
-def lanczos_bandpass(data, window=141, low_freq=1/90, high_freq=1/25):
-    """ 
+def lanczos_bandpass(data, window=141, low_freq=1 / 90, high_freq=1 / 25):
+    """
     Apply Lanczos filtering to a 1D signal.
 
     Parameters
@@ -75,12 +75,12 @@ def lanczos_bandpass(data, window=141, low_freq=1/90, high_freq=1/25):
     """
 
     kernel = lanczos_kernel(window, low_freq, high_freq)
-    filtered_data = np.convolve(data, kernel, mode='same')
+    filtered_data = np.convolve(data, kernel, mode="same")
 
     return filtered_data
 
 
-def apply_lanczos_bandpass(data, window=141, low_freq=1/90, high_freq=1/25):
+def apply_lanczos_bandpass(data, window=141, low_freq=1 / 90, high_freq=1 / 25):
     """
     Apply Lanczos filtering to data within an xarray object.
 
@@ -100,7 +100,7 @@ def apply_lanczos_bandpass(data, window=141, low_freq=1/90, high_freq=1/25):
     filtered_data : xr.DataArray
         Filtered data.
     """
-    
+
     filtered_data = xr.apply_ufunc(
         lanczos_bandpass,
         data,
@@ -110,12 +110,12 @@ def apply_lanczos_bandpass(data, window=141, low_freq=1/90, high_freq=1/25):
         vectorize=True,
         dask="parallelized",
         output_dtypes=[data.dtype],
-        keep_attrs=True
+        keep_attrs=True,
     )
     return filtered_data
 
 
-def apply_lanczos_bandpass_filter(raw_olr_data, window=141, low_freq=1/90, high_freq=1/25):
+def apply_lanczos_bandpass_filter(raw_olr_data, window=141, low_freq=1 / 90, high_freq=1 / 25):
     """
     Filter Outgoing Longwave Radiation (OLR) data with a Lanczos bandpass filter to
     isolate the intraseasonal component for ISO evaluation.
@@ -182,21 +182,23 @@ def extract_season_blocks(data, start_year, end_year, season, cutoff_points=90):
         raise TypeError("'data' must be an xarray.DataArray.")
     years = data.time.dt.year
     if (start_year not in years) or (end_year not in years):
-        raise ValueError("Invalid 'start_year' and/or 'end_year', years not found in the provided dataset.")
-    
+        raise ValueError(
+            "Invalid 'start_year' and/or 'end_year', years not found in the provided dataset."
+        )
+
     # Compute blocks
     blocks = []
     for year in range(start_year, end_year):
         # Generate season labels for the corresponding years
         if season == "boreal_winter":
             start = np.datetime64(f"{year}-12-01")
-            end = np.datetime64(f"{year+1}-04-30")
+            end = np.datetime64(f"{year + 1}-04-30")
         elif season == "boreal_summer":
             start = np.datetime64(f"{year}-06-01")
             end = np.datetime64(f"{year}-10-31")
         else:
             raise ValueError("Invalid 'season' provided.")
-        
+
         # Only keep blocks with a minimum number of points
         block = data.sel(time=slice(start, end))
         if block.time.size >= cutoff_points:
@@ -209,7 +211,7 @@ def compute_EEOFs(data, lag, n_lags, n_modes=2):
     """
     Compute Extended Empirical Orthogonal Functions (EEOFs) with area weights using xeofs,
     letting xeofs handle the lagging internally.
-    
+
     Parameters
     ----------
     data : xr.DataArray
@@ -238,27 +240,29 @@ def compute_EEOFs(data, lag, n_lags, n_modes=2):
         embedding=n_lags,
         use_coslat=True,
         check_nans=False,
-        compute=False
+        compute=False,
     )
-    
+
     # Fit the model and retrieve outcome
-    eeof_model.fit(data, dim=('time'))
-    eofs = eeof_model.components().rename({'embedding':'lag'})
+    eeof_model.fit(data, dim=("time"))
+    eofs = eeof_model.components().rename({"embedding": "lag"})
     eigvals = eeof_model.explained_variance()
     var_frac = eeof_model.explained_variance_ratio()
 
     # Remove solver_kwargs attribute to avoid serialization issues
-    eofs.attrs.pop('solver_kwargs', None)
-    eigvals.attrs.pop('solver_kwargs', None)
-    var_frac.attrs.pop('solver_kwargs', None)
-    
+    eofs.attrs.pop("solver_kwargs", None)
+    eigvals.attrs.pop("solver_kwargs", None)
+    var_frac.attrs.pop("solver_kwargs", None)
+
     return eofs, eigvals, var_frac
 
 
-def perform_EEOF_analysis(olr_data, start_year, end_year, season, lag=5, n_lags=3, n_modes=2, cutoff_points=90):
+def perform_EEOF_analysis(olr_data, start_year, end_year, season, lag=5, n_lags=3, n_modes=2,
+                          cutoff_points=90):
     """
-    Perform Extended Empirical Orthogonal Function (EEOF) analysis to Outgoing Longwave Radiation (OLR) data
-    to identify MJO and BSISO events (boreal winter and boreal summer modes of ISO, respectively).
+    Perform Extended Empirical Orthogonal Function (EEOF) analysis to Outgoing Longwave Radiation
+    (OLR) datato identify MJO and BSISO events (boreal winter and boreal summer modes of ISO, 
+    respectively).
 
     Parameters
     ----------
@@ -290,20 +294,24 @@ def perform_EEOF_analysis(olr_data, start_year, end_year, season, lag=5, n_lags=
         raise TypeError("'olr_data' must be an xarray.DataArray.")
     years = olr_data.time.dt.year.values
     if (start_year not in years) or (end_year not in years):
-        raise ValueError("Invalid 'start_year' and/or 'end_year', years not found in the provided dataset.")
-    if not isinstance(lag, int) or not isinstance(n_lags, int) or not isinstance(n_modes, int) :
+        raise ValueError(
+            "Invalid 'start_year' and/or 'end_year', years not found in the provided dataset."
+        )
+    if not isinstance(lag, int) or not isinstance(n_lags, int) or not isinstance(n_modes, int):
         raise TypeError("'lag', 'n_lags', and 'n_modes' must be integers.")
 
 
     # Generate seasonal blocks for EOF analysis
-    blocks = extract_season_blocks(olr_data, start_year, end_year, season, cutoff_points)  
+    blocks = extract_season_blocks(olr_data, start_year, end_year, season, cutoff_points)
     if not blocks:
-        raise ValueError(f"No valid seasonal blocks found with the specified cutoff points per season ({cutoff_points} points).")
-    combined_blocks = xr.concat(blocks, dim='time')
+        raise ValueError(
+            f"No valid seasonal blocks found with the specified cutoff points per season ({cutoff_points} points)."
+        )
+    combined_blocks = xr.concat(blocks, dim="time")
     del blocks
 
 
-    # Perform EEOF analysis 
+    # Perform EEOF analysis
     eofs, eigvals, var_frac = compute_EEOFs(combined_blocks, lag, n_lags, n_modes)
 
     # Adjust EEOFs sign to fit to Kikuchi's paper convention (no needed anymore with xeofs)
@@ -316,13 +324,8 @@ def perform_EEOF_analysis(olr_data, start_year, end_year, season, lag=5, n_lags=
     #     raise ValueError("Invalid 'season' provided.")
 
     # Compile EEOF analysis output as an xr.Dataset
-    eeof_analysis_data = xr.Dataset({
-        "eeof": eofs,
-        "eigval": eigvals,
-        "var_frac": var_frac
+    eeof_analysis_data = xr.Dataset({"eeof": eofs, "eigval": eigvals, "var_frac": var_frac})
 
-    })
-    
     # print(f"Computed EEOFs for {season} between years {start_year} and {end_year}.", flush=True)
     return eeof_analysis_data
 
@@ -371,7 +374,7 @@ def generate_lagged_matrix(data, lags):
 
 def broadcasted_area_weights(data, dim_name=None, dim_values=None):
     """
-    Compute latitude-based area weights, broadcast them to match the shape of the given data 
+    Compute latitude-based area weights, broadcast them to match the shape of the given data
     and add new dimension if given.
 
     Parameters
@@ -401,7 +404,9 @@ def broadcasted_area_weights(data, dim_name=None, dim_values=None):
     if dim_name is None:
         weights_vector = weights_broadcasted.stack(feature=("lat", "lon")).values
     else:
-        weights_broadcasted = weights_broadcasted.expand_dims({dim_name: dim_values}).assign_coords({dim_name: dim_values})
+        weights_broadcasted = weights_broadcasted.expand_dims(
+            {dim_name: dim_values}
+        ).assign_coords({dim_name: dim_values})
         weights_vector = weights_broadcasted.stack(feature=(dim_name, "lat", "lon")).values
 
     return weights_vector
@@ -441,7 +446,7 @@ def project_PCs(data, eeofs):
         eof_flat = eof.stack(feature=("lag", "lat", "lon")).values
         eig = eeof_data["eigval"].values
 
-        # Compute PCs and standarized PCs (dividing by one standard deviation during the period  
+        # Compute PCs and standarized PCs (dividing by one standard deviation during the period
         # of the EEOF analysis, i.e. the squared root of the corresponding eigenvalue)
         pc_aux = data.dot(eof_flat.T)
         pc_std_aux = pc_aux / np.sqrt(eig)[None, :]
@@ -450,7 +455,7 @@ def project_PCs(data, eeofs):
 
         # Compute amplitude and standarized amplitude using the first two PCs
         amp_aux = np.linalg.norm(pc_aux, axis=1)
-        amp_std_aux =  np.linalg.norm(pc_std_aux, axis=1)
+        amp_std_aux = np.linalg.norm(pc_std_aux, axis=1)
         amp.append(amp_aux)
         amp_std.append(amp_std_aux)
 
@@ -476,15 +481,11 @@ def significant_labels(amp, amp_std):
     """
 
     labels = np.where(
-            (amp[0] > amp[1]) & (amp_std[0] >= 1), 
-            1,
-        np.where(
-            (amp[1] > amp[0]) & (amp_std[1] >= 1),  
-            2,
-            0   
-            )
-        )
-    
+        (amp[0] > amp[1]) & (amp_std[0] >= 1),
+        1,
+        np.where((amp[1] > amp[0]) & (amp_std[1] >= 1), 2, 0),
+    )
+
     return labels
 
 
@@ -498,21 +499,24 @@ def compute_PCs(olr_data, eeofs):
     olr_data : xr.DataArray
         Input OLR data.
     eeofs : list[xr.Dataset]
-        Output of EEOF analysis (EEOFs, eigenvalues and explanined variances) for boreal winter 
+        Output of EEOF analysis (EEOFs, eigenvalues and explanined variances) for boreal winter
         and boreal summer.
 
     Returns
     -------
     pc_data : xr.Dataset
-        PCs and their corresponding amplitude (both raw and standarized, i.e. normalized by the 
+        PCs and their corresponding amplitude (both raw and standarized, i.e. normalized by the
         eigenvalues) for each ISO mode.
     """
 
     # Validate input
     if not isinstance(olr_data, xr.DataArray):
         raise TypeError("'olr_data' must be an xarray.DataArray.")
-    if not isinstance(eeofs, list) or len(eeofs) == 0 \
-        or not all(isinstance(ds, xr.Dataset) for ds in eeofs):
+    if (
+        not isinstance(eeofs, list)
+        or len(eeofs) == 0
+        or not all(isinstance(ds, xr.Dataset) for ds in eeofs)
+    ):
         raise TypeError("'eeofs' must be a non-empty list of xarray.Datasets.")
 
     # Generate area-weighted lagged matrix from OLR data
@@ -532,28 +536,78 @@ def compute_PCs(olr_data, eeofs):
 
     # Compile PCs and amplitudes as an xr.Dataset
     modes = eeofs[0].mode.values
-    pcw_da      = xr.DataArray(pc[0],      dims=("time","mode"), coords={"time":times, "mode":modes}, name="PC_MJO_raw")
-    pcw_std_da   = xr.DataArray(pc_std[0],  dims=("time","mode"), coords={"time":times, "mode":modes}, name="PC_MJO_std")
-    ampw_da     = xr.DataArray(amp[0],     dims=("time"),        coords={"time":times},               name="amp_MJO_raw")
-    ampw_std_da = xr.DataArray(amp_std[0], dims=("time"),        coords={"time":times},               name="amp_MJO_std")
+    pcw_da = xr.DataArray(
+        pc[0],
+        dims=("time", "mode"),
+        coords={"time": times, "mode": modes},
+        name="PC_MJO_raw",
+    )
+    pcw_std_da = xr.DataArray(
+        pc_std[0],
+        dims=("time", "mode"),
+        coords={"time": times, "mode": modes},
+        name="PC_MJO_std",
+    )
 
-    pcs_da      = xr.DataArray(pc[1],      dims=("time","mode"), coords={"time":times, "mode":modes}, name="PC_BSISO_raw")
-    pcs_std_da   = xr.DataArray(pc_std[1],  dims=("time","mode"), coords={"time":times, "mode":modes}, name="PC_BSISO_std")
-    amps_da     = xr.DataArray(amp[1],     dims=("time"),        coords={"time":times},               name="amp_BSISO_raw")
-    amps_std_da = xr.DataArray(amp_std[1], dims=("time"),        coords={"time":times},               name="amp_BSISO_std")
+    ampw_da = xr.DataArray(
+        amp[0],
+        dims=("time"),
+        coords={"time": times},
+        name="amp_MJO_raw",
+    )
+    ampw_std_da = xr.DataArray(
+        amp_std[0],
+        dims=("time"),
+        coords={"time": times},
+        name="amp_MJO_std",
+    )
 
-    label_data = xr.DataArray(labels, dims=("time"), coords={"time":times}, name="label")
-    pcs_data = xr.Dataset({
-    "PC_MJO_raw" :    pcw_da,
-    "PC_MJO_std" :    pcw_std_da,
-    "amp_MJO_raw":    ampw_da,
-    "amp_MJO_std":    ampw_std_da,
-    "PC_BSISO_raw" :    pcs_da,
-    "PC_BSISO_std" :    pcs_std_da,
-    "amp_BSISO_raw":    amps_da,
-    "amp_BSISO_std":    amps_std_da,
-        "label"    :    label_data,
-    })
+
+    pcs_da = xr.DataArray(
+        pc[1],
+        dims=("time", "mode"),
+        coords={"time": times, "mode": modes},
+        name="PC_BSISO_raw"
+    )
+    pcs_std_da = xr.DataArray(
+        pc_std[1],
+        dims=("time", "mode"),
+        coords={"time": times, "mode": modes},
+        name="PC_BSISO_std",
+    )
+
+    amps_da = xr.DataArray(
+        amp[1],
+        dims=("time"),
+        coords={"time": times},
+        name="amp_BSISO_raw",
+    )
+    amps_std_da = xr.DataArray(
+        amp_std[1],
+        dims=("time"),
+        coords={"time": times},
+        name="amp_BSISO_std",
+    )
+
+
+    label_data = xr.DataArray(
+        labels,
+        dims=("time"),
+        coords={"time": times},
+        name="label")
+    pcs_data = xr.Dataset(
+        {
+            "PC_MJO_raw": pcw_da,
+            "PC_MJO_std": pcw_std_da,
+            "amp_MJO_raw": ampw_da,
+            "amp_MJO_std": ampw_std_da,
+            "PC_BSISO_raw": pcs_da,
+            "PC_BSISO_std": pcs_std_da,
+            "amp_BSISO_raw": amps_da,
+            "amp_BSISO_std": amps_std_da,
+            "label": label_data,
+        }
+    )
 
     # print(f"Computed PCs.", flush=True)
     return pcs_data
@@ -586,20 +640,21 @@ def adjust_PCs(pcs_sim, alpha):
 
     # Correct PCs
     pcs_sim_corr = pcs_sim.copy()
-    for label in ('raw', 'std'):
+    for label in ("raw", "std"):
         # Adjust PCs and amplitudes
-        for mode in ('MJO', 'BSISO'):
-            pcs_sim_corr[f'PC_{mode}_{label}'] = pcs_sim[f'PC_{mode}_{label}'] / alpha
-            pcs_sim_corr[f'amp_{mode}_{label}'] = pcs_sim[f'amp_{mode}_{label}'] / alpha
+        for mode in ("MJO", "BSISO"):
+            pcs_sim_corr[f"PC_{mode}_{label}"] = pcs_sim[f"PC_{mode}_{label}"] / alpha
+            pcs_sim_corr[f"amp_{mode}_{label}"] = pcs_sim[f"amp_{mode}_{label}"] / alpha
 
     # Assign new labels
-    amp_corr = [pcs_sim_corr['amp_MJO_raw'].values, pcs_sim_corr['amp_BSISO_raw'].values]
-    amp_std_corr = [pcs_sim_corr['amp_MJO_std'].values, pcs_sim_corr['amp_BSISO_std'].values]
+    amp_corr = [pcs_sim_corr["amp_MJO_raw"].values, pcs_sim_corr["amp_BSISO_raw"].values]
+    amp_std_corr = [pcs_sim_corr["amp_MJO_std"].values, pcs_sim_corr["amp_BSISO_std"].values]
     label_corr = significant_labels(amp_corr, amp_std_corr)
-    pcs_sim_corr['label'] = xr.DataArray(
-        label_corr, 
-        dims=("time"), 
-        coords={"time":pcs_sim_corr['amp_MJO_raw'].coords['time']}, name="label"
+    pcs_sim_corr["label"] = xr.DataArray(
+        label_corr,
+        dims=("time"),
+        coords={"time": pcs_sim_corr["amp_MJO_raw"].coords["time"]},
+        name="label",
     )
 
     return pcs_sim_corr
@@ -623,18 +678,15 @@ def compute_freq_ISO(events):
     # Validate input
     if not isinstance(events, xr.DataArray):
         raise TypeError("'events' must be an xarray.DataArray.")
-    
+
     # Compute monthly frequency
-    n_mjo = (events == 1)
-    n_bsiso = (events == 2)
+    n_mjo = events == 1
+    n_bsiso = events == 2
 
     freq_mjo = n_mjo.groupby("time.month").mean().compute()
     freq_bsiso = n_bsiso.groupby("time.month").mean().compute()
 
-    freq_ISO = xr.Dataset({
-        "freq_MJO": freq_mjo,
-        "freq_BSISO": freq_bsiso
-    })
+    freq_ISO = xr.Dataset({"freq_MJO": freq_mjo, "freq_BSISO": freq_bsiso})
 
     # print(f"Computed mean monthly frequency of ISO events.", flush=True)
     return freq_ISO
@@ -642,9 +694,9 @@ def compute_freq_ISO(events):
 
 def compute_TSS(freq_ISO, freq_obs):
     """
-    Compute the Taylor Skill Score (TSS) comparing simulated and observed 
+    Compute the Taylor Skill Score (TSS) comparing simulated and observed
     mean monthly frequency of ocurrence of ISO events.
-    
+
     Parameters
     ----------
     freq_ISO : xr.Dataset
@@ -665,34 +717,34 @@ def compute_TSS(freq_ISO, freq_obs):
     # Validate input
     if not isinstance(freq_ISO, xr.Dataset) or not isinstance(freq_obs, xr.Dataset):
         raise TypeError("Simulated and observed frequencies must be xarray.Datasets.")
-    
-    # Compute frequencies
-    freq_diff_sim = freq_ISO['freq_BSISO'] - freq_ISO['freq_MJO']
-    freq_diff_obs = freq_obs['freq_BSISO'] - freq_obs['freq_MJO']
 
+    # Compute frequencies
+    freq_diff_sim = freq_ISO["freq_BSISO"] - freq_ISO["freq_MJO"]
+    freq_diff_obs = freq_obs["freq_BSISO"] - freq_obs["freq_MJO"]
 
     # Compute statistics (Note: corr_0 is the maximum correlation attainable by the model, here assumed to be 1)
     corr_0 = 1
-    corr = (xr.corr(freq_diff_sim, freq_diff_obs, dim='month').values).item()
-    sigma = ((freq_diff_sim.std(dim='month') / freq_diff_obs.std(dim='month')).values).item()
+    corr = (xr.corr(freq_diff_sim, freq_diff_obs, dim="month").values).item()
+    sigma = ((freq_diff_sim.std(dim="month") / freq_diff_obs.std(dim="month")).values).item()
 
     # Unused, Taylor Skill Score as defined in (M.Nakano et al., 2019) (kept for reference)
     # tss = (4 * (1+corr)**4) / ((sigma + (1/sigma))**2 * (1+corr_0)**2)
 
     # Taylor Skill Score as defined in original (K.E. Taylor, 2001) paper, Eq. 5 (taking only values between 0 and 1, and penalizing low correlation)
-    tss = (4 * (1+corr)**4) / ((sigma + (1/sigma))**2 * (1+corr_0)**4)
+    tss = (4 * (1 + corr) ** 4) / ((sigma + (1 / sigma)) ** 2 * (1 + corr_0) ** 4)
 
-    # print(f"Computed Taylor Skill Score (TSS) between simulations and observations:\n" + 
+    # print(f"Computed Taylor Skill Score (TSS) between simulations and observations:\n" +
     #         f"\tTemporal correlation (R): {corr:.2f}, Ratio standard deviations ($\\sigma$): {sigma:.2f}, TSS: {tss:.2f}\n", flush=True)
     return corr, sigma, tss
 
 
-def prepare_NOAA_iso_data(data_noaa, start_year=config_params.NOAA_START_YEAR, end_year=config_params.NOAA_END_YEAR, 
-                          lat_range=(-30,30), lag=5, n_lags=3, n_modes=2, window=141, low_freq=1/90, high_freq=1/25):
+def prepare_NOAA_iso_data(data_noaa, start_year=config_params.NOAA_START_YEAR, end_year=config_params.NOAA_END_YEAR,
+                          lat_range=(-30, 30), lag=5, n_lags=3, n_modes=2, window=141, low_freq=1 / 90,
+                          high_freq=1 / 25):
     """
     Preprocess NOAA data, perform an Extended Empirical Orthogonal Function (EEOF) analysis for
     boreal winter and boreal summer and return the corresponding Principal Components (PCs).
-    
+
     Parameters
     ----------
     data_noaa : xr.Dataset
@@ -727,10 +779,10 @@ def prepare_NOAA_iso_data(data_noaa, start_year=config_params.NOAA_START_YEAR, e
     """
 
     # Prepare data
-    var_name = 'rlut'
-    data_noaa_nans = data_noaa.sel(time=slice(f'{start_year}-01-01',f'{end_year}-12-31'))
-    data_noaa = data_noaa_nans.interpolate_na(dim='time', method='linear', fill_value='extrapolate')
-    data_noaa[var_name].attrs['units'] = 'W m**-2'
+    var_name = "rlut"
+    data_noaa_nans = data_noaa.sel(time=slice(f"{start_year}-01-01", f"{end_year}-12-31"))
+    data_noaa = data_noaa_nans.interpolate_na(dim="time", method="linear", fill_value="extrapolate")
+    data_noaa[var_name].attrs["units"] = "W m**-2"
 
     # Filter data using Lanczos bandpass filter
     data_unfiltered_obs = data_noaa[var_name].sortby("lat").sel(lat=slice(*lat_range)).compute()
@@ -739,11 +791,26 @@ def prepare_NOAA_iso_data(data_noaa, start_year=config_params.NOAA_START_YEAR, e
 
     # Perform EEOF analysis
     data_eeof = data_filtered_obs
-    eeof_summer = perform_EEOF_analysis(data_eeof, start_year, end_year, 'boreal_summer', lag, n_lags, n_modes)
-    eeof_winter = perform_EEOF_analysis(data_eeof, start_year, end_year, 'boreal_winter', lag, n_lags, n_modes)
+    eeof_summer = perform_EEOF_analysis(
+        data_eeof,
+        start_year,
+        end_year,
+        "boreal_summer",
+        lag,
+        n_lags,
+        n_modes
+    )
+    eeof_winter = perform_EEOF_analysis(
+        data_eeof,
+        start_year,
+        end_year,
+        "boreal_winter",
+        lag,
+        n_lags,
+        n_modes
+    )
 
     # Compute PCs
     pcs = compute_PCs(data_eeof, [eeof_winter, eeof_summer])
-
 
     return eeof_summer, eeof_winter, pcs

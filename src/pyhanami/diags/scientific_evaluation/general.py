@@ -5,9 +5,10 @@ import concurrent.futures
 from pathlib import Path
 
 from pyhanami.config import config_params
+from pyhanami.utils.plots import plots_general
+from pyhanami.utils import data_general, statistics
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
-from pyhanami.utils import data_general, plot, statistics
 
 VARIABLES = data_general.load_yaml_file(config_params.VARIABLES_PATH)
 
@@ -478,18 +479,18 @@ class GeneralEvaluation:
             )
 
             # Generate and save/display plot
-            general_scores_plot, _ = plot.plot_table(
+            general_scores_plot, _ = plots_general.plot_table(
                 data_plot,
                 title=title,
                 col_labels=cols,
                 row_labels=rows,
                 cbar_ticks=cbar_ticks,
-                colors=colors,
+                cbar_colors=colors,
                 reference=reference,
                 decimals=3,
             )
 
-            plot.save_or_show_plot(
+            plots_general.save_or_show_plot(
                 general_scores_plot,
                 output_path,
                 plot_filename=f"general_scalar_scores_table_{var_name}_{name_file}_{year_range}",

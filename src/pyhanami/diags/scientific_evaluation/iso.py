@@ -9,7 +9,8 @@ from matplotlib.colors import LinearSegmentedColormap
 
 from pyhanami.config import config_params
 from pyhanami.diags.Simulations import SimulationData
-from pyhanami.utils import data_general, config_scores, iso_scores, plot
+from pyhanami.utils.plots import plots_general, plots_iso
+from pyhanami.utils import data_general, config_scores, iso_scores
 
 VARIABLES = data_general.load_yaml_file(config_params.VARIABLES_PATH)
 
@@ -281,20 +282,22 @@ class ISOEvaluation:
                 eeof_summer = xr.open_dataset(config_params.NOAA_EEOF_SUMMER_PATH)
                 eeof_winter = xr.open_dataset(config_params.NOAA_EEOF_WINTER_PATH)
                 pcs_obs = xr.open_dataset(config_params.NOAA_PC_PATH)
-            except FileNotFoundError:
+            except FileNotFoundError as e:
                 raise FileNotFoundError(
                     f"Some or all required NOAA analysis files not found: "
                     f"'{config_params.NOAA_EEOF_SUMMER_PATH}', "
                     f"'{config_params.NOAA_EEOF_WINTER_PATH}', "
                     f"'{config_params.NOAA_PC_PATH}'."
-                )
+                ) from e
 
         # Regrid observations if their resolution is higher
         elif obs_resolution < sim_resolution:
             try:
                 data_obs = xr.open_dataset(obs_path)
-            except FileNotFoundError:
-                raise FileNotFoundError(f"NOAA observations data file not found at '{obs_path}'")
+            except FileNotFoundError as e:
+                raise FileNotFoundError(
+                    f"NOAA observations data file not found at '{obs_path}'"
+                ) from e
             data_obs_regrid = data_general.regrid_data(data_obs, data_sim)
 
             eeof_summer, eeof_winter, pcs_obs = iso_scores.prepare_NOAA_iso_data(data_obs_regrid)
@@ -578,7 +581,7 @@ class ISOEvaluation:
         name_file = name.replace(" ", "-")
 
         # Plot EEOFs for borean summer
-        eeofs_plot, _ = plot.plot_eeofs(
+        eeofs_plot, _ = plots_iso.plot_eeofs(
             self.eeof_summer,
             clon=clon,
             title=f"BSISO convective pattern '{name}' (JJASO {year_range})",
@@ -588,7 +591,7 @@ class ISOEvaluation:
             ),
         )
 
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             eeofs_plot,
             output_path,
             plot_filename=f"eeof_boreal_summer_{name_file}_{year_range}_clon_{clon}",
@@ -597,7 +600,7 @@ class ISOEvaluation:
         )
 
         # Plot EEOFs for borean winter
-        eeofw_plot, _ = plot.plot_eeofs(
+        eeofw_plot, _ = plots_iso.plot_eeofs(
             self.eeof_winter,
             clon=clon,
             title=f"MJO convective pattern '{name}' (DJFMA {year_range})",
@@ -605,7 +608,7 @@ class ISOEvaluation:
             cmap=LinearSegmentedColormap.from_list("BlueRed", ["tab:blue", "white", "tab:red"]),
         )
 
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             eeofw_plot,
             output_path,
             plot_filename=f"eeof_boreal_winter_{name_file}_{year_range}_clon_{clon}",
@@ -665,9 +668,9 @@ class ISOEvaluation:
         custom_name = True if len(years) == 1 else False
         for year in years:
             pcs_year = pcs_data.sel(time=slice(f"{year}-01-01", f"{year}-12-31"))
-            pcs_plot, _ = plot.plot_pcs(pcs_year, title=f"Bimodal ISO indices {name_title} ({year})")
+            pcs_plot, _ = plots_iso.plot_pcs(pcs_year, title=f"Bimodal ISO indices {name_title} ({year})")
 
-            plot.save_or_show_plot(
+            plots_general.save_or_show_plot(
                 pcs_plot,
                 output_path,
                 plot_filename=f"pcs_{name_file}_{year}_projected{name_projected}_{self.start_year_eeof}-{self.end_year_eeof}",
@@ -700,7 +703,7 @@ class ISOEvaluation:
             name_file = f"{self.sim_name.replace(' ', '-')}"
 
         # Plot frequency of ISO events
-        freq_plot, _ = plot.plot_freq_ISO(
+        freq_plot, _ = plots_iso.plot_freq_ISO(
             self.freq_sim,
             self.freq_obs,
             alpha=self.scores["alpha"],
@@ -712,7 +715,7 @@ class ISOEvaluation:
             obs_label=self.obs_name,
         )
 
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             freq_plot,
             output_path,
             plot_filename=f"freq_ISO_{name_file}_{self.start_year_pc}-{self.end_year_pc}_projected_{self.start_year_eeof}-{self.end_year_eeof}",
@@ -779,18 +782,18 @@ class ISOEvaluation:
         colors = ("RedGreen", ["tab:red", "white", "tab:green"])
 
         # Generate and save/display table plot
-        scalar_scores_table, _ = plot.plot_table(
+        scalar_scores_table, _ = plots_general.plot_table(
             data_scalar_scores,
             title=plot_title,
             col_labels=cols_scalar_scores,
             row_labels=rows_scalar_scores,
             cbar_ticks=cbar_ticks,
-            colors=colors,
+            cbar_colors=colors,
             reference=reference,
             decimals=2,
         )
 
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             scalar_scores_table,
             output_path,
             plot_filename=f"ISO_scalar_scores_table_{name_file}_{year_range}_projected_{self.start_year_eeof}-{self.end_year_eeof}",

@@ -13,8 +13,9 @@ from pathlib import Path
 from matplotlib.colors import LinearSegmentedColormap
 
 from pyhanami.config import config_params
+from pyhanami.utils.plots import plots_general
 from pyhanami.diags.Simulations import SimulationData
-from pyhanami.utils import data_general, config_scores, plot
+from pyhanami.utils import data_general, config_scores
 from pyhanami.utils.tcs_scores import tcs_tempestextremes, tcs_ibtracs, tcs_cymep_main
 
 
@@ -565,18 +566,18 @@ class TCEvaluation:
         limits_clim_bias = np.stack([-maxs_clim_bias, maxs_clim_bias], axis=1)
 
         # Generate table plot
-        clim_bias_table_plot, _ = plot.plot_table(
+        clim_bias_table_plot, _ = plots_general.plot_table(
             data_clim_bias,
             title=f"Global climatological mean bias ({year_range})",
             col_labels=cols_clim_bias,
             row_labels=rows_clim_bias,
             cbar_ticks=self.cbar_ticks_bias,
-            colors=self.colors_bias,
+            cbar_colors=self.colors_bias,
             limits=limits_clim_bias,
             reference=reference,
         )
 
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             clim_bias_table_plot,
             output_path,
             plot_filename=f"tcs_climatological_bias_table_{name_file}_{year_range}",
@@ -624,18 +625,18 @@ class TCEvaluation:
         limits_storm_bias = np.stack([-maxs_storm_bias, maxs_storm_bias], axis=1)
 
         # Generate table plot
-        storm_bias_table_plot, _ = plot.plot_table(
+        storm_bias_table_plot, _ = plots_general.plot_table(
             data_storm_bias,
             title=f"Global storm mean bias ({year_range})",
             col_labels=cols_storm_bias,
             row_labels=rows_storm_bias,
             cbar_ticks=self.cbar_ticks_bias,
-            colors=self.colors_bias,
+            cbar_colors=self.colors_bias,
             limits=limits_storm_bias,
             reference=reference,
         )
 
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             storm_bias_table_plot,
             output_path,
             plot_filename=f"tcs_storm_bias_table_{name_file}_{year_range}",
@@ -680,19 +681,19 @@ class TCEvaluation:
         limits_temp_corr = np.repeat([[-1, 1]], len(cols_temp_corr) - 1, axis=0)
 
         # Generate table plot
-        temp_corr_table_plot, _ = plot.plot_table(
+        temp_corr_table_plot, _ = plots_general.plot_table(
             data_temp_corr,
             title=f"Global seasonal correlation ({year_range})",
             col_labels=cols_temp_corr,
             row_labels=rows_storm_bias,
             cbar_ticks=self.cbar_ticks_corr,
-            colors=self.colors_corr,
+            cbar_colors=self.colors_corr,
             limits=limits_temp_corr,
             reference=reference,
             decimals=2,
         )
 
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             temp_corr_table_plot,
             output_path,
             plot_filename=f"tcs_seasonal_corr_table_{name_file}_{year_range}",
@@ -737,19 +738,19 @@ class TCEvaluation:
         limits_spatial_corr = np.repeat([[-1, 1]], len(cols_spatial_corr) - 1, axis=0)
 
         # Generate table plot
-        spatial_corr_table_plot, _ = plot.plot_table(
+        spatial_corr_table_plot, _ = plots_general.plot_table(
             data_spatial_corr,
             title=f"Global spatial correlation ({year_range})",
             col_labels=cols_spatial_corr,
             row_labels=rows_storm_bias,
             cbar_ticks=self.cbar_ticks_corr,
-            colors=self.colors_corr,
+            cbar_colors=self.colors_corr,
             limits=limits_spatial_corr,
             reference=reference,
             decimals=2,
         )
 
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             spatial_corr_table_plot,
             output_path,
             plot_filename=f"tcs_spatial_corr_table_{name_file}_{year_range}",
@@ -815,7 +816,7 @@ class TCEvaluation:
             plt.grid(True)
             plt.legend()
 
-            plot.save_or_show_plot(
+            plots_general.save_or_show_plot(
                 plt.gcf(),
                 output_path,
                 plot_name=f"Linear seasonal cycle plot for TC {name}",
@@ -836,7 +837,7 @@ class TCEvaluation:
             plt.grid(True)
             plt.legend()
 
-            plot.save_or_show_plot(
+            plots_general.save_or_show_plot(
                 plt.gcf(),
                 output_path,
                 plot_name=f"Linear interannual cycle plot for TC {name}",
@@ -890,7 +891,7 @@ class TCEvaluation:
 
             spatial_abs_data = self.data_cymep[f"spatial_abs_{spatial_metrics[i]}"]
             spatial_abs_data = spatial_abs_data.where(spatial_abs_data != 0)  # Set zero values to NaN for better visualization
-            spatial_abs_plot, _ = plot.two_spatial_plots(
+            spatial_abs_plot, _ = plots_general.two_spatial_plots(
                 spatial_abs_data.sel(model="IBTrACS"),
                 spatial_abs_data.sel(model=self.sim_name),
                 clon=clon,
@@ -900,7 +901,7 @@ class TCEvaluation:
                 cb_label=spatial_cb_labels[i],
                 cmap=cmap_modified,
             )
-            plot.save_or_show_plot(
+            plots_general.save_or_show_plot(
                 spatial_abs_plot,
                 output_path,
                 plot_filename=f"tcs_{name.lower()}_spatial_abs_plot_{name_file}_{year_range}_clon_{clon}",
@@ -911,7 +912,7 @@ class TCEvaluation:
             spatial_bias_data = self.data_cymep[f'spatial_bias_{spatial_metrics[i]}'].sel(model=self.sim_name)
             limit = np.ceil(np.nanmax(np.abs(spatial_bias_data.values)))
             levels = np.linspace(-limit, limit, 13)
-            spatial_bias_plot, _ = plot.plot_spatial(
+            spatial_bias_plot, _ = plots_general.plot_spatial(
                 spatial_bias_data,
                 clon=clon,
                 title=spatial_bias_titles[i],
@@ -920,7 +921,7 @@ class TCEvaluation:
                 levels=levels,
             )
             # cmap=cmocean.cm.diff)
-            plot.save_or_show_plot(
+            plots_general.save_or_show_plot(
                 spatial_bias_plot,
                 output_path,
                 plot_filename=f"tcs_{name.lower()}_spatial_bias_plot_{name_file}_{year_range}_clon_{clon}",

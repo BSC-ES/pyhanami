@@ -7,7 +7,8 @@ from pathlib import Path
 
 from pyhanami.config import config_params
 from pyhanami.diags.Simulations import SimulationData
-from pyhanami.utils import data_general, config_scores, plot
+from pyhanami.utils import data_general, config_scores
+from pyhanami.utils.plots import plots_general, plots_mjo
 from pyhanami.utils.mjo_scores import mjo_ceof_funcs, mjo_spectrum_funcs
 
 
@@ -397,7 +398,7 @@ class MJOEvaluation:
         #     model_mjo_obs = xeofs.single.EOF.load(config_params.MJO_MODEL_PATH)
         # except FileNotFoundError:
         #     raise FileNotFoundError(f"Observations MJO CEOF analysis file not found at "
-        #                             f"'{config_params.MJO_MODEL_PATH}'")
+        #                             f"'{config_params.MJO_MODEL_PATH}'") from e
 
 
         # Perform observational CEOF analysis (correct sign of the first mode to match the typical
@@ -998,13 +999,13 @@ class MJOEvaluation:
         year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
 
         # Generate CEOFs plot
-        ceof_sim_plot, _ = plot.plot_ceofs(
+        ceof_sim_plot, _ = plots_mjo.plot_ceofs(
             [self.ceof_obs["ceof"], self.ceof_sim_on_sim["ceof"]],
             title=f"Combined MJO EOFs ({year_range})",
             labels_linestyles=labels_linestyles,
         )
 
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             ceof_sim_plot,
             output_path,
             plot_filename=f"ceof_{sim_name_file}_{obs_name_file}_projected_on_sim_{year_range}",
@@ -1060,7 +1061,7 @@ class MJOEvaluation:
         plt.legend(fontsize=12)
 
         # Save/display plot
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             plt.gcf(),
             output_path,
             plot_filename=f"lead_lag_corr_rmm_{sim_name_file}_{obs_name_file}_{year_range}",
@@ -1107,19 +1108,19 @@ class MJOEvaluation:
         limits_corr = np.repeat([[-1, 1]], len(cols_ceof_corr) - 1, axis=0)
 
         # Generate CEOF scores table
-        ceof_scores_table, _ = plot.plot_table(
+        ceof_scores_table, _ = plots_general.plot_table(
             data_ceof_corr,
             title=f"Correlation between Combined EOFs ({year_range})",
             col_labels=cols_ceof_corr,
             row_labels=rows_ceof_corr,
             cbar_ticks=cbar_ticks_corr,
-            colors=colors_corr,
+            cbar_colors=colors_corr,
             limits=limits_corr,
             reference=reference,
             decimals=2,
         )
 
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             ceof_scores_table,
             output_path,
             plot_filename=f"ceof_corr_table_{name_file}_{year_range}",
@@ -1200,19 +1201,19 @@ class MJOEvaluation:
         limits_ceof_bias = np.stack([-maxs_ceof_bias, maxs_ceof_bias], axis=1)
 
         # Generate table plot
-        ceof_bias_table_plot, _ = plot.plot_table(
+        ceof_bias_table_plot, _ = plots_general.plot_table(
             data_ceof_bias,
             title=f"Bias derived from Combined EOF analysis ({year_range})",
             col_labels=cols_ceof_bias,
             row_labels=rows_ceof_bias,
             cbar_ticks=self.cbar_ticks_bias,
-            colors=self.colors_bias,
+            cbar_colors=self.colors_bias,
             limits=limits_ceof_bias,
             reference=reference,
             decimals=2,
         )
 
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             ceof_bias_table_plot,
             output_path,
             plot_filename=f"ceof_bias_table_{name_file}_{year_range}",
@@ -1248,7 +1249,7 @@ class MJOEvaluation:
         ]
 
         # Generate bar plot
-        mean_amp_bar_plot, _ = plot.plot_grouped_bars(
+        mean_amp_bar_plot, _ = plots_general.plot_grouped_bars(
             data_mean_active_amp,
             x_values=x_values,
             title=f"Climatological mean MJO amplitude per phase ({year_range})",
@@ -1257,7 +1258,7 @@ class MJOEvaluation:
             labels=labels_mean_amp,
         )
 
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             mean_amp_bar_plot,
             output_path,
             plot_filename=f"mean_amplitude_{sim_name_file}_{obs_name_file}_{year_range}",
@@ -1292,7 +1293,7 @@ class MJOEvaluation:
         ]
 
         # Generate bar plot
-        active_days_bar_plot, _ = plot.plot_grouped_bars(
+        active_days_bar_plot, _ = plots_general.plot_grouped_bars(
             data_active_days,
             x_values=x_values,
             title="Climatological active MJO days per phase ({year_range})",
@@ -1301,7 +1302,7 @@ class MJOEvaluation:
             labels=labels_active_days,
         )
 
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             active_days_bar_plot,
             output_path,
             plot_filename=f"active_days_{sim_name_file}_{obs_name_file}_{year_range}",
@@ -1346,7 +1347,7 @@ class MJOEvaluation:
 
         # Generate bar plot
         if layout == "separate":
-            mean_amp_active_days_plot, _ = plot.plot_two_grouped_bars(
+            mean_amp_active_days_plot, _ = plots_general.plot_two_grouped_bars(
                 data_mean_active_amp,
                 data_active_days,
                 x1_values=x_values,
@@ -1361,7 +1362,7 @@ class MJOEvaluation:
                 labels=labels,
             )
         elif layout == "together":
-            mean_amp_active_days_plot, _ = plot.plot_grouped_bars_two_axes(
+            mean_amp_active_days_plot, _ = plots_general.plot_grouped_bars_two_axes(
                 data_mean_active_amp,
                 data_active_days,
                 x_values=x_values,
@@ -1377,7 +1378,7 @@ class MJOEvaluation:
                 f"Invalid layout option '{layout}'. Choose either 'separate' or 'together'."
             )
 
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             mean_amp_active_days_plot,
             output_path,
             plot_filename=f"activity_per_phase_{layout}_{sim_name_file}_{obs_name_file}_{year_range}",
@@ -1435,19 +1436,19 @@ class MJOEvaluation:
         limits_mean_amp_bias = np.stack([-maxs_mean_amp_bias, maxs_mean_amp_bias], axis=1)
 
         # Generate table plot
-        mean_amp_bias_table_plot, _ = plot.plot_table(
+        mean_amp_bias_table_plot, _ = plots_general.plot_table(
             data_mean_amp_bias,
             title=f"Bias in climatological mean MJO amplitude per phase ({year_range})",
             col_labels=cols_mean_amp_bias,
             row_labels=rows_mean_amp_bias,
             cbar_ticks=self.cbar_ticks_bias,
-            colors=self.colors_bias,
+            cbar_colors=self.colors_bias,
             limits=limits_mean_amp_bias,
             reference=reference,
             decimals=2,
         )
 
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             mean_amp_bias_table_plot,
             output_path,
             plot_filename=f"mean_amplitude_bias_table_{name_file}_{year_range}",
@@ -1504,19 +1505,19 @@ class MJOEvaluation:
         limits_active_days_bias = np.stack([-maxs_active_days_bias, maxs_active_days_bias], axis=1)
 
         # Generate table plot
-        active_days_bias_table_plot, _ = plot.plot_table(
+        active_days_bias_table_plot, _ = plots_general.plot_table(
             data_active_days_bias,
             title=f"Bias in climatological active MJO days per phase ({year_range})",
             col_labels=cols_active_days_bias,
             row_labels=rows_active_days_bias,
             cbar_ticks=self.cbar_ticks_bias,
-            colors=self.colors_bias,
+            cbar_colors=self.colors_bias,
             limits=limits_active_days_bias,
             reference=reference,
             decimals=0,
         )
 
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             active_days_bias_table_plot,
             output_path,
             plot_filename=f"active_days_bias_table_{name_file}_{year_range}",
@@ -1597,20 +1598,20 @@ class MJOEvaluation:
 
 
         # Generate table plots
-        mean_amp_active_days_table_plot, _ = plot.plot_two_tables(
+        mean_amp_active_days_table_plot, _ = plots_general.plot_two_tables(
             data_mean_amp_bias,
             data_active_days_bias,
             title=f"Bias in climatological MJO activity per phase ({year_range})",
             col_labels=cols,
             row_labels=rows,
             cbar_ticks=self.cbar_ticks_bias,
-            colors=self.colors_bias,
+            cbar_colors=self.colors_bias,
             limits=limits,
             references=[reference, reference],
             decimals=[2, 0],
         )
 
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             mean_amp_active_days_table_plot,
             output_path,
             plot_filename=f"activity_per_phase_bias_tables_{name_file}_{year_range}",
@@ -1673,7 +1674,7 @@ class MJOEvaluation:
         year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
 
         # Generate power spectrum plot
-        power_spectrum_plot, _ = plot.plot_power_spectrum_two(
+        power_spectrum_plot, _ = plots_mjo.plot_power_spectrum_two(
             data_spec_obs,
             data_spec_sim,
             component=component,
@@ -1688,7 +1689,7 @@ class MJOEvaluation:
             mjo_wavenum_bounds=self.mjo_wavenum_bounds,
         )
 
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             power_spectrum_plot,
             output_path,
             plot_filename=f"power_spectrum_{spectrum_var}_{name_file}_{sim_name_file}_{obs_name_file}_{year_range}",
@@ -1754,18 +1755,18 @@ class MJOEvaluation:
         limits_power_bias = np.stack([-maxs_power_bias, maxs_power_bias], axis=1)
 
         # Generate power bias table plot
-        power_bias_table, _ = plot.plot_table(
+        power_bias_table, _ = plots_general.plot_table(
             data_power_bias,
             title=f"Bias derived from power spectra ({year_range})",
             col_labels=cols_power_bias,
             row_labels=rows_power_bias,
             cbar_ticks=self.cbar_ticks_bias,
-            colors=self.colors_bias,
+            cbar_colors=self.colors_bias,
             limits=limits_power_bias,
             reference=reference,
             decimals=2,
         )
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             power_bias_table,
             output_path,
             plot_filename=f"power_bias_table_{name_file}_{year_range}",

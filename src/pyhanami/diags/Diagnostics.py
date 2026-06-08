@@ -14,9 +14,10 @@ from collections.abc import Iterable
 from matplotlib.colors import LinearSegmentedColormap
 
 from pyhanami.config import config_params
+from pyhanami.utils.plots import plots_general
+from pyhanami.utils import data_general, statistics
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
-from pyhanami.utils import data_general, plot, statistics
 
 
 class DataDiagnostics:
@@ -576,7 +577,7 @@ class DataDiagnostics:
 
         # Compute and plot time series
         time_series = self._compute_time_series(var_name, data_plot_filtered, time_freq_unit)
-        time_series_plot, _ = plot.plot_time_series(
+        time_series_plot, _ = plots_general.plot_time_series(
             time_series,
             title=f"{time_freq.capitalize()} mean time series of {self.variables[var_name]['long_name']}",
             y_label=f"{var_name} ({self.variables[var_name]['units']})",
@@ -590,7 +591,7 @@ class DataDiagnostics:
         # Save plot to path if given
         data_names_str = "_".join([name.replace(" ", "-") for name in data_names])
         ens_suffix = "_all_members" if plot_ens else ""
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             time_series_plot,
             output_path,
             plot_filename=f"{time_freq}_time_series_{var_name}_{data_names_str}_{start_year}-{end_year}{ens_suffix}",
@@ -668,7 +669,7 @@ class DataDiagnostics:
         levels = np.linspace(-limit, limit, 13)
         year_range = f"{start_year}-{end_year}"
 
-        abs_diff_plot, _ = plot.plot_spatial(
+        abs_diff_plot, _ = plots_general.plot_spatial(
             abs_diff,
             clon=clon,
             title=f"Difference in {self.variables[var_name]['long_name']} for {year_range} ({data_names[0]} - {data_names[1]})",
@@ -679,7 +680,7 @@ class DataDiagnostics:
 
         # Save plot to path if given
         data_names_str = "_".join([name.replace(" ", "-") for name in data_names])
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             abs_diff_plot,
             output_path,
             plot_filename=f"abs_diff_{var_name}_{data_names_str}_{year_range}_clon_{clon}",
@@ -771,7 +772,7 @@ class DataDiagnostics:
         levels = [-2,-1.2,-0.8,-0.5,-0.2,-0.01,0.01,0.2,0.5,0.8,1.2,2.0]    # Use Cohen's limits for effect size
         year_range = f"{start_year}-{end_year}"
 
-        eff_size_plot, _ = plot.plot_spatial(
+        eff_size_plot, _ = plots_general.plot_spatial(
             eff_size,
             clon=clon,
             title=f"Effect size ($d$) for {self.variables[var_name]['long_name']} for {year_range} ({data_names[0]} - {data_names[1]})",
@@ -783,7 +784,7 @@ class DataDiagnostics:
 
         # Save plot to path if given
         data_names_str = "_".join([name.replace(" ", "-") for name in data_names])
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             eff_size_plot,
             output_path,
             plot_filename=f"eff_size_{var_name}_{data_names_str}_{year_range}_clon_{clon}",
@@ -878,7 +879,7 @@ class DataDiagnostics:
         cmap = LinearSegmentedColormap.from_list(*colors)
         year_range = f"{start_year}-{end_year}"
 
-        bias_plot, _ = plot.plot_spatial(
+        bias_plot, _ = plots_general.plot_spatial(
             bias,
             clon=clon,
             title=f"Bias in {self.variables[var_name]['long_name']} for {year_range} ({data_names[0]} - {data_names[1]})",
@@ -889,7 +890,7 @@ class DataDiagnostics:
 
         # Save plot to path if given
         data_names_str = "_".join([name.replace(" ", "-") for name in data_names])
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             bias_plot,
             output_path,
             plot_filename=f"bias_{var_name}_{data_names_str}_{year_range}_clon_{clon}",
@@ -979,7 +980,7 @@ class DataDiagnostics:
     #     significant = self._compute_significant_diff(var_name, data_plot, alpha, stat)
     #     levels = [-2,-1.2,-0.8,-0.5,-0.2,-0.01,0.01,0.2,0.5,0.8,1.2,2.0]    # Use Cohen's limits for effect size
 
-    #     eff_size_plot, _ = plot.plot_spatial(eff_size, clon=clon, title=f"Cohen's effect size ($d$) for {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
+    #     eff_size_plot, _ = plots_general.plot_spatial(eff_size, clon=clon, title=f"Cohen's effect size ($d$) for {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
     #                                       cb_label=f"$d$ for {var_name} (-)", cmap=cmocean.cm.diff, levels=levels, significant=significant)
 
     #     if output_path is None:

@@ -10,9 +10,10 @@ from scipy.stats import bootstrap
 from collections.abc import Iterable
 
 from pyhanami.config import config_params
+from pyhanami.utils.plots import plots_general
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
-from pyhanami.utils import data_general, plot, report, statistics
+from pyhanami.utils import data_general, report, statistics
 
 
 class ReplicabilityTest:
@@ -789,7 +790,7 @@ class ReplicabilityTest:
             )
 
         # Generate matrix plot
-        matrix, _ = plot.plot_matrix(
+        matrix, _ = plots_general.plot_matrix(
             eff_sizes,
             test_results,
             title=f"Outcome of the replicability test ({data_names[0]} vs {data_names[1]})",
@@ -797,7 +798,7 @@ class ReplicabilityTest:
         )
 
         data_names_str = "-".join([name.replace(" ", "_") for name in data_names])
-        plot.save_or_show_plot(
+        plots_general.save_or_show_plot(
             matrix,
             output_path,
             plot_filename=f"replicability_test_matrix_{data_names_str}",
