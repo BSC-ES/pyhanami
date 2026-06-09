@@ -90,6 +90,18 @@ class GeneralEvaluation:
         self.ensemble = True if "realization" in data_sim.data.dims else False
         self.max_workers_vars = config_params.MAX_WORKERS_VARS
 
+
+        # Select year for general analysis
+        start_year, end_year = data_general.validate_year_range(
+            data_sim, start_year, end_year, process_name="general scalar"
+        )
+        self.start_year, self.end_year = start_year, end_year
+        print(
+            f"\tYears selected for general scalar scores computation: {self.start_year}-{self.end_year}.",
+            flush=True,
+        )
+        data_sim_filtered = data_sim.data.sel(time=slice(str(self.start_year), str(self.end_year))).compute()
+
         # Load observational data
         if obs_path is None or obs_name is None:
             raise ValueError(
@@ -98,23 +110,11 @@ class GeneralEvaluation:
             )
         elif not isinstance(obs_path, (str, Path)) or not isinstance(obs_name, str):
             raise TypeError(
-                "'obs_path' and 'obs_name' must be strings representing the observations database path and name, respectively."
+                "'obs_path' and 'obs_name' must be strings representing the observations database "
+                "path and name, respectively."
             )
-        else:
-            data_obs = ObservationData(obs_path, data_sim.data[[var_name]], obs_name)
-
-        # Select year for general analysis
-        for dataset in [data_sim, data_obs]:
-            start_year, end_year = data_general.validate_year_range(
-                dataset, start_year, end_year, process_name="general scalar"
-            )
-        self.start_year, self.end_year = start_year, end_year
-        print(
-            f"\tYears selected for general scalar scores computation: {self.start_year}-{self.end_year}.",
-            flush=True,
-        )
-        data_sim_filtered = data_sim.data.sel(time=slice(str(self.start_year), str(self.end_year))).compute()
-        data_obs_filtered = data_obs.data.sel(time=slice(str(self.start_year), str(self.end_year))).compute()
+        data_obs = ObservationData(obs_path, data_sim_filtered[var_names], obs_name)
+        data_obs_filtered = data_obs.data.compute()
 
 
         # Compute scalar scores

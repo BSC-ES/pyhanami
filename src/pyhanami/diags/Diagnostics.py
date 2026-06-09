@@ -24,9 +24,10 @@ class DataDiagnostics:
     """
     Perform diagnostic comparisons between climate simulation ensembles.
 
-    This class provides functionality for computing and visualizing differences in climate variables
-    between simulation ensembles. It includes methods for computing annual time series, absolute
-    differences, effect sizes and significance differences at grid point level.
+    This class provides functionality for computing and visualizing differences in climate
+    variables between simulation ensembles. It includes methods for computing annual time
+    series, absolute differences, effect sizes and significance differences at grid point
+    level.
 
     Parameters
     ----------
@@ -547,23 +548,30 @@ class DataDiagnostics:
                 raise TypeError("'obs_paths' must be a string if 'obs_names' is a string.")
             if len(obs_paths) != len(obs_names):
                 raise ValueError("'obs_paths' and 'obs_names' must have the same length.")
-
-            data_obs = [
-                ObservationData(path, data_plot[0].data[[var_name]], name)
-                for path, name in zip(obs_paths, obs_names)
-            ]
-            data_plot.extend(data_obs)
-            data_names.extend(obs_names)
+            
 
         # Validate year range
         for dataset in data_plot:
             start_year, end_year = data_general.validate_year_range(
                 dataset, start_year, end_year, process_name="time series"
             )
+
+        # Filter simulation data to the selected year range
         data_plot_filtered = copy.deepcopy(data_plot)
         for i, dataset in enumerate(data_plot):
              data_plot_filtered[i].data = dataset.data.sel(time=slice(str(start_year), str(end_year)))
 
+        # Load observations for the selected year range if requested
+        if obs:
+            data_obs = [
+                ObservationData(path, data_plot_filtered[0].data[[var_name]], name)
+                for path, name in zip(obs_paths, obs_names)
+            ]
+            data_plot_filtered.extend(copy.deepcopy(data_obs))
+            data_names.extend(obs_names)
+
+
+        # Prepare time frequency for resampling
         if time_freq == "annual":
             time_freq_unit = "1YS"
         elif time_freq == "monthly":
@@ -856,10 +864,7 @@ class DataDiagnostics:
             raise TypeError(
                 "'obs_path' and 'obs_name' must be strings representing the observations database path and name, respectively."
             )
-        else:
-            data_obs = ObservationData(obs_path, data_plot[0].data[[var_name]], obs_name)
-            data_plot.append(data_obs)
-            data_names = [data_name, obs_name]
+            
 
         # Validate year range
         for dataset in data_plot:
@@ -869,6 +874,11 @@ class DataDiagnostics:
         data_plot_filtered = copy.deepcopy(data_plot)
         for i, dataset in enumerate(data_plot):
             data_plot_filtered[i].data = dataset.data.sel(time=slice(str(start_year), str(end_year)))
+
+        # Load observations for the selected year range
+        data_obs = ObservationData(obs_path, data_plot_filtered[0].data[[var_name]], obs_name)
+        data_plot_filtered.append(copy.deepcopy(data_obs))
+        data_names = [data_name, obs_name]
 
 
         # Compute and plot bias
@@ -899,7 +909,8 @@ class DataDiagnostics:
 
         return
 
-    # Unused, divided into two separate methods above (kept for reference)
+    
+    # Unused, this method has been divided into two separate methods above (kept for reference)
     # def spatial_plots(self, var_name, data_names=None, output_path=None, clon=0, alpha=0.05, stat=ttest_ind):
     #     """
     #     Generate absolute difference and effect size plots for the given datasets and variable.
