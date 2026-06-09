@@ -409,7 +409,13 @@ def cp_effect_size_bootstrap(args):
     # Estimate Cohen's d effect size
     if (np.std(sample_1) != 0) or (np.std(sample_2) != 0):
         rng = np.random.default_rng()   
-        res = bootstrap((sample_1,sample_2), cp_effect_size, confidence_level=0.95, n_resamples=5000, random_state=rng)  
+        res = bootstrap(
+            (sample_1,sample_2), 
+            cp_effect_size, 
+            confidence_level=0.95, 
+            n_resamples=5000, 
+            random_state=rng
+        )  
         d = np.mean(res.bootstrap_distribution)
     else: 
         d = np.nan
@@ -498,11 +504,11 @@ def significant_diff(args):
     except (TypeError, ValueError) as e:
         raise TypeError(f"Input samples must be convertible to numeric arrays: {e}.")
     if not isinstance(alpha, (int, float)):
-        raise TypeError(f"The significance level 'alpha' must be numeric.")
+        raise TypeError("The significance level 'alpha' must be numeric.")
     if not (0 <= alpha <= 1):
-        raise ValueError(f"'alpha' must be between 0 and 1.")
+        raise ValueError("'alpha' must be between 0 and 1.")
     if not callable(stat):
-        raise TypeError(f"'stat' must be callable.")
+        raise TypeError("'stat' must be callable.")
 
     # Evaluate difference
     res = stat(sample_1, sample_2)

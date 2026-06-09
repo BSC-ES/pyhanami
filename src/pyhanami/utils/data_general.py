@@ -179,7 +179,8 @@ def regrid_data(source_ds, target_ds, var=None, method="bilinear", cyclic_point=
             target_ds.isel({time_dim: 0}, drop=True) if time_dim in target_ds.dims else target_ds
         )
 
-        # Drop time coordinate to avoid conflicts during regridding (above, only time as a dimension was dropped)
+        # Drop time coordinate to avoid conflicts during regridding
+        # (above, only time as a dimension was dropped)
         source_ds_t0 = source_ds_t0.drop_vars(time_dim, errors="ignore")
         target_ds_t0 = target_ds_t0.drop_vars(time_dim, errors="ignore")
 

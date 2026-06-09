@@ -155,8 +155,8 @@ def make_config_class(phenomenon):
                 setattr(self, param, parsed_value)
             except Exception as e:
                 raise TypeError(
-                    f"Parameter '{param}' in configuration for phenomenon '{phenomenon}' must be of type "
-                    f"'{expected_type_str}', but got value '{current_value}' of type "
+                    f"Parameter '{param}' in configuration for phenomenon '{phenomenon}' must be "
+                    f"of type '{expected_type_str}', but got value '{current_value}' of type "
                     f"'{type(current_value).__name__}'. Error: {e}"
                 ) from e
 

@@ -1178,11 +1178,13 @@ def plot_table(data, title="Climate variables", col_labels="", row_labels="", cb
         raise ValueError("The data array must be 2-dimensional.")
     if len(row_labels) != data.shape[0]:
         raise ValueError(
-            f"The number of row labels ({len(row_labels)}) must match the number of rows in the data ({data.shape[0]})."
+            f"The number of row labels ({len(row_labels)}) must match "
+            f"the number of rows in the data ({data.shape[0]})."
         )
     if len(col_labels) - 1 != data.shape[1]:
         raise ValueError(
-            f"The number of column labels minus one ({len(col_labels) - 1}) must match the number of columns in the data ({data.shape[1]})."
+            f"The number of column labels minus one ({len(col_labels) - 1}) must match "
+            f"the number of columns in the data ({data.shape[1]})."
         )
     if limits is not None and (limits.shape[0] != data.shape[1] or limits.shape[1] != 2):
         raise ValueError("Limits must be a 2D array with shape (n_columns, 2).")
@@ -1350,13 +1352,13 @@ def plot_two_tables(data_1, data_2, title="Climate variables", col_labels=["", "
         raise ValueError("Both data arrays must be 2-dimensional.")
     if len(row_labels[0]) != data_1.shape[0] or len(row_labels[1]) != data_2.shape[0]:
         raise ValueError(
-            f"The number of row labels ({len(row_labels[0])}, {len(row_labels[1])}) must match the number of rows "
-            f"in both data arrays ({data_1.shape[0]}, {data_2.shape[0]})."
+            f"The number of row labels ({len(row_labels[0])}, {len(row_labels[1])}) must match "
+            f"the number of rows in both data arrays ({data_1.shape[0]}, {data_2.shape[0]})."
         )
     if len(col_labels[0]) - 1 != data_1.shape[1] or len(col_labels[1]) - 1 != data_2.shape[1]:
         raise ValueError(
-            f"The number of column labels minus one ({len(col_labels[0]) - 1}, {len(col_labels[1]) - 1}) must match "
-            f"the number of columns in both data arrays ({data_1.shape[1]}, {data_2.shape[1]})."
+            f"The number of column labels minus one ({len(col_labels[0]) - 1}, {len(col_labels[1]) - 1}) "
+            f"must match the number of columns in both data arrays ({data_1.shape[1]}, {data_2.shape[1]})."
         )
     if limits is not None and (
         limits[0].shape[0] != data_1.shape[1]

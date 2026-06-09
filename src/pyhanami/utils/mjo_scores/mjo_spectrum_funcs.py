@@ -32,7 +32,7 @@ def rmv_annual_cycle(data, spd, f_crit):
     -------
     z : xr.DataArray
         DataArray with frequencies < f_crit removed.
-        
+
 
     Note: fft/ifft preserves the mean because z = fft(x), z[0] is the mean.
           To keep the mean here, we need to keep the 0 frequency.
@@ -61,9 +61,9 @@ def rmv_annual_cycle(data, spd, f_crit):
     # if fcrit_ndx > 1:
     #     cf[1:fcrit_ndx+1, ...] = 0.0
     # z = np.fft.irfft(cf, n=ntim, axis=0)
-    
+
     z = xr.DataArray(z.real, dims=data.dims, coords=data.coords)
-    
+
     return z
 
 
@@ -101,13 +101,13 @@ def decompose_to_sym_asym(arr):
 
 
 def apply_lat_aggregation(d, lat_aggreg):
-    if lat_aggreg == 'sum':
-        r = d.sum(dim='lat').squeeze()
-    elif lat_aggreg == 'mean':
-        r = d.mean(dim='lat').squeeze()
+    if lat_aggreg == "sum":
+        r = d.sum(dim="lat").squeeze()
+    elif lat_aggreg == "mean":
+        r = d.mean(dim="lat").squeeze()
     else:
         raise ValueError(f"lat_aggreg set to {lat_aggreg}, must be `mean` or `sum`")
-    
+
     return r
 
 
@@ -290,29 +290,29 @@ def split_hann_taper(series_length, fraction):
         Length of the series to be tapered.
     fraction : float
         Fraction of the series to be tapered (combined on both ends).
-    
+
     Returns
     -------
     series_taper : np.ndarray
-            Array that tapers to zero on the ends. 
-    
+            Array that tapers to zero on the ends.
+
     Note: to taper to the mean of a series X:
         XTAPER = (X - X.mean())*series_taper + X.mean()
     """
-    
+
     npts = int(np.rint(fraction * series_length))  # total size of taper
     taper = np.hanning(npts)
     series_taper = np.ones(series_length)
     series_taper[0 : npts // 2 + 1] = taper[0 : npts // 2 + 1]
     series_taper[-npts // 2 + 1 :] = taper[npts // 2 + 1 :]
-    
+
     return series_taper
 
 
-def compute_spacetime_power(data, seg_size=96, n_overlap=60, spd=1, lat_bounds=None, do_symmetries=False,  
-                            rmv_low_freq=False, lat_aggreg='sum'):
+def compute_spacetime_power(data, seg_size=96, n_overlap=60, spd=1, lat_bounds=None,
+                            do_symmetries=False, rmv_low_freq=False, lat_aggreg="sum"):
     """
-    Perform space-time spectral decomposition and return power spectrum following 
+    Perform space-time spectral decomposition and return power spectrum following
     (M.C. Wheeler & G.N. Kiladis, 1999).
 
     Parameters
@@ -328,8 +328,8 @@ def compute_spacetime_power(data, seg_size=96, n_overlap=60, spd=1, lat_bounds=N
     lat_range : tuple
         Geographic latitude bounds (default: (-15, 15)).
     do_symmetries : bool
-        Whether to follow NCL convention of putting symmetric component in SH, 
-        antisymmetric in NH. If True, the returned DataArray will have a `component` 
+        Whether to follow NCL convention of putting symmetric component in SH,
+        antisymmetric in NH. If True, the returned DataArray will have a `component`
         dimension (default: False).
     rmv_low_freq : bool
         Whether to remove low frequencies, below 1/seg_size (default: False).
@@ -356,12 +356,12 @@ def compute_spacetime_power(data, seg_size=96, n_overlap=60, spd=1, lat_bounds=N
     """
 
     # Convert from days to time steps
-    seg_size = spd*seg_size
-    n_overlap = spd*n_overlap
+    seg_size = spd * seg_size
+    n_overlap = spd * n_overlap
 
     if lat_bounds is not None:
         assert isinstance(lat_bounds, tuple)
-        data = data.sel(lat = slice(*lat_bounds))  # CAUTION: is this a mutable argument?
+        data = data.sel(lat=slice(*lat_bounds))  # CAUTION: is this a mutable argument?
         # logging.info(f"Data reduced by latitude bounds. Size is {data.sizes}")
         slat = lat_bounds[0]
         nlat = lat_bounds[1]
@@ -413,9 +413,10 @@ def compute_spacetime_power(data, seg_size=96, n_overlap=60, spd=1, lat_bounds=N
     # WK99 recommend "2-month" overlap
     # Shape of x_win: (_, lat, lon, segments: spd*seg_size)
     x_roll = data.rolling(time=seg_size, min_periods=seg_size)  # WK99 use 96-day window
-    assert (
-        seg_size - n_overlap > 0
-    ), f"Error, inconsistent specification of 'seg_size' and 'n_overlap' results in stride of {seg_size-n_overlap}, but must be > 0."
+    assert seg_size - n_overlap > 0, (
+        "Error, inconsistent specification of 'seg_size' and 'n_overlap' results in "
+        f"stride of {seg_size - n_overlap}, but must be > 0."
+    )
     x_win = x_roll.construct("segments")
     x_win = x_win.isel(time=slice(seg_size - 1, None, seg_size - n_overlap))
 
@@ -491,8 +492,8 @@ def compute_spacetime_power(data, seg_size=96, n_overlap=60, spd=1, lat_bounds=N
 
     z = xr.DataArray(
         z,
-        dims = ("time", "lat", "wavenumber", "frequency"),
-        coords = {
+        dims=("time", "lat", "wavenumber", "frequency"),
+        coords={
             "time": x_wintap["time"],
             "lat": x_wintap["lat"],
             "wavenumber": np.fft.fftfreq(lon_size, 1 / lon_size),
@@ -535,16 +536,10 @@ def compute_spacetime_power(data, seg_size=96, n_overlap=60, spd=1, lat_bounds=N
     # OUTPUT DEPENDS ON SYMMETRIES
     if do_symmetries:
         # multipy by 2 b/c we only used one hemisphere
-        z_symmetric = (
-            2.0
-            * z_pee.isel(lat=z_pee.lat < 0).mean(dim="time")
-        )
+        z_symmetric = 2.0 * z_pee.isel(lat=z_pee.lat < 0).mean(dim="time")
         z_symmetric = apply_lat_aggregation(z_symmetric, lat_aggreg)
         z_symmetric.name = "power"
-        z_antisymmetric = (
-            2.0
-            * z_pee.isel(lat=z_pee.lat > 0).mean(dim="time")
-        )
+        z_antisymmetric = 2.0 * z_pee.isel(lat=z_pee.lat > 0).mean(dim="time")
         z_antisymmetric = apply_lat_aggregation(z_antisymmetric, lat_aggreg)
         z_antisymmetric.name = "power"
         z_final = xr.concat([z_symmetric, z_antisymmetric], "component")
@@ -554,22 +549,22 @@ def compute_spacetime_power(data, seg_size=96, n_overlap=60, spd=1, lat_bounds=N
         lat_inds = np.argwhere(((lat <= nlat) & (lat >= slat)).values).squeeze()
         z_final = z_pee.isel(lat=lat_inds).mean(dim="time")
         z_final = apply_lat_aggregation(z_final, lat_aggreg)
-    
+
     return z_final
 
 
-def gen_dispersion_curves(n_wave_type=6, n_planetary_wave=50, rlat=0.0, ahe=[50., 25., 12.]):
+def gen_dispersion_curves(n_wave_type=6, n_planetary_wave=50, rlat=0.0, ahe=[50.0, 25.0, 12.0]):
     """
-    Derive the shallow water dispersion curves. 
+    Derive the shallow water dispersion curves.
 
     Parameters
     ----------
     n_wave_type : int
-        Number of wave types (both symmetric and antisymmetric) to compute (default: 6). 
+        Number of wave types (both symmetric and antisymmetric) to compute (default: 6).
         In the default case, the wave types are:
-            - 0,1,2 (ASYMMETRIC): "MRG", "IG", "EIG" (mixed rossby gravity, inertial 
+            - 0,1,2 (ASYMMETRIC): "MRG", "IG", "EIG" (mixed rossby gravity, inertial
             gravity, equatorial inertial gravity)
-            - 3,4,5 (SYMMETRIC): "Kelvin", "ER", "IG" (Kelvin, equatorial rossby, 
+            - 3,4,5 (SYMMETRIC): "Kelvin", "ER", "IG" (Kelvin, equatorial rossby,
             inertial gravity)
     n_planetary_wave : int
         Number of planetary waves to compute (default: 50).
@@ -614,7 +609,7 @@ def gen_dispersion_curves(n_wave_type=6, n_planetary_wave=50, rlat=0.0, ahe=[50.
             L = np.sqrt(
                 c / beta
             )  # was: (g*he)**(0.25)/np.sqrt(beta), this is Rossby radius of deformation
-            
+
             for wn in range(1, n_planetary_wave + 1):
                 s = -20.0 * (wn - 1) * 2.0 / (n_planetary_wave - 1) + 20.0
                 k = 2.0 * np.pi * s / ll
@@ -647,13 +642,11 @@ def gen_dispersion_curves(n_wave_type=6, n_planetary_wave=50, rlat=0.0, ahe=[50.
                     n = 2.0
                     dell = beta * c
                     deif = np.sqrt((2.0 * n + 1.0) * dell + (g * he) * k**2)
-                    
+
                     # Apply some corrections to the above calculated frequency.......
                     for i in range(1, 5 + 1):
                         deif = np.sqrt(
-                            (2.0 * n + 1.0) * dell
-                            + (g * he) * k**2
-                            + g * he * beta * k / deif
+                            (2.0 * n + 1.0) * dell + (g * he) * k**2 + g * he * beta * k / deif
                         )
 
                 # Symmetric curves
@@ -672,13 +665,11 @@ def gen_dispersion_curves(n_wave_type=6, n_planetary_wave=50, rlat=0.0, ahe=[50.
                     n = 1.0
                     dell = beta * c
                     deif = np.sqrt((2.0 * n + 1.0) * dell + (g * he) * k**2)
-                    
+
                     # Apply some corrections to the above calculated frequency
                     for i in range(1, 5 + 1):
                         deif = np.sqrt(
-                            (2.0 * n + 1.0) * dell
-                            + (g * he) * k**2
-                            + g * he * beta * k / deif
+                            (2.0 * n + 1.0) * dell + (g * he) * k**2 + g * he * beta * k / deif
                         )
 
                 eif = deif  # + k*U since  U=0.0
@@ -700,12 +691,12 @@ def gen_dispersion_curves(n_wave_type=6, n_planetary_wave=50, rlat=0.0, ahe=[50.
 
 # Original functions to compute the power spectra (not adapted from the wavenumber_frequency repository)
 
-def variable_smooth_wavefreq(data, freq_dim='frequency', wavenum_dim='wavenumber'):
+def variable_smooth_wavefreq(data, freq_dim="frequency", wavenum_dim="wavenumber"):
     """
     Compute background spectrum by smoothing with a filter in frequency and wavenumber.
     Following (M.C. Wheeler & G.N. Kiladis, 1999), the smoothing is done by using a
-    1-2-1 filter and performing 10 passes in frequency to all frequencies and, then, 
-    10/20/30/40 passes in wavenumber depending on the frequency range (in increasing 
+    1-2-1 filter and performing 10 passes in frequency to all frequencies and, then,
+    10/20/30/40 passes in wavenumber depending on the frequency range (in increasing
     frequency).
 
     Parameters
@@ -734,8 +725,12 @@ def variable_smooth_wavefreq(data, freq_dim='frequency', wavenum_dim='wavenumber
 
     # Smooth 10 times in frequency
     for _ in range(10):
-        data_smoothed = convolve1d(data_smoothed, weights=kernel, axis=data.get_axis_num(freq_dim), mode='nearest')
-
+        data_smoothed = convolve1d(
+            data_smoothed,
+            weights=kernel,
+            axis=data.get_axis_num(freq_dim),
+            mode="nearest"
+        )
 
     # Smooth in wavenumber with stepped passes
     n_freq = freq.size
@@ -744,29 +739,34 @@ def variable_smooth_wavefreq(data, freq_dim='frequency', wavenum_dim='wavenumber
 
     # Define ranges
     split = n_freq // 4
-    pass_map = [10] * split + [20] * split + [30] * split + [40] * (n_freq - 3*split)  # Ensure all bins are covered
-    
+
+    # Ensure all bins are covered
+    pass_map = [10] * split + [20] * split + [30] * split + [40] * (n_freq - 3 * split)
+
     # Uncomment to do it in just 2 steps rather than 3
     # split = n_freq // 3
     # pass_map = [10] * split + [25] * split + [40] * (n_freq - 2*split)  # Ensure all bins are covered
-    
+
     # Apply smoothing in wavenumber for each frequency bin
     for i, n_passes in enumerate(pass_map):
         indexer = [slice(None)] * data.ndim
         indexer[freq_axis] = i
 
         for _ in range(n_passes):
-            data_smoothed[tuple(indexer)] = convolve1d(data_smoothed[tuple(indexer)], weights=kernel, 
-                                                       axis=wnum_axis, mode='nearest')
-
+            data_smoothed[tuple(indexer)] = convolve1d(
+                data_smoothed[tuple(indexer)],
+                weights=kernel,
+                axis=wnum_axis,
+                mode="nearest"
+            )
 
     # Save resulsts to xr.DataArray
     smoothed = xr.DataArray(
         data_smoothed,
-        dims = data.dims,
-        coords = data.coords,
-        attrs = data.attrs,
-        name = 'background_spectrum'
+        dims=data.dims,
+        coords=data.coords,
+        attrs=data.attrs,
+        name="background_spectrum",
     )
 
     return smoothed
@@ -774,8 +774,8 @@ def variable_smooth_wavefreq(data, freq_dim='frequency', wavenum_dim='wavenumber
 
 def wavenum_freq_analysis(data, seg_size=96, n_overlap=60, lat_range=(-15, 15)):
     """
-    Perform wavenumber-frequency analysis and return the normalized spectral symmetric 
-    and antisymmetric components obtained dividing by a smoothed background following 
+    Perform wavenumber-frequency analysis and return the normalized spectral symmetric
+    and antisymmetric components obtained dividing by a smoothed background following
     (M.C. Wheeler & G.N. Kiladis, 1999).
 
     Parameters
@@ -808,34 +808,42 @@ def wavenum_freq_analysis(data, seg_size=96, n_overlap=60, lat_range=(-15, 15)):
         raise ValueError("Input data must be an xarray DataArray.")
 
     # Get the "raw" spectral power (original function from the wavenumber_frequency repository)
-    z2 = compute_spacetime_power(data, seg_size, n_overlap, spd=1, lat_bounds=lat_range, do_symmetries=True, rmv_low_freq=True)
-    z2avg = z2.mean(dim='component')
+    z2 = compute_spacetime_power(
+        data,
+        seg_size,
+        n_overlap,
+        spd=1,
+        lat_bounds=lat_range,
+        do_symmetries=True,
+        rmv_low_freq=True,
+    )
+    z2avg = z2.mean(dim="component")
 
     # Get rid of spurious power at \nu = 0
-    z2.loc[{'frequency':0}] = np.nan 
-    
+    z2.loc[{"frequency": 0}] = np.nan
+
     # Compute background (derived from both symmetric and antisymmetric)
-    background = variable_smooth_wavefreq(z2avg, freq_dim='frequency', wavenum_dim='wavenumber')    
+    background = variable_smooth_wavefreq(z2avg, freq_dim="frequency", wavenum_dim="wavenumber")
 
     # Separate components
-    z2_sym = z2[0,...]
-    z2_asy = z2[1,...]
-    
+    z2_sym = z2[0, ...]
+    z2_asy = z2[1, ...]
+
     # Normalize by background
-    nspec_sym = z2_sym / background 
+    nspec_sym = z2_sym / background
     nspec_asy = z2_asy / background
 
     # Add names to the data arrays
-    nspec_sym.name = 'sym_spec'
-    nspec_asy.name = 'asym_spec'
-    background.name = 'background'
+    nspec_sym.name = "sym_spec"
+    nspec_asy.name = "asym_spec"
+    background.name = "background"
 
     return nspec_sym, nspec_asy, z2_sym, z2_asy, background
 
 
 def wavenum_freq_analysis_wrapper(args):
     """
-    Wrapper function to perform wavenumber-frequency analysis with a single argument, 
+    Wrapper function to perform wavenumber-frequency analysis with a single argument,
     for use with multiprocessing.
 
     Parameters
@@ -851,13 +859,15 @@ def wavenum_freq_analysis_wrapper(args):
 
     data, seg_size, n_overlap, lat_range = args
     result = wavenum_freq_analysis(data, seg_size, n_overlap, lat_range)
-    
+
     return result
 
 
+
 # Original functions to postprocess the power spectra (not adapted from the wavenumber_frequency repository)
-def sum_power_over_area(power, freq_bounds=None, wavenum_bounds=None, freq_dim='frequency', 
-                        wavenum_dim='wavenumber'):
+
+def sum_power_over_area( power, freq_bounds=None, wavenum_bounds=None, freq_dim="frequency",
+                         wavenum_dim="wavenumber"):
     """
     Sum power over a specified area in wavenumber-frequency space.
 
@@ -886,19 +896,27 @@ def sum_power_over_area(power, freq_bounds=None, wavenum_bounds=None, freq_dim='
     if not isinstance(power, xr.DataArray):
         raise ValueError("Input power must be an xr.DataArray.")
     if freq_dim not in power.dims or wavenum_dim not in power.dims:
-        raise ValueError(f"Specified dimensions '{freq_dim}' and/or '{wavenum_dim}' not found in the power xr.DataArray.")
-    
+        raise ValueError(
+            f"Specified dimensions '{freq_dim}' and/or '{wavenum_dim}' not found in the power xr.DataArray."
+        )
+
     # Select the area in wavenumber-frequency space
     if freq_bounds is not None:
         if freq_bounds[0] > freq_bounds[1]:
-            raise ValueError("Invalid frequency bounds: lower bound must be smaller than upper bound.")
+            raise ValueError(
+                "Invalid frequency bounds: lower bound must be smaller than upper bound."
+            )
         power_freq_filtered = power.sel({freq_dim: slice(freq_bounds[0], freq_bounds[1])})
     else:
         power_freq_filtered = power
     if wavenum_bounds is not None:
         if wavenum_bounds[0] > wavenum_bounds[1]:
-            raise ValueError("Invalid wavenumber bounds: lower bound must be smaller than upper bound.")
-        power_filtered = power_freq_filtered.sel({wavenum_dim: slice(wavenum_bounds[0], wavenum_bounds[1])})
+            raise ValueError(
+                "Invalid wavenumber bounds: lower bound must be smaller than upper bound."
+            )
+        power_filtered = power_freq_filtered.sel(
+            {wavenum_dim: slice(wavenum_bounds[0], wavenum_bounds[1])}
+        )
     else:
         power_filtered = power_freq_filtered
 
@@ -909,10 +927,11 @@ def sum_power_over_area(power, freq_bounds=None, wavenum_bounds=None, freq_dim='
     return power_sum
 
 
-def compute_eastward_westward_ratio(power, freq_bounds=None, wavenum_bounds=None, freq_dim='frequency', 
-                                    wavenum_dim='wavenumber'):
+def compute_eastward_westward_ratio(power, freq_bounds=None, wavenum_bounds=None,
+                                    freq_dim="frequency", wavenum_dim="wavenumber"):
     """
-    Compute the ratio of eastward to westward power in a specified area of wavenumber-frequency space.
+    Compute the ratio of eastward to westward power in a specified area of
+    wavenumber-frequency space.
 
     Parameters
     ----------
@@ -941,16 +960,30 @@ def compute_eastward_westward_ratio(power, freq_bounds=None, wavenum_bounds=None
     if not isinstance(power, xr.DataArray):
         raise ValueError("Input power must be an xr.DataArray.")
     if freq_bounds is None or freq_bounds[0] > freq_bounds[1]:
-        raise ValueError("Frequency bounds 'freq_bounds' must be specified and valid (lower bound must be smaller than upper bound).")
-    if wavenum_bounds is None or wavenum_bounds[0] < 0 or wavenum_bounds[1] < 0 or wavenum_bounds[0] > wavenum_bounds[1]:
-        raise ValueError("Wavenumber bounds 'wavenum_bounds' must be specified, positive and valid (lower bound must be smaller than upper bound).")
+        raise ValueError(
+            "Frequency bounds 'freq_bounds' must be specified and valid "
+            "(lower bound must be smaller than upper bound)."
+        )
+    if (
+        wavenum_bounds is None
+        or wavenum_bounds[0] < 0
+        or wavenum_bounds[1] < 0
+        or wavenum_bounds[0] > wavenum_bounds[1]
+    ):
+        raise ValueError(
+            "Wavenumber bounds 'wavenum_bounds' must be specified, positive and valid "
+            "(lower bound must be smaller than upper bound)."
+        )
     if freq_dim not in power.dims or wavenum_dim not in power.dims:
-        raise ValueError(f"Specified dimensions '{freq_dim}' and/or '{wavenum_dim}' not found in the power xr.DataArray.")
-
+        raise ValueError(
+            f"Specified dimensions '{freq_dim}' and/or '{wavenum_dim}' not found in the power xr.DataArray."
+        )
 
     # Compute eastward and westward sums
     eastward_sum = sum_power_over_area(power, freq_bounds, wavenum_bounds, freq_dim, wavenum_dim)
-    westward_sum = sum_power_over_area(power, freq_bounds, (-wavenum_bounds[1], -wavenum_bounds[0]), freq_dim, wavenum_dim)
+    westward_sum = sum_power_over_area(
+        power, freq_bounds, (-wavenum_bounds[1], -wavenum_bounds[0]), freq_dim, wavenum_dim
+    )
 
     # Compute ratio
     if westward_sum == 0:
@@ -961,10 +994,10 @@ def compute_eastward_westward_ratio(power, freq_bounds=None, wavenum_bounds=None
     return ratio, eastward_sum, westward_sum
 
 
-def compute_power_periodicity(power, freq_bounds=None, wavenum_bounds=None, freq_dim='frequency', 
-                              wavenum_dim='wavenumber'):
+def compute_power_periodicity(power, freq_bounds=None, wavenum_bounds=None, freq_dim="frequency",
+                              wavenum_dim="wavenumber"):
     """
-    Compute the power-weighted mean period from the wavenumber-frequency power spectra (P_WFPS) 
+    Compute the power-weighted mean period from the wavenumber-frequency power spectra (P_WFPS)
     in a specified area.
 
     Parameters:
@@ -991,23 +1024,30 @@ def compute_power_periodicity(power, freq_bounds=None, wavenum_bounds=None, freq
     if not isinstance(power, xr.DataArray):
         raise ValueError("Input power must be an xr.DataArray.")
     if freq_dim not in power.dims or wavenum_dim not in power.dims:
-        raise ValueError(f"Specified dimensions '{freq_dim}' and/or '{wavenum_dim}' not found in the power xr.DataArray.")
+        raise ValueError(
+            f"Specified dimensions '{freq_dim}' and/or '{wavenum_dim}' not found in the power xr.DataArray."
+        )
 
     # Select the area in wavenumber-frequency space
     if freq_bounds is not None:
         if freq_bounds[0] > freq_bounds[1]:
-            raise ValueError("Invalid frequency bounds: lower bound must be smaller than upper bound.")
+            raise ValueError(
+                "Invalid frequency bounds: lower bound must be smaller than upper bound."
+            )
         power_freq_filtered = power.sel({freq_dim: slice(freq_bounds[0], freq_bounds[1])})
     else:
         power_freq_filtered = power
     if wavenum_bounds is not None:
         if wavenum_bounds[0] > wavenum_bounds[1]:
-            raise ValueError("Invalid wavenumber bounds: lower bound must be smaller than upper bound.")
-        power_filtered = power_freq_filtered.sel({wavenum_dim: slice(wavenum_bounds[0], wavenum_bounds[1])})
+            raise ValueError(
+                "Invalid wavenumber bounds: lower bound must be smaller than upper bound."
+            )
+        power_filtered = power_freq_filtered.sel(
+            {wavenum_dim: slice(wavenum_bounds[0], wavenum_bounds[1])}
+        )
     else:
         power_filtered = power_freq_filtered
 
-    
     # Compute power-weighted sum of periods
     freq_values = power_filtered[freq_dim].values
     if np.any(freq_values == 0):
@@ -1020,7 +1060,7 @@ def compute_power_periodicity(power, freq_bounds=None, wavenum_bounds=None, freq
     total_power = power_filtered.sum(skipna=True).item()
     if total_power == 0:
         raise ValueError("Total power in the specified area is zero, cannot compute periodicity.")
-    
+
     # Compute period from the wavenumber-frequency power spectra (P_WFPS)
     pwfps = power_weighted_periods / total_power
 

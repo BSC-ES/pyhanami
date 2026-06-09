@@ -305,7 +305,8 @@ def perform_EEOF_analysis(olr_data, start_year, end_year, season, lag=5, n_lags=
     blocks = extract_season_blocks(olr_data, start_year, end_year, season, cutoff_points)
     if not blocks:
         raise ValueError(
-            f"No valid seasonal blocks found with the specified cutoff points per season ({cutoff_points} points)."
+            "No valid seasonal blocks found with the specified cutoff points per season "
+            f"({cutoff_points} points)."
         )
     combined_blocks = xr.concat(blocks, dim="time")
     del blocks
@@ -491,8 +492,8 @@ def significant_labels(amp, amp_std):
 
 def compute_PCs(olr_data, eeofs):
     """
-    Compute Principal Components (PCs) of Outgoing Longwave Radiation (OLR) data using previously computed
-    Extended Empirical Orthogonal Functions (EEOFs) for each ISO mode (MJO and BSISO).
+    Compute Principal Components (PCs) of Outgoing Longwave Radiation (OLR) data using previously
+    computed Extended Empirical Orthogonal Functions (EEOFs) for each ISO mode (MJO and BSISO).
 
     Parameters
     ----------
@@ -530,7 +531,8 @@ def compute_PCs(olr_data, eeofs):
     pc, pc_std, amp, amp_std = project_PCs(lagged_wmatrix, eeofs)
     del lagged_wmatrix
 
-    # Assign label for each time step depending on the amplitudes (1: Significant MJO, 2: Significant BSISO; 0: Insignificant)
+    # Assign label for each time step depending on the amplitudes
+    # (1: Significant MJO, 2: Significant BSISO; 0: Insignificant)
     labels = significant_labels(amp, amp_std)
 
 
@@ -615,8 +617,9 @@ def compute_PCs(olr_data, eeofs):
 
 def adjust_PCs(pcs_sim, alpha):
     """
-    Adjust simulated Principal Components (PCs) by dividing by the ratio of simulated PCs' amplitude over
-    observed PCs' amplitude (alpha), in order to correct for the models' weak BSISO/MJO frequency.
+    Adjust simulated Principal Components (PCs) by dividing by the ratio of simulated PCs'
+    amplitude over observed PCs' amplitude (alpha), in order to correct for the models'
+    weak BSISO/MJO frequency.
 
     Parameters
     ----------
@@ -662,7 +665,8 @@ def adjust_PCs(pcs_sim, alpha):
 
 def compute_freq_ISO(events):
     """
-    Compute the mean monthly frequency of ocurrence of ISO events (distinguishing between MJO and BSISO).
+    Compute the mean monthly frequency of ocurrence of ISO events (distinguishing between 
+    MJO and BSISO).
 
     Parameters
     ----------
@@ -722,7 +726,8 @@ def compute_TSS(freq_ISO, freq_obs):
     freq_diff_sim = freq_ISO["freq_BSISO"] - freq_ISO["freq_MJO"]
     freq_diff_obs = freq_obs["freq_BSISO"] - freq_obs["freq_MJO"]
 
-    # Compute statistics (Note: corr_0 is the maximum correlation attainable by the model, here assumed to be 1)
+    # Compute statistics (Note: corr_0 is the maximum correlation attainable by the model, 
+    # here assumed to be 1)
     corr_0 = 1
     corr = (xr.corr(freq_diff_sim, freq_diff_obs, dim="month").values).item()
     sigma = ((freq_diff_sim.std(dim="month") / freq_diff_obs.std(dim="month")).values).item()
@@ -730,7 +735,8 @@ def compute_TSS(freq_ISO, freq_obs):
     # Unused, Taylor Skill Score as defined in (M.Nakano et al., 2019) (kept for reference)
     # tss = (4 * (1+corr)**4) / ((sigma + (1/sigma))**2 * (1+corr_0)**2)
 
-    # Taylor Skill Score as defined in original (K.E. Taylor, 2001) paper, Eq. 5 (taking only values between 0 and 1, and penalizing low correlation)
+    # Taylor Skill Score as defined in original (K.E. Taylor, 2001) paper, Eq. 5 
+    # (taking only values between 0 and 1, and penalizing low correlation)
     tss = (4 * (1 + corr) ** 4) / ((sigma + (1 / sigma)) ** 2 * (1 + corr_0) ** 4)
 
     # print(f"Computed Taylor Skill Score (TSS) between simulations and observations:\n" +

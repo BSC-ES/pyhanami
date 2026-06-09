@@ -27,7 +27,8 @@ class DataChecker:
     Methods
     -------
     normalize_units(unit_str)
-        Normalize format of units to be compatible with pint.UnitRegistry. Not used anymore, but kept for reference.
+        Normalize format of units to be compatible with pint.UnitRegistry. Not used anymore, but
+        kept for reference.
     normalize_time_format(data)
         Checks datetime format of the provided data and converts to 'np.datetime64[ns]' if needed.
     check_standard_compliance(data)
@@ -37,11 +38,14 @@ class DataChecker:
     check_spatial_consistency(data)
         Checks grid features of the provided data. Not implemented yet, but left for reference.
     check_temporal_completeness(data)
-        Checks presence of all timesteps between the minimum and maximum time values in the given dataset.
+        Checks presence of all timesteps between the minimum and maximum time values in the given
+        dataset.
     check_physical_plausibility(data)
-        Checks that each variable in the provided dataset is within an established physically reasonable range of values.
+        Checks that each variable in the provided dataset is within an established physically
+        reasonable range of values.
     check_data(data)
-        Runs all checks and, if necessary, correct provided data (coordinates names and format, available variables, units, ...).
+        Runs all checks and, if necessary, correct provided data (coordinates names and format,
+        available variables, units, ...).
     """
 
     def __init__(self):
@@ -121,8 +125,9 @@ class DataChecker:
                 datetimeindex = data.indexes["time"].to_datetimeindex(time_unit="ns")
                 data = data.assign_coords(time=("time", datetimeindex.values))
                 warnings.append(
-                    f"Data 'time' coordinate was not in 'np.datetime64' format but '{time_type}' instead."
-                    " It has been converted automatically but better to provide it in the correct format from the beginning."
+                    f"Data 'time' coordinate was not in 'np.datetime64' format but '{time_type}' "
+                    "instead. It has been converted automatically but better to provide it in the "
+                    "correct format from the beginning."
                 )
             else:
                 # Check if the data frequency is daily or coarser
@@ -138,8 +143,9 @@ class DataChecker:
                     if not already_midnight:
                         data = data.assign_coords(time=idxs_floor)
                         warnings.append(
-                            "Data 'time' coordinate was not in 'YYYY-MM-DDT00:00:00' format (hours were not set to midnight)."
-                            " It has been changed automatically but better to provide it in the correct format from the beginning."
+                            "Data 'time' coordinate was not in 'YYYY-MM-DDT00:00:00' format "
+                            "(hours were not set to midnight). It has been changed automatically "
+                            "but better to provide it in the correct format from the beginning."
                         )
         except Exception as e:
             errors.append(f"Error normalizing time format: {e}.")
@@ -175,7 +181,10 @@ class DataChecker:
                 f"{len(self.error_msg)} errors encountered while checking the provided dataset:\n"
             )
             error_message += "\n".join(f"\t- {error}" for error in self.error_msg)
-            error_message += "\nData check failed due to errors listed above. Please, correct the dataset before proceeding."
+            error_message += (
+                "\nData check failed due to errors listed above. "
+                "Please, correct the dataset before proceeding."
+            )
             raise RuntimeError(error_message)
 
 
@@ -208,8 +217,9 @@ class DataChecker:
                 if "long_name" not in var_attrs or var_attrs["long_name"] != expected_long_name:
                     data[var].attrs["long_name"] = expected_long_name
                     self.warning_msg.append(
-                        f"Variable '{var}' was missing the corresponding 'long_name' attribute: '{expected_long_name}'."
-                        " It has been added automatically but better to provide it in the correct format from the beginning."
+                        f"Variable '{var}' was missing the corresponding 'long_name' attribute: "
+                        f"'{expected_long_name}'. It has been added automatically but better to "
+                        " provide it in the correct format from the beginning."
                     )
 
                 # Check units and only accept if they are the same as the expected_units (also same format)
@@ -218,7 +228,8 @@ class DataChecker:
 
                 elif var_attrs["units"] != expected_units:
                     self.error_msg.append(
-                        f"Variable '{var}' has incorrect or incompatible units: '{var_attrs['units']}' (expected '{expected_units}'). "
+                        f"Variable '{var}' has incorrect or incompatible units: "
+                        f"'{var_attrs['units']}' (expected '{expected_units}'). "
                     )
 
                 # Check units and convert them to the expected_units if possible
@@ -291,7 +302,10 @@ class DataChecker:
                 f"{len(self.error_msg)} errors encountered while checking the provided dataset:\n"
             )
             error_message += "\n".join(f"\t- {error}" for error in self.error_msg)
-            error_message += "\nData check failed due to errors listed above. Please, correct the dataset before proceeding."
+            error_message += (
+                "\nData check failed due to errors listed above. "
+                "Please, correct the dataset before proceeding."
+            )
             raise RuntimeError(error_message)
 
         return
@@ -330,7 +344,8 @@ class DataChecker:
         inferred_freq = pd.infer_freq(time_index[:3])
         if inferred_freq is None:
             self.error_msg.append(
-                "Could not infer the frequency of the dataset from the first 3 timesteps. Please, check the time coordinate."
+                "Could not infer the frequency of the dataset from the first 3 timesteps. "
+                "Please, check the time coordinate."
             )
 
         else:
@@ -340,7 +355,8 @@ class DataChecker:
             missing_times = expected_times.difference(time_index)
             if len(missing_times) != 0:
                 self.error_msg.append(
-                    f"Missing {len(missing_times)} timesteps between {time_index[0]} and {time_index[-1]}. Missing values: "
+                    f"Missing {len(missing_times)} timesteps between {time_index[0]} and "
+                    f"{time_index[-1]}. Missing values: "
                     f"{','.join(missing_times.strftime('%Y-%m-%d %H:%M:%S').tolist())}"
                 )
 
@@ -444,7 +460,10 @@ class DataChecker:
                 f"{len(self.error_msg)} errors encountered while checking the provided dataset:\n"
             )
             error_message += "\n".join(f"\t- {error}" for error in self.error_msg)
-            error_message += "\nData check failed due to errors listed above. Please, correct the dataset before proceeding."
+            error_message += (
+                "\nData check failed due to errors listed above. "
+                "Please, correct the dataset before proceeding."
+            )
             raise RuntimeError(error_message)
 
         return data

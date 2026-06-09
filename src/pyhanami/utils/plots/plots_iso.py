@@ -6,6 +6,8 @@ import cartopy.mpl.ticker as cticker
 
 from matplotlib import colors
 
+from pyhanami.utils.plots import plots_general
+
 
 def plot_eeofs(eeof, clon=0, title="ISO convection patterns", cb_label="scaled EEOF",
                cmap="RdBu_r", levels=13,  vmin=None, vmax=None):
@@ -75,9 +77,9 @@ def plot_eeofs(eeof, clon=0, title="ISO convection patterns", cb_label="scaled E
         eeof_lag = eeof["eeof"].isel(lag=j)
         eeof_phys = eeof_lag * scale
 
-        for l, mode in enumerate(modes):
-            ax = axs[j, l]
-            style_cartopy_axis(ax, show_gridlines=False)
+        for k, mode in enumerate(modes):
+            ax = axs[j, k]
+            plots_general.style_cartopy_axis(ax, show_gridlines=False)
 
             eeof_aux = eeof_phys.sel(mode=mode)
             cb = eeof_aux.plot.contourf(
@@ -114,16 +116,16 @@ def plot_eeofs(eeof, clon=0, title="ISO convection patterns", cb_label="scaled E
                 ax.set_title("")
             if j == len(lags) - 1:
                 ax.set_xlabel("longitude", fontsize=8)
-                if l == 0:
+                if k == 0:
                     ax.set_xticks(lon_ticks, crs=ccrs.PlateCarree(central_longitude=clon))
-                elif l == len(modes) - 1:
+                elif k == len(modes) - 1:
                     ax.set_xticks(lon_ticks[1:], crs=ccrs.PlateCarree(central_longitude=clon))
                 else:
                     ax.set_xticks(lon_ticks[1:-1], crs=ccrs.PlateCarree(central_longitude=clon))
                 ax.xaxis.set_major_formatter(cticker.LongitudeFormatter())
             else:
                 ax.set_xlabel("")
-            if l == 0:
+            if k == 0:
                 ax.set_ylabel("latitude", fontsize=8)
                 ax.set_yticks(lat_ticks, crs=ccrs.PlateCarree())
                 ax.yaxis.set_major_formatter(cticker.LatitudeFormatter())
@@ -143,7 +145,8 @@ def plot_eeofs(eeof, clon=0, title="ISO convection patterns", cb_label="scaled E
 
 def plot_pcs(pcs, title="Bimodal ISO indices", normalized=True):
     """
-    Generate plot of the Bimodal ISO indices, i.e. the Principal Components (PCs) for each ISO mode (MJO and BSISO).
+    Generate plot of the Bimodal ISO indices, i.e. the Principal Components (PCs) for each 
+    ISO mode (MJO and BSISO).
 
     Parameters
     ----------
