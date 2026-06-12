@@ -47,7 +47,7 @@ And comparisons between simulations and observations:
 
 ## Replicability
 
-This section describes the statistical approach implemented within the `ReplicabilityTest` class to assess the replicability of ESMs. The aim of the test is to evaluate whether two sets of simulated ensembles are statistically indistinguishable with a given significance level (see ([[Preprint] K. Keller et al., 2025](https://egusphere.copernicus.org/preprints/2025/egusphere-2025-1367/)) for a more detailed description of the methodology).
+This section describes the statistical approach implemented within the `ReplicabilityTest` class to assess the replicability of ESMs. The aim of the test is to evaluate whether two sets of simulated ensembles are statistically indistinguishable with a given significance level (see ([K. Keller et al., 2025](https://gmd.copernicus.org/articles/18/10221/2025/)) for a more detailed description of the methodology).
 
 For clarity, in this and the following section, we use the term **metric** to refer to descriptive quantitative statistices, indicators, or figures of merit derived from climate data (e.g., the number of Tropical Cyclones (TCs) detected per month); while **score** is used to denote scalar values derived from these metrics to evaluate model performance, typically through comparison with observations or reanalyses (e.g., the spatial correlation between simulated and observed TC counts).
 
