@@ -290,7 +290,7 @@ Create an issue or contact the authors below.
 
 ## Authors and acknowledgements
 
-Main developer: 
+Main developers: 
 - Marta Alerany Solé (BSC-CNS): marta.alerany@bsc.es
 - Kai Keller (BSC-CNS): kai.keller@bsc.es
 
