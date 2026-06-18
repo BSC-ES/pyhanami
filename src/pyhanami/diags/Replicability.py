@@ -8,6 +8,7 @@ import concurrent.futures
 from pathlib import Path
 from scipy.stats import bootstrap
 from collections.abc import Iterable
+from statsmodels.stats.power import TTestIndPower
 
 from pyhanami.config import config_params
 from pyhanami.utils.plots import plots_general
@@ -33,6 +34,9 @@ class ReplicabilityTest:
         Path to the observations database.
     alpha : float
         Significance level for the statistical tests (default: 0.05).
+    power : float
+        Statistical power to compute minimum detectable effect size for the t-test
+        (default: 0.8).
 
     Attributes
     ----------
@@ -46,6 +50,8 @@ class ReplicabilityTest:
         Configuration dictionary mapping variable names to display metadata.
     alpha : float
         Significance level for the statistical tests.
+    power : float
+        Statistical power to compute minimum detectable effect size for the t-test.
     max_workers_grid : int
         Number of parallel workers used for variable-wise computations.
     metrics : list of dict
@@ -56,14 +62,15 @@ class ReplicabilityTest:
         List of seasons to compute scores over.
     regions : dict
         Dictionary mapping region names to latitude bounds.
-    eff_sizes : dict
+    effect_sizes : dict[str, xr.DataArray]
         Dictionary to store effect sizes between the replicability test scores for
-        each pair of datasets.
-    test_results : dict
-        Dictionary to store results of the replicability test for each pair of datasets.
+        each pair of datasets for all variables, seasons, regions, and metrics.
+    test_results : dict[str, xr.DataArray]
+        Dictionary to store results of the replicability test for each pair of datasets
+        for all variables, seasons, regions, metrics, and statistical tests.
     """
 
-    def __init__(self, datasets=None, obs_path=None, alpha=0.05):
+    def __init__(self, datasets=None, obs_path=None, alpha=0.05, power=0.8):
 
         # Validate inputs and prepare observational data and variables
         self.obs_path = obs_path
@@ -95,12 +102,15 @@ class ReplicabilityTest:
                 if var in datasets[0].data.data_vars
             }
 
-        # Validate significance level
-        if not isinstance(alpha, (int, float)):
-            raise TypeError("The significance level 'alpha' must be numeric.")
-        if not (0 <= alpha <= 1):
-            raise ValueError("'alpha' must be between 0 and 1.")
+        # Validate significance level and statistical power
+        if not isinstance(alpha, (int, float)) or not isinstance(power, (int, float)):
+            raise TypeError(
+                "The significance level 'alpha' and statistical power 'power' must be numeric."
+            )
+        if not (0 <= alpha <= 1) or not (0 <= power <= 1):
+            raise ValueError("'alpha' and 'power' must be between 0 and 1.")
         self.alpha = alpha
+        self.power = power
 
         # Load config parameters once
         self.max_workers_vars = config_params.MAX_WORKERS_VARS
@@ -110,7 +120,7 @@ class ReplicabilityTest:
         self.regions = config_params.REGIONS
 
         # Create placeholders for effect sizes and replicability test results
-        self.eff_sizes = {}
+        self.effect_sizes = {}
         self.test_results = {}
 
         return
@@ -196,8 +206,10 @@ class ReplicabilityTest:
         if not datasets[0].time.equals(datasets[1].time):
             raise ValueError(
                 f"Time coordinates of the two datasets do not match:\n"
-                f"  {data_plot[0].name} has time from {datasets[0].time.min().item()} to {datasets[0].time.max().item()}\n"
-                f"  {data_plot[1].name} has time from {datasets[1].time.min().item()} to {datasets[1].time.max().item()}"
+                f"  {data_plot[0].name} has time from {datasets[0].time.min().item()} "
+                f"to {datasets[0].time.max().item()}\n"
+                f"  {data_plot[1].name} has time from {datasets[1].time.min().item()} "
+                f"to {datasets[1].time.max().item()}"
             )
 
 
@@ -311,8 +323,8 @@ class ReplicabilityTest:
 
         # Compute scores for each variable in parallel
         scores_all = {}
-        vars = list(self.variables.keys())
-        tasks = [(var, data_plot) for var in vars]
+        var_names = list(self.variables.keys())
+        tasks = [(var, data_plot) for var in var_names]
         # for task in tasks:
         #     scores_all[task[0][1]] = self._compute_scores_one_var(task[0], task[1])
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers_vars) as executor:
@@ -321,6 +333,50 @@ class ReplicabilityTest:
 
         print("Computed scores for all variables...", flush=True)
         return scores_all
+
+
+    def _validate_scores_and_data_names(self, scores_all, data_names):
+        """
+        Validate the format of scores_all and data_names and check the presence
+        of all datasets in the scores_all dictionary.
+
+        Parameters
+        ----------
+        scores_all : dict[str, xr.Dataset]
+            Dictionary of scores datasets for each variable.
+        data_names : list[str]
+            List of two simulation ensemble names to compare.
+        """
+
+        # Check format of scores_all
+        if not isinstance(scores_all, dict) or not all(
+            isinstance(key, str) and isinstance(value, xr.Dataset)
+            for key, value in scores_all.items()
+        ):
+            raise TypeError(
+                "'scores_all' must be a dictionary with variable names as keys and xarray.Dataset as values."
+            )
+
+        # Check format of data_names
+        if (
+            not isinstance(data_names, list)
+            or len(data_names) != 2
+            or not all(isinstance(name, str) for name in data_names)
+        ):
+            raise TypeError(
+                "'data_names' must be a list of two strings representing simulation dataset names."
+            )
+
+        # Check that all datasets in data_names are present in scores_all
+        for var_name, scores in scores_all.items():
+            for name in data_names:
+                if name not in scores.coords["dataset"].values:
+                    raise ValueError(
+                        f"Dataset '{name}' not found in scores for variable '{var_name}'. "
+                        f"Available datasets: {scores.coords['dataset'].values}"
+                    )
+
+        return
 
 
     def _compute_eff_sizes(self, scores_all, data_names):
@@ -337,51 +393,30 @@ class ReplicabilityTest:
 
         Returns
         -------
-        effect_sizes : np.ndarray
-            Array of effect sizes with shape (variables, sections, metrics).
+        effect_sizes : xr.DataArray
+            Effect sizes for all variables, seasons, regions, and metrics.
         """
 
         # Validate inputs
-        if not isinstance(scores_all, dict) or not all(
-            isinstance(key, str) and isinstance(value, xr.Dataset)
-            for key, value in scores_all.items()
-        ):
-            raise TypeError(
-                "'scores_all' must be a dictionary with variable names as keys and xarray.Dataset as values."
-            )
-
-        if (
-            not isinstance(data_names, list)
-            or len(data_names) != 2
-            or not all(isinstance(name, str) for name in data_names)
-        ):
-            raise TypeError(
-                "'data_names' must be a list of two strings representing simulation dataset names."
-            )
-
-        for var_name, scores in scores_all.items():
-            for name in data_names:
-                if name not in scores.coords["dataset"].values:
-                    raise ValueError(
-                        f"Dataset '{name}' not found in scores for variable '{var_name}'. "
-                        f"Available datasets: {scores.coords['dataset'].values}"
-                    )
+        self._validate_scores_and_data_names(scores_all, data_names)
 
 
         # Initialize array
-        length_variables = len(self.variables)
-        length_sections = len(self.seasons) * len(self.regions)
-        length_metrics = len(self.metrics)
-        effect_sizes = np.empty((length_variables, length_sections, length_metrics + 1))
+        names_metrics = np.append(self.metrics["name"], "Combined")
+        eff_sizes_array = np.empty((
+            len(self.variables),
+            len(self.seasons),
+            len(self.regions),
+            len(self.metrics) + 1  # +1 for combined metric
+        ))
 
         # Loop over all scores sets
         for var_idx, var in enumerate(self.variables):
             scores_var = scores_all[var]
 
-            for metric_idx, metric_name in enumerate(np.append(self.metrics["name"], "Combined")):
+            for metric_idx, metric_name in enumerate(names_metrics):
                 for season_idx, season in enumerate(self.seasons):
                     for region_idx, region in enumerate(list(self.regions.keys())):
-                        section_idx = season_idx * len(self.regions) + region_idx
                         scores = scores_var[metric_name].sel(season=season, region=region)
 
                         scores_ref = scores.sel(dataset=data_names[0]).compute().values
@@ -394,9 +429,24 @@ class ReplicabilityTest:
                             confidence_level=0.95,
                             n_resamples=10000,
                         )
-                        effect_sizes[var_idx, section_idx, metric_idx] = np.mean(
+                        eff_sizes_array[var_idx, season_idx, region_idx, metric_idx] = np.mean(
                             bootstrap_res.bootstrap_distribution
                         )
+
+
+        # Save all effect sizes as a xr.DataArray
+        effect_sizes = xr.DataArray(
+            data=eff_sizes_array,
+            dims=["variable", "season", "region", "metric"],
+            coords={
+                "variable": list(self.variables.keys()),
+                "season": self.seasons,
+                "region": list(self.regions.keys()),
+                "metric": names_metrics,
+            },
+            attrs={"datasets": " - ".join(data_names)},
+            name="effect_size",
+        )
 
         print(
             "Computed effect sizes between scores distributions for all variables...",
@@ -407,8 +457,8 @@ class ReplicabilityTest:
 
     def _apply_tests(self, scores_all, data_names):
         """
-        Compare scores with statistical tests separating by season
-        and region, for all available variables.
+        Compare scores with statistical tests separating by season, region and metric, for all 
+        available variables.
 
         Parameters
         ----------
@@ -419,19 +469,100 @@ class ReplicabilityTest:
 
         Returns
         -------
-        test_results : np.ndarray
-            Array of test results with shape (variables, sections, tests).
+        test_results : xr.DataArray
+            Test results for all variables, seasons, regions, metrics, and statistical tests.
         """
 
         # Validate inputs
-        if not isinstance(scores_all, dict) or not all(
-            isinstance(key, str) and isinstance(value, xr.Dataset)
-            for key, value in scores_all.items()
-        ):
-            raise TypeError(
-                "'scores_all' must be a dictionary with variable names as keys and xarray.Dataset as values."
-            )
+        self._validate_scores_and_data_names(scores_all, data_names)
 
+
+        # Initialize array
+        names_metrics = np.append(self.metrics["name"], "Combined")
+        test_results = np.zeros(
+            (
+                len(self.variables),
+                len(self.seasons),
+                len(self.regions),
+                len(self.metrics) + 1,  # +1 for combined metric
+                len(self.tests)
+            ),
+            dtype=bool
+        )
+
+        # Loop over all scores sets
+        power_analysis = TTestIndPower()
+        for var_idx, var in enumerate(self.variables):
+            scores_var = scores_all[var]
+
+            for metric_idx, metric_name in enumerate(names_metrics):
+                for season_idx, season in enumerate(self.seasons):
+                    for region_idx, region in enumerate(list(self.regions.keys())):
+                        scores = scores_var[metric_name].sel(season=season, region=region)
+
+                        scores_ref = scores.sel(dataset=data_names[0]).compute().values
+                        scores_test = scores.sel(dataset=data_names[1]).compute().values
+
+                        # Check that the effect size is not too small to apply the statistical tests
+                        effect_size = self.effect_sizes[" - ".join(data_names)][
+                            var_idx, season_idx, region_idx, metric_idx
+                        ]
+                        min_detectable_effect_size = power_analysis.solve_power(
+                            effect_size=None,
+                            nobs1=len(scores_ref),
+                            alpha=self.alpha,
+                            power=self.power,
+                        )
+
+                        if effect_size < min_detectable_effect_size:
+                            test_results[var_idx, season_idx, region_idx, metric_idx, :] = True
+                            continue
+
+                        # Apply statistical tests
+                        for test_idx, test_name in enumerate(self.tests):
+                            p_value = self.tests[test_name](scores_ref, scores_test)
+                            test_results[var_idx, season_idx, region_idx, metric_idx, test_idx] = (
+                                p_value <= self.alpha
+                            )
+
+
+        # Save all test results as a xr.DataArray
+        test_results = xr.DataArray(
+            data=test_results,
+            dims=["variable", "season", "region", "metric", "test"],
+            coords={
+                "variable": list(self.variables.keys()),
+                "season": self.seasons,
+                "region": list(self.regions.keys()),
+                "metric": names_metrics,
+                "test": list(self.tests.keys())
+            },
+            attrs={"datasets": " - ".join(data_names)},
+            name="test_result",
+        )
+
+        print("Performed replicability test for all variables.", flush=True)
+        return test_results
+
+
+    def _find_dataset_pair(self, data, data_names):
+        """
+        Look for the given pair of simulation ensembles in the provided data dictionary.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary containing precomputed data for a given dataset pair.
+        data_names : list[str]
+            List of names of two simulation ensembles to compare.
+
+        Returns
+        -------
+        found_data : xr.DataArray or None
+            Precomputed data for the given dataset pair, or None if not found.
+        """
+
+        # Validate input
         if (
             not isinstance(data_names, list)
             or len(data_names) != 2
@@ -441,41 +572,18 @@ class ReplicabilityTest:
                 "'data_names' must be a list of two strings representing simulation dataset names."
             )
 
-        for var_name, scores in scores_all.items():
-            for name in data_names:
-                if name not in scores.coords["dataset"].values:
-                    raise ValueError(
-                        f"Dataset '{name}' not found in scores for variable '{var_name}'. "
-                        f"Available datasets: {scores.coords['dataset'].values}"
-                    )
+        # Look for data
+        if " - ".join(data_names) in data:
+            datasets_name = " - ".join(data_names)
+            found_data = data[datasets_name]
+        elif " - ".join(data_names[::-1]) in data:
+            data_names = data_names[::-1]
+            datasets_name = " - ".join(data_names)
+            found_data = data[datasets_name]
+        else:
+            found_data = None
 
-
-        # Initialize array
-        length_variables = len(self.variables)
-        length_sections = len(self.seasons) * len(self.regions)
-        length_tests = len(self.tests)
-        test_results = np.zeros((length_variables, length_sections, length_tests), dtype=bool)
-
-        # Loop over all scores sets
-        for var_idx, var in enumerate(self.variables):
-            scores_var = scores_all[var]
-
-            for metric_name in np.append(self.metrics["name"], "Combined"):
-                for season_idx, season in enumerate(self.seasons):
-                    for region_idx, region in enumerate(list(self.regions.keys())):
-                        section_idx = season_idx * len(self.regions) + region_idx
-                        scores = scores_var[metric_name].sel(season=season, region=region)
-
-                        scores_ref = scores.sel(dataset=data_names[0]).compute().values
-                        scores_test = scores.sel(dataset=data_names[1]).compute().values
-
-                        # Apply statistical tests
-                        for test_idx, test_name in enumerate(self.tests):
-                            p_value = self.tests[test_name](scores_ref, scores_test)
-                            test_results[var_idx, section_idx, test_idx] |= (p_value <= self.alpha)
-
-        print("Performed replicability test for all variables.", flush=True)
-        return test_results
+        return found_data
 
 
     def add_datasets(self, datasets):
@@ -508,7 +616,8 @@ class ReplicabilityTest:
                 added = True
             else:
                 warnings.warn(
-                    f"Dataset with name '{dataset.name}' already exists in the ReplicabilityTest object. Skipping addition."
+                    f"Dataset with name '{dataset.name}' already exists in the ReplicabilityTest object. "
+                    "Skipping addition."
                 )
         if added:
             self._compare_ensembles()
@@ -567,26 +676,31 @@ class ReplicabilityTest:
             raise TypeError(
                 "'data_names' must be a list of two strings representing simulation dataset names."
             )
+        
 
-        # Run replicability test (compute scores, effect sizes between them and apply statistical tests)
+        # Run replicability test
         print(
-            f"Started replicability test with significance level {self.alpha} to compare ensembles '{data_names[0]}' and '{data_names[1]}':",
+            f"Started replicability test with significance level {self.alpha} to compare ensembles "
+            f"'{data_names[0]}' and '{data_names[1]}':",
             flush=True,
         )
+
+        # Compute scores
         scores = self._compute_scores(data_plot)
-        eff_sizes = self._compute_eff_sizes(scores, data_names)
-        test_results = self._apply_tests(scores, data_names)
-
-
-        # Store results in object attributes
         datasets_name = " - ".join(data_names)
-        self.eff_sizes[datasets_name] = eff_sizes
+
+        # Compute effect sizes between the scores and store them in the object attribute
+        eff_sizes = self._compute_eff_sizes(scores, data_names)
+        self.effect_sizes[datasets_name] = eff_sizes
+
+        # Apply statistical tests to the scores and store the results in the object attribute
+        test_results = self._apply_tests(scores, data_names)
         self.test_results[datasets_name] = test_results
 
         return
 
 
-    def get_eff_sizes(self, data_names):
+    def get_effect_sizes(self, data_names):
         """
         Return precomputed effect sizes between the replicability test
         scores for the given simulation ensembles.
@@ -598,59 +712,19 @@ class ReplicabilityTest:
 
         Returns
         -------
-        eff_sizes : xr.DataArray
-            Effect sizes for all variables, seasons, regions and metrics.
+        effect_sizes_ds : xr.DataArray
+            Effect sizes for all variables, seasons, regions, and metrics.
         """
 
-        # Validate input
-        if (
-            not isinstance(data_names, list)
-            or len(data_names) != 2
-            or not all(isinstance(name, str) for name in data_names)
-        ):
-            raise TypeError(
-                "'data_names' must be a list of two strings representing simulation dataset names."
-            )
-
-        # Look for effect sizes in stored attributes
-        if " - ".join(data_names) in self.eff_sizes:
-            datasets_name = " - ".join(data_names)
-            eff_sizes_array = self.eff_sizes[datasets_name]
-        elif " - ".join(data_names[::-1]) in self.eff_sizes:
-            data_names = data_names[::-1]
-            datasets_name = " - ".join(data_names)
-            eff_sizes_array = self.eff_sizes[datasets_name]
-        else:
+        # Find effect sizes for the given datasets in the stored attributes
+        effect_sizes_ds = self._find_dataset_pair(self.effect_sizes, data_names)
+        if effect_sizes_ds is None:
             raise ValueError(
                 f"Effect sizes between the selected datasets ('{data_names[0]}' and '{data_names[1]}') not found."
                 f" Please, run 'perform_rep_test' method with the selected datasets to compute the effect sizes."
             )
 
-
-        # Reshape effect sizes to match dimensions (variables, seasons, regions, metrics)
-        eff_sizes_sizes = (
-            len(self.variables),
-            len(self.seasons),
-            len(self.regions),
-            len(self.metrics) + 1,
-        )
-        eff_sizes_expanded = eff_sizes_array.reshape(eff_sizes_sizes)
-
-        # Convert effect sizes to xr.DataArray
-        eff_sizes = xr.DataArray(
-            data=eff_sizes_expanded,
-            dims=["variable", "season", "region", "metric"],
-            coords={
-                "variable": list(self.variables.keys()),
-                "season": self.seasons,
-                "region": list(self.regions.keys()),
-                "metric": np.append(self.metrics["name"], "Combined"),
-            },
-            attrs={"datasets": datasets_name},
-            name="eff_sizes",
-        )
-
-        return eff_sizes
+        return effect_sizes_ds
 
 
     def get_test_results(self, data_names):
@@ -664,59 +738,20 @@ class ReplicabilityTest:
 
         Returns
         -------
-        test_results : xr.DataArray
+        test_results_ds : xr.DataArray
             Results of the replicability test for all variables, seasons,
-            regions and tests.
+            regions, metrics, and tests.
         """
 
-        # Validate input
-        if (
-            not isinstance(data_names, list)
-            or len(data_names) != 2
-            or not all(isinstance(name, str) for name in data_names)
-        ):
-            raise TypeError(
-                "'data_names' must be a list of two strings representing simulation dataset names."
-            )
-
-        # Look for results in stored attributes
-        if " - ".join(data_names) in self.test_results:
-            datasets_name = " - ".join(data_names)
-            test_results_array = self.test_results[datasets_name]
-        elif " - ".join(data_names[::-1]) in self.test_results:
-            data_names = data_names[::-1]
-            datasets_name = " - ".join(data_names)
-            test_results_array = self.test_results[datasets_name]
-        else:
+        # Find test results for the given datasets in the stored attributes
+        test_results_ds = self._find_dataset_pair(self.test_results, data_names)
+        if test_results_ds is None:
             raise ValueError(
-                f"Replicability test results for the selected datasets ('{data_names[0]}' and '{data_names[1]}') not found."
-                f" Please, run 'perform_rep_test' method with the selected datasets to compute the results."
+                f"Replicability test results for the selected datasets ('{data_names[0]}' and '{data_names[1]}') "
+                "not found. Please, run 'perform_rep_test' method with the selected datasets to compute the results."
             )
 
-        # Reshape test results to match dimensions (variables, seasons, regions, tests)
-        test_results_sizes = (
-            len(self.variables),
-            len(self.seasons),
-            len(self.regions),
-            len(self.tests),
-        )
-        test_results_expanded = test_results_array.reshape(test_results_sizes)
-
-        # Convert test results to xr.DataArray
-        test_results = xr.DataArray(
-            data=test_results_expanded,
-            dims=["variable", "season", "region", "test"],
-            coords={
-                "variable": list(self.variables.keys()),
-                "season": self.seasons,
-                "region": list(self.regions.keys()),
-                "test": list(self.tests.keys()),
-            },
-            attrs={"datasets": datasets_name},
-            name="test_results",
-        )
-
-        return test_results
+        return test_results_ds
 
 
     def save_data(self, data_names, output_path):
@@ -734,7 +769,7 @@ class ReplicabilityTest:
 
         # Look for results in stored attributes
         datasets_name = " - ".join(data_names)
-        eff_sizes = self.get_eff_sizes(data_names)
+        eff_sizes = self.get_effect_sizes(data_names)
         test_results = self.get_test_results(data_names)
 
         # Prepare output directory
@@ -774,25 +809,29 @@ class ReplicabilityTest:
             Path to save the matrix plot.
         """
 
-        # Look for results in stored attributes
-        if " - ".join(data_names) in self.eff_sizes:
-            datasets_name = " - ".join(data_names)
-            eff_sizes = self.eff_sizes[datasets_name]
-            test_results = self.test_results[datasets_name]
-        elif " - ".join(data_names[::-1]) in self.eff_sizes:
-            datasets_name = " - ".join(data_names[::-1])
-            eff_sizes = self.eff_sizes[datasets_name]
-            test_results = self.test_results[datasets_name]
-        else:
+        # Find results for the given datasets in stored attributes
+        effect_sizes_ds = self._find_dataset_pair(self.effect_sizes, data_names)
+        test_results_ds = self._find_dataset_pair(self.test_results, data_names)
+        if effect_sizes_ds is None or test_results_ds is None:
             raise ValueError(
-                f"Replicability test output between the selected datasets ('{data_names[0]}' and '{data_names[1]}') not found."
-                f" Please, run 'perform_rep_test' method with the selected datasets to perform the replicability test."
+                f"Replicability test output between the selected datasets ('{data_names[0]}' and '{data_names[1]}') "
+                "not found. Please, run 'perform_rep_test' method with the selected datasets to perform "
+                "the replicability test."
             )
+
+        # Prepare data for plotting
+        effect_sizes_array = effect_sizes_ds.values
+        n_vars, n_seasons, n_regions, n_metrics = effect_sizes_array.shape
+        effect_sizes_array_reshaped = effect_sizes_array.reshape(n_vars, n_seasons * n_regions, n_metrics)
+
+        test_results_array = np.any(test_results_ds.values, axis=3)
+        n_tests = test_results_array.shape[-1]
+        test_results_array_reshaped = test_results_array.reshape(n_vars, n_seasons *n_regions, n_tests)
 
         # Generate matrix plot
         matrix, _ = plots_general.plot_matrix(
-            eff_sizes,
-            test_results,
+            effect_sizes_array_reshaped,
+            test_results_array_reshaped,
             title=f"Outcome of the replicability test ({data_names[0]} vs {data_names[1]})",
             variables=self.variables,
         )
