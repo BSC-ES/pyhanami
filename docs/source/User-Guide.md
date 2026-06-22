@@ -83,7 +83,7 @@ diags.time_series_plot(
     ['name_sim_1','name_sim_2'], 
     'output_path', 
     obs=True, 
-    obs_paths='path_obs', 
+    obs_paths='path/to/obs', 
     obs_names='name_obs', 
     start_year=year_init, 
     end_year=year_end
@@ -129,7 +129,7 @@ diags.bias_plot(
     'var_name',
     'name_sim_1',
     'output_path',
-    obs_path='path_obs', 
+    obs_path='path/to/obs', 
     obs_name='name_obs', 
     start_year=year_init,
     end_year=year_end
@@ -151,25 +151,53 @@ To perform a replicability test comparing two simulation datasets, initialize th
 
 ```python
 # Initialize ReplicabilityTest class with two SimulationData objects
-tester = pyhanami.ReplicabilityTest([sim_1, sim_2], obs_path='path_obs')
+tester = pyhanami.ReplicabilityTest([sim_1, sim_2])
 
 # Perform replicability test between both datasets
-tester.perform_rep_test(['name_sim_1', 'name_sim_2'])
+tester.perform_rep_test(
+    ['name_sim_1', 'name_sim_2'],
+    obs_path='path/to/obs'
+    start_year=year_init,
+    end_year=year_end
+)
 ```
-Note that the test is performed on all variables present in the simulation datasets as long as they are listed in `src/pyhanami/config/variables.yaml`.
 
-Moreover, the `ReplicabilityTest` class includes methods to visualize and save the results of the test. The following shows how to retrieve, save and plot the outcome of the test for the two datasets:
+To take into account when using this `perform_rep_test` method:
+- The test is performed on all variables present in the simulation datasets as long as they are listed in `src/pyhanami/config/variables.yaml`.
+- By default, the test uses a significant level of $\alpha=0.05$ and a statistical power of $P=0.80$. These values can be modified by passing the arguments `alpha` and `power`.
+- If no `start_year` and `end_year` are specified, the whole period covered by the datasets is used by default. In this case, both datasets must have overlapping time periods.
+
+Moreover, the `ReplicabilityTest` class includes methods to visualize and save the results of the test. The following shows how to retrieve, save and plot the outcome of the test for both datasets:
 
 ```python
-# Load test output (effect size between the replicability test scores and 
+# Load test outcome (effect size between the replicability test scores and 
 # test results for all variables, seasons and regions)
-effect_size_scores = tester.get_eff_sizes(['name_sim_1', 'name_sim_2'])
-test_results = tester.get_test_results(['name_sim_1', 'name_sim_2'])
+effect_size_scores = tester.get_effect_sizes(
+    ['name_sim_1', 'name_sim_2'],
+    start_year=year_init,
+    end_year=year_end
+)
+test_results = tester.get_test_results(
+    ['name_sim_1', 'name_sim_2'],
+    start_year=year_init,
+    end_year=year_end
+)
 
-# Save and plot outcome of the test
-tester.save_data(['name_sim_1', 'name_sim_2'], 'output_path')
-tester.matrix_plot(['name_sim_1', 'name_sim_2'], 'output_path')
+# Save and plot test outcome
+tester.save_data(
+    ['name_sim_1', 'name_sim_2'], 
+    'output_path',
+    start_year=year_init,
+    end_year=year_end
+)
+tester.matrix_plot(
+    ['name_sim_1', 'name_sim_2'],
+    'output_path',
+    start_year=year_init,
+    end_year=year_end
+)
 ```
+Note that, if no years are passed when retrieving, saving or plotting the test outcome, the first test performed for the selected datasets is used by default.
 
 
 ## Scientific skill
@@ -190,8 +218,8 @@ sciskill = pyhanami.ScientificEvaluation(sim_1)
 general_analysis = sciskill.compute_general_scores(
     'var_name',
     'name_sim_1',
-    obs_path='path_obs',
-    obs_name = 'name_obs',
+    obs_path='path/to/obs',
+    obs_name='name_obs',
     start_year=year_init,
     end_year=year_end
 ```
@@ -428,6 +456,6 @@ iso_config.lag = 20
 - The `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes can all be initialized without providing any `SimulationData` objects; datasets can be added later with the `add_datasets` method.
 - The climate variable name `var_name` must be listed in the configuration file `src/pyhanami/config/variables.yaml`.  
 - `output_path` for functions that generate a single plot can be either a directory path or a full file path including the filename. For functions that generate multiple plots, `output_path` must be a directory path. If `output_path` is not provided, the plots are displayed interactively.
-- `path_obs` must be a path to a directory containing observation datasets, with files named following the pattern `data_obs*_{var_name}.nc`, where `var_name` matches the corresponding variable name in `src/pyhanami/config/variables.yaml`. 
+- `path/to/obs` must be a path to a directory containing observation datasets, with files named following the pattern `data_obs*_{var_name}.nc`, where `var_name` matches the corresponding variable name in `src/pyhanami/config/variables.yaml`. 
 - For all the spatial plots, the central longitude is set to 0º by default, but it can be modified with the argument `clon` (e.g., `clon=180`).
 - For all table plots, the first row displays values for the reference dataset by default, and subsequent rows show the scores relative to the reference. However, this row can be disabled by passing the argument `reference=False` when calling the corresponding method.
