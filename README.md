@@ -81,7 +81,7 @@ diags.time_series_plot(
     ['name_sim_1', 'name_sim_2'],
     'output_path',
     obs=True,
-    obs_paths='path_obs',
+    obs_paths='path/to/obs',
     obs_names='name_obs',
     start_year=year_init,
     end_year=year_end
@@ -107,10 +107,8 @@ diags.bias_plot(
     'variable_name',
     'name_sim_1',
     'output_path',
-    obs_path='path_obs',
+    obs_path='path/to/obs',
     obs_name='name_obs',
-    start_year=year_init,
-    end_year=year_end
 )
 ```
 
@@ -118,10 +116,14 @@ diags.bias_plot(
 Perform a replicability test comparing both simulation datasets:
 ```python
 # Initialize the ReplicabilityTest class with the two simulation datasets
-tester = pyhanami.ReplicabilityTest([sim_1, sim_2], obs_path='path_obs')
+tester = pyhanami.ReplicabilityTest([sim_1, sim_2])
 
 # Perform replicability test
-tester.perform_rep_test(['name_sim_1', 'name_sim_2'])
+tester.perform_rep_test(['name_sim_1', 'name_sim_2'], obs_path='path/to/obs')
+
+# Retreive outcome of the test
+effect_sizes = tester.get_effect_sizes(['name_sim_1', 'name_sim_2'])
+test_results = tester.get_test_results(['name_sim_1', 'name_sim_2'])
 
 # Save outcome of the test to 'output_path'
 tester.save_data(['name_sim_1', 'name_sim_2'], 'output_path')
@@ -219,7 +221,7 @@ general_anlysis = sciskill.compute_general_scores(
     'name_sim_1',
     start_year=year_init,
     end_year=year_end,
-    obs_path='path_obs',
+    obs_path='path/to/obs',
     obs_name='name_obs',
     start_year=year_init,
     end_year=year_end
@@ -290,7 +292,7 @@ Create an issue or contact the authors below.
 
 ## Authors and acknowledgements
 
-Main developer: 
+Main developers: 
 - Marta Alerany Solé (BSC-CNS): marta.alerany@bsc.es
 - Kai Keller (BSC-CNS): kai.keller@bsc.es
 

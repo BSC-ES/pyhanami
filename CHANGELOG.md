@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+- Replicability test: 
+    - Added new threshold for the effect size between the distributions of scores to determine whether the test is passed or failed based on the minimum detectable effect size for a _t_-test.
+    - Added option to select the year range used for the test.
+- Scientific skill scores:
+    - Modified computation of mean MJO amplitude and active MJO days per phase: now computed as annual averages (climatologies) instead of totals over the entire analyzed period to be able to compare these scores across different years.
+- Table plots: added option to disable first reference row and show only the relative scores of the other datasets with respect to the reference dataset.
 
 ### Removed
 
