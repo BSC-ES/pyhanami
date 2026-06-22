@@ -1,3 +1,4 @@
+import copy
 import warnings
 warnings.simplefilter("always")
 
@@ -7,7 +8,6 @@ import concurrent.futures
 
 from pathlib import Path
 from scipy.stats import bootstrap
-from collections.abc import Iterable
 from statsmodels.stats.power import TTestIndPower
 
 from pyhanami.config import config_params
@@ -30,8 +30,6 @@ class ReplicabilityTest:
     ----------
     datasets : Iterable[SimulationData], optional
         Ensemble or list of ensembles containing simulation data and metadata.
-    obs_path : str
-        Path to the observations database.
     alpha : float
         Significance level for the statistical tests (default: 0.05).
     power : float
@@ -42,10 +40,6 @@ class ReplicabilityTest:
     ----------
     datasets : list[SimulationData]
         List of ensembles containing simulation data and metadata.
-    obs_path : str
-        Path to the observations database.
-    obs : ObservationData
-        Instance containing observational data for comparison.
     variables : dict
         Configuration dictionary mapping variable names to display metadata.
     alpha : float
@@ -70,43 +64,34 @@ class ReplicabilityTest:
         for all variables, seasons, regions, metrics, and statistical tests.
     """
 
-    def __init__(self, datasets=None, obs_path=None, alpha=0.05, power=0.8):
+    def __init__(self, datasets=None, alpha=0.05, power=0.8):
 
-        # Validate inputs and prepare observational data and variables
-        self.obs_path = obs_path
+        # Validate input dataset/s and initialize attributes
         if datasets is None:
             self.datasets = []
-            self.obs = None
             self.variables = None
         else:
             if isinstance(datasets, SimulationData):
                 self.datasets = [datasets]
-            elif (
-                isinstance(datasets, Iterable)
-                and not isinstance(datasets, (str, bytes))
-                and all(isinstance(ds, SimulationData) for ds in datasets)
-            ):
-                self.datasets = list(datasets)
+            elif (isinstance(datasets, list) and all(isinstance(ds, SimulationData) for ds in datasets)):
+                self.datasets = datasets
             else:
-                raise TypeError(
-                    "Input must be a SimulationData object or an iterable of SimulationData objects."
-                )
+                raise TypeError("Input must be a SimulationData object or a list of SimulationData objects.")
 
+            # Check that all datasets have the same variables and lat-lon coordinates
             self._compare_ensembles()
-            self.obs = ObservationData(self.obs_path, self.datasets[0].data)
 
+            # Load metadata for the variables in the datasets from the configuration file
             expected_vars = data_general.load_yaml_file(config_params.VARIABLES_PATH)
             self.variables = {
                 var: info
                 for var, info in expected_vars.items()
-                if var in datasets[0].data.data_vars
+                if var in self.datasets[0].data.data_vars
             }
 
         # Validate significance level and statistical power
         if not isinstance(alpha, (int, float)) or not isinstance(power, (int, float)):
-            raise TypeError(
-                "The significance level 'alpha' and statistical power 'power' must be numeric."
-            )
+            raise TypeError("The significance level 'alpha' and statistical power 'power' must be numeric.")
         if not (0 <= alpha <= 1) or not (0 <= power <= 1):
             raise ValueError("'alpha' and 'power' must be between 0 and 1.")
         self.alpha = alpha
@@ -143,21 +128,15 @@ class ReplicabilityTest:
         for dataset in self.datasets[1:]:
             dataset_vars = set(dataset.data.data_vars)
             if ref_vars != dataset_vars:
-                raise ValueError(
-                    f"Ensembles '{ref.name}' and '{dataset.name}' have different variables."
-                )
+                raise ValueError(f"Ensembles '{ref.name}' and '{dataset.name}' have different variables.")
 
             dataset_lat = dataset.data.coords["lat"]
             if not np.array_equal(ref_lat, dataset_lat):
-                raise ValueError(
-                    f"Ensembles '{ref.name}' and '{dataset.name}' have different latitude coordinates."
-                )
+                raise ValueError(f"Ensembles '{ref.name}' and '{dataset.name}' have different latitude coordinates.")
 
             dataset_lon = dataset.data.coords["lon"]
             if not np.array_equal(ref_lon, dataset_lon):
-                raise ValueError(
-                    f"Ensembles '{ref.name}' and '{dataset.name}' have different longitude coordinates."
-                )
+                raise ValueError(f"Ensembles '{ref.name}' and '{dataset.name}' have different longitude coordinates.")
 
         return
 
@@ -171,44 +150,27 @@ class ReplicabilityTest:
         args : tuple
             List containing:
                 var_name (str): Climate variable name.
-                data_plot (list[SimulationData]): List of two simulation ensembles to compare.
+                data_names (list[str]): List of two simulation ensemble names to compare.
+                data_plot (list[xr.Dataset]): List of two simulation ensembles to compare.
+                data_obs (xr.Dataset): Observational dataset for comparison.
 
         Returns
         -------
         scores_dataset : tuple[str, xr.Dataset]
             Variable name and dataset containing computed scores.
         """
-
-        # Validate inputs
-        var_name, data_plot = args
-
-        if (
-            not isinstance(data_plot, list)
-            or len(data_plot) == 0
-            or not all(isinstance(ds, SimulationData) for ds in data_plot)
-        ):
-            raise TypeError("'data_plot' must be a non-empty list of SimulationData instances.")
-
-        for dataset in data_plot:
-            if var_name not in dataset.data.data_vars:
-                raise ValueError(
-                    f"Variable '{var_name}' not found in the simulated dataset '{dataset.name}'. "
-                    f"Available variables: {list(dataset.data.data_vars.keys())}"
-                )
+        var_name, data_names, data_plot, data_obs = args
 
         # Prepare datasets and check matching time coordinates
-        datasets = [
-            data_plot[0].data[[var_name]].persist(),
-            data_plot[1].data[[var_name]].persist(),
-        ]
-        data_obs = self.obs.data[[var_name]].resample(time="1MS").sum().persist()
+        datasets = [data_plot[0].persist(), data_plot[1].persist()]
+        data_obs = data_obs.resample(time="1MS").sum().persist()
 
         if not datasets[0].time.equals(datasets[1].time):
             raise ValueError(
-                f"Time coordinates of the two datasets do not match:\n"
-                f"  {data_plot[0].name} has time from {datasets[0].time.min().item()} "
-                f"to {datasets[0].time.max().item()}\n"
-                f"  {data_plot[1].name} has time from {datasets[1].time.min().item()} "
+                f"Time coordinates of the two datasets do not match:\n  "
+                f"{data_names[0]} has time from {datasets[0].time.min().item()} "
+                f"to {datasets[0].time.max().item()}\n  "
+                f"{data_names[1]} has time from {datasets[1].time.min().item()} "
                 f"to {datasets[1].time.max().item()}"
             )
 
@@ -239,11 +201,7 @@ class ReplicabilityTest:
                         data_obs_season = data_obs if obs_needed else None
                     else:
                         data_sim_season = data_sim.groupby("time.season")[season]
-                        data_obs_season = (
-                            data_obs.groupby("time.season")[season]
-                            if obs_needed
-                            else None
-                        )
+                        data_obs_season = data_obs.groupby("time.season")[season] if obs_needed else None
                     if metric_idx < 2:
                         data_sim_season = data_sim_season.mean(dim="time")
 
@@ -251,11 +209,7 @@ class ReplicabilityTest:
                     for region_idx, region in enumerate(self.regions.values()):
                         mask = region(lat)
                         data_sim_region = data_sim_season.where(mask, drop=True)
-                        data_obs_region = (
-                            data_obs_season.where(mask, drop=True)
-                            if obs_needed
-                            else None
-                        )
+                        data_obs_region = data_obs_season.where(mask, drop=True) if obs_needed else None
 
                         scores_region = 0
                         for metric_func in metric_funcs:
@@ -277,7 +231,7 @@ class ReplicabilityTest:
 
         # Create xarray.Dataset with scores for all metrics
         coords = {
-            "dataset": [data_plot[0].name, data_plot[1].name],
+            "dataset": [data_names[0], data_names[1]],
             "season": self.seasons,
             "region": list(self.regions.keys()),
             "realization": np.arange(length_realizations),
@@ -285,10 +239,7 @@ class ReplicabilityTest:
 
         scores_var = {}
         for metric_name, scores in scores_dict.items():
-            scores_var[metric_name] = (
-                ["dataset", "season", "region", "realization"],
-                scores,
-            )
+            scores_var[metric_name] = (["dataset", "season", "region", "realization"], scores)
 
         scores_dataset = xr.Dataset(data_vars=scores_var, coords=coords)
         scores_dataset.attrs["variable"] = var_name
@@ -298,7 +249,7 @@ class ReplicabilityTest:
         return scores_dataset
 
 
-    def _compute_scores(self, data_plot):
+    def _compute_scores(self, data_plot, data_obs):
         """
         Compute scores for all variables in both simulation ensembles in parallel.
 
@@ -306,6 +257,8 @@ class ReplicabilityTest:
         ----------
         data_plot : list[SimulationData])
             List of two simulation ensembles to compare.
+        data_obs : ObservationData
+            Observational dataset for comparison.
 
         Returns
         -------
@@ -314,17 +267,28 @@ class ReplicabilityTest:
         """
 
         # Validate inputs
-        if (
-            not isinstance(data_plot, list)
-            or len(data_plot) == 0
-            or not all(isinstance(ds, SimulationData) for ds in data_plot)
-        ):
+        if (not isinstance(data_plot, list) or len(data_plot) == 0
+            or not all(isinstance(ds, SimulationData) for ds in data_plot)):
             raise TypeError("'data_plot' must be a non-empty list of SimulationData instances.")
+
+        # Check that all variables are present in both datasets
+        var_names = list(self.variables.keys())
+        for dataset in data_plot:
+            for var_name in var_names:
+                if var_name not in dataset.data.data_vars:
+                    raise ValueError(
+                        f"Variable '{var_name}' not found in the simulated dataset '{dataset.name}'. "
+                        f"Available variables: {list(dataset.data.data_vars.keys())}"
+                    )
+
 
         # Compute scores for each variable in parallel
         scores_all = {}
-        var_names = list(self.variables.keys())
-        tasks = [(var, data_plot) for var in var_names]
+        data_names = [data_plot[0].name, data_plot[1].name]
+        tasks = [
+            (var_name, data_names, [data_plot[0].data[[var_name]], data_plot[1].data[[var_name]]], data_obs.data[[var_name]])
+            for var_name in var_names
+        ]
         # for task in tasks:
         #     scores_all[task[0][1]] = self._compute_scores_one_var(task[0], task[1])
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers_vars) as executor:
@@ -335,45 +299,37 @@ class ReplicabilityTest:
         return scores_all
 
 
-    def _validate_scores_and_data_names(self, scores_all, data_names):
+    def _validate_scores_and_data_names(self, scores, data_names):
         """
-        Validate the format of scores_all and data_names and check the presence
-        of all datasets in the scores_all dictionary.
+        Validate the format of 'scores' and 'data_names' and check the presence
+        of all datasets in the 'scores' dictionary.
 
         Parameters
         ----------
-        scores_all : dict[str, xr.Dataset]
+        scores : dict[str, xr.Dataset]
             Dictionary of scores datasets for each variable.
         data_names : list[str]
             List of two simulation ensemble names to compare.
         """
 
-        # Check format of scores_all
-        if not isinstance(scores_all, dict) or not all(
-            isinstance(key, str) and isinstance(value, xr.Dataset)
-            for key, value in scores_all.items()
-        ):
-            raise TypeError(
-                "'scores_all' must be a dictionary with variable names as keys and xarray.Dataset as values."
-            )
+        # Check format of 'scores'
+        if (not isinstance(scores, dict)
+            or not all(isinstance(key, str) and isinstance(value, xr.Dataset) for key, value in scores.items())):
+            raise TypeError("'scores' must be a dictionary with variable names as keys and xr.Dataset as values.")
 
-        # Check format of data_names
-        if (
-            not isinstance(data_names, list)
-            or len(data_names) != 2
-            or not all(isinstance(name, str) for name in data_names)
-        ):
-            raise TypeError(
-                "'data_names' must be a list of two strings representing simulation dataset names."
-            )
+        # Check format of 'data_names'
+        if (not isinstance(data_names, list) or len(data_names) != 2
+            or not all(isinstance(name, str) for name in data_names)):
+            raise TypeError("'data_names' must be a list of two strings representing simulation dataset names.")
 
-        # Check that all datasets in data_names are present in scores_all
-        for var_name, scores in scores_all.items():
+
+        # Check that all datasets in 'data_names' are present in 'scores'
+        for var_name, scores_var in scores.items():
             for name in data_names:
-                if name not in scores.coords["dataset"].values:
+                if name not in scores_var.coords["dataset"].values:
                     raise ValueError(
                         f"Dataset '{name}' not found in scores for variable '{var_name}'. "
-                        f"Available datasets: {scores.coords['dataset'].values}"
+                        f"Available datasets: {scores_var.coords['dataset'].values}"
                     )
 
         return
@@ -448,14 +404,11 @@ class ReplicabilityTest:
             name="effect_size",
         )
 
-        print(
-            "Computed effect sizes between scores distributions for all variables...",
-            flush=True,
-        )
+        print("Computed effect sizes between scores distributions for all variables...", flush=True)
         return effect_sizes
 
 
-    def _apply_tests(self, scores_all, data_names):
+    def _apply_tests(self, scores_all, data_names, datasets_key):
         """
         Compare scores with statistical tests separating by season, region and metric, for all 
         available variables.
@@ -466,6 +419,8 @@ class ReplicabilityTest:
             Dictionary of scores datasets for each variable.
         data_names : list[str]
             List of two simulation ensemble names to compare.
+        datasets_key : str
+            Key representing the combination of datasets being compared and their time period.
 
         Returns
         -------
@@ -504,7 +459,7 @@ class ReplicabilityTest:
                         scores_test = scores.sel(dataset=data_names[1]).compute().values
 
                         # Check that the effect size is not too small to apply the statistical tests
-                        effect_size = self.effect_sizes[" - ".join(data_names)][
+                        effect_size = self.effect_sizes[datasets_key][
                             var_idx, season_idx, region_idx, metric_idx
                         ]
                         min_detectable_effect_size = power_analysis.solve_power(
@@ -545,7 +500,13 @@ class ReplicabilityTest:
         return test_results
 
 
-    def _find_dataset_pair(self, data, data_names):
+    def _create_datasets_key(self, data_name_1, data_name_2, start_year, end_year):
+        """ Create key for a pair of datasets together with the year range. """
+
+        return f"{data_name_1} - {data_name_2} ({start_year}-{end_year})"
+
+
+    def _find_datasets_pair(self, data, data_names, start_year=None, end_year=None):
         """
         Look for the given pair of simulation ensembles in the provided data dictionary.
 
@@ -555,6 +516,10 @@ class ReplicabilityTest:
             Dictionary containing precomputed data for a given dataset pair.
         data_names : list[str]
             List of names of two simulation ensembles to compare.
+        start_year : int
+            Start year for filtering data.
+        end_year : int
+            End year for filtering data.
 
         Returns
         -------
@@ -563,25 +528,33 @@ class ReplicabilityTest:
         """
 
         # Validate input
-        if (
-            not isinstance(data_names, list)
-            or len(data_names) != 2
-            or not all(isinstance(name, str) for name in data_names)
-        ):
-            raise TypeError(
-                "'data_names' must be a list of two strings representing simulation dataset names."
-            )
+        if (not isinstance(data_names, list) or len(data_names) != 2
+            or not all(isinstance(name, str) for name in data_names)):
+            raise TypeError("'data_names' must be a list of two strings representing simulation dataset names.")
 
         # Look for data
-        if " - ".join(data_names) in data:
-            datasets_name = " - ".join(data_names)
-            found_data = data[datasets_name]
-        elif " - ".join(data_names[::-1]) in data:
-            data_names = data_names[::-1]
-            datasets_name = " - ".join(data_names)
-            found_data = data[datasets_name]
+        found_data = None
+        if start_year is not None and end_year is not None:
+            # Exact match with date range
+            search_keys = [
+                self._create_datasets_key(data_names[0], data_names[1], start_year, end_year),
+                self._create_datasets_key(data_names[1], data_names[0], start_year, end_year)
+            ]
+
+            for key in search_keys:
+                if key in data:
+                    found_data = data[key]
+                    break
         else:
-            found_data = None
+            # Match any date range
+            for key in data.keys():
+                if (key.startswith(f"{data_names[0]} - {data_names[1]}")
+                    or key.startswith(f"{data_names[1]} - {data_names[0]}")):
+                    found_data = data[key]
+
+                    # Warn about selected years
+                    warnings.warn(f"Year range not fully specified. Using first matching dataset for {key}.")
+                    break
 
         return found_data
 
@@ -599,14 +572,8 @@ class ReplicabilityTest:
         # Validate input
         if isinstance(datasets, SimulationData):
             datasets = [datasets]
-        elif (
-            not isinstance(datasets, Iterable)
-            or isinstance(datasets, (str, bytes))
-            or not all(isinstance(ds, SimulationData) for ds in datasets)
-        ):
-            raise TypeError(
-                "Input must be a SimulationData object or an iterable of SimulationData objects."
-            )
+        elif not isinstance(datasets, list) or not all(isinstance(ds, SimulationData) for ds in datasets):
+            raise TypeError("Input must be a SimulationData object or an list of SimulationData objects.")
 
         # Check for duplicate datasets
         added = False
@@ -622,9 +589,8 @@ class ReplicabilityTest:
         if added:
             self._compare_ensembles()
 
-        # Add observation data and variables if not already present
-        if self.obs is None:
-            self.obs = ObservationData(self.obs_path, self.datasets[0].data)
+        # Add variables to the corresponding attribute if not already present
+        if self.variables is None:
             expected_vars = data_general.load_yaml_file(config_params.VARIABLES_PATH)
             self.variables = {
                 var: info
@@ -635,7 +601,7 @@ class ReplicabilityTest:
         return
 
 
-    def perform_rep_test(self, data_names=None):
+    def perform_rep_test(self, data_names=None, obs_path=None, start_year=None, end_year=None):
         """
         Perform replicability test comparing the given simulation ensembles.
 
@@ -644,19 +610,31 @@ class ReplicabilityTest:
         data_names : list[str], optional
             List of names of two simulation ensembles to compare. If None, the first
             two datasets in the ReplicabilityTest object are used.
+        obs_path : str
+            Path to the observations database.
+        start_year : int
+            Start year for the test.
+        end_year : int
+            End year for the test.
         """
 
         # Validate inputs
         if data_names is None:
             if len(self.datasets) < 2:
                 raise ValueError("At least two datasets are required for the replicability test.")
+
+            # Get datasets from 'datasets' attribute if names not provided
             data_plot = [self.datasets[0], self.datasets[1]]
             data_names = [self.datasets[0].name, self.datasets[1].name]
-        elif (
-            isinstance(data_names, list)
-            and len(data_names) == 2
-            and all(isinstance(name, str) for name in data_names)
-        ):
+            warnings.warn(
+                f"As no dataset names were provided, the first two datasets in the ReplicabilityTest object "
+                f"('{data_names[0]}' and '{data_names[1]}') will be used for the test."
+            )
+
+        elif (isinstance(data_names, list) and len(data_names) == 2
+            and all(isinstance(name, str) for name in data_names)):
+
+            # Look for the datasets in the 'datasets' attribute if names provided
             existing_names = [ds.name for ds in self.datasets]
             missing_names = [name for name in data_names if name not in existing_names]
             if missing_names:
@@ -665,42 +643,91 @@ class ReplicabilityTest:
                 )
 
             data_plot = [next(ds for ds in self.datasets if ds.name == name) for name in data_names]
-            if (
-                "realization" not in data_plot[0].data.coords
-                or "realization" not in data_plot[1].data.coords
-            ):
+            if not all("realization" in ds.data.coords for ds in data_plot):
                 raise ValueError(
                     "All selected datasets must contain a 'realization' coordinate for ensemble computations."
                 )
         else:
-            raise TypeError(
-                "'data_names' must be a list of two strings representing simulation dataset names."
+            raise TypeError("'data_names' must be a list of two strings representing simulation dataset names.")
+
+        # Validate year range
+        for dataset in data_plot:
+            start_year, end_year = data_general.validate_year_range(
+                dataset, start_year, end_year, process_name="replicability test"
             )
-        
+        data_plot_filtered = copy.deepcopy(data_plot)
+        for i, dataset in enumerate(data_plot):
+            data_plot_filtered[i].data = dataset.data.sel(time=slice(str(start_year), str(end_year)))
+
+
+        # Check whether the test has already been performed for the given datasets and year range
+        previous_tests = self._find_datasets_pair(self.test_results, data_names, start_year, end_year)
+
+        if previous_tests is not None:
+            warnings.warn(
+                f"A replicability test between the selected datasets ('{data_names[0]}' and '{data_names[1]}') "
+                f"and year range ({start_year}-{end_year}) has already been performed. "
+            )
+
+            # Ask user for confirmation (only in interactive mode)
+            try:
+                import sys
+                if sys.stdin.isatty():  # Check if running interactively
+                    response = input(
+                        "Do you want to recompute the test anyway? This will overwrite existing results. (y/n): "
+                    ).strip().lower()
+
+                    if response not in ['y', 'yes']:
+                        print("Replicability test cancelled. Using existing results.")
+                        return
+                    print("Recomputing replicability test...")
+                else:
+                    # Non-interactive mode: auto-recompute warning
+                    print("Non-interactive mode detected. The results will be overwritten.")
+            except (EOFError, KeyboardInterrupt):
+                print("\nReplicability test cancelled.")
+                return
+
+
+        # Prepare observational data for the test
+        if obs_path is None:
+            raise ValueError(
+                "Automatic selection of observations is not implemented yet. "
+                "Please, provide a path to the observations database."
+            )
+        if not isinstance(obs_path, str):
+            raise TypeError("'obs_path' must be a string representing the path to the observations database.")
+
+        data_obs = ObservationData(obs_path, data_plot_filtered[0].data)
+
 
         # Run replicability test
         print(
-            f"Started replicability test with significance level {self.alpha} to compare ensembles "
-            f"'{data_names[0]}' and '{data_names[1]}':",
+            f"Started replicability test with significance level {self.alpha:.2f} and power {self.power:.2f} "
+            f"to compare ensembles '{data_names[0]}' and '{data_names[1]}' for years {start_year}-{end_year}:",
             flush=True,
         )
 
         # Compute scores
-        scores = self._compute_scores(data_plot)
-        datasets_name = " - ".join(data_names)
+        scores = self._compute_scores(data_plot_filtered, data_obs)
+        datasets_key = self._create_datasets_key(data_names[0], data_names[1], start_year, end_year)
 
         # Compute effect sizes between the scores and store them in the object attribute
         eff_sizes = self._compute_eff_sizes(scores, data_names)
-        self.effect_sizes[datasets_name] = eff_sizes
+        eff_sizes.attrs["start_year"] = start_year
+        eff_sizes.attrs["end_year"] = end_year
+        self.effect_sizes[datasets_key] = eff_sizes
 
         # Apply statistical tests to the scores and store the results in the object attribute
-        test_results = self._apply_tests(scores, data_names)
-        self.test_results[datasets_name] = test_results
+        test_results = self._apply_tests(scores, data_names, datasets_key)
+        test_results.attrs["start_year"] = start_year
+        test_results.attrs["end_year"] = end_year
+        self.test_results[datasets_key] = test_results
 
         return
 
 
-    def get_effect_sizes(self, data_names):
+    def get_effect_sizes(self, data_names, start_year=None, end_year=None):
         """
         Return precomputed effect sizes between the replicability test
         scores for the given simulation ensembles.
@@ -709,6 +736,10 @@ class ReplicabilityTest:
         ----------
         data_names : list[str]
             List of names of two simulation ensembles to compare.
+        start_year : int
+            Start year for effect sizes.
+        end_year : int
+            End year for effect sizes.
 
         Returns
         -------
@@ -717,17 +748,18 @@ class ReplicabilityTest:
         """
 
         # Find effect sizes for the given datasets in the stored attributes
-        effect_sizes_ds = self._find_dataset_pair(self.effect_sizes, data_names)
+        effect_sizes_ds = self._find_datasets_pair(self.effect_sizes, data_names, start_year, end_year)
         if effect_sizes_ds is None:
             raise ValueError(
-                f"Effect sizes between the selected datasets ('{data_names[0]}' and '{data_names[1]}') not found."
-                f" Please, run 'perform_rep_test' method with the selected datasets to compute the effect sizes."
+                f"Effect sizes between the selected datasets ('{data_names[0]}' and '{data_names[1]}') "
+                f"and year range ({start_year}-{end_year}) not found. Please, run the 'perform_rep_test' "
+                f"method with the selected datasets and years to compute the effect sizes."
             )
 
         return effect_sizes_ds
 
 
-    def get_test_results(self, data_names):
+    def get_test_results(self, data_names, start_year=None, end_year=None):
         """
         Return replicability test results for the given simulation ensembles.
 
@@ -735,6 +767,10 @@ class ReplicabilityTest:
         ----------
         data_names : list[str]
             List of names of two simulation ensembles to compare.
+        start_year : int
+            Start year for effect sizes.
+        end_year : int
+            End year for effect sizes.
 
         Returns
         -------
@@ -744,17 +780,18 @@ class ReplicabilityTest:
         """
 
         # Find test results for the given datasets in the stored attributes
-        test_results_ds = self._find_dataset_pair(self.test_results, data_names)
+        test_results_ds = self._find_datasets_pair(self.test_results, data_names, start_year, end_year)
         if test_results_ds is None:
             raise ValueError(
-                f"Replicability test results for the selected datasets ('{data_names[0]}' and '{data_names[1]}') "
-                "not found. Please, run 'perform_rep_test' method with the selected datasets to compute the results."
+                f"Replicability test results between the selected datasets ('{data_names[0]}' and '{data_names[1]}') "
+                f"and year range ({start_year}-{end_year}) not found. Please, run the 'perform_rep_test' method "
+                f"with the selected datasets and years to compute the results."
             )
 
         return test_results_ds
 
 
-    def save_data(self, data_names, output_path):
+    def save_data(self, data_names, output_path, start_year=None, end_year=None):
         """
         Save computed effect size between the replicability test
         scores and test results to NetCDF files.
@@ -765,12 +802,15 @@ class ReplicabilityTest:
             List of names of two simulation ensembles to compare.
         output_path : str
             Path to save the data files.
+        start_year : int
+            Start year for test output.
+        end_year : int
+            End year for test output.
         """
 
         # Look for results in stored attributes
-        datasets_name = " - ".join(data_names)
-        eff_sizes = self.get_effect_sizes(data_names)
-        test_results = self.get_test_results(data_names)
+        eff_sizes = self.get_effect_sizes(data_names, start_year, end_year)
+        test_results = self.get_test_results(data_names, start_year, end_year)
 
         # Prepare output directory
         output_path = Path(output_path)
@@ -779,25 +819,22 @@ class ReplicabilityTest:
 
         # Save data
         data_names_file = "-".join([name.replace(" ", "_") for name in data_names])
+        year_range_str = f"{eff_sizes.attrs['start_year']}-{eff_sizes.attrs['end_year']}"
 
-        eff_sizes_path = output_path / f"effect_size_scores_{data_names_file}.nc"
+        eff_sizes_path = output_path / f"effect_size_scores_{data_names_file}_{year_range_str}.nc"
         eff_sizes.to_netcdf(eff_sizes_path)
-        print(
-            f"Effect size between the replicability test scores for '{datasets_name}' saved to '{eff_sizes_path}'",
-            flush=True,
-        )
+        print(f"Effect size between the replicability test scores for '{data_names[0]}' and '{data_names[1]}' "
+              f"and years {year_range_str} saved to '{eff_sizes_path}'.", flush=True)
 
-        test_results_path = output_path / f"replicability_test_results_{data_names_file}.nc"
+        test_results_path = output_path / f"replicability_test_results_{data_names_file}_{year_range_str}.nc"
         test_results.to_netcdf(test_results_path)
-        print(
-            f"Replicability test results for '{datasets_name}' saved to '{test_results_path}'",
-            flush=True,
-        )
+        print(f"Replicability test results for '{data_names[0]}' and '{data_names[1]}' and years {year_range_str} "
+              f"saved to '{test_results_path}'.", flush=True)
 
         return
 
 
-    def matrix_plot(self, data_names, output_path=None):
+    def matrix_plot(self, data_names, output_path=None, start_year=None, end_year=None):
         """
         Generate matrix plot with effect sizes and replicability test results.
 
@@ -807,16 +844,20 @@ class ReplicabilityTest:
             List of names of two simulation ensembles to compare.
         output_path : str, optional
             Path to save the matrix plot.
+        start_year : int
+            Start year for test output.
+        end_year : int
+            End year for test output.
         """
 
         # Find results for the given datasets in stored attributes
-        effect_sizes_ds = self._find_dataset_pair(self.effect_sizes, data_names)
-        test_results_ds = self._find_dataset_pair(self.test_results, data_names)
+        effect_sizes_ds = self._find_datasets_pair(self.effect_sizes, data_names, start_year, end_year)
+        test_results_ds = self._find_datasets_pair(self.test_results, data_names, start_year, end_year)
         if effect_sizes_ds is None or test_results_ds is None:
             raise ValueError(
                 f"Replicability test output between the selected datasets ('{data_names[0]}' and '{data_names[1]}') "
-                "not found. Please, run 'perform_rep_test' method with the selected datasets to perform "
-                "the replicability test."
+                f"and year range ({start_year}-{end_year}) not found. Please, run the 'perform_rep_test' method "
+                f"with the selected datasets and years to perform the replicability test."
             )
 
         # Prepare data for plotting
@@ -828,11 +869,13 @@ class ReplicabilityTest:
         n_tests = test_results_array.shape[-1]
         test_results_array_reshaped = test_results_array.reshape(n_vars, n_seasons *n_regions, n_tests)
 
+
         # Generate matrix plot
+        year_range_str = f"{effect_sizes_ds.attrs['start_year']}-{effect_sizes_ds.attrs['end_year']}"
         matrix, _ = plots_general.plot_matrix(
             effect_sizes_array_reshaped,
             test_results_array_reshaped,
-            title=f"Outcome of the replicability test ({data_names[0]} vs {data_names[1]})",
+            title=f"Outcome of the replicability test for '{data_names[0]}' vs '{data_names[1]}' ({year_range_str})",
             variables=self.variables,
         )
 
@@ -840,7 +883,7 @@ class ReplicabilityTest:
         plots_general.save_or_show_plot(
             matrix,
             output_path,
-            plot_filename=f"replicability_test_matrix_{data_names_str}",
+            plot_filename=f"replicability_test_matrix_{data_names_str}_{year_range_str}",
             plot_name="Replicability test matrix plot",
         )
 

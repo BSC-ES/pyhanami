@@ -30,12 +30,16 @@ class SimulationData:
     """
 
     def __init__(self, data_source, name="sim"):
+        
+        # Validate input and initialize attributes
         if isinstance(data_source, (str, Path)):
+            # Read data from filepath
             self.data_path = Path(data_source)
             if not self.data_path.exists():
                 raise FileNotFoundError(f"Data path {self.data_path} not found.")
             self.data = self._prepare_data()
         elif isinstance(data_source, xr.Dataset):
+            # Prepare data from already loaded xarray.Dataset
             self.data_path = None
             self.data = data_source.chunk("auto")
         else:
@@ -46,8 +50,11 @@ class SimulationData:
         else:
             raise TypeError("'name' must be a string.")
 
+        # Perform data checks and corrections
         print(f"Loaded simulation data '{self.name}', starting data checks...", flush=True)
         self.data = self.check_data()
+
+        return
 
 
     def _prepare_data(self):

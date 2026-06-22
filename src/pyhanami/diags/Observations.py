@@ -46,6 +46,7 @@ class ObservationData:
     """
 
     def __init__(self, data_path, sim, name="obs", realization=0, regrid_method="bilinear"):
+        # Validate input data path
         if isinstance(data_path, (str, Path)):
             self.data_path = Path(data_path)
         else:
@@ -53,11 +54,13 @@ class ObservationData:
         if not self.data_path.exists():
             raise FileNotFoundError(f"Observational data path {self.data_path} not found.")
 
+        # Validate input simulation dataset
         if not isinstance(sim, xr.Dataset):
             raise TypeError("Input simulation must be an xarray.Dataset.")
         if not sim.data_vars:
             raise ValueError("Input simulation must contain at least one climate variable.")
 
+        # Validate input name, realization, and regrid_method
         if isinstance(name, str):
             self.name = name
         else:
