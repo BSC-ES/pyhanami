@@ -8,8 +8,8 @@ from pathlib import Path
 from pyhanami.config import config_params
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.utils import data_general, config_scores
-from pyhanami.utils.plots import plots_general, plots_mjo
 from pyhanami.utils.mjo_scores import mjo_ceof_funcs, mjo_spectrum_funcs
+from pyhanami.utils.plots import plots_general, plots_mjo, plots_scientific_evaluation_tables
 
 
 class MJOEvaluation:
@@ -104,14 +104,10 @@ class MJOEvaluation:
         'eo_ratio_bias') and the dominant eastward period from the wavenumber-frequency power
         spectra ('pwfps', 'pwfps_bias') in the MJO band, for both observations ('obs') and
         simulations ('sim') and for all MJO variables.
-    cbar_ticks_bias : list[str]
-        Colorbar ticks labels for bias tables.
-    colors_bias : tuple
-        Colorbar colors for bias tables.
     """
 
-    def __init__(self, data_sim, obs_path=config_params.MJO_VARS_PATH, start_year_mjo=None, end_year_mjo=None, 
-                 start_year_ref=None, end_year_ref=None, threshold_active_days=None, mjo_config=None, 
+    def __init__(self, data_sim, obs_path=config_params.MJO_VARS_PATH, start_year_mjo=None, end_year_mjo=None,
+                 start_year_ref=None, end_year_ref=None, threshold_active_days=None, mjo_config=None,
                  mjo_vars=['ua850', 'ua200', 'rlut']):
 
         # Validate input
@@ -146,13 +142,16 @@ class MJOEvaluation:
             f"\tYears selected for MJO scores computation: {self.start_year_mjo}-{self.end_year_mjo}.",
             flush=True,
         )
-        data_sim_filtered_time = data_sim.data.sel(time=slice(str(self.start_year_mjo), str(self.end_year_mjo))).compute()
+        data_sim_filtered_time = data_sim.data.sel(
+            time=slice(str(self.start_year_mjo), str(self.end_year_mjo))
+        ).compute()
 
         # Prepare data for the MJO analysis
         data_mjo_obs, data_mjo_sim = self._prepare_mjo_data(data_sim_filtered_time, obs_path)
 
 
-        # Prepare data for the CEOF analysis (regrid simulations to match observations, if needed, and filter seasonal cycle and interannual variability)
+        # Prepare data for the CEOF analysis (regrid simulations to match observations, if needed,
+        # and filter seasonal cycle and interannual variability)
         self.data_ceof_sim, _, _, self.data_ceof_obs, _, _ = self._prepare_ceof_data(
             data_mjo_sim,
             data_mjo_obs,
@@ -164,16 +163,17 @@ class MJOEvaluation:
             mjo_config.normalize_std,
         )
         print(
-            f"\tObservations and simulations data prepared for the CEOF analysis by removing longer-time-scale components between {self.start_year_mjo}"
-            f" and {self.end_year_mjo}. See attributes `data_ceof_sim` and `data_ceof_obs` for results.",
+            f"\tObservations and simulations data prepared for the CEOF analysis by removing longer-time-scale "
+            f"components between {self.start_year_mjo} and {self.end_year_mjo}. "
+            f"See attributes `data_ceof_sim` and `data_ceof_obs` for results.",
             flush=True,
         )
 
         # Perform CEOF analysis (projecting on observed and simulated EOFs)
         self.ceof_obs, self.ceof_sim_on_obs, self.ceof_sim_on_sim = self._perform_CEOF_analysis(mjo_config.n_modes)
         print(
-            "\tCEOF analyses completed. See attributes `ceof_obs`, `ceof_sim_on_obs`, and `ceof_sim_on_sim` for results.",
-            flush=True,
+            "\tCEOF analyses completed. See attributes `ceof_obs`, `ceof_sim_on_obs`, and `ceof_sim_on_sim` "
+            "for results.", flush=True,
         )
 
         # Compute scalar scores related to the CEOFs
@@ -198,8 +198,9 @@ class MJOEvaluation:
             data_mjo_sim, data_mjo_obs, start_year_ref, end_year_ref, mjo_config.n_harmonics
         )
         print(
-            "\tObservations and simulations data prepared for the power spectra analysis by removing the seasonal cycle between "
-            f"{self.start_year_mjo} and {self.end_year_mjo}. See attributes `data_spectra_sim` and `data_spectra_obs` for results.",
+            "\tObservations and simulations data prepared for the power spectra analysis by removing the seasonal "
+            f"cycle between {self.start_year_mjo} and {self.end_year_mjo}. "
+            f"See attributes `data_spectra_sim` and `data_spectra_obs` for results.",
             flush=True,
         )
 
@@ -220,13 +221,10 @@ class MJOEvaluation:
             flush=True,
         )
 
-        # Define plotting parameters
-        self.cbar_ticks_bias = ["Negative bias", "No bias", "Positive bias"]
-        self.colors_bias = ("RedGreen", ["tab:red", "white", "tab:green"])  # ("BlueRed", ['tab:blue', 'white', 'tab:red'])
-
         del data_mjo_obs, data_mjo_sim
         print(
-            f"\nMadden-Julian Oscillation scores computation completed between years {self.start_year_mjo} and {self.end_year_mjo}.",
+            f"\nMadden-Julian Oscillation scores computation completed between years {self.start_year_mjo} "
+            f"and {self.end_year_mjo}.",
             flush=True,
         )
         return
@@ -289,7 +287,8 @@ class MJOEvaluation:
         for var_name in self.mjo_vars:
             if var_name not in data_sim.data_vars:
                 raise ValueError(
-                    f"Variable '{var_name}' required for the CEOF analysis not found in the simulated dataset '{self.sim_name}'."
+                    f"Variable '{var_name}' required for the CEOF analysis not found in the simulated dataset "
+                    f"'{self.sim_name}'."
                 )
         data_sim_vars = data_sim[self.mjo_vars]
 
@@ -299,7 +298,7 @@ class MJOEvaluation:
         return data_obs_vars, data_sim_vars_regrid
 
 
-    def _prepare_ceof_data(self, data_sim_mjo, data_obs_mjo, start_year_ref, end_year_ref, lat_range=(-15, 15), 
+    def _prepare_ceof_data(self, data_sim_mjo, data_obs_mjo, start_year_ref, end_year_ref, lat_range=(-15, 15),
                           rolling_window_size=120, n_harmonics=3, normalize_std=False):
         """
         Filter the data to remove longer-time-scale components (seasonal cycle and interannual variability)
@@ -405,22 +404,24 @@ class MJOEvaluation:
         # MJO pattern from (M.Wheeler et al., (2004))
         model_mjo_obs = mjo_ceof_funcs.fit_CEOF_model_xeofs(self.data_ceof_obs, n_modes)
         ceof_obs = mjo_ceof_funcs.perform_CEOF_analysis(None, model_mjo_obs, n_modes)
-        ceof_obs["ceof"].loc[dict(mode=0)] *= -1
-        ceof_obs["pc"].loc[dict(mode=0)] *= -1
+        ceof_obs["ceof"].loc[{"mode": 0}] *= -1
+        ceof_obs["pc"].loc[{"mode": 0}] *= -1
         ceof_obs.attrs["EOFs source"] = f"Observations '{self.obs_name}'"
         ceof_obs.attrs["PCs source"] = f"Observations '{self.obs_name}' projected on Observations CEOFs"
 
         # Compute PCs for simulations projecting on observed CEOFs
         ceof_sim_on_obs = ceof_obs.copy(deep=True)
         ceof_sim_on_obs.attrs["EOFs source"] = f"Observations '{self.obs_name}'"
-        ceof_sim_on_obs.attrs["PCs source"] = f"Simulations '{self.sim_name}' projected on Observations '{self.obs_name}' CEOFs"
+        ceof_sim_on_obs.attrs["PCs source"] = (
+            f"Simulations '{self.sim_name}' projected on Observations '{self.obs_name}' CEOFs"
+        )
 
         pc_sim_on_obs = model_mjo_obs.transform(self.data_ceof_sim)
 
         # Correct PCs to match eofs.xarray.Eof output and match the typical MJO pattern from (M.Wheeler et al., (2004)
         pc_sim_on_obs = pc_sim_on_obs.assign_coords(mode=[0, 1]).transpose("time", "mode")
         pc_sim_on_obs = pc_sim_on_obs / np.sqrt(ceof_sim_on_obs["eigval"])
-        # pc_sim_on_obs.loc[dict(mode=0)] *= -1     # This should be done twice, so it stays the same
+        # pc_sim_on_obs.loc[{"mode": 0}] *= -1     # This should be done twice, so it stays the same
         pc_sim_on_obs.attrs.pop("solver_kwargs", None)
         ceof_sim_on_obs["pc"] = pc_sim_on_obs
 
@@ -626,7 +627,7 @@ class MJOEvaluation:
 
         # Compile all phase counts into a single dataset
         phase_counts = xr.concat(
-            [phase_counts_obs, phase_counts_sim_on_obs, phase_counts_sim_on_sim], 
+            [phase_counts_obs, phase_counts_sim_on_obs, phase_counts_sim_on_sim],
             dim="dataset",
         )
         phase_counts = phase_counts.assign_coords(dataset=["obs", "sim_on_obs", "sim_on_sim"])
@@ -734,17 +735,21 @@ class MJOEvaluation:
         # Compute power spectra for observations sequentially (not used anymore, kept for reference)
         # power_spectra_obs_all_vars = []
         # for var_name in self.mjo_vars:
-        #     spec_obs_sim, spec_obs_asym, _, _, _ = mjo_spectrum_funcs.wavenum_freq_analysis(self.data_spectra_obs.sel(variable=var_name),
-        #                                                                                                  seg_size, n_overlap, lat_range)
-        #     power_spectra_obs_one_var = xr.merge([spec_obs_sim.drop_vars('component'), spec_obs_asym.drop_vars('component')])
+        #     spec_obs_sim, spec_obs_asym, _, _, _ = mjo_spectrum_funcs.wavenum_freq_analysis(
+        #                                                  self.data_spectra_obs.sel(variable=var_name),
+        #                                                  seg_size, n_overlap, lat_range)
+        #     power_spectra_obs_one_var = xr.merge(
+        #                                  [spec_obs_sim.drop_vars('component'), spec_obs_asym.drop_vars('component')])
         #     power_spectra_obs_all_vars.append(power_spectra_obs_one_var)
 
         # # Compute power spectra for simulations sequentially (not used anymore, kept for reference)
         # power_spectra_sim_all_vars = []
         # for var_name in self.mjo_vars:
-        #     spec_sim_sim, spec_sim_asym, _, _, _ = mjo_spectrum_funcs.wavenum_freq_analysis(self.data_spectra_sim.sel(variable=var_name),
-        #                                                                                                  seg_size, n_overlap, lat_range)
-        #     power_spectra_sim_one_var = xr.merge([spec_sim_sim.drop_vars('component'), spec_sim_asym.drop_vars('component')])
+        #     spec_sim_sim, spec_sim_asym, _, _, _ = mjo_spectrum_funcs.wavenum_freq_analysis(
+        #                                                    self.data_spectra_sim.sel(variable=var_name),
+        #                                                    seg_size, n_overlap, lat_range)
+        #     power_spectra_sim_one_var = xr.merge(
+        #                                  [spec_sim_sim.drop_vars('component'), spec_sim_asym.drop_vars('component')])
         #     power_spectra_sim_all_vars.append(power_spectra_sim_one_var)
 
 
@@ -791,7 +796,7 @@ class MJOEvaluation:
         return power_spectra
 
 
-    def _compute_power_scores(self, freq_bounds=None, wavenum_bounds=None, freq_dim="frequency", 
+    def _compute_power_scores(self, freq_bounds=None, wavenum_bounds=None, freq_dim="frequency",
                               wavenum_dim="wavenumber"):
         """
         Compute scalar scores related to the power spectra, including the eastward/westward power ratio
@@ -878,11 +883,11 @@ class MJOEvaluation:
         ]
 
         # Compute bias for all scores
-        ew_ratios_bias = [ratio_obs] + [[sim - obs for sim, obs in zip(ratio_sim, ratio_obs)] 
+        ew_ratios_bias = [ratio_obs] + [[sim - obs for sim, obs in zip(ratio_sim, ratio_obs)]
                                         for ratio_sim in ew_ratios[1:]]
-        eo_ratios_bias = [[1.0] * len(ratio_obs)] + [[sim - 1.0 for sim in eo_sim] 
+        eo_ratios_bias = [[1.0] * len(ratio_obs)] + [[sim - 1.0 for sim in eo_sim]
                                                      for eo_sim in eo_ratios[1:]]
-        pwfps_bias = [pwfps[0]] + [[sim - obs for sim, obs in zip(pwfps_sim, pwfps[0])] 
+        pwfps_bias = [pwfps[0]] + [[sim - obs for sim, obs in zip(pwfps_sim, pwfps[0])]
                                    for pwfps_sim in pwfps[1:]]
 
         # Store all scores in a single dataset
@@ -930,7 +935,8 @@ class MJOEvaluation:
         ceof_sim_on_obs_path = output_path / f"ceof_mjo_{sim_name_file}_projected_on_{obs_name_file}_{year_range}.nc"
         self.ceof_sim_on_obs.to_netcdf(ceof_sim_on_obs_path)
         print(
-            f"Output of CEOF analysis for '{self.sim_name}' projected on '{self.obs_name}' saved to '{ceof_sim_on_obs_path}'.",
+            f"Output of CEOF analysis for '{self.sim_name}' projected on '{self.obs_name}' saved to "
+            f"'{ceof_sim_on_obs_path}'.",
             flush=True,
         )
 
@@ -945,7 +951,8 @@ class MJOEvaluation:
         ceof_scores_path = output_path / f"ceof_scores_{sim_name_file}_{obs_name_file}_{year_range}.nc"
         self.ceof_scores.to_netcdf(ceof_scores_path)
         print(
-            f"Scalar scores related to CEOFs for all datasets saved to '{ceof_scores_path}'.",
+            f"Scalar scores related to CEOFs for '{self.sim_name}' and '{self.obs_name}' saved to "
+            f"'{ceof_scores_path}'.",
             flush=True,
         )
 
@@ -953,7 +960,8 @@ class MJOEvaluation:
         activity_per_phase_path = output_path / f"activity_per_phase_{sim_name_file}_{obs_name_file}_{year_range}.nc"
         self.activity_per_phase.to_netcdf(activity_per_phase_path)
         print(
-            f"MJO activity (mean amplitude and days) per phase for all datasets saved to '{activity_per_phase_path}'.",
+            f"MJO activity (mean amplitude and days) per phase for '{self.sim_name}' and '{self.obs_name}' saved to "
+            f"'{activity_per_phase_path}'.",
             flush=True,
         )
 
@@ -961,14 +969,15 @@ class MJOEvaluation:
         power_spectra_path = output_path / f"power_spectra_{sim_name_file}_{obs_name_file}_{year_range}.nc"
         self.power_spectra.to_netcdf(power_spectra_path)
         print(
-            f"Power spectra for both observations and simulations saved to '{power_spectra_path}'.",
+            f"Power spectra for '{self.sim_name}' and '{self.obs_name}' saved to '{power_spectra_path}'.",
             flush=True,
         )
 
         power_scores_path = output_path / f"power_scores_{sim_name_file}_{obs_name_file}_{year_range}.nc"
         self.power_scores.to_netcdf(power_scores_path)
         print(
-            f"Scalar scores related to power spectra for both observations and simulations saved to '{power_scores_path}'.",
+            f"Scalar scores related to power spectra for '{self.sim_name}' and '{self.obs_name}' saved to "
+            f"'{power_scores_path}'.",
             flush=True,
         )
 
@@ -1083,48 +1092,19 @@ class MJOEvaluation:
         """
 
         # Prepare data and plotting parameters
-        sim_name_file = self.sim_name.replace(" ", "-")
-        obs_name_file = self.obs_name.replace(" ", "-")
-        if reference:
-            ceof_corr = self.ceof_scores["ceof_corr"].sel(dataset=["obs", "sim_on_sim"]).values
-            data_ceof_corr = ceof_corr.reshape(ceof_corr.shape[0], -1)
-            name_file = f"{sim_name_file}_ref_{obs_name_file}"
-            rows_ceof_corr = [self.obs_name, self.sim_name]
-        else:
-            ceof_corr = self.ceof_scores["ceof_corr"].sel(dataset=["sim_on_sim"]).values
-            data_ceof_corr = ceof_corr.reshape(ceof_corr.shape[0], -1)
-            name_file = f"{sim_name_file}_no_ref_{obs_name_file}"
-            rows_ceof_corr = [self.sim_name]
-
+        data = [self.ceof_scores["ceof_corr"]]
+        data_names = [self.obs_name, self.sim_name]
         year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
-        cols_ceof_corr = [f"{self.data_res}° x {self.data_res}°"] + [
-            rf"$r_{{\text{{{var}}}, {mode}}}$"
-            for var in self.ceof_scores["variable"].values
-            for mode in self.ceof_scores["mode"].values
-        ]
 
-        cbar_ticks_corr = ["Negative correlation (-1)", "No correlation (0)", "Positive correlation (1)"]
-        colors_corr = ("RedGreen", ["tab:red", "white", "tab:green"])
-        limits_corr = np.repeat([[-1, 1]], len(cols_ceof_corr) - 1, axis=0)
-
-        # Generate CEOF scores table
-        ceof_scores_table, _ = plots_general.plot_table(
-            data_ceof_corr,
-            title=f"Correlation between Combined EOFs ({year_range})",
-            col_labels=cols_ceof_corr,
-            row_labels=rows_ceof_corr,
-            cbar_ticks=cbar_ticks_corr,
-            cbar_colors=colors_corr,
-            limits=limits_corr,
+        # Create and save/display table plot
+        plots_scientific_evaluation_tables.mjo_evaluation_scores_table(
+            data,
+            data_names=data_names,
+            year_range=year_range,
+            method_name='ceof_corr_table',
+            data_res=self.data_res,
+            output_path=output_path,
             reference=reference,
-            decimals=2,
-        )
-
-        plots_general.save_or_show_plot(
-            ceof_scores_table,
-            output_path,
-            plot_filename=f"ceof_corr_table_{name_file}_{year_range}",
-            plot_name="Correlation in Combined EOFs table plot",
         )
 
         return
@@ -1144,80 +1124,26 @@ class MJOEvaluation:
         """
 
         # Prepare data and plotting parameters
-        sim_name_file = self.sim_name.replace(" ", "-")
-        obs_name_file = self.obs_name.replace(" ", "-")
+        aux_dataset = xr.Dataset({
+            f"explained_var_bias_{m}": self.ceof_scores["explained_var_bias"].sel(mode=m)
+            for m in range(2)
+        })
+        aux_dataset["max_lead_lag_corr_bias"] = self.ceof_scores["max_lead_lag_corr_bias"]
+        aux_dataset["pceof_bias"] = self.ceof_scores["pceof_bias"]
 
-        if reference:
-            expl_var_bias = self.ceof_scores["explained_var_bias"].values
-            data_expl_var_bias = expl_var_bias.reshape(expl_var_bias.shape[0], -1)
-            data_ceof_bias = np.concatenate(
-                [
-                    data_expl_var_bias,
-                    self.ceof_scores["max_lead_lag_corr_bias"].values.reshape(-1, 1),
-                    self.ceof_scores["pceof_bias"].values.reshape(-1, 1),
-                ],
-                axis=1,
-            )
-
-            name_file = f"{sim_name_file}_ref_{obs_name_file}"
-            rows_ceof_bias = [
-                self.obs_name,
-                f"{self.sim_name} on {self.obs_name}",
-                f"{self.sim_name} on {self.sim_name}",
-            ]
-            sim_init = 1
-        else:
-            ceof_socres_only_sim = self.ceof_scores.isel(dataset=slice(1, None))
-            expl_var_bias = ceof_socres_only_sim["explained_var_bias"].values
-            data_expl_var_bias = expl_var_bias.reshape(expl_var_bias.shape[0], -1)
-            data_ceof_bias = np.concatenate(
-                [
-                    data_expl_var_bias,
-                    ceof_socres_only_sim["max_lead_lag_corr_bias"].values.reshape(-1, 1),
-                    ceof_socres_only_sim["pceof_bias"].values.reshape(-1, 1),
-                ],
-                axis=1,
-            )
-
-            name_file = f"{sim_name_file}_no_ref_{obs_name_file}"
-            rows_ceof_bias = [
-                f"{self.sim_name} on {self.obs_name}",
-                f"{self.sim_name} on {self.sim_name}",
-            ]
-            sim_init = 0
-
+        data = [aux_dataset.to_array()]
+        data_names = [self.obs_name, self.sim_name]
         year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
-        cols_ceof_bias = [
-            f"{self.data_res}° x {self.data_res}°",
-            *[
-                rf"$b_{{\text{{expl var}}, {mode}}}$ (%)"
-                for mode in self.ceof_scores["mode"].values
-            ],
-            rf"$b_{{\text{{max lead-lag corr}}}}$ (-)",
-            rf"$b_{{\text{{MJO period}}}}$ (days)",
-        ]
 
-        maxs_ceof_bias = np.max(np.abs(data_ceof_bias[sim_init:, :]), axis=0)
-        limits_ceof_bias = np.stack([-maxs_ceof_bias, maxs_ceof_bias], axis=1)
-
-        # Generate table plot
-        ceof_bias_table_plot, _ = plots_general.plot_table(
-            data_ceof_bias,
-            title=f"Bias derived from Combined EOF analysis ({year_range})",
-            col_labels=cols_ceof_bias,
-            row_labels=rows_ceof_bias,
-            cbar_ticks=self.cbar_ticks_bias,
-            cbar_colors=self.colors_bias,
-            limits=limits_ceof_bias,
+        # Create and save/display table plot
+        plots_scientific_evaluation_tables.mjo_evaluation_scores_table(
+            data,
+            data_names=data_names,
+            year_range=year_range,
+            method_name='ceof_bias_table',
+            data_res=self.data_res,
+            output_path=output_path,
             reference=reference,
-            decimals=2,
-        )
-
-        plots_general.save_or_show_plot(
-            ceof_bias_table_plot,
-            output_path,
-            plot_filename=f"ceof_bias_table_{name_file}_{year_range}",
-            plot_name="Bias derived from Combined EOF analysis table plot",
         )
 
         return
@@ -1402,57 +1328,19 @@ class MJOEvaluation:
         """
 
         # Prepare data and plotting parameters
-        sim_name_file = self.sim_name.replace(" ", "-")
-        obs_name_file = self.obs_name.replace(" ", "-")
-        if reference:
-            data_mean_amp_bias = self.activity_per_phase["mean_active_amplitude_bias"].values
-            name_file = f"{sim_name_file}_ref_{obs_name_file}"
-            rows_mean_amp_bias = [
-                self.obs_name,
-                f"{self.sim_name} on {self.obs_name}",
-                f"{self.sim_name} on {self.sim_name}",
-            ]
-            sim_init = 1
-        else:
-            data_mean_amp_bias = (
-                self.activity_per_phase["mean_active_amplitude_bias"]
-                .isel(dataset=slice(1, None))
-                .values
-            )
-            name_file = f"{sim_name_file}_no_ref_{obs_name_file}"
-            rows_mean_amp_bias = [
-                f"{self.sim_name} on {self.obs_name}",
-                f"{self.sim_name} on {self.sim_name}",
-            ]
-            sim_init = 0
-
+        data = [self.activity_per_phase["mean_active_amplitude_bias"]]
+        data_names = [self.obs_name, self.sim_name]
         year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
-        cols_mean_amp_bias = [f"{self.data_res}° x {self.data_res}°"] + [
-            rf"$\overline{{b}}_{{ph\, {phase}}}$" for phase in self.activity_per_phase.phase.values
-        ]
-        # (['Dataset \ Phase'], [str(phase) for phase in self.activity_per_phase.phase.values])
 
-        maxs_mean_amp_bias = np.max(np.abs(data_mean_amp_bias[sim_init:, :]), axis=0)
-        limits_mean_amp_bias = np.stack([-maxs_mean_amp_bias, maxs_mean_amp_bias], axis=1)
-
-        # Generate table plot
-        mean_amp_bias_table_plot, _ = plots_general.plot_table(
-            data_mean_amp_bias,
-            title=f"Bias in climatological mean MJO amplitude per phase ({year_range})",
-            col_labels=cols_mean_amp_bias,
-            row_labels=rows_mean_amp_bias,
-            cbar_ticks=self.cbar_ticks_bias,
-            cbar_colors=self.colors_bias,
-            limits=limits_mean_amp_bias,
+        # Create and save/display table plot
+        plots_scientific_evaluation_tables.mjo_evaluation_scores_table(
+            data,
+            data_names=data_names,
+            year_range=year_range,
+            method_name='mean_amplitude_bias_table',
+            data_res=self.data_res,
+            output_path=output_path,
             reference=reference,
-            decimals=2,
-        )
-
-        plots_general.save_or_show_plot(
-            mean_amp_bias_table_plot,
-            output_path,
-            plot_filename=f"mean_amplitude_bias_table_{name_file}_{year_range}",
-            plot_name="Bias in climatological mean MJO amplitude per phase table plot",
         )
 
         return
@@ -1472,56 +1360,19 @@ class MJOEvaluation:
         """
 
         # Prepare data and plotting parameters
-        sim_name_file = self.sim_name.replace(" ", "-")
-        obs_name_file = self.obs_name.replace(" ", "-")
-        if reference:
-            data_active_days_bias = self.activity_per_phase["active_counts_bias"].values
-            name_file = f"{sim_name_file}_ref_{obs_name_file}"
-            rows_active_days_bias = [
-                self.obs_name,
-                f"{self.sim_name} on {self.obs_name}",
-                f"{self.sim_name} on {self.sim_name}",
-            ]
-            sim_init = 1
-        else:
-            data_active_days_bias = (
-                self.activity_per_phase["active_counts_bias"].isel(dataset=slice(1, None)).values
-            )
-            name_file = f"{sim_name_file}_no_ref_{obs_name_file}"
-            rows_active_days_bias = [
-                f"{self.sim_name} on {self.obs_name}",
-                f"{self.sim_name} on {self.sim_name}",
-            ]
-            sim_init = 0
-
+        data = [self.activity_per_phase["active_counts_bias"]]
+        data_names = [self.obs_name, self.sim_name]
         year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
-        cols_active_days_bias = [f"{self.data_res}° x {self.data_res}°"] + [
-            rf"$\overline{{b}}_{{ph\, {phase}}}$ (days)"
-            for phase in self.activity_per_phase.phase.values
-        ]
-        # (['Dataset \ Phase'], [str(phase) for phase in self.activity_per_phase.phase.values])
 
-        maxs_active_days_bias = np.max(np.abs(data_active_days_bias[sim_init:, :]), axis=0)
-        limits_active_days_bias = np.stack([-maxs_active_days_bias, maxs_active_days_bias], axis=1)
-
-        # Generate table plot
-        active_days_bias_table_plot, _ = plots_general.plot_table(
-            data_active_days_bias,
-            title=f"Bias in climatological active MJO days per phase ({year_range})",
-            col_labels=cols_active_days_bias,
-            row_labels=rows_active_days_bias,
-            cbar_ticks=self.cbar_ticks_bias,
-            cbar_colors=self.colors_bias,
-            limits=limits_active_days_bias,
+        # Create and save/display table plot
+        plots_scientific_evaluation_tables.mjo_evaluation_scores_table(
+            data,
+            data_names=data_names,
+            year_range=year_range,
+            method_name='active_days_bias_table',
+            data_res=self.data_res,
+            output_path=output_path,
             reference=reference,
-            decimals=0,
-        )
-
-        plots_general.save_or_show_plot(
-            active_days_bias_table_plot,
-            output_path,
-            plot_filename=f"active_days_bias_table_{name_file}_{year_range}",
-            plot_name="Bias in climatological active MJO days per phase table plot",
         )
 
         return
@@ -1541,87 +1392,25 @@ class MJOEvaluation:
         """
 
         # Prepare data and plotting parameters
-        sim_name_file = self.sim_name.replace(" ", "-")
-        obs_name_file = self.obs_name.replace(" ", "-")
-
-        if reference:
-            data_mean_amp_bias = self.activity_per_phase["mean_active_amplitude_bias"].values
-            data_active_days_bias = self.activity_per_phase["active_counts_bias"].values
-            name_file = f"{sim_name_file}_ref_{obs_name_file}"
-
-            # Row labels
-            rows_mean_amp_bias = [
-                self.obs_name,
-                f"{self.sim_name} on {self.obs_name}",
-                f"{self.sim_name} on {self.sim_name}",
-            ]
-            rows_active_days_bias = rows_mean_amp_bias
-            rows = [rows_mean_amp_bias, rows_active_days_bias]
-
-            sim_init = 1
-        else:
-            activity_pre_phase_only_sim = self.activity_per_phase.isel(dataset=slice(1, None))
-            data_mean_amp_bias = activity_pre_phase_only_sim["mean_active_amplitude_bias"].values
-            data_active_days_bias = activity_pre_phase_only_sim["active_counts_bias"].values
-            name_file = f"{sim_name_file}_no_ref_{obs_name_file}"
-
-            # Row labels
-            rows_mean_amp_bias = [
-                f"{self.sim_name} on {self.obs_name}",
-                f"{self.sim_name} on {self.sim_name}",
-            ]
-            rows_active_days_bias = rows_mean_amp_bias
-            rows = [rows_mean_amp_bias, rows_active_days_bias]
-
-            sim_init = 0
-
+        data_mean_amp_bias = self.activity_per_phase["mean_active_amplitude_bias"]
+        data_active_days_bias = self.activity_per_phase["active_counts_bias"]
+        data_names = [self.obs_name, self.sim_name]
         year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
 
-        # Column labels
-        cols_mean_amp_bias = ["Bias in Climatological mean amplitude"] + [
-            rf"$\overline{{b}}_{{ph\, {phase}}}$" for phase in self.activity_per_phase.phase.values
-        ]
-        cols_active_days_bias = ["Bias in Climatological active days"] + [
-            rf"$\overline{{b}}_{{ph\, {phase}}}$ (days)"
-            for phase in self.activity_per_phase.phase.values
-        ]
-        cols = [cols_mean_amp_bias, cols_active_days_bias]
-
-        # Limits per column
-        maxs_mean_amp_bias = np.max(np.abs(data_mean_amp_bias[sim_init:, :]), axis=0)
-        limits_mean_amp_bias = np.stack([-maxs_mean_amp_bias, maxs_mean_amp_bias], axis=1)
-
-        maxs_active_days_bias = np.max(np.abs(data_active_days_bias[sim_init:, :]), axis=0)
-        limits_active_days_bias = np.stack([-maxs_active_days_bias, maxs_active_days_bias], axis=1)
-
-        limits = [limits_mean_amp_bias, limits_active_days_bias]
-
-
-        # Generate table plots
-        mean_amp_active_days_table_plot, _ = plots_general.plot_two_tables(
+        # Create and save/display table plot
+        plots_scientific_evaluation_tables.mjo_evaluation_scores_two_tables(
             data_mean_amp_bias,
             data_active_days_bias,
-            title=f"Bias in climatological MJO activity per phase ({year_range})",
-            col_labels=cols,
-            row_labels=rows,
-            cbar_ticks=self.cbar_ticks_bias,
-            cbar_colors=self.colors_bias,
-            limits=limits,
-            references=[reference, reference],
-            decimals=[2, 0],
-        )
-
-        plots_general.save_or_show_plot(
-            mean_amp_active_days_table_plot,
-            output_path,
-            plot_filename=f"activity_per_phase_bias_tables_{name_file}_{year_range}",
-            plot_name="Bias in climatological MJO activity per phase table plot",
+            data_names=data_names,
+            year_range=year_range,
+            output_path=output_path,
+            reference=reference,
         )
 
         return
-    
 
-    def power_spectrum_plots(self, output_path=None, spectrum_var='rlut', component='symmetric', 
+
+    def power_spectrum_plots(self, output_path=None, spectrum_var='rlut', component='symmetric',
                              levels=[1.1, 1.4, 1.7, 2, 2.3, 2.6, 2.9, 3.2, 3.5, 3.8],
                              x_lim=[-10, 10], y_lim=[0.01, 0.25], mjo_box=True):
         """
@@ -1713,78 +1502,20 @@ class MJOEvaluation:
         """
 
         # Prepare data and plotting parameters
-        sim_name_file = self.sim_name.replace(" ", "-")
-        obs_name_file = self.obs_name.replace(" ", "-")
-
-        if reference:
-            power_bias = (
-                self.power_scores[["ew_ratio_bias", "eo_ratio_bias", "pwfps_bias"]]
-                .to_array()
-                .values
-            )
-            data_power_bias = power_bias.transpose(1, 0, 2).reshape(power_bias.shape[1], -1)
-            name_file = f"{sim_name_file}_ref_{obs_name_file}"
-
-            rows_power_bias = [self.obs_name, self.sim_name]
-            sim_init = 1
-        else:
-            power_bias = (
-                self.power_scores[["ew_ratio_bias", "eo_ratio_bias", "pwfps_bias"]]
-                .isel(dataset=slice(1, None))
-                .to_array()
-                .values
-            )
-            data_power_bias = power_bias.transpose(1, 0, 2).reshape(power_bias.shape[1], -1)
-            name_file = f"{sim_name_file}_no_ref_{obs_name_file}"
-
-            rows_power_bias = [self.sim_name]
-            sim_init = 0
-
+        data = [self.power_scores[["ew_ratio_bias", "eo_ratio_bias", "pwfps_bias"]].to_array()]
+        data_names = [self.obs_name, self.sim_name]
         year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
-        cols_power_bias = [
-            f"{self.data_res}° x {self.data_res}°",
-            *[rf"$b^{{\text{{E/W}}}}_{{\text{{{var_name}}}}}$" for var_name in self.mjo_vars],
-            *[rf"$b_{{\text{{{var_name}}}}}^{{\text{{E/O}}}}$" for var_name in self.mjo_vars],
-            *[
-                rf"$b_{{\text{{{var_name}}}}}^{{\text{{period}}}}$ (days)"
-                for var_name in self.mjo_vars
-            ],
-        ]
 
-        maxs_power_bias = np.max(np.abs(data_power_bias[sim_init:, :]), axis=0)
-        limits_power_bias = np.stack([-maxs_power_bias, maxs_power_bias], axis=1)
-
-        # Generate power bias table plot
-        power_bias_table, _ = plots_general.plot_table(
-            data_power_bias,
-            title=f"Bias derived from power spectra ({year_range})",
-            col_labels=cols_power_bias,
-            row_labels=rows_power_bias,
-            cbar_ticks=self.cbar_ticks_bias,
-            cbar_colors=self.colors_bias,
-            limits=limits_power_bias,
+        # Create and save/display table plot
+        plots_scientific_evaluation_tables.mjo_evaluation_scores_table(
+            data,
+            data_names=data_names,
+            year_range=year_range,
+            method_name='power_bias_table',
+            data_res=self.data_res,
+            mjo_vars=self.mjo_vars,
+            output_path=output_path,
             reference=reference,
-            decimals=2,
         )
-        plots_general.save_or_show_plot(
-            power_bias_table,
-            output_path,
-            plot_filename=f"power_bias_table_{name_file}_{year_range}",
-            plot_name="Bias derived from power spectra table plot",
-        )
-
-        # # Prepare data and plotting parameters
-        # power_bias = self.power_scores[['ew_ratio_bias', 'eo_ratio_bias', 'pwfps_bias']].to_array().values
-        # data_power_bias = power_bias.transpose()
-        # sim_name_file = self.sim_name.replace(' ', '-')
-        # obs_name_file = self.obs_name.replace(' ', '-')
-
-        # year_range = f"{self.start_year_mjo}-{self.end_year_mjo}"
-        # cols_power_bias = [
-        #     f'{self.data_res}° x {self.data_res}°',
-        #     fr'$b_{{\text{{E/W, {self.spectrum_var}}}}}$ (-)',
-        #     fr'$b_{{\text{{E/O, {self.spectrum_var}}}}}$ (-)',
-        #     fr'$b_{{\text{{MJO period, {self.spectrum_var}}}}}$ (days)'
-        # ]
 
         return

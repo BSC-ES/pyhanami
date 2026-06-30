@@ -1373,7 +1373,7 @@ def plot_two_tables(data_1, data_2, title="Climate variables", col_labels=["", "
     # Create figure with adjusted height based on number of rows
     n_rows = [len(rows) for rows in row_labels]
     n_cols = [len(cols) for cols in col_labels]
-    height = max(5, sum(n_rows) * 0.6)
+    height = max(5, sum(n_rows) * 0.7)
     width = 4
     fig, axs = plt.subplots(2, 1, figsize=(width, height), dpi=200)
     fig.suptitle(title, fontsize=16)

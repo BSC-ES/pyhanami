@@ -5,10 +5,10 @@ import concurrent.futures
 from pathlib import Path
 
 from pyhanami.config import config_params
-from pyhanami.utils.plots import plots_general
 from pyhanami.utils import data_general, statistics
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.Observations import ObservationData
+from pyhanami.utils.plots import plots_scientific_evaluation_tables
 
 VARIABLES = data_general.load_yaml_file(config_params.VARIABLES_PATH)
 
@@ -65,7 +65,7 @@ class GeneralEvaluation:
                 Area-weighted Pearson correlation coefficient.
     """
 
-    def __init__(self, data_sim, var_names=None, obs_name=config_params.GEN_OBS_NAME, 
+    def __init__(self, data_sim, var_names=None, obs_name=config_params.GEN_OBS_NAME,
                  obs_path=config_params.GEN_OBS_PATH, start_year=None, end_year=None):
 
         # Validate input
@@ -108,7 +108,7 @@ class GeneralEvaluation:
                 "Automatic selection of observations is not implemented yet. "
                 "Please provide a path and a name for the observations database."
             )
-        elif not isinstance(obs_path, (str, Path)) or not isinstance(obs_name, str):
+        if not isinstance(obs_path, (str, Path)) or not isinstance(obs_name, str):
             raise TypeError(
                 "'obs_path' and 'obs_name' must be strings representing the observations database "
                 "path and name, respectively."
@@ -285,7 +285,7 @@ class GeneralEvaluation:
         rmse_abs = np.empty(len(self.var_names))
         rmse_rel = np.empty(len(self.var_names))
         tasks = [
-            (data_sim[[var_name]], data_obs[[var_name]], var_name) 
+            (data_sim[[var_name]], data_obs[[var_name]], var_name)
             for var_name in self.var_names
         ]
 
@@ -365,7 +365,7 @@ class GeneralEvaluation:
         # Compute Pearson correlation coefficient for all variables in parallel
         pcorr = np.empty(len(self.var_names))
         tasks = [
-            (data_sim[[var_name]], data_obs[[var_name]], var_name) 
+            (data_sim[[var_name]], data_obs[[var_name]], var_name)
             for var_name in self.var_names
         ]
 
@@ -392,7 +392,10 @@ class GeneralEvaluation:
         # Save scalar scores
         path_sim_name = self.sim_name.replace(" ", "_")
         path_obs_name = self.obs_name.replace(" ", "_")
-        scores_path = output_path / f"general_scalar_scores_{path_sim_name}-{path_obs_name}_{self.start_year}-{self.end_year}.nc"
+        scores_path = (
+            output_path /
+            f"general_scalar_scores_{path_sim_name}-{path_obs_name}_{self.start_year}-{self.end_year}.nc"
+        )
 
         self.scores.to_netcdf(scores_path)
         print(f"General scalar scores saved to '{scores_path}'.", flush=True)
@@ -426,75 +429,20 @@ class GeneralEvaluation:
                     f"Available variables: {self.var_names}"
                 )
 
-        # Prepare plot parameters
-        sim_name_file = self.sim_name.replace(" ", "-")
-        obs_name_file = self.obs_name.replace(" ", "-")
-        if reference:
-            data_ref = np.array([1, 1, 1])
-            rows = [self.obs_name, self.sim_name]
-            name_file = f"{sim_name_file}_ref_{obs_name_file}"
-        else:
-            rows = [self.sim_name]
-            name_file = f"{sim_name_file}_no_ref_{obs_name_file}"
+        # Prepare data and plotting parameters
+        data = [self.scores]
+        data_names = [self.obs_name, self.sim_name]
+        year_range = f"{self.start_year}-{self.end_year}"
 
-        cbar_ticks = ["Worse performance", " ", "Better performance"]
-        colors = ("RedGreen", ["tab:red", "white", "tab:green"])
-
-        # Plot each variable separately
-        for var_name in var_names:
-            var_name_title = VARIABLES[var_name]["long_name"]
-            year_range = f"{self.start_year}-{self.end_year}"
-            if self.ensemble:
-                # cols = [
-                #   ' ', 
-                #   r'$\overline{\text{BIAS}}$', 
-                #   r'$\overline{\text{eBIAS}}$', 
-                #   r'$\overline{\text{RMSE}}$',
-                #   r'$\overline{\text{eRMSE}}$', 
-                #   r'$\overline{r}_{xy}$'
-                # ]
-                cols = [
-                    " ",
-                    r"$\overline{\text{eBIAS}}$",
-                    r"$\overline{\text{eRMSE}}$",
-                    r"$\overline{r}_{xy}$",
-                ]
-                title = f"Scalar scores for {var_name_title} (ensemble mean) ({year_range})"
-            else:
-                # cols = [' ', 'BIAS', 'eBIAS', 'RMSE', 'eRMSE', r'$r_{xy}$']
-                cols = [" ", "eBIAS", "eRMSE", r"$r_{xy}$"]
-                title = f"Scalar scores for {var_name_title} ({year_range})"
-
-            # Prepare plot data
-            data_sim = (
-                self.scores[["bias_rel", "rmse_rel", "pcorr"]]
-                .sel(variable=var_name)
-                .to_array()
-                .values
-            )
-            data_plot = (
-                np.stack([data_ref, data_sim])
-                if reference
-                else data_sim.reshape(-1, data_sim.shape[0])
-            )
-
-            # Generate and save/display plot
-            general_scores_plot, _ = plots_general.plot_table(
-                data_plot,
-                title=title,
-                col_labels=cols,
-                row_labels=rows,
-                cbar_ticks=cbar_ticks,
-                cbar_colors=colors,
-                reference=reference,
-                decimals=3,
-            )
-
-            plots_general.save_or_show_plot(
-                general_scores_plot,
-                output_path,
-                plot_filename=f"general_scalar_scores_table_{var_name}_{name_file}_{year_range}",
-                plot_name="General scalar scores table plot",
-            )
+        # Create and save/display plot
+        plots_scientific_evaluation_tables.general_evaluation_scores_table(
+            data,
+            data_names=data_names,
+            year_range=year_range,
+            var_names=var_names,
+            ensemble=self.ensemble,
+            output_path=output_path,
+            reference=reference,
+        )
 
         return

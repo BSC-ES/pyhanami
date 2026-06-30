@@ -4,18 +4,14 @@ warnings.simplefilter("always")
 import os
 import re
 import shutil
-import cmocean
-import numpy as np
 import xarray as xr
-import matplotlib.pyplot as plt
 
 from pathlib import Path
-from matplotlib.colors import LinearSegmentedColormap
 
 from pyhanami.config import config_params
-from pyhanami.utils.plots import plots_general
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.utils import data_general, config_scores
+from pyhanami.utils.plots import plots_tc, plots_scientific_evaluation_tables
 from pyhanami.utils.tcs_scores import tcs_tempestextremes, tcs_ibtracs, tcs_cymep_main
 
 
@@ -90,23 +86,15 @@ class TCEvaluation:
         Global mean climatological bias for each TC metric.
     storm_bias : xr.Dataset
         Global mean storm bias for each TC metric.
-    cbar_ticks_bias : list[str]
-        Colorbar ticks labels for bias tables.
-    colors_bias : tuple
-        Colorbar colors for bias tables.
     temp_corr : xr.Dataset
         Seasonal correlation for each TC metric.
     spatial_corr : xr.Dataset
         Spatial correlation for each TC metric.
-    cbar_ticks_corr : list[str]
-        Colorbar ticks labels for correlation tables.
-    colors_corr : tuple
-        Colorbar colors for correlation tables.
     """
 
-    def __init__(self, data_sim, start_year_tc=None, end_year_tc=None, obs=True, wind_factor=1.0, 
+    def __init__(self, data_sim, start_year_tc=None, end_year_tc=None, obs=True, wind_factor=1.0,
                  min_wind=10.0, basin=-1, bin_size=2.5, tc_config=None):
-        
+
         # Validate input
         if not isinstance(data_sim, SimulationData):
             raise TypeError("'data_sim' must be an instance of SimulationData.")
@@ -120,8 +108,13 @@ class TCEvaluation:
             )
         self.min_wind = min_wind
 
-        self.config_cymep = {}
+        if not isinstance(bin_size, (int, float)) or bin_size <= 0:
+            raise ValueError(
+                "The 'bin_size' for computing the TCs scores must be a positive numeric value."
+            )
         self.bin_size = bin_size
+
+        self.config_cymep = {}
         self.metrics_metadata = data_general.load_yaml_file(config_params.TCS_METRICS_PATH)
 
         # Load TC evaluation parameters
@@ -175,19 +168,17 @@ class TCEvaluation:
         self.data_cymep, self.model_names = self._compute_cymep_metrics(basin=basin, tc_config=tc_config)
         print("\tTCs metrics computed. See attribute `data_cymep`.", flush=True)
 
-        self.clim_bias, self.storm_bias, self.cbar_ticks_bias, self.colors_bias = self._retrieve_biases()
+        self.clim_bias, self.storm_bias = self._retrieve_biases()
         print("\tBiases computation completed. See attributes `clim_bias` and `storm_bias`.", flush=True)
 
-        self.temp_corr, self.spatial_corr, self.cbar_ticks_corr, self.colors_corr =  self._retrieve_correlations()
+        self.temp_corr, self.spatial_corr =  self._retrieve_correlations()
         print("\tCorrelations computation completed. See attributes `temp_corr` and `spatial_corr`.", flush=True)
 
-        # # Delete intermediate files
-        # shutil.rmtree(self.tracks_path)
+        # Delete intermediate files
+        shutil.rmtree(self.tracks_path)
 
-        print(
-            f"\nTropical Cyclones scores computation completed between years {self.start_year_tc} and {self.end_year_tc}.",
-            flush=True,
-        )
+        print(f"\nTropical Cyclones scores computation completed between years {self.start_year_tc} "
+              f"and {self.end_year_tc}.", flush=True)
         return
 
 
@@ -245,8 +236,8 @@ class TCEvaluation:
                     / f"{name.lower()}_{obs_start_year}_{obs_end_year}_{self.min_wind:.1f}_False_1_1.0.txt"
                 )
                 obs_path = tcs_tempestextremes.filter_tracks_by_wind(
-                    obs_path, 
-                    new_obs_path, 
+                    obs_path,
+                    new_obs_path,
                     cutoff_wind=self.min_wind
                 )
             else:
@@ -295,7 +286,8 @@ class TCEvaluation:
         )
         new_sim_path = (
             self.tracks_path
-            / f"{self.sim_name.replace(' ', '-')}_{self.start_year_tc}-{self.end_year_tc}_{self.min_wind:.1f}_False_1_{wind_factor:.1f}.txt"
+            / f"{self.sim_name.replace(' ', '-')}_{self.start_year_tc}-{self.end_year_tc}_{self.min_wind:.1f}_"
+            f"False_1_{wind_factor:.1f}.txt"
         )
         os.rename(tracks_sim_path, new_sim_path)
 
@@ -364,15 +356,14 @@ class TCEvaluation:
             THRESHOLD_ACE_WIND=tc_config.threshold_ace_wind,
             THRESHOLD_PACE_PRES=tc_config.threshold_pace_pres,
         )
-        model_names = data_cymep.model.values
+        model_names = list(data_cymep.model.values)
 
         return data_cymep, model_names
 
 
     def _retrieve_biases(self):
         """
-        Retrieve climatological and storm biases from CyMeP output data,
-        and define related plotting parameters.
+        Retrieve climatological and storm biases from CyMeP output data.
 
         Returns
         -------
@@ -380,19 +371,22 @@ class TCEvaluation:
             Global mean climatological bias for each TC metric.
         storm_bias : xr.Dataset
             Global mean storm bias for each TC metric.
-        cbar_ticks_bias : list[str]
-            Colorbar ticks labels for bias tables.
-        colors_bias : tuple
-            Colorbar colors for bias tables.
         """
 
         # With numpy arrays (not used anymore, kept for reference)
         # Retrieve biases
-        # clim_mean = np.transpose([self.data_cymep[f'clim_mean_{metric}'].values for metric in self.metrics_metadata if self.metrics_metadata[metric]['temporal']==True])
+        # clim_mean = np.transpose(
+        #   [self.data_cymep[f'clim_mean_{metric}'].values
+        #   for metric in self.metrics_metadata
+        #   if self.metrics_metadata[metric]['temporal']==True]
+        # )
         # clim_bias = np.concatenate(([clim_mean[0]], clim_mean[1:] - clim_mean[0]))
 
-        # storm_mean = np.transpose([self.data_cymep[f'storm_mean_{metric}'].values for metric in self.metrics_metadata if self.metrics_metadata[metric]['temporal']==True
-        #               and metric!='count'])
+        # storm_mean = np.transpose(
+        #   [self.data_cymep[f'storm_mean_{metric}'].values
+        #   for metric in self.metrics_metadata
+        #   if self.metrics_metadata[metric]['temporal']==True and metric!='count']
+        # )
         # storm_bias = np.concatenate(([storm_mean[0]], storm_mean[1:] - storm_mean[0]))
 
 
@@ -434,12 +428,7 @@ class TCEvaluation:
             {f"storm_mean_{metric}": f"storm_bias_{metric}" for metric in storm_metrics}
         )
 
-
-        # Define plotting parameters
-        cbar_ticks_bias = ["Negative bias", "No bias", "Positive bias"]
-        colors_bias = ("RedGreen", ["tab:red", "white", "tab:green"],)  # ("BlueRed", ['tab:blue', 'white', 'tab:red'])
-
-        return clim_bias, storm_bias, cbar_ticks_bias, colors_bias
+        return clim_bias, storm_bias
 
 
     def _retrieve_correlations(self):
@@ -453,16 +442,20 @@ class TCEvaluation:
             Seasonal correlation for each TC metric.
         spatial_corr : xr.Dataset
             Spatial correlation for each TC metric.
-        cbar_ticks_corr : list[str]
-            Colorbar ticks labels for correlation tables.
-        colors_corr : tuple
-            Colorbar colors for correlation tables.
         """
 
         # With numpy arrays (not used anymore, kept for reference)
         # Retrieve correlations
-        # temp_corr = np.transpose([self.data_cymep[var].values for var in self.data_cymep.data_vars if var.startswith('temporal_scorr_')])
-        # spatial_corr = np.transpose([self.data_cymep[var].values for var in self.data_cymep.data_vars if var.startswith('spatial_pcorr_')])
+        # temp_corr = np.transpose(
+        #   [self.data_cymep[var].values
+        #   for var in self.data_cymep.data_vars
+        #   if var.startswith('temporal_scorr_')]
+        # )
+        # spatial_corr = np.transpose(
+        #   [self.data_cymep[var].values
+        #   for var in self.data_cymep.data_vars
+        #   if var.startswith('spatial_pcorr_')]
+        # )
 
 
         # Retrieve correlations as xarray.Datasets
@@ -473,11 +466,34 @@ class TCEvaluation:
             [var for var in self.data_cymep.data_vars if var.startswith("spatial_pcorr_")]
         ]
 
-        # Define plotting parameters
-        cbar_ticks_corr = ['Negative correlation (-1)', 'No correlation (0)', 'Positive correlation (1)']
-        colors_corr = ("RedGreen", ['tab:red', 'white', 'tab:green'])   #("OrangeGreen", ['tab:orange', 'white', 'tab:green'])
+        return temp_corr, spatial_corr
 
-        return temp_corr, spatial_corr, cbar_ticks_corr, colors_corr
+
+    def _table_plots_parameters(self, reference=True):
+        """
+        Prepare parameters for the table plots.
+
+        Parameters
+        ----------
+        reference : bool
+            Whether to display reference values in the first row (not colored) and
+            reanalyses in the subsequent rows (default: True).
+
+        Returns
+        -------
+        data_names : list[str]
+            List of dataset names.
+        year_range : str
+            Year range of the evaluation period.
+        rows_to_remove : int
+            Number of datasets to remove from the top of the table (generally, reference
+            and reanalyses datasets).
+        """
+        data_names = self.model_names
+        year_range = f"{self.start_year_tc}-{self.end_year_tc}"
+        rows_to_remove = 0 if reference else len(self.obs_names) + 1
+
+        return data_names, year_range, rows_to_remove
 
 
     def save_data(self, output_path):
@@ -537,51 +553,24 @@ class TCEvaluation:
         output_path : str, optional
             Path to save the table plot. If None, the table is displayed but not saved.
         reference : bool
-            Whether to display reference values in the first row (not colored) (default: True).
+            Whether to display reference values in the first row (not colored) and reanalyses in 
+            the subsequent rows (default: True).
         """
 
         # Prepare data and plotting parameters
-        sim_name_file = self.sim_name.replace(" ", "-")
-        if reference:
-            data_clim_bias = self.clim_bias.to_array().values.transpose()
-            name_file = f"{sim_name_file}_ref_IBTrACS"
-            rows_clim_bias = self.model_names
-            sim_init = 1
-        else:
-            data_clim_bias = self.clim_bias.isel(model=slice(1, None)).to_array().values.transpose()
-            name_file = f"{sim_name_file}_no_ref_IBTrACS"
-            rows_clim_bias = self.model_names[1:]
-            sim_init = 0
+        data = [self.clim_bias]
+        data_names, year_range, rows_to_remove = self._table_plots_parameters(reference=reference)
+        bias_type = "climatological"
 
-        year_range = f"{self.start_year_tc}-{self.end_year_tc}"
-        cols_clim_bias = np.append(
-            [f"{self.bin_size}° x {self.bin_size}°"],
-            [
-                rf"$\overline{{b}}_{{clim,{metric}}}$ ({self.metrics_metadata[metric]['units']})"
-                for metric in self.metrics_metadata
-                if self.metrics_metadata[metric]["temporal"] == True
-            ],
-        )
-        maxs_clim_bias = np.max(np.abs(data_clim_bias[sim_init:, :]), axis=0)
-        limits_clim_bias = np.stack([-maxs_clim_bias, maxs_clim_bias], axis=1)
-
-        # Generate table plot
-        clim_bias_table_plot, _ = plots_general.plot_table(
-            data_clim_bias,
-            title=f"Global climatological mean bias ({year_range})",
-            col_labels=cols_clim_bias,
-            row_labels=rows_clim_bias,
-            cbar_ticks=self.cbar_ticks_bias,
-            cbar_colors=self.colors_bias,
-            limits=limits_clim_bias,
-            reference=reference,
-        )
-
-        plots_general.save_or_show_plot(
-            clim_bias_table_plot,
-            output_path,
-            plot_filename=f"tcs_climatological_bias_table_{name_file}_{year_range}",
-            plot_name="Climatological bias table for TCs metrics plot",
+        # Create and save/display table plot
+        plots_scientific_evaluation_tables.tc_evaluation_bias_scores_table(
+            data,
+            data_names=data_names,
+            year_range=year_range,
+            bias_type=bias_type,
+            bin_size=self.bin_size,
+            output_path=output_path,
+            rows_to_remove=rows_to_remove,
         )
 
         return
@@ -596,51 +585,24 @@ class TCEvaluation:
         output_path : str, optional
             Path to save the table plot. If None, the table is displayed but not saved.
         reference : bool
-            Whether to display reference values in the first row (not colored) (default: True).
+            Whether to display reference values in the first row (not colored) and reanalyses
+            in the subsequent rows (default: True).
         """
 
         # Prepare data and plotting parameters
-        sim_name_file = self.sim_name.replace(" ", "-")
-        if reference:
-            data_storm_bias = self.storm_bias.to_array().values.transpose()
-            name_file = f"{sim_name_file}_ref_IBTrACS"
-            rows_storm_bias = self.model_names
-            sim_init = 1
-        else:
-            data_storm_bias = self.storm_bias.isel(model=slice(1, None)).to_array().values.transpose()
-            name_file = f"{sim_name_file}_no_ref_IBTrACS"
-            rows_storm_bias = self.model_names[1:]
-            sim_init = 0
+        data = [self.storm_bias]
+        data_names, year_range, rows_to_remove = self._table_plots_parameters(reference=reference)
+        bias_type = "storm"
 
-        year_range = f"{self.start_year_tc}-{self.end_year_tc}"
-        cols_storm_bias = np.append(
-            [f"{self.bin_size}° x {self.bin_size}°"],
-            [
-                rf"$\overline{{b}}_{{storm,{metric}}}$ ({self.metrics_metadata[metric]['units']})"
-                for metric in self.metrics_metadata
-                if self.metrics_metadata[metric]["temporal"] == True and metric != "count"
-            ],
-        )
-        maxs_storm_bias = np.max(np.abs(data_storm_bias[sim_init:, :]), axis=0)
-        limits_storm_bias = np.stack([-maxs_storm_bias, maxs_storm_bias], axis=1)
-
-        # Generate table plot
-        storm_bias_table_plot, _ = plots_general.plot_table(
-            data_storm_bias,
-            title=f"Global storm mean bias ({year_range})",
-            col_labels=cols_storm_bias,
-            row_labels=rows_storm_bias,
-            cbar_ticks=self.cbar_ticks_bias,
-            cbar_colors=self.colors_bias,
-            limits=limits_storm_bias,
-            reference=reference,
-        )
-
-        plots_general.save_or_show_plot(
-            storm_bias_table_plot,
-            output_path,
-            plot_filename=f"tcs_storm_bias_table_{name_file}_{year_range}",
-            plot_name="Storm bias table for TCs metrics plot",
+        # Create and save/display table plot
+        plots_scientific_evaluation_tables.tc_evaluation_bias_scores_table(
+            data,
+            data_names=data_names,
+            year_range=year_range,
+            bias_type=bias_type,
+            bin_size=self.bin_size,
+            output_path=output_path,
+            rows_to_remove=rows_to_remove,
         )
 
         return
@@ -655,49 +617,24 @@ class TCEvaluation:
         output_path : str, optional
             Path to save the table plot. If None, the table is displayed but not saved.
         reference : bool
-            Whether to display reference values in the first row (not colored) (default: True).
+            Whether to display reference values in the first row (not colored) and reanalyses in 
+            the subsequent rows (default: True).
         """
 
         # Prepare data and plotting parameters
-        sim_name_file = self.sim_name.replace(" ", "-")
-        if reference:
-            data_temp_corr = self.temp_corr.to_array().values.transpose()
-            name_file = f"{sim_name_file}_ref_IBTrACS"
-            rows_storm_bias = self.model_names
-        else:
-            data_temp_corr = self.temp_corr.isel(model=slice(1, None)).to_array().values.transpose()
-            name_file = f"{sim_name_file}_no_ref_IBTrACS"
-            rows_storm_bias = self.model_names[1:]
+        data = [self.temp_corr]
+        data_names, year_range, rows_to_remove = self._table_plots_parameters(reference=reference)
+        correlation_type = "seasonal"
 
-        year_range = f"{self.start_year_tc}-{self.end_year_tc}"
-        cols_temp_corr = np.append(
-            [f"{self.bin_size}° x {self.bin_size}°"],
-            [
-                rf"$\rho_{{s,{metric}}}$"
-                for metric in self.metrics_metadata
-                if self.metrics_metadata[metric]["temporal"] == True
-            ],
-        )
-        limits_temp_corr = np.repeat([[-1, 1]], len(cols_temp_corr) - 1, axis=0)
-
-        # Generate table plot
-        temp_corr_table_plot, _ = plots_general.plot_table(
-            data_temp_corr,
-            title=f"Global seasonal correlation ({year_range})",
-            col_labels=cols_temp_corr,
-            row_labels=rows_storm_bias,
-            cbar_ticks=self.cbar_ticks_corr,
-            cbar_colors=self.colors_corr,
-            limits=limits_temp_corr,
-            reference=reference,
-            decimals=2,
-        )
-
-        plots_general.save_or_show_plot(
-            temp_corr_table_plot,
-            output_path,
-            plot_filename=f"tcs_seasonal_corr_table_{name_file}_{year_range}",
-            plot_name="Seasonal correlation table for TCs metrics plot",
+        # Create and save/display table plot
+        plots_scientific_evaluation_tables.tc_evaluation_correlation_scores_table(
+            data,
+            data_names=data_names,
+            year_range=year_range,
+            correlation_type=correlation_type,
+            bin_size=self.bin_size,
+            output_path=output_path,
+            rows_to_remove=rows_to_remove,
         )
 
         return
@@ -712,49 +649,24 @@ class TCEvaluation:
         output_path : str, optional
             Path to save the table plot. If None, the table is displayed but not saved.
         reference : bool
-            Whether to display reference values in the first row (not colored) (default: True).
+            Whether to display reference values in the first row (not colored) and reanalyses in 
+            the subsequent rows (default: True).
         """
 
         # Prepare data and plotting parameters
-        sim_name_file = self.sim_name.replace(" ", "-")
-        if reference:
-            data_spatial_corr = self.spatial_corr.to_array().values.transpose()
-            name_file = f"{sim_name_file}_ref_IBTrACS"
-            rows_storm_bias = self.model_names
-        else:
-            data_spatial_corr = self.spatial_corr.isel(model=slice(1, None)).to_array().values.transpose()
-            name_file = f"{sim_name_file}_no_ref_IBTrACS"
-            rows_storm_bias = self.model_names[1:]
+        data = [self.spatial_corr]
+        data_names, year_range, rows_to_remove = self._table_plots_parameters(reference=reference)
+        correlation_type = "spatial"
 
-        year_range = f"{self.start_year_tc}-{self.end_year_tc}"
-        cols_spatial_corr = np.append(
-            [f"{self.bin_size}° x {self.bin_size}°"],
-            [
-                rf"$r_{{xy,{metric}}}$"
-                for metric in self.metrics_metadata
-                if self.metrics_metadata[metric]["spatial"] == True
-            ],
-        )
-        limits_spatial_corr = np.repeat([[-1, 1]], len(cols_spatial_corr) - 1, axis=0)
-
-        # Generate table plot
-        spatial_corr_table_plot, _ = plots_general.plot_table(
-            data_spatial_corr,
-            title=f"Global spatial correlation ({year_range})",
-            col_labels=cols_spatial_corr,
-            row_labels=rows_storm_bias,
-            cbar_ticks=self.cbar_ticks_corr,
-            cbar_colors=self.colors_corr,
-            limits=limits_spatial_corr,
-            reference=reference,
-            decimals=2,
-        )
-
-        plots_general.save_or_show_plot(
-            spatial_corr_table_plot,
-            output_path,
-            plot_filename=f"tcs_spatial_corr_table_{name_file}_{year_range}",
-            plot_name="Spatial correlation table for TCs metrics plot",
+        # Create and save/display table plot
+        plots_scientific_evaluation_tables.tc_evaluation_correlation_scores_table(
+            data,
+            data_names=data_names,
+            year_range=year_range,
+            correlation_type=correlation_type,
+            bin_size=self.bin_size,
+            output_path=output_path,
+            rows_to_remove=rows_to_remove,
         )
 
         return
@@ -762,7 +674,8 @@ class TCEvaluation:
 
     def linear_plots(self, output_path=None):
         """
-        Generate and save/display linear plots comparing all datasets for each TC metric.
+        Generate and save/display linear plots of monthly and interannual cycles for each
+        TC metric comparing all datasets.
 
         Parameters
         ----------
@@ -770,80 +683,20 @@ class TCEvaluation:
             Path to save the linear plots. If None, the plots are displayed but not saved.
         """
 
-        # Prepare metrics metadata
-        temporal_metrics = [
-            metric
-            for metric in self.metrics_metadata
-            if self.metrics_metadata[metric]["temporal"] == True
-        ]
-        linear_metrics_names = [self.metrics_metadata[metric]["short_name"] for metric in temporal_metrics]
-        linear_metrics_units = [self.metrics_metadata[metric]["units"] for metric in temporal_metrics]
+        # Prepare data and plotting parameters
+        data = [self.data_cymep]
+        data_names = self.model_names
+        year_init = self.start_year_tc
+        year_end = self.end_year_tc
 
-        # Prepare labels and titles
-        linear_ylabel = [
-            f"{name} ({unit})" for name, unit in zip(linear_metrics_names, linear_metrics_units)
-        ]
-        linear_month_titles = [f"{name} seasonal cycle" for name in linear_metrics_names]
-        linear_year_titles = [f"{name} interannual cycle" for name in linear_metrics_names]
-
-        # Prepare invariant arrays/strings
-        months = np.arange(1, 13, dtype=int)
-        years = np.arange(self.start_year_tc, self.end_year_tc + 1, dtype=int)
-
-        year_range = f"{self.start_year_tc}-{self.end_year_tc}"
-        name_file = self.sim_name.replace(" ", "-")
-
-        # Create plots
-        for i, name in enumerate(linear_metrics_names):
-            # Create line plot for monthly cycles
-            linear_month_data = self.data_cymep[f"per_month_{temporal_metrics[i]}"].rename({"month": "time"})
-            linear_month_data_list = [linear_month_data.sel(model=model) for model in self.model_names]
-
-            plt.figure(figsize=(10, 6))
-            for j, month_data in enumerate(linear_month_data_list):
-                plt.plot(
-                    months,
-                    month_data,
-                    "o-",
-                    markersize=4,
-                    linewidth=1.2,
-                    label=self.model_names[j],
-                )
-            plt.xticks(months, months)
-            plt.xlabel("month", fontsize=12)
-            plt.ylabel(linear_ylabel[i], fontsize=12)
-            plt.title(linear_month_titles[i], fontsize=16)
-            plt.grid(True)
-            plt.legend()
-
-            plots_general.save_or_show_plot(
-                plt.gcf(),
-                output_path,
-                plot_name=f"Linear seasonal cycle plot for TC {name}",
-                plot_filename=f"tcs_{name.lower()}_seasonal_cycle_plot_{name_file}_{year_range}",
-                custom_name=False,
-            )
-
-            # Create line plot for interannual cycles
-            linear_year_data = self.data_cymep[f"per_year_{temporal_metrics[i]}"].rename({"year": "time"})
-            linear_year_data_list = [linear_year_data.sel(model=model) for model in self.model_names]              
-
-            plt.figure(figsize=(10, 6))
-            for j, year_data in enumerate(linear_year_data_list):
-                plt.plot(years, year_data, "o-", markersize=4, linewidth=1.2, label=self.model_names[j])
-            plt.xlabel("year", fontsize=12)
-            plt.ylabel(linear_ylabel[i], fontsize=12)
-            plt.title(linear_year_titles[i], fontsize=16)
-            plt.grid(True)
-            plt.legend()
-
-            plots_general.save_or_show_plot(
-                plt.gcf(),
-                output_path,
-                plot_name=f"Linear interannual cycle plot for TC {name}",
-                plot_filename=f"tcs_{name.lower()}_interannual_cycle_plot_{name_file}_{year_range}",
-                custom_name=False,
-            )
+        # Create and save/display linear plot
+        plots_tc.plot_linear_cycles(
+            data,
+            data_names=data_names,
+            start_year=year_init,
+            end_year=year_end,
+            output_path=output_path,
+        )
 
         return
 
@@ -860,73 +713,19 @@ class TCEvaluation:
             Central longitude for the spatial maps (default: 0).
         """
 
-        # Prepare metrics metadata
-        spatial_metrics = [
-            metric
-            for metric in self.metrics_metadata
-            if self.metrics_metadata[metric]["spatial"] == True
-        ]
-        spatial_metrics_names = [self.metrics_metadata[metric]["short_name"] for metric in spatial_metrics]
-        spatial_metrics_units = [self.metrics_metadata[metric]["units"] for metric in spatial_metrics]
-
-        # Prepare labels and titles
+        # Prepare data and plotting parameters
+        data = self.data_cymep
+        data_name = self.sim_name
         year_range = f"{self.start_year_tc}-{self.end_year_tc}"
-        spatial_titles = [
-            f"TC {name} density for {self.bin_size}°x{self.bin_size}° cells ({year_range})"
-            for name in spatial_metrics_names
-        ]
-        spatial_bias_titles = [
-            f"TC {name} bias ('{self.sim_name}' vs 'IBTrACS') for {self.bin_size}°x{self.bin_size}° cells ({year_range})"
-            for name in spatial_metrics_names
-        ]
-        spatial_cb_labels = [f"{name} ({unit})" for name, unit in zip(spatial_metrics_names, spatial_metrics_units)]
-        name_file = self.sim_name.replace(" ", "-")
 
-
-        # Create plots
-        for i, name in enumerate(spatial_metrics_names):
-            # Create a modified colormap with white for NaN values
-            cmap_modified = cmocean.cm.thermal_r.copy()
-            # cmap_modified.set_bad('white')
-
-            spatial_abs_data = self.data_cymep[f"spatial_abs_{spatial_metrics[i]}"]
-            spatial_abs_data = spatial_abs_data.where(spatial_abs_data != 0)  # Set zero values to NaN for better visualization
-            spatial_abs_plot, _ = plots_general.two_spatial_plots(
-                spatial_abs_data.sel(model="IBTrACS"),
-                spatial_abs_data.sel(model=self.sim_name),
-                clon=clon,
-                title_1="IBTrACS",
-                title_2=self.sim_name,
-                suptitle=spatial_titles[i],
-                cb_label=spatial_cb_labels[i],
-                cmap=cmap_modified,
-            )
-            plots_general.save_or_show_plot(
-                spatial_abs_plot,
-                output_path,
-                plot_filename=f"tcs_{name.lower()}_spatial_abs_plot_{name_file}_{year_range}_clon_{clon}",
-                plot_name=f"Spatial plot for TC {name}",
-                custom_name=False,
-            )
-
-            spatial_bias_data = self.data_cymep[f'spatial_bias_{spatial_metrics[i]}'].sel(model=self.sim_name)
-            limit = np.ceil(np.nanmax(np.abs(spatial_bias_data.values)))
-            levels = np.linspace(-limit, limit, 13)
-            spatial_bias_plot, _ = plots_general.plot_spatial(
-                spatial_bias_data,
-                clon=clon,
-                title=spatial_bias_titles[i],
-                cb_label=f"bias in {spatial_cb_labels[i]}",
-                cmap=LinearSegmentedColormap.from_list(*self.colors_bias),
-                levels=levels,
-            )
-            # cmap=cmocean.cm.diff)
-            plots_general.save_or_show_plot(
-                spatial_bias_plot,
-                output_path,
-                plot_filename=f"tcs_{name.lower()}_spatial_bias_plot_{name_file}_{year_range}_clon_{clon}",
-                plot_name=f"Spatial bias plot for TC {name}",
-                custom_name=False,
-            )
+        # Create and save/display spatial plots
+        plots_tc.plot_spatial(
+            data,
+            data_name=data_name,
+            year_range=year_range,
+            bin_size=self.bin_size,
+            output_path=output_path,
+            clon=clon,
+        )
 
         return

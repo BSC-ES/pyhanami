@@ -1,7 +1,6 @@
 import warnings
 warnings.simplefilter("always")
 
-import numpy as np
 import xarray as xr
 
 from pathlib import Path
@@ -9,8 +8,8 @@ from matplotlib.colors import LinearSegmentedColormap
 
 from pyhanami.config import config_params
 from pyhanami.diags.Simulations import SimulationData
-from pyhanami.utils.plots import plots_general, plots_iso
 from pyhanami.utils import data_general, config_scores, iso_scores
+from pyhanami.utils.plots import plots_general, plots_iso, plots_scientific_evaluation_tables
 
 VARIABLES = data_general.load_yaml_file(config_params.VARIABLES_PATH)
 
@@ -83,8 +82,8 @@ class ISOEvaluation:
                 Taylor Skill Score.
     """
 
-    def __init__(self, data_sim, var_name="rlut", start_year_eeof=None, end_year_eeof=None, 
-                 start_year_pc=None, end_year_pc=None, obs=False, obs_path=config_params.NOAA_PATH, 
+    def __init__(self, data_sim, var_name="rlut", start_year_eeof=None, end_year_eeof=None,
+                 start_year_pc=None, end_year_pc=None, obs=False, obs_path=config_params.NOAA_PATH,
                  correct_pc=False, iso_config=None):
 
         # Validate input
@@ -113,7 +112,8 @@ class ISOEvaluation:
             if start_year_eeof is not None or end_year_eeof is not None:
                 warnings.warn(
                     "\t'start_year_eeof' and 'end_year_eeof' are ignored when `obs=True`. "
-                    f"Using predefined observational period for EEOFs: {config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}."
+                    "Using predefined observational period for EEOFs: "
+                    f"{config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}."
                 )
             self.start_year_eeof = config_params.NOAA_START_YEAR
             self.end_year_eeof = config_params.NOAA_END_YEAR
@@ -123,7 +123,8 @@ class ISOEvaluation:
             )
             if self.start_year_eeof == self.end_year_eeof:
                 raise ValueError(
-                    "More than one year is needed for the EEOF analysis (at least 10 years is recommended, ideally ~ 30 years)."
+                    "More than one year is needed for the EEOF analysis (at least 10 years is recommended, "
+                    "ideally ~ 30 years)."
                 )
         print(
             f"\tYears selected for EEOF analysis: {self.start_year_eeof}-{self.end_year_eeof}.",
@@ -145,8 +146,8 @@ class ISOEvaluation:
                 self._load_and_regrid_obs_data(data_sim.data, obs_path)
             )
             print(
-                f"\tEEOF analysis loaded for '{self.obs_name}' observations between {self.start_year_eeof} and {self.end_year_eeof}."
-                " See attributes `eeof_summer`, `eeof_winter` and `pcs_obs` for results.",
+                f"\tEEOF analysis loaded for '{self.obs_name}' observations between {self.start_year_eeof} "
+                f"and {self.end_year_eeof}. See attributes `eeof_summer`, `eeof_winter` and `pcs_obs` for results.",
                 flush=True,
             )
 
@@ -168,8 +169,8 @@ class ISOEvaluation:
             self.eeof_summer = eeof_summer.compute()
             self.eeof_winter = eeof_winter.compute()
             print(
-                f"\tEEOF analysis completed for '{self.sim_name}' data between {self.start_year_eeof} and {self.end_year_eeof}."
-                " See attributes `eeof_summer` and `eeof_winter` for results.",
+                f"\tEEOF analysis completed for '{self.sim_name}' data between {self.start_year_eeof} "
+                f"and {self.end_year_eeof}. See attributes `eeof_summer` and `eeof_winter` for results.",
                 flush=True,
             )
 
@@ -177,8 +178,8 @@ class ISOEvaluation:
         self.scores = {}
         self.pcs_sim, self.scores["alpha"] = self._compute_PCs(data_filtered_sim)
         print(
-            f"\tPCs (bimodal ISO indices) computed for '{self.sim_name}' data between {self.start_year_pc} and {self.end_year_pc}."
-            " See attribute `pcs_sim` for results.",
+            f"\tPCs (bimodal ISO indices) computed for '{self.sim_name}' data between {self.start_year_pc} "
+            f"and {self.end_year_pc}. See attribute `pcs_sim` for results.",
             flush=True,
         )
 
@@ -199,7 +200,8 @@ class ISOEvaluation:
         # Print scalar scores
         if self.obs:
             print(
-                f"\tTaylor Skill Score (TSS) between simulations and observations computed (stored in attribute `scores`):"
+                "\tTaylor Skill Score (TSS) between simulations and observations computed "
+                "(stored in attribute `scores`):"
                 f"\n\t\tRatio PCs amplitudes ($\\alpha$): {self.scores['alpha']:.2f}"
                 f"\n\t\tTemporal correlation (R): {self.scores['R']:.2f}"
                 f"\n\t\tRatio standard deviations ($\\sigma$): {self.scores['sigma']:.2f}"
@@ -304,8 +306,12 @@ class ISOEvaluation:
             del data_obs, data_obs_regrid
 
             # Directly regrid EEOFs (not used anymore as redoing the EEOF analysis is now computationally affordable)
-            # eeof_summer_regrid = data_general.regrid_data(eeof_summer, data_sim.sortby("lat").sel(lat=slice(*lat_range)), var='eeof')
-            # eeof_winter_regrid = data_general.regrid_data(eeof_winter, data_sim.sortby("lat").sel(lat=slice(*lat_range)), var='eeof')
+            # eeof_summer_regrid = data_general.regrid_data(
+            #                           eeof_summer, data_sim.sortby("lat").sel(lat=slice(*lat_range)), var='eeof'
+            #                       )
+            # eeof_winter_regrid = data_general.regrid_data(
+            #                           eeof_winter, data_sim.sortby("lat").sel(lat=slice(*lat_range)), var='eeof'
+            #                       )
 
             # eeof_summer_copy = eeof_summer.copy()
             # eeof_winter_copy = eeof_winter.copy()
@@ -400,11 +406,11 @@ class ISOEvaluation:
         if self.obs:
             # Compute alpha (only with raw PCs' amplitudes)
             alpha_num = (
-                pcs_sim["amp_MJO_raw"].mean(dim="time") 
+                pcs_sim["amp_MJO_raw"].mean(dim="time")
                 + pcs_sim["amp_BSISO_raw"].mean(dim="time")
             )
             alpha_den = (
-                self.pcs_obs["amp_MJO_raw"].mean(dim="time") 
+                self.pcs_obs["amp_MJO_raw"].mean(dim="time")
                 + self.pcs_obs["amp_BSISO_raw"].mean(dim="time")
             )
             alpha = ((alpha_num / alpha_den).values).item()
@@ -513,7 +519,10 @@ class ISOEvaluation:
                 flush=True,
             )
 
-            pcs_obs_path = output_path / f"pcs_{obs_name_file}_projected_{config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}.nc"
+            pcs_obs_path = (
+                output_path
+                / f"pcs_{obs_name_file}_projected_{config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}.nc"
+            )
             self.pcs_obs.to_netcdf(pcs_obs_path)
             print(
                 f"PCs (bimodal ISO indices) computed for '{self.obs_name}' observations saved to '{pcs_obs_path}'.",
@@ -536,11 +545,14 @@ class ISOEvaluation:
                 flush=True,
             )
 
-            freq_obs_path = output_path / f"freq_ISO_{obs_name_file}_projected_{config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}.nc"
+            freq_obs_path = (
+                output_path
+                / f"freq_ISO_{obs_name_file}_projected_{config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}.nc"
+            )
             self.freq_obs.to_netcdf(freq_obs_path)
             print(
-                f"Mean monthly frequency of ISO events computed for '{self.obs_name}' observations saved to '{freq_obs_path}'.",
-                flush=True,
+                f"Mean monthly frequency of ISO events computed for '{self.obs_name}' observations "
+                f"saved to '{freq_obs_path}'.", flush=True,
             )
         else:
             freq_sim_path = output_path / f"freq_ISO_{sim_name_file}_projected_{year_range_pcs}.nc"
@@ -673,7 +685,10 @@ class ISOEvaluation:
             plots_general.save_or_show_plot(
                 pcs_plot,
                 output_path,
-                plot_filename=f"pcs_{name_file}_{year}_projected{name_projected}_{self.start_year_eeof}-{self.end_year_eeof}",
+                plot_filename=(
+                    f"pcs_{name_file}_{year}_projected{name_projected}_"
+                    f"{self.start_year_eeof}-{self.end_year_eeof}"
+                ),
                 plot_name=f"PCs (bimodal ISO indices) for year {year} plot",
                 custom_name=custom_name,
             )
@@ -718,7 +733,10 @@ class ISOEvaluation:
         plots_general.save_or_show_plot(
             freq_plot,
             output_path,
-            plot_filename=f"freq_ISO_{name_file}_{self.start_year_pc}-{self.end_year_pc}_projected_{self.start_year_eeof}-{self.end_year_eeof}",
+            plot_filename=(
+                f"freq_ISO_{name_file}_{self.start_year_pc}-{self.end_year_pc}_projected_"
+                f"{self.start_year_eeof}-{self.end_year_eeof}"
+            ),
             plot_name="Mean monthly frequency of ISO events plot",
         )
 
@@ -746,58 +764,18 @@ class ISOEvaluation:
             )
 
         # Prepare data and plotting parameters
-        sim_name_file = self.sim_name.replace(" ", "-")
-        obs_name_file = self.obs_name.replace(" ", "-")
-
+        data = [self.scores]
+        data_names = [self.obs_name, self.sim_name]
         year_range = f"{self.start_year_pc}-{self.end_year_pc}"
-        plot_title = f"ISO scalar scores ({year_range})"
 
-        scalar_scores = [
-            self.scores["alpha"],
-            self.scores["R"],
-            self.scores["sigma"],
-            self.scores["TSS"],
-        ]
-        if reference:
-            data_scalar_scores = np.stack([[1.0, 1.0, 1.0, 1.0], scalar_scores])
-            rows_scalar_scores = [self.obs_name, self.sim_name]
-            name_file = f"{sim_name_file}_ref_{obs_name_file}"
-        else:
-            data_scalar_scores = np.array(scalar_scores).reshape(1, -1)
-            rows_scalar_scores = [self.sim_name]
-            name_file = f"{sim_name_file}_no_ref_{obs_name_file}"
-
-        if self.correct_pc:
-            plot_title += " (corrected PCs)"
-            name_file += "_corrected_PCs"
-
-        cols_scalar_scores = [
-            "",
-            r"  $\alpha$  ",
-            r"    $R$    ",
-            r"  $\sigma$  ",
-            r"$\text{TSS}$",
-        ]  # Same number of characters needed to get same column width
-        cbar_ticks = ["Worse performance", " ", "Better performance"]
-        colors = ("RedGreen", ["tab:red", "white", "tab:green"])
-
-        # Generate and save/display table plot
-        scalar_scores_table, _ = plots_general.plot_table(
-            data_scalar_scores,
-            title=plot_title,
-            col_labels=cols_scalar_scores,
-            row_labels=rows_scalar_scores,
-            cbar_ticks=cbar_ticks,
-            cbar_colors=colors,
+        # Create and save/display table plot
+        plots_scientific_evaluation_tables.iso_evaluation_scores_table(
+            data,
+            data_names=data_names,
+            year_range=year_range,
+            correct_pc=self.correct_pc,
+            output_path=output_path,
             reference=reference,
-            decimals=2,
-        )
-
-        plots_general.save_or_show_plot(
-            scalar_scores_table,
-            output_path,
-            plot_filename=f"ISO_scalar_scores_table_{name_file}_{year_range}_projected_{self.start_year_eeof}-{self.end_year_eeof}",
-            plot_name="ISO scalar scores table plot",
         )
 
         return
