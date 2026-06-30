@@ -8,7 +8,7 @@ This guide provides detailed instructions and examples for using _pyhanami_ to e
 Before using _pyhanami_, ensure that the configuration files explained in the [Configuration](./Configuration.md) guide are properly set up. In particular, pay attention to the following aspects:
 
 - **Variables:** for each variable to be analyzed, ensure it is defined in `src/pyhanami/config/variables.yaml` following CMIP conventions (see [Configuration](./Configuration.md#variables.yaml)). It is required that each variable (as a xarray.DataArray) has as attribute the corresponding `units`.
-- **Scientific evaluation parameters:** for each climate phenomenon to be evaluated, the relevant parameters and their default values are defined in `src/pyhanami/config/scientific_evaluation_parameters.yaml` (see [Configuration](./Configuration.md#scientific_evaluation_parameters.yaml)). Ensure that the default values for the parameters are appropriate for your analysis. If necessary, modify them permanently in the configuration file or temporarily when calling the corresponding method (see []()). 
+- **Scientific evaluation parameters:** for each climate phenomenon to be evaluated, the relevant parameters and their default values are defined in `src/pyhanami/config/scientific_evaluation_parameters.yaml` (see [Configuration](./Configuration.md#scientific_evaluation_parameters.yaml)). Ensure that the default values for the parameters are appropriate for your analysis. If necessary, modify them permanently in the configuration file or temporarily when calling the corresponding method (see [Configuration of scientific evaluation parameters](./User-Guide.md#configuration-of-scientific-evaluation-parameters)). 
 
 <!-- TO DO: finish explanation of configuration files.-->
 
@@ -197,62 +197,88 @@ tester.matrix_plot(
     end_year=year_end
 )
 ```
-Note that, if no years are passed when retrieving, saving or plotting the test outcome, the first test performed for the selected datasets is used by default.
+Note that, if no years are passed when retrieving, saving or plotting the test outcome, the first replicability test performed for the selected datasets is used by default.
 
 
 ## Scientific skill
 
 The following subsections demonstrate how to use the methods in the `ScientificEvaluation` class to evaluate the scientific skill of simulation datasets, i.e., how well they reproduce real-world observations.
 
+To perform an analysis, initialize the `ScientificEvaluation` class with one or more `SimulationData` objects:
+
+```python
+# Initialize ScientificEvaluation class with one SimulationData object
+skill_eval_one = pyhanami.ScientificEvaluation(sim_1)
+
+# Initialize ScientificEvaluation class with multiple SimulationData objects
+skill_eval_multiple = pyhanami.ScientificEvaluation([sim_1, sim_2])
+```
+It is also possible to add additional simulation datasets to an existing `ScientificEvaluation` instance with the `add_datasets` method:
+
+```python
+# Add another SimulationData object to the ScientificEvaluation instance
+skill_eval_one.add_datasets(sim_2)
+```
+
+Then, the `ScientificEvaluation` class provides several methods to perform different analyses. All follow the same naming convention: `compute_<phenomenon>_scores(*args, **kwargs)`, where `<phenomenon>` is the climate phenomenon being evaluated. Each method can be called multiple times for different simulation datasets, and the results are stored internally in the same `ScientificEvaluation` instance under the corresponding simulation name.
+
+Finally, the outcome of each analysis can be accessed later using the corresponding `<phenomenon>_scores('name_sim')` method, which returns an object providing methods to save and visualize the results. These methods accept either a single simulation dataset name or a list of dataset names. When multiple names are passed, most methods operate independently on each selected dataset, generating one separate plot per simulation dataset. However, summary table plots combine the selected datasets into a single table for easier comparison. If no simulation name is specified, all results stored in the `ScientificEvaluation` instance for the corresponding phenomenon are returned.
+
+The next subsections explain how to use these methods and the corresponding visualization outputs for each available phenomenon.
+
+
+
 ### General analysis
 
-To perform a general scientific skill evaluation of a simulation dataset, initialize the `ScientificEvaluation` class with the `SimulationData` object that you want to analyze and use the `compute_general_scores` method. This method computes several scalar scores related to the general scientific skill of the model by comparing to a reference observational dataset. It can be performed on any of the variables listed in `src/pyhanami/config/variables.yaml`. 
+To perform a general scientific skill evaluation of a simulation dataset, use the `compute_general_scores` method. This method computes several scalar scores that characterize the general scientific skill of the model by comparing to a reference observational dataset. It can be applied on any of the variables listed in `src/pyhanami/config/variables.yaml`. 
 
-The following snippet creates a `GeneralEvaluation` instance that computes the general scientific skill scores for the variable `var_name` between `year_init` and `year_end`:
+The following snippet computes the general scientific skill scores for the variable `var_name` between `year_init` and `year_end`:
 
 ```python
 # Initialize ScientificEvaluation class with a SimulationData object
-sciskill = pyhanami.ScientificEvaluation(sim_1)
+skill_eval = pyhanami.ScientificEvaluation(sim_1)
 
 # Compute general scalar scores for one simulation dataset comparing to observations
-general_analysis = sciskill.compute_general_scores(
+skill_eval.compute_general_scores(
     'var_name',
     'name_sim_1',
     obs_path='path/to/obs',
     obs_name='name_obs',
     start_year=year_init,
     end_year=year_end
+)
 ```
-Note that `var_name` can either be a single variable name (as string) or a list of variable names. If no variable is specified, all variables in the simulation dataset are considered for the analysis. Besides, if no years are passed, the whole period covered by the simulation dataset is used by default.
+Note that the `var_name` argument can either be a single variable name (as a string) or a list of variable names. If no variable is specified, all variables in the simulation dataset are included in the analysis. Likewise, if no years (`start_year` and `end_year`) are passed, the full period covered by the simulation dataset is used by default.
 
-Moreover, the `GeneralEvaluation` class includes methods to visualize and save the results of the analysis. The following shows how to save the computed scalar scores and create a summary table plot for a given variable:
+Once the analysis has been performed, the outcome can be accessed using the `general_scores()` method. The following shows how to save the computed scalar scores and generate a summary table plot for the variable `var_name`:
 
 ```python
-# Save and plot outcome of the general scientific skill analysis
-general_analysis.save_data('output_path')
-general_analysis.scores_table('var_name', 'output_path')
+# Save and plot outcome of the general scientific skill analysis for one dataset
+skill_eval.general_scores('name_sim_1').save_data('output_path')
+skill_eval.general_scores('name_sim_1').scores_table('var_name', 'output_path')
 ```
+When multiple simulation datasets are selected, the scalar scores are displayed together in a single summary table.
 
 <!-- TO DO: Explain the colors in the summary table plot.-->
 
 
 ### Tropical IntraSeasonal Oscillation (ISO) analysis
 
-To evaluate the simulation of the ISO, initialize the `ScientificEvaluation` class with the `SimulationData` object that you want to analyze and use the `compute_iso_scores` method. This method computes scalar scores related to ISO and requires **daily Top of Atmosphere Outgoing Longwave Radiation** (`rlut`) data, preferably covering a period of 10 years or more (ideally, at least 30 years).
+To evaluate the simulation of the ISO, use the `compute_iso_scores` method. This method computes scalar scores related to ISO and requires **daily Top of Atmosphere Outgoing Longwave Radiation** (`rlut`) data, preferably covering a period of 10 years or more (ideally, at least 30 years).
 
-The following snippet creates an `ISOEvaluation` instance that:
+The following snippet:
 1. Performs an **Extended Empirical Orthogonal Function (EEOF)** analysis between `year_init_eeof` and `year_end_eeof`
 2. Uses the EEOFs to compute the first two Principal Components (PCs) (**bimodal ISO indices**) between `year_init_pc` and `year_end_pc`
-3. Calculates the **mean monthly frequency (seasonality)** of ISO events using all the bimodal ISO indices computed in step 2
+3. Calculates the **mean monthly frequency (seasonality)** of ISO events using the bimodal ISO indices computed in step 2
 
 ```python
 # Initialize ScientificEvaluation class with a SimulationData object
 # (If you have already added this dataset to an existing ScientificEvaluation object, 
 # you can skip this step)
-sciskill = pyhanami.ScientificEvaluation(sim_1)
+skill_eval = pyhanami.ScientificEvaluation(sim_1)
 
 # Compute bimodal ISO indices performing an EEOF analysis on simulated data
-iso_analysis = sciskill.compute_iso_scores(
+skill_eval.compute_iso_scores(
     'name_sim_1',
     start_year_eeof=year_init_eeof,
     end_year_eeof=year_end_eeof,
@@ -262,55 +288,57 @@ iso_analysis = sciskill.compute_iso_scores(
 ```
 If no years are passed for the EEOFs or the PCs computation, the whole period covered by the simulation dataset is used by default.
 
-Moreover, the `ISOEvaluation` class includes methods to visualize and save the results of the analysis. The following shows how to save the computed data and create plots for the EEOFs, the PCs (bimodal indices) for the selected years (`[year_1, year_2, year_3]`), and the mean monthly frequency (seasonality) of ISO events:
+Once the analysis has been performed, the outcome can be accessed using the `iso_scores()` method. The following shows how to save the computed data and generate plots for the EEOFs, the PCs (bimodal indices) for selected years (`[year_1, year_2, year_3]`), and the mean monthly frequency (seasonality) of ISO events:
 
 ```python
 # Save and plot outcome of the ISO analysis
-iso_analysis.save_data('output_path')
-iso_analysis.eeof_plots('output_path')
-iso_analysis.pc_plots('output_path', years=[year_1, year_2, year_3])
-iso_analysis.freq_plot('output_path')
+skill_eval.iso_scores('name_sim_1').save_data('output_path')
+skill_eval.iso_scores('name_sim_1').eeof_plots('output_path')
+skill_eval.iso_scores('name_sim_1').pc_plots('output_path', years=[year_1, year_2, year_3])
+skill_eval.iso_scores('name_sim_1').freq_plot('output_path')
 ```
+<!-- For the future, methods such as `save_data()` operate on each selected dataset individually, while plotting methods combine the selected datasets into a single figure whenever applicable.-->
 
-By passing the argument `obs=True`, simulations are compared against observations to compute several scalar scores:
+By passing the argument `obs=True` when performing the evaluation, the simulated bimodal ISO indices are compared against observations to compute several scalar scores:
 
 ```python
 # Compute bimodal ISO indices and related scalar scores comparing to observations
-iso_analysis_obs = sciskill.compute_iso_scores(
+skill_eval.compute_iso_scores(
     'name_sim_1',
     start_year_pc=year_init_pc,
     end_year_pc=year_end_pc,
     obs = True
 )
 ```
-Note that, in this case, it is not necessary to specify `start_year_eeof`and `end_year_eeof`, as the ones used for the reference observational dataset ([NOAA](https://psl.noaa.gov/data/gridded/data.olrcdr.interp.html) by default) are applied automatically.
+In this case, it is not necessary to specify `start_year_eeof`and `end_year_eeof`, as the values used for the reference observational dataset ([NOAA](https://psl.noaa.gov/data/gridded/data.olrcdr.interp.html) by default) are applied automatically.
 
-The same way as before, it is possible to save the computed data and create plots for the EEOFs, the PCs (bimodal indices) for the selected years (`[year_1, year_2, year_3]`), and the mean monthly frequency (seasonality) of ISO events. In this case, the monthly frequency is compared between simulations and observations, and plotted together with the **scalar scores**. The scores can also be retrieved with the `ISOEvaluation.scores` attribute and plotted as follows:
+The computed data can be saved and visualized the same way as before. When observations are included, the monthly frequency of ISO events is compared between simulations and observations, and plotted together with the **scalar scores** when calling the `iso_scores().freq_plot()` method. The scores can also be retrieved with the `iso_scores().scores` attribute and summarized in a table as follows:
 
 ```python
-# Save and plot computed scalar scores
-iso_analysis_obs.scores_table('output_path')
+# Plot table with computed scalar scores
+skill_eval.iso_scores('name_sim_1').scores_table('output_path')
 ```
+When multiple simulation datasets are selected, the scalar scores are displayed together in a single summary table.
 
-When `obs=True`, the simulated PCs can be adjusted before computing the scores to account for amplitude differences between simulations and observations (see [Methodology](./Methodology.md#tropical-intraseasonal-oscillation-iso) for more details). This correction can be turned on by passing the argument `correct_pc=True`.
+In addition, when `obs=True`, the simulated PCs can optionally be adjusted before computing the scores to account for amplitude differences between simulations and observations (see [Methodology](./Methodology.md#tropical-intraseasonal-oscillation-iso) for more details). This correction can be turned on by passing the argument `correct_pc=True`.
 
-To summarize, the `ISOEvaluation` class includes methods to generate the following visualization outputs:
-1. **EEOF plots** (`ISOEvaluation.eeof_plots`): spatial patterns of the first two EEOFs for boreal winter and boreal summer. The central longitude for these plots is set to 0º by default, but it can be modified with the argument `clon` (e.g., `clon=180`).
-2. **PC plots** (`ISOEvaluation.pc_plots`, passing one year or a list of years): time series of the first two PCs and their amplitude for both MJO and BSISO for the specified years.
-3. **Frequency plot** (`ISOEvaluation.freq_plot`): mean monthly frequency (seasonality) of ISO events for both MJO and BSISO, computed over the entire period covered by the dataset. If observations are set to `True`, these are included in the  frequency plot, which also shows the scalar scores ($\alpha$, $R$, $\sigma$ and $\text{TSS}$) comparing simulations and observations.
-4. **Scalar scores table** (`ISOEvaluation.scores_table`): table summarizing the computed scalar scores. Each column is colored independently, with the best- and worst-performing dataset in a column determining the limits of the colorbar for that column.
+To summarize, the object returned by `ScientificEvaluation.iso_scores()` includes methods to generate the following visualization outputs:
+1. **EEOF plots** (`.iso_scores().eeof_plots`): spatial patterns of the first two EEOFs for boreal winter and boreal summer. The central longitude for these plots is set to 0º by default, but it can be modified with the argument `clon` (e.g., `clon=180`).
+2. **PC plots** (`.iso_scores().pc_plots`, passing one year or a list of years): time series of the first two PCs and their amplitude for both MJO and BSISO for the specified years.
+3. **Frequency plot** (`.iso_scores().freq_plot`): mean monthly frequency (seasonality) of ISO events for both MJO and BSISO, computed over the entire period covered by the dataset. If observations are set to `True`, these are included in the  frequency plot, which also shows the scalar scores ($\alpha$, $R$, $\sigma$ and $\text{TSS}$) comparing simulations and observations.
+4. **Scalar scores table** (`.iso_scores().scores_table`): table summarizing the computed scalar scores. Each column is colored independently, with the best- and worst-performing dataset in a column determining the limits of the colorbar for that column.
 
 
 ### Specific Madden-Julian Oscillation (MJO) analysis
 
-To evaluate the simulation of the MJO specifically, initialize the `ScientificEvaluation` class with the `SimulationData` object that you want to analyze and use the `compute_mjo_scores` method. This method computes several scalar scores related to MJO (see [Methodology](./Methodology.md#madden-julian-oscillation-mjo)) and requires the following variables with a **daily** frequency:
+To evaluate the simulation of the MJO specifically, use the `compute_mjo_scores` method. This method computes several scalar scores related to MJO (see [Methodology](./Methodology.md#madden-julian-oscillation-mjo)) and requires the following variables with a **daily** frequency:
 - **Top of atmosphere outgoing longwave radiation** (`rlut`)
 - **Eastward wind at 200 and 850 hPa** (`ua200` and `ua850`)
 
-The following snippet creates a `MJOEvaluation` instance that:
+The following snippet:
 1. Performs a **Combined Empirical Orthogonal Function (CEOF)** analysis between `year_init_mjo` and `year_end_mjo`
 2. Uses the CEOFs to compute the first two Principal Components (PCs) (**Real-Time Multivariate MJO (RMM) indices**) for the same period, projecting simulations both on the observed and simulated CEOFs
-3. Computes the **lead-lag correlation** between the RMM indices
+3. Computes the **lead-lag correlation** between the RMM indices (RMM1 vs RMM2)
 4. Determines the climatological (annually averaged) **mean MJO amplitude and active days per phase** based on the RMM indices amplitude
 5. Calculates the **MJO power spectrum** (both symmetric and antisymmetric components) between `year_init_mjo` and `year_end_mjo`
 6. Computes various **scalar scores** comparing the simulated CEOFs, RMM indices, MJO activity and power to the observed ones
@@ -319,10 +347,10 @@ The following snippet creates a `MJOEvaluation` instance that:
 # Initialize ScientificEvaluation class with a SimulationData object
 # (If you have already added this dataset to an existing ScientificEvaluation object,
 # you can skip this step)
-sciskill = pyhanami.ScientificEvaluation(sim_1)
+skill_eval = pyhanami.ScientificEvaluation(sim_1)
 
 # Compute MJO scalar scores performing a CEOF analysis and a power spectrum analysis
-mjo_analysis = sciskill.compute_mjo_scores(
+skill_eval.compute_mjo_scores(
     'name_sim_1',
     start_year_mjo=year_init_mjo,
     end_year_mjo=year_end_mjo,
@@ -330,28 +358,29 @@ mjo_analysis = sciskill.compute_mjo_scores(
 )
 ```
 
-If no years are passed, the whole period covered by the simulation dataset is used by default. Besides, `threshold_active_days` is the minimum amplitude of the RMM indices required for the MJO to be considered active on a given day. If it is not specified, the total mean MJO amplitude across the entire period is used by default as a threshold. 
+If `start_year_mjo` and `end_year_mjo` are omitted, the full period covered by the simulation dataset is used by default. Besides, `threshold_active_days` argument specifies the minimum RMM amplitude required for the MJO to be considered active on a given day. If it is not specified, the total mean RMM amplitude across the entire period is used by default as a threshold. 
 
-Moreover, the `MJOEvaluation` class includes methods to visualize and save the results of the analysis. The following shows how to save the computed data, create plots for the CEOFs, lead-lag correlation, MJO activity and power spectrum, and create table plots summarizing the scalar scores:
+Once the analysis has been performed, the results can be accessed using the `mjo_scores()` method. The following shows how to save the computed data, create plots of the CEOFs, lead-lag correlation, MJO activity, and power spectrum, and create summary tables of the scalar scores:
 
 ```python
 # Save outcome of the MJO analysis
-mjo_analysis.save_data('output_path')
+skill_eval.mjo_scores('name_sim_1').save_data('output_path')
 
 # Plot visual outputs
-mjo_analysis.ceof_plots('output_path')
-mjo_analysis.lead_lag_corr_plot('output_path')
-mjo_analysis.activity_per_phase_plots('output_path')
-mjo_analysis.power_spectrum_plots('output_path')
+skill_eval.mjo_scores('name_sim_1').ceof_plots('output_path')
+skill_eval.mjo_scores('name_sim_1').lead_lag_corr_plot('output_path')
+skill_eval.mjo_scores('name_sim_1').activity_per_phase_plots('output_path')
+skill_eval.mjo_scores('name_sim_1').power_spectrum_plots('output_path')
 
 # Plot summary tables of the scalar scores
-mjo_analysis.ceof_corr_table('output_path')
-mjo_analysis.ceof_bias_table('output_path')
-mjo_analysis.activity_per_phase_bias_tables('output_path')
-mjo_analysis.power_bias_table('output_path')
+skill_eval.mjo_scores('name_sim_1').ceof_corr_table('output_path')
+skill_eval.mjo_scores('name_sim_1').ceof_bias_table('output_path')
+skill_eval.mjo_scores('name_sim_1').activity_per_phase_bias_tables('output_path')
+skill_eval.mjo_scores('name_sim_1').power_bias_table('output_path')
 ```
+When multiple simulation datasets are selected, all table-based methods (e.g., `ceof_corr_table`) display the results for all datasets together in a single summary table, allowing direct comparison across simulations, while the other plotting methods operate on each dataset independently (generating a separate plot for each dataset).
 
-To summarize, the `MJOEvaluation` class includes methods to generate the following visualization outputs:
+To summarize, the object returned by `ScientificEvaluation.mjo_scores()` includes methods to generate the following visualization outputs:
 1. **CEOF plots** (`MJOEvaluation.ceof_plots`): longitudinal patterns of the first two Combined EOFs for the three considered variables comparing observations and simulations.
 2. **RMM indices lead-lag correlation plot** (`MJOEvaluation.lead_lag_corr_plot`): correlation between the RMM indices in terms of the termporal lag between them comparing observations and simulations.
 3. **MJO activity per phase plots** (`MJOEvaluation.activity_per_phase_plots`): climatological (annually averaged) mean MJO amplitude and number of active MJO days per phase for both observations and simulations. Both quantities are plotted separately using two bar plots by default, but they can also be plotted together in the same bar plot by passing the argument `layout='together'`, allowing to more easily identify the relationship between both quantities.
@@ -361,24 +390,24 @@ To summarize, the `MJOEvaluation` class includes methods to generate the followi
 
 ### Tropical Cyclones (TCs) analysis
 
-To evaluate the simulation of TCs, initialize the `ScientificEvaluation` class with the `SimulationData` object that you want to analyze and use the `compute_tc_scores` method. This method computes several scalar scores related to TCs (see [Methodology](./Methodology.md#tropical-cyclones-tcs)) and requires the following variables with a **6-hourly** frequency:
+To evaluate the simulation of TCs, use the `compute_tc_scores` method. This method computes several scalar scores related to TCs (see [Methodology](./Methodology.md#tropical-cyclones-tcs)) and requires the following variables with a **6-hourly** frequency:
 - **Sea level pressure** (`psl`)
 - **Eastward and northward wind at 10 m** (`uas` and `vas`)
 - **Geopotential height at 300 hPa and 500 hPa** (`zg300` and `zg500`)
 
-The following snippet creates a `TCEvaluation` instance that:
+The following snippet:
 1. Detects and tracks TCs between `year_init` and `year_end`.
 2. Computes several **TC metrics**, including number of TCs, their lifetime and intensity.
-3. Computes various global temporal and spatial **scalar scores** from the TC metrics for both the provided simulation data and the reference observational data ([IBTrACS](https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C01552) by default).
+3. Computes various global temporal and spatial **scalar scores** from the TC metrics, comparing simulations with reference observational data ([IBTrACS](https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C01552) by default).
 
 ```python
 # Initialize ScientificEvaluation class with a SimulationData object
 # (If you have already added this dataset to an existing ScientificEvaluation object, 
 # you can skip this step)
-sciskill = pyhanami.ScientificEvaluation(sim_1)
+skill_eval = pyhanami.ScientificEvaluation(sim_1)
 
 # Compute TC metrics and related scalar scores for one simulation dataset
-tc_analysis= sciskill.compute_tc_scores(
+skill_eval.compute_tc_scores(
     'name_sim_1',
     start_year_tc=year_init_tc,
     end_year_tc=year_end_tc
@@ -387,22 +416,23 @@ tc_analysis= sciskill.compute_tc_scores(
 
 If no years are passed, the whole period covered by the simulation dataset is used by default.
 
-Moreover, the `TCEvaluation` class includes methods to visualize and save the results of the analysis. The following shows how to save the computed data, create linear and spatial plots displaying the computed TC metrics, and create table plots summarizing the scalar score for each TC metric:
+Once the analysis has been performed, the results can be accessed using the `tc_scores()` method. The following shows how to save the computed data, create linear and spatial plots displaying the computed TC metrics, and create summary tables of the scalar score for each TC metric:
 
 ```python
 # Save outcome of the TC analysis
-tc_analysis.save_data('output_path')
+skill_eval.tc_scores('name_sim_1').save_data('output_path')
 
 # Plot the resulting TC metrics
-tc_analysis.linear_plots('output_path')
-tc_analysis.spatial_plots('output_path')
+skill_eval.tc_scores('name_sim_1').linear_plots('output_path')
+skill_eval.tc_scores('name_sim_1').spatial_plots('output_path')
 
 # Plot summary tables of the TC scalar scores
-tc_analysis.clim_bias_table('output_path')
-tc_analysis.storm_bias_table('output_path')
-tc_analysis.temp_corr_table('output_path')
-tc_analysis.spatial_corr_table('output_path')
+skill_eval.tc_scores('name_sim_1').clim_bias_table('output_path')
+skill_eval.tc_scores('name_sim_1').storm_bias_table('output_path')
+skill_eval.tc_scores('name_sim_1').temp_corr_table('output_path')
+skill_eval.tc_scores('name_sim_1').spatial_corr_table('output_path')
 ```
+When multiple simulation datasets are selected, all table-based methods (e.g., `clim_bias_table`) and the `linear_plots` method display the results for all datasets together in a single plot, allowing direct comparison across simulations, while the other methods operate on each dataset independently (generating a separate plot per dataset).
 
 Note that, in the bias table plots, each column is colored independently, with the largest bias value in a column determining the limits of the colorbar for that column. In contrast, in the correlation tables, all columns share a common colorbar, ranging from -1 to 1.
 
@@ -425,7 +455,7 @@ The following snippet exemplifies how to modify default parameters for the ISO a
 # Initialize ScientificEvaluation class with a SimulationData object
 # (If you have already added this dataset to an existing ScientificEvaluation object, 
 # you can skip this step)
-sciskill = pyhanami.ScientificEvaluation(sim_1)
+skill_eval = pyhanami.ScientificEvaluation(sim_1)
 
 # Create a custom ISO configuration dataclass with modified parameters
 iso_config = pyhanami.ISOConfig(
@@ -435,7 +465,7 @@ iso_config = pyhanami.ISOConfig(
 )
 
 # Compute bimodal ISO indices performing an EEOF analysis on simulated data
-iso_analysis = sciskill.compute_iso_scores(
+skill_eval.compute_iso_scores(
     'name_sim_1',
     iso_config=iso_config
 )
