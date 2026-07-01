@@ -136,14 +136,14 @@ tester.matrix_plot(['name_sim_1', 'name_sim_2'], 'output_path')
 Evaluate the scientific skill of one simulation dataset:
 ```python
 # Initialize the ScientificEvaluation class with one simulation dataset
-sciskill = pyhanami.ScientificEvaluation(sim_1)
+skill_eval = pyhanami.ScientificEvaluation(sim_1)
 ```
 
 #### Tropical IntraSeasonal Oscillation (ISO)
 Assess simulation of the Tropical IntraSeasonal Oscillation (ISO) by computing the bimodal ISO indices and related scalar scores comparing to observations:
 ```python
 # Perform the ISO analysis
-iso_analysis = sciskill.compute_iso_scores(
+skill_eval.compute_iso_scores(
     'name_sim_1',
     start_year_pc=year_init_pc,
     end_year_pc=year_end_pc,
@@ -151,24 +151,24 @@ iso_analysis = sciskill.compute_iso_scores(
 )
 
 # Save results of the analysis to 'output_path'
-iso_analysis.save_data('output_path')
+skill_eval.iso_scores().save_data('output_path')
 
-# Create plots for EEOFs, PCs (bimodal ISO indices) and monthly frequency of 
+# Create plots of EEOFs, PCs (bimodal ISO indices) and monthly frequency of 
 # ISO events (seasonality) and save them to 'output_path'
-iso_analysis.eeof_plots('output_path')
-iso_analysis.pc_plots('output_path', years=[year_1, year_2, year_3])
-iso_analysis.freq_plot('output_path')
+skill_eval.iso_scores().eeof_plots('output_path')
+skill_eval.iso_scores().pc_plots('output_path', years=[year_1, year_2, year_3])
+skill_eval.iso_scores().freq_plot('output_path')
 
-# Create table plot summarizing the computed scalar scores and save them to 'output_path'
+# Create summary tables of the computed scalar scores and save them to 'output_path'
 # (scalar values measuring how well simulations match observations)
-iso_analysis.scores_table('output_path')
+skill_eval.iso_scores().scores_table('output_path')
 ```
 
 #### Madden-Julian Oscillation (MJO)
 Assess simulation of the Madden-Julian Oscillation (MJO) by computing the Real-time Multivariate MJO (RMM) indices, the power spectrum and related scalar scores comparing to observations:
 ```python
 # Perform the MJO analysis
-mjo_analysis = sciskill.compute_mjo_scores(
+skill_eval.compute_mjo_scores(
     'name_sim_1',
     start_year_mjo=year_init_mjo,
     end_year_mjo=year_end_mjo,
@@ -176,47 +176,47 @@ mjo_analysis = sciskill.compute_mjo_scores(
 )
 
 # Save results of the analysis to 'output_path'
-mjo_analysis.save_data('output_path')
+skill_eval.mjo_scores().save_data('output_path')
 
-# Create plots for CEOFs, lead-lag correlation, MJO activity per phase and power spectrum 
+# Create plots of CEOFs, lead-lag correlation, MJO activity per phase, and power spectrum 
 # and save them to 'output_path'
-mjo_analysis.ceof_plots('output_path')
-mjo_analysis.lead_lag_corr_plot('output_path')
-mjo_analysis.activity_per_phase_plots('output_path')
-mjo_analysis.power_spectrum_plots('output_path')
+skill_eval.mjo_scores().ceof_plots('output_path')
+skill_eval.mjo_scores().lead_lag_corr_plot('output_path')
+skill_eval.mjo_scores().activity_per_phase_plots('output_path')
+skill_eval.mjo_scores().power_spectrum_plots('output_path')
 
-# Create table plots summarizing the computed scalar scores and save them to 'output_path'
-mjo_analysis.ceof_bias_table('output_path')
-mjo_analysis.ceof_corr_table('output_path')
-mjo_analysis.activity_per_phase_bias_tables('output_path')
-mjo_analysis.power_bias_table('output_path')
+# Create summary tables of the computed scalar scores and save them to 'output_path'
+skill_eval.mjo_scores().ceof_bias_table('output_path')
+skill_eval.mjo_scores().ceof_corr_table('output_path')
+skill_eval.mjo_scores().activity_per_phase_bias_tables('output_path')
+skill_eval.mjo_scores().power_bias_table('output_path')
 ```
 
 #### Tropical Cyclones (TCs)
 Assess simulation of Tropical Cyclones (TCs) by computing TC metrics and derived scalar scores comparing to observations and reanalyses:
 ```python
 # Perform the TC analysis
-tc_analysis = sciskill.compute_tc_scores(
+skill_eval.compute_tc_scores(
     'name_sim_1',
     start_year_tc=year_init_tc,
     end_year_tc=year_end_tc
 )
 
 # Save results of the analysis to 'output_path'
-tc_analysis.save_data('output_path')
+skill_eval.tc_scores().save_data('output_path')
 
-# Create table plots summarizing the computed scores (biases, and temporal and 
+# Create summary tables of the computed scores (biases, and temporal and 
 # spatial correlations) and save them to 'output_path'
-tc_analysis.clim_bias_table('output_path')
-tc_analysis.storm_bias_table('output_path')
-tc_analysis.temp_corr_table('output_path')
-tc_analysis.spatial_corr_table('output_path')
+skill_eval.tc_scores().clim_bias_table('output_path')
+skill_eval.tc_scores().storm_bias_table('output_path')
+skill_eval.tc_scores().temp_corr_table('output_path')
+skill_eval.tc_scores().spatial_corr_table('output_path')
 ```
 
 <!--
 # Assess general scientific skill by computing general scalar scores (bias, RMSE, and 
 # spatial Pearson correlation) for one variable comparing to observations
-general_anlysis = sciskill.compute_general_scores(
+skill_eval.compute_general_scores(
     'var_name',
     'name_sim_1',
     start_year=year_init,
@@ -228,11 +228,11 @@ general_anlysis = sciskill.compute_general_scores(
 )
 
 # Save results of the analysis to 'output_path'
-general_anlysis.save_data('output_path')
+skill_eval.general_scores().save_data('output_path')
 
 # Create table plot summarizing the computed scores for one variable and save it 
 # to 'output_path'
-general_anlysis.scores_table('var_name', 'output_path')
+skill_eval.general_scores().scores_table('var_name', 'output_path')
 -->
 
 
