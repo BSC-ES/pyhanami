@@ -7,6 +7,65 @@ from pyhanami.utils.plots import plots_general
 VARIABLES = data_general.load_yaml_file(config_params.VARIABLES_PATH)
 
 
+def evaluation_table_metadata(data_names, rows_to_remove=0):
+    """
+    Prepare strings for file names and rows in scalar scores tables.
+
+    Parameters
+    ----------
+    data_names : list[str]
+        List of dataset names (assuming observations as the first dataset).
+    rows_to_remove : int
+        Number of datasets to remove from the top of the table (generally, reference
+        and reanalyses datasets) (default: 0).
+    
+    Returns
+    -------
+    rows : list[str]
+        List of dataset names to be used as row labels in the table.
+    name_file : str
+        Name of the file to save the table plot.
+    reference : bool
+        Whether to display reference values in the first row (not colored) and
+        reanalyses values (if any) in the subsequent rows.
+    """
+    data_names_converted = [name.replace(" ", "-") for name in data_names]
+
+    if rows_to_remove == 0:
+        rows = data_names
+        name_file = f"{'_'.join(data_names_converted[1:])}_ref_{data_names_converted[0]}"
+        reference = True
+    else:
+        rows = data_names[rows_to_remove:]
+        name_file = f"{'_'.join(data_names_converted[rows_to_remove:])}_no_ref_{data_names_converted[0]}"
+        reference = False
+
+    return rows, name_file, reference
+
+
+def evaluation_symmetric_colorbar_limits(data, start_row=1):
+    """
+    Compute symmetric colorbar limits for scalar scores tables.
+
+    Parameters
+    ----------
+    data : list[xr.DataArray]
+        List of datasets to plot.
+    start_row : int
+        Row index to start computing the limits (default: 1, to skip the reference row).
+
+    Returns
+    -------
+    limits : np.ndarray
+        Array of symmetric colorbar limits for each column in the table.
+    """
+
+    maxs = np.max(np.abs(data[start_row:, :]), axis=0)
+    limits = np.stack([-maxs, maxs], axis=1)
+
+    return limits
+
+
 def general_evaluation_scores_table(data, data_names, year_range, var_names=None, ensemble=False,
                                     output_path=None, reference=True):
     """
@@ -32,14 +91,9 @@ def general_evaluation_scores_table(data, data_names, year_range, var_names=None
     """
 
     # Prepare plotting parameters
-    data_names_converted = [name.replace(" ", "-") for name in data_names]
+    rows, name_file, _ = evaluation_table_metadata(data_names, rows_to_remove=0 if reference else 1)
     if reference:
         data_ref = np.array([1, 1, 1])
-        rows = data_names_converted
-        name_file = f"{'_'.join(data_names_converted[0:])}_ref_{data_names_converted[0]}"
-    else:
-        rows = data_names_converted[0:]
-        name_file = f"{'_'.join(data_names_converted[0:])}_no_ref_{data_names_converted[0]}"
 
     cbar_ticks = ["Worst performance (0)", " ", "Best performance (1)"]
     colors = ("RedGreen", ["tab:red", "white", "tab:green"])
@@ -80,7 +134,7 @@ def general_evaluation_scores_table(data, data_names, year_range, var_names=None
         ]
 
         # Ensure that all arrays have the same shape
-        data_plot = np.stack([data_ref, *data_sim]) if reference else np.stack(data_sim).reshape(-1, data_sim.shape[0])
+        data_plot = np.stack([data_ref, *data_sim]) if reference else np.stack(data_sim)
 
 
         # Generate and save/display plot
@@ -128,14 +182,9 @@ def iso_evaluation_scores_table(data, data_names, year_range, correct_pc=False, 
     """
 
     # Prepare plotting parameters
-    data_names_converted = [name.replace(" ", "-") for name in data_names]
+    rows, name_file, _ = evaluation_table_metadata(data_names, rows_to_remove=0 if reference else 1)
     if reference:
         data_ref = np.array([1.0, 1.0, 1.0, 1.0])
-        rows = data_names_converted
-        name_file = f"{'_'.join(data_names_converted[0:])}_ref_{data_names_converted[0]}"
-    else:
-        rows = data_names_converted[0:]
-        name_file = f"{'_'.join(data_names_converted[0:])}_no_ref_{data_names_converted[0]}"
 
     cols_scalar_scores = [
         "",
@@ -216,11 +265,11 @@ def mjo_evaluation_table_metadata_general(data_names, on=True, reference=True):
 
     if on:
         rows = (
-            [f"{sim_name} on {obs_name}" for sim_name in data_names_converted[1:]]
-            + [f"{sim_name} on {sim_name}" for sim_name in data_names_converted[1:]]
+            [f"{sim_name} on {obs_name}" for sim_name in data_names[1:]]
+            + [f"{sim_name} on {sim_name}" for sim_name in data_names[1:]]
         )
     else:
-        rows = data_names_converted[1:]
+        rows = data_names[1:]
 
     # Add references if needed
     if reference:
@@ -326,30 +375,10 @@ def mjo_evaluation_table_metadata_per_method(method_name, data, reference=True, 
         title = "Bias derived from power spectra"
         plot_name = "Bias derived from power spectra table plot"
 
+    else:
+        raise ValueError(f"Method '{method_name}' is not recognized for MJO evaluation.")
+
     return data_plot, col_names, title, plot_name
-
-
-def mjo_evaluation_symmetric_colorbar_limits(data, start_row=1):
-    """
-    Compute symmetric colorbar limits for MJO scalar scores tables.
-
-    Parameters
-    ----------
-    data : list[xr.DataArray]
-        List of datasets to plot.
-    start_row : int
-        Row index to start computing the limits (default: 1, to skip the reference row).
-
-    Returns
-    -------
-    limits : np.ndarray
-        Array of symmetric colorbar limits for each column in the table.
-    """
-
-    maxs = np.max(np.abs(data[start_row:, :]), axis=0)
-    limits = np.stack([-maxs, maxs], axis=1)
-
-    return limits
 
 
 def mjo_evaluation_scores_table(data, data_names, year_range, method_name, data_res,
@@ -398,7 +427,7 @@ def mjo_evaluation_scores_table(data, data_names, year_range, method_name, data_
     else:
         cbar_ticks = ["Negative bias", "No bias", "Positive bias"]
         cbar_colors = ("RedGreen", ["tab:red", "white", "tab:green"])  # ("BlueRed", ['tab:blue', 'white', 'tab:red'])
-        cbar_limits = mjo_evaluation_symmetric_colorbar_limits(data_plot, start_row=1 if reference else 0)
+        cbar_limits = evaluation_symmetric_colorbar_limits(data_plot, start_row=1 if reference else 0)
 
     decimals = 0 if method_name == "active_days_bias_table" else 2
 
@@ -471,8 +500,8 @@ def mjo_evaluation_scores_two_tables(data_1, data_2, data_names, year_range, out
     cbar_ticks = ["Negative bias", "No bias", "Positive bias"]
     cbar_colors = ("RedGreen", ["tab:red", "white", "tab:green"])  # ("BlueRed", ['tab:blue', 'white', 'tab:red'])
 
-    limits_1 = mjo_evaluation_symmetric_colorbar_limits(data_plot_1, start_row=1 if reference else 0)
-    limits_2 = mjo_evaluation_symmetric_colorbar_limits(data_plot_2, start_row=1 if reference else 0)
+    limits_1 = evaluation_symmetric_colorbar_limits(data_plot_1, start_row=1 if reference else 0)
+    limits_2 = evaluation_symmetric_colorbar_limits(data_plot_2, start_row=1 if reference else 0)
     cbar_limits = [limits_1, limits_2]
 
     references = [reference, reference]
@@ -500,42 +529,6 @@ def mjo_evaluation_scores_two_tables(data_1, data_2, data_names, year_range, out
     )
 
     return
-
-
-def tc_evaluation_table_metadata(data_names, rows_to_remove=0):
-    """
-    Prepare strings for file names and rows in TCs scalar scores tables.
-
-    Parameters
-    ----------
-    data_names : list[str]
-        List of dataset names (assuming observations as the first dataset).
-    rows_to_remove : int
-        Number of datasets to remove from the top of the table (generally, reference
-        and reanalyses datasets) (default: 0).
-    
-    Returns
-    -------
-    rows : list[str]
-        List of dataset names to be used as row labels in the table.
-    name_file : str
-        Name of the file to save the table plot.
-    reference : bool
-        Whether to display reference values in the first row (not colored) and
-        reanalyses values in the subsequent rows.
-    """
-    data_names_converted = [name.replace(" ", "-") for name in data_names]
-
-    if rows_to_remove == 0:
-        rows = data_names
-        name_file = f"{'_'.join(data_names_converted[1:])}_ref_IBTrACS"
-        reference = True
-    else:
-        rows = data_names[rows_to_remove:]
-        name_file = f"{'_'.join(data_names_converted[rows_to_remove:])}_no_ref_IBTrACS"
-        reference = False
-
-    return rows, name_file, reference
 
 
 def tc_evaluation_table_data(data, rows_to_remove=0):
@@ -597,7 +590,7 @@ def tc_evaluation_bias_scores_table(data, data_names, year_range, bias_type, bin
     """
 
     # Prepare strings for rows, file names and titles
-    rows, name_file, reference = tc_evaluation_table_metadata(data_names, rows_to_remove)
+    rows, name_file, reference = evaluation_table_metadata(data_names, rows_to_remove)
     plot_title = f"Global {bias_type} mean bias ({year_range})"
 
     # Prepare column labels based on bias type
@@ -631,11 +624,7 @@ def tc_evaluation_bias_scores_table(data, data_names, year_range, bias_type, bin
     colors_bias = ("RedGreen", ["tab:red", "white", "tab:green"],)
     # Alternative: ("BlueRed", ['tab:blue', 'white', 'tab:red'])
 
-    if rows_to_remove == 0:
-        maxs_bias = np.max(np.abs(data_plot[1:, :]), axis=0)
-    else:
-        maxs_bias = np.max(np.abs(data_plot), axis=0)
-    limits_bias = np.stack([-maxs_bias, maxs_bias], axis=1)
+    limits_bias = evaluation_symmetric_colorbar_limits(data_plot, start_row=1 if reference else 0)
 
 
     # Generate and save/display plot
@@ -685,7 +674,7 @@ def tc_evaluation_correlation_scores_table(data, data_names, year_range, correla
     """
 
     # Prepare strings for rows, file names and titles
-    rows, name_file, reference = tc_evaluation_table_metadata(data_names, rows_to_remove)
+    rows, name_file, reference = evaluation_table_metadata(data_names, rows_to_remove)
     plot_title = f"Global {correlation_type} correlation ({year_range})"
 
     # Prepare column labels based on correlation type

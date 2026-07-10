@@ -182,56 +182,41 @@ class ScientificEvaluationWrapper:
             raise ValueError("All instances must have the same `data_res` for combined MJO scores table.")
         data_res = first_instance.data_res
 
-        # Prepare data and plotting parameters
+        # Prepare data and shared plotting parameters
         data = None
         data_names = [first_instance.obs_name] + [instance.sim_name for instance in self.instances]
         year_range = f"{first_instance.start_year_mjo}-{first_instance.end_year_mjo}"
 
 
-        # Create and save/display plot for each method
-        if method_name == "ceof_corr_table":
-            data = [instance.ceof_scores["ceof_corr"] for instance in self.instances]
-
-        elif method_name == "ceof_bias_table":
-            aux_datasets = []
-            for instance in self.instances:
-                aux_dataset = xr.Dataset({
+        # Define data retrieval based on the method name
+        def _retrieve_ceof_bias_data(instance):
+            aux_dataset = xr.Dataset({
                 f"explained_var_bias_{m}": instance.ceof_scores["explained_var_bias"].sel(mode=m, drop=True)
                 for m in range(2)
-                })
-                aux_dataset["max_lead_lag_corr_bias"] = instance.ceof_scores["max_lead_lag_corr_bias"]
-                aux_dataset["pceof_bias"] = instance.ceof_scores["pceof_bias"]
+            })
+            aux_dataset["max_lead_lag_corr_bias"] = instance.ceof_scores["max_lead_lag_corr_bias"]
+            aux_dataset["pceof_bias"] = instance.ceof_scores["pceof_bias"]
 
-                aux_datasets.append(aux_dataset)
+            return aux_dataset.to_array()
 
-            data = [ds.to_array() for ds in aux_datasets]
+        data_retrieval_method = {
+            "ceof_corr_table": lambda instance: instance.ceof_scores["ceof_corr"],
+            "ceof_bias_table": _retrieve_ceof_bias_data,
+            "mean_amplitude_bias_table": lambda instance: instance.activity_per_phase["mean_active_amplitude_bias"],
+            "active_days_bias_table": lambda instance: instance.activity_per_phase["active_counts_bias"],
+            "power_bias_table": lambda instance: instance.power_scores[
+                                    ["ew_ratio_bias", "eo_ratio_bias", "pwfps_bias"]
+                                ].to_array(),
+        }
 
-        elif method_name == "mean_amplitude_bias_table":
-            data = [instance.activity_per_phase["mean_active_amplitude_bias"] for instance in self.instances]
 
-        elif method_name == "active_days_bias_table":
-            data = [instance.activity_per_phase["active_counts_bias"] for instance in self.instances]
+        # Handle two-table case separately
+        if method_name == "activity_per_phase_bias_tables":
+            retrieval_method_1 = data_retrieval_method["mean_amplitude_bias_table"]
+            retrieval_method_2 = data_retrieval_method["active_days_bias_table"]
 
-        elif method_name == "power_bias_table":
-            data = [
-                instance.power_scores[["ew_ratio_bias", "eo_ratio_bias", "pwfps_bias"]].to_array()
-                for instance in self.instances
-            ]
-
-        if data is not None:
-            plots_scientific_evaluation_tables.mjo_evaluation_scores_table(
-                data=data,
-                data_names=data_names,
-                year_range=year_range,
-                method_name=method_name,
-                data_res=data_res,
-                output_path=output_path,
-                reference=reference,
-                **kwargs
-            )
-        elif method_name == "activity_per_phase_bias_tables":
-            data_1 = [instance.activity_per_phase["mean_active_amplitude_bias"] for instance in self.instances]
-            data_2 = [instance.activity_per_phase["active_counts_bias"] for instance in self.instances]
+            data_1 = [retrieval_method_1(instance) for instance in self.instances]
+            data_2 = [retrieval_method_2(instance) for instance in self.instances]
 
             plots_scientific_evaluation_tables.mjo_evaluation_scores_two_tables(
                 data_1=data_1,
@@ -242,8 +227,24 @@ class ScientificEvaluationWrapper:
                 reference=reference,
                 **kwargs
             )
+
+        # Handle single-table cases
         else:
-            raise ValueError(f"Method '{method_name}' is not recognized for MJO evaluation.")
+            retrieval_method = data_retrieval_method.get(method_name)
+            if retrieval_method is None:
+                raise ValueError(f"Method '{method_name}' is not recognized for MJO evaluation.")
+
+            data = [retrieval_method(instance) for instance in self.instances]
+            plots_scientific_evaluation_tables.mjo_evaluation_scores_table(
+                data=data,
+                data_names=data_names,
+                year_range=year_range,
+                method_name=method_name,
+                data_res=data_res,
+                output_path=output_path,
+                reference=reference,
+                **kwargs
+            )
 
         return
 
@@ -276,24 +277,21 @@ class ScientificEvaluationWrapper:
         rows_to_remove = 0 if reference else len(first_instance.obs_names) + 1
 
 
-        # Generate plots
-        bias_type = None
-        correlation_type = None
+        # Define score information amd prepare data based on the method name
+        method_map = {
+            "clim_bias_table": ("bias", "climatological", "clim_bias"),
+            "storm_bias_table": ("bias", "storm", "storm_bias"),
+            "temp_corr_table": ("correlation", "seasonal", "temp_corr"),
+            "spatial_corr_table": ("correlation", "spatial", "spatial_corr"),
+        }
 
-        if method_name == "clim_bias_table":
-            bias_type = "climatological"
-            data = [instance.clim_bias for instance in self.instances]
-        elif method_name == "storm_bias_table":
-            bias_type = "storm"
-            data = [instance.storm_bias for instance in self.instances]
-        elif method_name == "temp_corr_table":
-            correlation_type = "seasonal"
-            data = [instance.temp_corr for instance in self.instances]
-        elif method_name == "spatial_corr_table":
-            correlation_type = "spatial"
-            data = [instance.spatial_corr for instance in self.instances]
-        else:
+        selected_method_info = method_map.get(method_name)
+        if selected_method_info is None:
             raise ValueError(f"Method '{method_name}' is not recognized for TC evaluation.")
+
+        score_type, label, data_attr = selected_method_info
+        data = [getattr(instance, data_attr) for instance in self.instances]
+
 
         # Create and save/display plot
         common_kwargs = dict(
@@ -306,15 +304,15 @@ class ScientificEvaluationWrapper:
             **kwargs
         )
 
-        if bias_type is not None:
+        if score_type == "bias":
             plots_scientific_evaluation_tables.tc_evaluation_bias_scores_table(
                 **common_kwargs,
-                bias_type=bias_type,
+                bias_type=label,
             )
-        elif correlation_type is not None:
+        elif score_type == "correlation":
             plots_scientific_evaluation_tables.tc_evaluation_correlation_scores_table(
                 **common_kwargs,
-                correlation_type=correlation_type,
+                correlation_type=label,
             )
         else:
             raise ValueError("Problem occurred when generating the TC scores table. "

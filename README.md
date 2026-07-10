@@ -55,7 +55,7 @@ pip install .
 
 ## Basic Usage
 
-The following examples demonstrate the main functionalities of _pyhanami_. For detailed usage instructions, see the project's documentation in [https://pyhanami.readthedocs.io/](https://pyhanami.readthedocs.io/)
+The examples below demonstrate the main functionalities of _pyhanami_. For detailed usage instructions, see the project's documentation for the `develop` branch in the [`latest` Read the Docs version](https://pyhanami.readthedocs.io/en/latest/).
 
 ### Load simulation data
 Load two simulation datasets from either paths to NetCDF files or already loaded `xarray.Dataset` objects (`source_simulation_1` and `source_simulation_2`) and assign a name to each of them (`name_sim_1` and `name_sim_2`):
