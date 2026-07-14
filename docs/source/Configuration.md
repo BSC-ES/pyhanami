@@ -40,7 +40,7 @@ parameter_name:  # Parameter shortname
 
 ## tc_metrics.yaml
 
-The `tc_metrics.yaml` file contains default Tropical Cyclone (TC) metrics and their default associated metadata for the TCs scientific evaluation. It is used to:
+The `tc_metrics.yaml` file contains default Tropical Cyclone (TC) metrics and their associated metadata for the TCs scientific evaluation. It is used to:
 - Determine which metrics are included in temporal and spatial scalar score calculations (`temporal`, `spatial`), and therefore which metrics appear in each type of plot.
 - Build labels in plots and summary tables (`short_name`, `long_name`, `units`).
 

@@ -1,5 +1,15 @@
+# Configuration file for scientific evaluation.
+#
+# This file contains default parameters and their associated metadata for the
+# scientific evaluation of climate models. The parameters are organized into
+# sections corresponding to different climate phenomena.
+
+
+# ============================================================
 # Parameters for Tropical Intraseasonal Oscillation (ISO) evaluation
 # Reference: (K. Kikuchi et al., 2012)
+# ============================================================
+
 iso:
 
   # Bandpass filtering parameters
@@ -36,8 +46,11 @@ iso:
     description: Number of EEOF modes to compute
 
 
+# ============================================================
 # Parameters for Madden-Julian Oscillation (MJO) evaluation
 # Reference: (M.C. Wheeler & H.H. Hendon, 2004), (M.C. Wheeler & G.N. Kiladis, 1999)
+# ============================================================
+
 mjo:
 
   # Filtering (removing longer-time-scale components) parameters
@@ -92,8 +105,11 @@ mjo:
     description: Wavenumber bounds corresponding to the MJO band in the wavenumber-frequency space
 
 
+# ============================================================
 # Parameters for Tropical Cyclones (TCs) evaluation
 # Reference: (C.M. Zarzycki & P.A. Ullrich, 2017), (C.M. Zarzycki et al., 2021)
+# ============================================================
+
 tc:
   
   # DetectNodes parameters

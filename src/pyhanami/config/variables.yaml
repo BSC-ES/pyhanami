@@ -1,3 +1,9 @@
+# Configuration file for climate variables.
+#
+# This file contains climate variables and their associated metadata used for
+# the evaluation of climate models. It is organized in alphabetical order by
+# variable name.
+
 hus300:
   check_enabled: True
   long_name: Specific humidity at 300 hPa

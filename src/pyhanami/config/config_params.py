@@ -1,3 +1,13 @@
+"""
+This module contains package constants used across pyhanami. It defines:
+1. Paths to configuration files
+2. Default data paths and reference metadata
+3. Replicability test defaults (metrics, tests, regions, seasons)
+4. Parallelization defaults
+
+Note that most users do not need to edit this file.
+"""
+
 import numpy as np
 
 from pathlib import Path
@@ -5,27 +15,37 @@ from pyhanami.utils import statistics
 from scipy.stats import ks_2samp, ttest_ind, mannwhitneyu
 
 
-# Path to available variables and metadata
+
+# ============================================================
+# Configuration files paths
+# ============================================================
+
+# Available variables and metadata
 VARIABLES_PATH = Path(__file__).parent / "variables.yaml"
 
-# Path to scientific evaluation parameters and metadata
+# Scientific evaluation parameters and metadata
 SCI_EVAL_PARAMS_PATH = Path(__file__).parent / "scientific_evaluation_parameters.yaml"
 
-# Path to TCs metrics and metadata
+# Tropical Cyclone metrics and metadata
 TCS_METRICS_PATH = Path(__file__).parent / "tc_metrics.yaml"
 
 
-# General parameters
 
-# Available datasets parameters
+# ============================================================
+# General data/reference parameters
+# ============================================================
+
+# Root folder for built-in datasets
 DATA_PATH = Path(__file__).parent.parent / "data"
 
-# Related to general scalar evaluation data
-GEN_OBS_NAME = "ERA5"
-GEN_OBS_PATH = "Not available yet"  #DATA_PATH / "era5"
 
-# Related to NOAA data
-NOAA_PATH = "Not available yet"     #DATA_PATH / "noaa/data_obs_noaa_1974-2022_rlut.nc"
+# General scalar evaluation reference data
+GEN_OBS_NAME = "ERA5"
+GEN_OBS_PATH = "Not available yet"  # DATA_PATH / "era5"
+
+
+# NOAA reference data
+NOAA_PATH = "Not available yet"     # DATA_PATH / "noaa/data_obs_noaa_1974-2022_rlut.nc"
 NOAA_GRID_PATH = DATA_PATH / "noaa/noaa_grid.nc"
 NOAA_EEOF_SUMMER_PATH = DATA_PATH / "noaa/eeof_boreal_summer_noaa_1975-2020.nc"
 NOAA_EEOF_WINTER_PATH = DATA_PATH / "noaa/eeof_boreal_winter_noaa_1975-2020.nc"
@@ -33,16 +53,18 @@ NOAA_PC_PATH = DATA_PATH / "noaa/pc_noaa_1975-2020.nc"
 NOAA_START_YEAR = 1975
 NOAA_END_YEAR = 2020
 
-# Related to MJO data
+
+# MJO reference data
 MJO_DATA_PATH = DATA_PATH / "mjo"
-MJO_VARS_PATH = "Not available yet"  #MJO_DATA_PATH / "data_obs_1975-2022_mjo.nc"
-MJO_MODEL_PATH = "Not available yet"  #MJO_DATA_PATH / "mjo_obs_model_1975-2020"
+MJO_VARS_PATH = "Not available yet"  # MJO_DATA_PATH / "data_obs_1975-2022_mjo.nc"
+MJO_MODEL_PATH = "Not available yet"  # MJO_DATA_PATH / "mjo_obs_model_1975-2020"
 MJO_GRID_PATH = NOAA_GRID_PATH
 MJO_OBS_RES = 2.5
 MJO_START_YEAR = 1975
 MJO_END_YEAR = 2022
 
-# Related to TCs data
+
+# TCs reference data
 TC_DATA_PATH = DATA_PATH / "tropical_cyclones"
 
 IBTRACS_URL = "https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/v04r01/access/netcdf/IBTrACS.since1980.v04r01.nc"
@@ -60,7 +82,11 @@ G = 9.80665
 CYMEP_CONFIGS_PATH = TC_DATA_PATH / "cymep_configs.csv"
 
 
-# General parameters replicability test
+
+# ============================================================
+# Replicability test configuration
+# ============================================================
+
 METRICS = np.array([
         ('RK08', [statistics.exp_RK_index], True),
         ('Bias', [statistics.ilamb_weighted_bias], True), 
@@ -82,6 +108,10 @@ REGIONS = {
     }
 
 
-# Parallelization parameters
+
+# ============================================================
+# Parallelization defaults
+# ============================================================
+
 MAX_WORKERS_VARS = None         # Used in 'pyhanami/diags/Replicability.py'
 MAX_WORKERS_GRID = None         # Used in 'pyhanami/diags/Diagnostics.py'

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Scientific skill scores: added option to perform and store analyses for multiple simulation datasets in a single instance of the `ScientificEvaluation` class and to compare the scores of these datasets with each other and with observations/reanalyses.
+- Documentation: added explanations and guidelines for setting up the configuration files.
 
 ### Changed
 - Replicability test: 
@@ -36,7 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - A general `ScientificEvaluation` class with one method for each type of analysis.
     - Specific classes for each type of analysis (`GeneralEvaluation`, `ISOEvaluation`, `MJOEvaluation`, and `TCEvaluation`) which automatically compute the relevant metrics and include methods for visualizing the results.
     - Configuration classes (`ISOConfig`, `MJOConfig`, and `TCConfig`) to modify the default parameters for each analysis on a case-by-case basis.
-
 - Configuration files: created default configuration files for parameters and variables.
 - Flexible data management: included option to add and compare datasets in the `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes even after initialization.
 - Documentation: 
