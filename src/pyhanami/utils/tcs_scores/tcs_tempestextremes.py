@@ -1,5 +1,5 @@
 """
-This script calls functions from the TempestExtremes package
+This module calls functions from the TempestExtremes package
 Original source: https://github.com/ClimateGlobalChange/tempestextremes
 Original author: Paul Ullrich
 License: BSD 2-Clause License

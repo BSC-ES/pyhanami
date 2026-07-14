@@ -1,5 +1,5 @@
 """
-This script contains functions adapted from the wavenumber_frequency GitHub repository
+This module contains functions adapted from the wavenumber_frequency GitHub repository
 Original source: https://github.com/brianpm/wavenumber_frequency/tree/master
 Original author: Brian Medeiros
 License: MIT License

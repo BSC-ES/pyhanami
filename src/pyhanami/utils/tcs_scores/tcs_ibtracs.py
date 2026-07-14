@@ -1,5 +1,5 @@
 """
-This script contains functions adapted from the CyMeP package
+This module contains functions adapted from the CyMeP package
 Original source: https://github.com/zarzycki/cymep
 Original author: Colin Zarzycki
 License: MIT License

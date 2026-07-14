@@ -1,3 +1,8 @@
+# Configuration file for Tropical Cyclones (TCs) evaluation.
+#
+# This file contains default metrics and their associated metadata for evaluating
+# TCs in climate models.
+
 count:
   short_name: Storms
   long_name: number of tropical cyclones
