@@ -1,7 +1,5 @@
 import copy
 import cmocean
-import warnings
-warnings.simplefilter("always")
 
 import numpy as np
 import xarray as xr
@@ -462,7 +460,7 @@ class DataDiagnostics:
             if not any(ds.name == dataset.name for ds in self.datasets):
                 self.datasets.append(dataset)
             else:
-                warnings.warn(
+                data_general.warn_always(
                     f"\nDataset with name '{dataset.name}' already exists in the DataDiagnostics object. Skipping addition."
                 )
 

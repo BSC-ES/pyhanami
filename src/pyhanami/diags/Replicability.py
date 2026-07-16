@@ -1,6 +1,5 @@
+import sys
 import copy
-import warnings
-warnings.simplefilter("always")
 
 import numpy as np
 import xarray as xr
@@ -553,7 +552,7 @@ class ReplicabilityTest:
                     found_data = data[key]
 
                     # Warn about selected years
-                    warnings.warn(f"Year range not fully specified. Using first matching dataset for {key}.")
+                    data_general.warn_always(f"Year range not fully specified. Using first matching dataset for {key}.")
                     break
 
         return found_data
@@ -582,7 +581,7 @@ class ReplicabilityTest:
                 self.datasets.append(dataset)
                 added = True
             else:
-                warnings.warn(
+                data_general.warn_always(
                     f"Dataset with name '{dataset.name}' already exists in the ReplicabilityTest object. "
                     "Skipping addition."
                 )
@@ -626,7 +625,7 @@ class ReplicabilityTest:
             # Get datasets from 'datasets' attribute if names not provided
             data_plot = [self.datasets[0], self.datasets[1]]
             data_names = [self.datasets[0].name, self.datasets[1].name]
-            warnings.warn(
+            data_general.warn_always(
                 f"As no dataset names were provided, the first two datasets in the ReplicabilityTest object "
                 f"('{data_names[0]}' and '{data_names[1]}') will be used for the test."
             )
@@ -664,30 +663,33 @@ class ReplicabilityTest:
         previous_tests = self._find_datasets_pair(self.test_results, data_names, start_year, end_year)
 
         if previous_tests is not None:
-            warnings.warn(
+            data_general.warn_always(
                 f"A replicability test between the selected datasets ('{data_names[0]}' and '{data_names[1]}') "
                 f"and year range ({start_year}-{end_year}) has already been performed. "
             )
 
-            # Ask user for confirmation (only in interactive mode)
-            try:
-                import sys
-                if sys.stdin.isatty():  # Check if running interactively
+            # Check if running interactively
+            if sys.stdin.isatty():
+                try:
+                    # Ask user for confirmation
                     response = input(
                         "Do you want to recompute the test anyway? This will overwrite existing results. (y/n): "
                     ).strip().lower()
+                except EOFError:
+                    print("\nReplicability test cancelled.")
+                    return
 
-                    if response not in ['y', 'yes']:
-                        print("Replicability test cancelled. Using existing results.")
-                        return
-                    print("Recomputing replicability test...")
-                else:
-                    # Non-interactive mode: auto-recompute warning
-                    print("Non-interactive mode detected. The results will be overwritten.")
-            except (EOFError, KeyboardInterrupt):
-                print("\nReplicability test cancelled.")
-                return
-
+                if response not in ['y', 'yes']:
+                    print("Replicability test cancelled.")
+                    return
+                
+            # Non-interactive mode: auto-recompute warning
+            else:
+                data_general.warn_always(
+                    "Non-interactive mode detected. Existing results will be overwritten automatically."
+                )
+            
+            print("Recomputing replicability test...")
 
         # Prepare observational data for the test
         if obs_path is None:

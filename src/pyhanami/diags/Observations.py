@@ -1,6 +1,3 @@
-import warnings
-warnings.simplefilter("always")
-
 import xarray as xr
 
 from pathlib import Path
@@ -118,13 +115,13 @@ class ObservationData:
                     f"'time' coordinate missing in either simulations or observations for variable {var}."
                 )
 
-            data_obs_time, errors, warnings = data_checker.DataChecker.normalize_time_format(data_obs_aux)
-            if len(warnings) != 0:
+            data_obs_time, errors, warning_messages = data_checker.DataChecker.normalize_time_format(data_obs_aux)
+            if len(warning_messages) != 0:
                 print(
-                    f"{len(warnings)} warnings encountered while loading the observations dataset:",
+                    f"{len(warning_messages)} warnings encountered while loading the observations dataset:",
                     flush=True,
                 )
-                for warning in warnings:
+                for warning in warning_messages:
                     print(f"\t - {warning}", flush=True)
             if len(errors) != 0:
                 print(
