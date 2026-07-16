@@ -1,12 +1,28 @@
-import warnings
-warnings.simplefilter("always")
-
 import yaml
+import warnings
 import xesmf as xe
 import xarray as xr
 
 from pathlib import Path
 from cartopy.util import add_cyclic_point
+
+
+def warn_always(message, stacklevel=1):
+    """
+    Issue a warning that is always shown, regardless of the global warning filter settings.
+
+    Parameters
+    ----------
+    message : str
+        The warning message to be displayed.
+    stacklevel : int
+        The stack level at which the warning originates (default: 1).
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("always")
+        warnings.warn(message, stacklevel=stacklevel)
+
+    return
 
 
 def load_yaml_file(yaml_path):
@@ -241,27 +257,27 @@ def validate_year_range(dataset, start_year=None, end_year=None, process_name=No
     # Set default years if not provided
     if start_year is None:
         start_year = start_year_data
-        warnings.warn(
+        warn_always(
             f"As no start year was provided for the {process_name} analysis, the first year available"
-            + f" in the '{data_name}' dataset ({start_year_data}) will be used."
+            f" in the '{data_name}' dataset ({start_year_data}) will be used."
         )
     if end_year is None:
         end_year = end_year_data
-        warnings.warn(
+        warn_always(
             f"As no end year was provided for the {process_name} analysis, the last year available"
-            + f" in the '{data_name}' dataset ({end_year_data}) will be used."
+            f" in the '{data_name}' dataset ({end_year_data}) will be used."
         )
 
     # Validate year range
     if start_year > end_year:
         raise ValueError(
             f"For the {process_name} analysis, the start year ({start_year}) must be less than"
-            + f" the end year ({end_year})."
+            f" the end year ({end_year})."
         )
     if start_year < start_year_data or end_year_data < end_year:
         raise ValueError(
             f"The year range for the {process_name} analysis ({start_year}-{end_year}) must be within the"
-            + f" available simulation data range for '{data_name}' ({start_year_data}-{end_year_data})."
+            f" available simulation data range for '{data_name}' ({start_year_data}-{end_year_data})."
         )
 
     return start_year, end_year

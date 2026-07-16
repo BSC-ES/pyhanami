@@ -1,6 +1,3 @@
-import warnings
-warnings.simplefilter("always")
-
 import os
 import re
 import shutil
@@ -222,7 +219,7 @@ class TCEvaluation:
             obs_end_year = int(match.group(2))
 
             if self.start_year_tc < obs_start_year or obs_end_year < self.end_year_tc:
-                warnings.warn(
+                data_general.warn_always(
                     f"The available observational TCs data for '{name}' ({obs_start_year}-{obs_end_year}) does not "
                     f"cover the selected period for TCs metrics computation ({self.start_year_tc}-{self.end_year_tc})."
                     f" This dataset will not be considered for the TCs metrics computation."

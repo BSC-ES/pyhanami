@@ -1,5 +1,6 @@
 import xarray as xr
 
+from pyhanami.utils import data_general
 from pyhanami.diags.scientific_evaluation import general, iso, mjo, tc
 from pyhanami.utils.plots import plots_scientific_evaluation_tables, plots_tc
 
@@ -61,10 +62,46 @@ class ScientificEvaluationWrapper:
                 f"'evaluation_instances' must be a list of {expected_type.__name__} instances "
                 f"or a single {expected_type.__name__} instance."
             )
+
         self.instances = evaluation_instances
         self.evaluation_type = evaluation_type
 
         return
+
+
+    def _validate_equal_years(self, start_year_attr='start_year', end_year_attr='end_year'):
+        """
+        Validate that all instances have the same start and end years for a given attribute.
+
+        Parameters
+        ----------
+        start_year_attr : str
+            Attribute name for the start year (default: 'start_year').
+        end_year_attr : str
+            Attribute name for the end year (default: 'end_year').
+
+        Returns
+        -------
+        year_range : str
+            A string representing the common year range if all instances have the same years,
+            or 'different time periods' if they differ.
+        """
+
+        first_instance = self.instances[0]
+        start_year = getattr(first_instance, start_year_attr)
+        end_year = getattr(first_instance, end_year_attr)
+        year_range = f"{start_year}-{end_year}"
+
+        for instance in self.instances[1:]:
+            if getattr(instance, start_year_attr) != start_year or getattr(instance, end_year_attr) != end_year:
+                year_range = 'different time periods'
+                data_general.warn_always(
+                    "The scores for the selected datasets were computed for different time periods. "
+                    "Keep in mind that plotting them together might be misleading.\n"
+                )
+                break
+
+        return year_range
 
 
     def _combined_general_table(self, var_names=None, output_path=None, reference=True, **kwargs):
@@ -83,22 +120,33 @@ class ScientificEvaluationWrapper:
         """
         first_instance = self.instances[0]
 
-        # Validate input
+        # Validate input variables
         if var_names is None:
             var_names = first_instance.var_names
-        if isinstance(var_names, str):
+            data_general.warn_always(
+                f"As no variable names were provided, tables will be generated for all variables "
+                f"in general analysis of the first selected dataset (variables: {var_names})."
+            )
+        elif isinstance(var_names, str):
             var_names = [var_names]
+        elif not isinstance(var_names, list) or not all(isinstance(name, str) for name in var_names):
+            raise TypeError("'var_names' must be a string or a list of strings representing variable names.")
+
+        # Validate that variables are present in all instances
         for var_name in var_names:
-            if var_name not in first_instance.var_names:
+            if any(var_name not in instance.var_names for instance in self.instances):
                 raise ValueError(
-                    f"Variable '{var_name}' was not used in the general scalar analysis. "
-                    f"Available variables: {first_instance.var_names}"
+                    f"Variable '{var_name}' was not included in the general analysis for at least one of "
+                    "the selected datasets. Please ensure that the variables selected for the table plots "
+                    "are included in the scores for all selected datasets."
                 )
+
+        # Validate equal start and end years across all instances
+        year_range = self._validate_equal_years('start_year', 'end_year')
 
         # Prepare data and plotting parameters
         data = [instance.scores for instance in self.instances]
         data_names = [first_instance.obs_name] + [instance.sim_name for instance in self.instances]
-        year_range = f"{first_instance.start_year}-{first_instance.end_year}"
         ensemble = first_instance.ensemble
 
         # Create and save/display plot
@@ -138,14 +186,18 @@ class ScientificEvaluationWrapper:
 
         # Validate that all scores had the same treatment
         if not all(instance.correct_pc == first_instance.correct_pc for instance in self.instances):
-            raise ValueError("All instances must have the same `correct_pc` treatment for combined ISO scores table.")
+            raise ValueError(
+                "All scores must have been computed with the same `correct_pc` treatment for combined ISO scores tables."
+            )
         correct_pc = first_instance.correct_pc
+
+        # Validate equal start and end years across all instances
+        year_range = self._validate_equal_years('start_year_pc', 'end_year_pc')
 
 
         # Prepare data and plotting parameters
         data = [instance.scores for instance in self.instances]
         data_names = [first_instance.obs_name] + [instance.sim_name for instance in self.instances]
-        year_range = f"{first_instance.start_year_pc}-{first_instance.end_year_pc}"
 
         # Create and save/display plot
         plots_scientific_evaluation_tables.iso_evaluation_scores_table(
@@ -179,13 +231,17 @@ class ScientificEvaluationWrapper:
 
         # Validate that all scores had the same treatment
         if not all(instance.data_res == first_instance.data_res for instance in self.instances):
-            raise ValueError("All instances must have the same `data_res` for combined MJO scores table.")
+            raise ValueError(
+                "All scores must have been computed with the same `data_res` for combined MJO scores tables."
+            )
         data_res = first_instance.data_res
+
+        # Validate equal start and end years across all instances
+        year_range = self._validate_equal_years('start_year_mjo', 'end_year_mjo')
 
         # Prepare data and shared plotting parameters
         data = None
         data_names = [first_instance.obs_name] + [instance.sim_name for instance in self.instances]
-        year_range = f"{first_instance.start_year_mjo}-{first_instance.end_year_mjo}"
 
 
         # Define data retrieval based on the method name
@@ -268,12 +324,16 @@ class ScientificEvaluationWrapper:
 
         # Validate that all scores had the same treatment
         if not all(instance.bin_size == first_instance.bin_size for instance in self.instances):
-            raise ValueError("All instances must have the same `bin_size` for combined TC scores table.")
+            raise ValueError(
+                "All scores must have been computed with the same `bin_size` for combined TC scores tables."
+            )
         bin_size = first_instance.bin_size
+
+        # Validate equal start and end years across all instances
+        year_range = self._validate_equal_years('start_year_tc', 'end_year_tc')
 
         # Prepare plotting parameters
         data_names = first_instance.model_names[:-1] + [instance.model_names[-1] for instance in self.instances]
-        year_range = f"{first_instance.start_year_tc}-{first_instance.end_year_tc}"
         rows_to_remove = 0 if reference else len(first_instance.obs_names) + 1
 
 
@@ -333,10 +393,18 @@ class ScientificEvaluationWrapper:
         """
         first_instance = self.instances[0]
 
-        # Validate that all datasets had the same treatment
+        # Validate that all analyses had the same treatment
         if not all(instance.bin_size == first_instance.bin_size for instance in self.instances):
-            raise ValueError("All instances must have the same `bin_size` for combined TC linear plots.")
+            raise ValueError(
+                "All scores must have been computed with the same `bin_size` for combined TC linear plots."
+            )
 
+        # Validate equal start and end years across all instances
+        year_range = self._validate_equal_years('start_year_tc', 'end_year_tc')
+        if year_range == 'different time periods':
+            data_general.warn_always(
+                "As the time periods differ, the start and end years of the first selected dataset will be used."
+            )
 
         # Prepare data and plotting parameters
         data = [instance.data_cymep for instance in self.instances]

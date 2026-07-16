@@ -1,6 +1,3 @@
-import warnings
-warnings.simplefilter("always")
-
 import xarray as xr
 
 from pathlib import Path
@@ -104,13 +101,14 @@ class ISOEvaluation:
             iso_config = config_scores.ISOConfig()
         elif not isinstance(iso_config, config_scores.ISOConfig):
             raise TypeError(
-                "'iso_config' must be an instance of the ISOConfig dataclass defined in 'pyhanami.utils.config_scores'."
+                "'iso_config' must be an instance of the ISOConfig dataclass defined "
+                "in 'pyhanami.utils.config_scores'."
             )
 
         # Select years for EEOF analysis and PCs computation
         if self.obs:
             if start_year_eeof is not None or end_year_eeof is not None:
-                warnings.warn(
+                data_general.warn_always(
                     "\t'start_year_eeof' and 'end_year_eeof' are ignored when `obs=True`. "
                     "Using predefined observational period for EEOFs: "
                     f"{config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}."
@@ -424,7 +422,7 @@ class ISOEvaluation:
                     flush=True,
                 )
         elif self.correct_pc:
-            warnings.warn(
+            data_general.warn_always(
                 "Simulated PCs cannot be adjusted without observations. Continuing without modification."
             )
 
@@ -547,7 +545,8 @@ class ISOEvaluation:
 
             freq_obs_path = (
                 output_path
-                / f"freq_ISO_{obs_name_file}_projected_{config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}.nc"
+                / f"freq_ISO_{obs_name_file}_projected_"
+                f"{config_params.NOAA_START_YEAR}-{config_params.NOAA_END_YEAR}.nc"
             )
             self.freq_obs.to_netcdf(freq_obs_path)
             print(

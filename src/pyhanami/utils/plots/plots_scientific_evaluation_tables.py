@@ -153,7 +153,7 @@ def general_evaluation_scores_table(data, data_names, year_range, var_names=None
         plots_general.save_or_show_plot(
             general_scores_plot,
             output_path,
-            plot_filename=f"general_scalar_scores_table_{var_name}_{name_file}_{year_range}",
+            plot_filename=f"general_scalar_scores_table_{var_name}_{name_file}_{year_range.replace(' ', '-')}",
             plot_name="General scalar scores table plot",
         )
 
@@ -231,7 +231,7 @@ def iso_evaluation_scores_table(data, data_names, year_range, correct_pc=False, 
     plots_general.save_or_show_plot(
         iso_scores_plot,
         output_path,
-        plot_filename=f"iso_scalar_scores_table_{name_file}_{year_range}",
+        plot_filename=f"iso_scalar_scores_table_{name_file}_{year_range.replace(' ', '-')}",
         plot_name="ISO scalar scores table plot",
     )
 
@@ -418,7 +418,7 @@ def mjo_evaluation_scores_table(data, data_names, year_range, method_name, data_
 
     col_names = [f"{data_res}° x {data_res}°"] + col_names
     plot_title += f" ({year_range})"
-    plot_filename = f"{method_name}_{name_file}_{year_range}"
+    plot_filename = f"{method_name}_{name_file}_{year_range.replace(' ', '-')}"
 
     if method_name == "ceof_corr_table":
         cbar_ticks = ["Negative correlation (-1)", "No correlation (0)", "Positive correlation (1)"]
@@ -494,7 +494,7 @@ def mjo_evaluation_scores_two_tables(data_1, data_2, data_names, year_range, out
 
     col_names_all = [col_names_1, col_names_2]
     plot_title = f"Bias in climatological MJO activity per phase ({year_range})"
-    plot_filename = f"activity_per_phase_bias_tables_{name_file}_{year_range}"
+    plot_filename = f"activity_per_phase_bias_tables_{name_file}_{year_range.replace(' ', '-')}"
     plot_name = "Bias in climatological MJO activity per phase table plot"
 
     cbar_ticks = ["Negative bias", "No bias", "Positive bias"]
@@ -642,7 +642,7 @@ def tc_evaluation_bias_scores_table(data, data_names, year_range, bias_type, bin
     plots_general.save_or_show_plot(
         tc_bias_plot,
         output_path,
-        plot_filename=f"tc_{bias_type}_bias_scalar_scores_table_{name_file}_{year_range}",
+        plot_filename=f"tc_{bias_type}_bias_scalar_scores_table_{name_file}_{year_range.replace(' ', '-')}",
         plot_name=f"TC {bias_type} bias scalar scores table plot",
     )
 
@@ -726,7 +726,7 @@ def tc_evaluation_correlation_scores_table(data, data_names, year_range, correla
     plots_general.save_or_show_plot(
         tc_corr_plot,
         output_path,
-        plot_filename=f"tcs_{correlation_type}_corr_table_{name_file}_{year_range}",
+        plot_filename=f"tcs_{correlation_type}_corr_table_{name_file}_{year_range.replace(' ', '-')}",
         plot_name=f"{correlation_type.capitalize()} correlation table for TCs metrics plot",
     )
 

@@ -43,7 +43,8 @@ def write_configs_line(config, output_path):
         raise ValueError("The second element of the configuration must be a string (shortname).")
     if not isinstance(config[2], bool):
         raise ValueError(
-            "The third element of the configuration must be a boolean (unstructured trajectories file?, i.e. 1D column indices instead of 2D)."
+            "The third element of the configuration must be a boolean (unstructured trajectories file?, "
+            "i.e. 1D column indices instead of 2D)."
         )
     if not isinstance(config[3], int):
         raise ValueError(
@@ -450,19 +451,20 @@ def run_cymep(styr, enyr, output_path, gridsize=2.5, basin=-1, csvfilename=confi
             xprestmp = np.where(xprestmp > THRESHOLD_PACE_PRES, float("NaN"), xprestmp)
 
         xprestmp = np.ma.array(xprestmp, mask=np.isnan(xprestmp))
-        warnings.filterwarnings("ignore")
         if quadratic_fit:
-            if calcPolyFitPACE:
-                # Here, we calculate a quadratic P/W fit based off of the "control"
-                if ii == 0:
-                    polyn = 2
-                    xprestmp = np.ma.where(xprestmp < 1010.0, xprestmp, 1010.0)
-                    xprestmp = 1010.0 - xprestmp
-                    idx = np.isfinite(xprestmp) & np.isfinite(xwind)
-                    quad_a = np.polyfit(xprestmp[idx].flatten(), xwind[idx].flatten(), polyn)
-            else:  # Use the coefficients from Z2021
-                print("calcPolyFitPACE is False, using coefficients from Z2021")
-                quad_a = np.array([-1.05371378e-03, 5.68356519e-01, 1.43290190e01])
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                if calcPolyFitPACE:
+                    # Here, we calculate a quadratic P/W fit based off of the "control"
+                    if ii == 0:
+                        polyn = 2
+                        xprestmp = np.ma.where(xprestmp < 1010.0, xprestmp, 1010.0)
+                        xprestmp = 1010.0 - xprestmp
+                        idx = np.isfinite(xprestmp) & np.isfinite(xwind)
+                        quad_a = np.polyfit(xprestmp[idx].flatten(), xwind[idx].flatten(), polyn)
+                else:  # Use the coefficients from Z2021
+                    print("calcPolyFitPACE is False, using coefficients from Z2021")
+                    quad_a = np.array([-1.05371378e-03, 5.68356519e-01, 1.43290190e01])
             print("m/s")
             print(quad_a)
             print("kts")
@@ -1170,19 +1172,20 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1,
             xprestmp = np.where(xprestmp > THRESHOLD_PACE_PRES, float("NaN"), xprestmp)
 
         xprestmp = np.ma.array(xprestmp, mask=np.isnan(xprestmp))
-        warnings.filterwarnings("ignore")
         if quadratic_fit:
-            if calcPolyFitPACE:
-                # Here, we calculate a quadratic P/W fit based off of the "control"
-                if ii == 0:
-                    polyn = 2
-                    xprestmp = np.ma.where(xprestmp < 1010.0, xprestmp, 1010.0)
-                    xprestmp = 1010.0 - xprestmp
-                    idx = np.isfinite(xprestmp) & np.isfinite(xwind)
-                    quad_a = np.polyfit(xprestmp[idx].flatten(), xwind[idx].flatten(), polyn)
-            else:  # Use the coefficients from Z2021
-                print("calcPolyFitPACE is False, using coefficients from Z2021")
-                quad_a = np.array([-1.05371378e-03, 5.68356519e-01, 1.43290190e01])
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                if calcPolyFitPACE:
+                    # Here, we calculate a quadratic P/W fit based off of the "control"
+                    if ii == 0:
+                        polyn = 2
+                        xprestmp = np.ma.where(xprestmp < 1010.0, xprestmp, 1010.0)
+                        xprestmp = 1010.0 - xprestmp
+                        idx = np.isfinite(xprestmp) & np.isfinite(xwind)
+                        quad_a = np.polyfit(xprestmp[idx].flatten(), xwind[idx].flatten(), polyn)
+                else:  # Use the coefficients from Z2021
+                    print("calcPolyFitPACE is False, using coefficients from Z2021")
+                    quad_a = np.array([-1.05371378e-03, 5.68356519e-01, 1.43290190e01])
             print("m/s")
             print(quad_a)
             print("kts")
@@ -1231,7 +1234,9 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1,
         # header_str = "gYear,gMonth,gDay,gHour,gLat,gLon,minPres,maxWind,TCD,ACE,PACE"
         # np.savetxt(output_path / f'storms_{strbasin}_{strs[ii]}_output.csv',
         #     filtered_storm_data, delimiter=",", fmt=data_formatting, header=header_str, comments='')
-        # print(f"Storm-level data for {strs[ii]} written to {output_path / f'storms_{strbasin}_{strs[ii]}_output.csv'}.")
+        # print(
+        #   f"Storm-level data for {strs[ii]} written to {output_path / f'storms_{strbasin}_{strs[ii]}_output.csv'}."
+        # )
 
 
         # Bin storms per dataset per calendar month
@@ -1530,7 +1535,9 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1,
         globaldict[x] = locals()[x]
 
     # # Write NetCDF file
-    # netcdf_path = tcs_cymep_funcs.write_spatial_netcdf(msdict, pmdict, pydict, taydict, strs, nyears, nmonths, denslat, denslon, globaldict)
+    # netcdf_path = tcs_cymep_funcs.write_spatial_netcdf(
+    #                   msdict, pmdict, pydict, taydict, strs, nyears, nmonths, denslat, denslon, globaldict
+    #)
 
 
     # Prepare dict with metrics descriptions
@@ -1557,7 +1564,9 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1,
         # Climatological mean metrics
         **{
             f"clim_mean_{metric}": {
-                "metric_description": f"Climatological mean {data_metrics[metric]['long_name']} over the period covered by 'years'.",
+                "metric_description": (
+                    f"Climatological mean {data_metrics[metric]['long_name']} over the period covered by 'years'."
+                ),
                 "units": data_metrics[metric]["units"],
             }
             for metric in data_metrics
@@ -1566,7 +1575,9 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1,
         # Storm mean metrics (excluding count)
         **{
             f"storm_mean_{metric}": {
-                "metric_description": f"Mean {data_metrics[metric]['long_name']} per storm over the period covered by 'years'.",
+                "metric_description": (
+                    f"Mean {data_metrics[metric]['long_name']} per storm over the period covered by 'years'."
+                ),
                 "units": data_metrics[metric]["units"],
             }
             for metric in data_metrics
@@ -1575,7 +1586,10 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1,
         # Temporal correlation metrics
         **{
             f"temporal_scorr_{metric}": {
-                "metric_description": f"Temporal Spearman rank correlation of {data_metrics[metric]['long_name']} over the period covered by 'years'.",
+                "metric_description": (
+                    f"Temporal Spearman rank correlation of {data_metrics[metric]['long_name']} "
+                    "over the period covered by 'years'."
+                ),
                 "units": "-",
             }
             for metric in data_metrics
@@ -1584,7 +1598,10 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1,
         # Spatial metrics (excluding lmi)
         **{
             f"spatial_abs_{metric}": {
-                "metric_description": f"Spatial distribution of {data_metrics[metric]['long_name']} over the period covered by 'years' (considering {gridsize}ºx{gridsize}º cells).",
+                "metric_description": (
+                    f"Spatial distribution of {data_metrics[metric]['long_name']} over the period "
+                    f"covered by 'years' (considering {gridsize}ºx{gridsize}º cells)."
+                ),
                 "units": data_metrics[metric]["units"],
             }
             for metric in data_metrics
@@ -1593,7 +1610,10 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1,
         # Spatial bias metrics (excluding lmi)
         **{
             f"spatial_bias_{metric}": {
-                "metric_description": f"Spatial bias in {data_metrics[metric]['long_name']} relative to the observations over the period covered by 'years' (considering {gridsize}ºx{gridsize}º cells).",
+                "metric_description": (
+                    f"Spatial bias in {data_metrics[metric]['long_name']} relative to the observations over the "
+                    f"period covered by 'years' (considering {gridsize}ºx{gridsize}º cells)."
+                ),
                 "units": data_metrics[metric]["units"],
             }
             for metric in data_metrics
@@ -1602,7 +1622,10 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1,
         # Spatial correlation metrics (excluding lmi)
         **{
             f"spatial_pcorr_{metric}": {
-                "metric_description": f"Spatial Pearson correlation of {data_metrics[metric]['long_name']} relative to the observations over the period covered by 'years'.",
+                "metric_description": (
+                    f"Spatial Pearson correlation of {data_metrics[metric]['long_name']} relative "
+                    "to the observations over the period covered by 'years'."
+                ),
                 "units": "-",
             }
             for metric in data_metrics

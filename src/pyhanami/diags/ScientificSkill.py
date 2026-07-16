@@ -1,8 +1,8 @@
-import warnings
-warnings.simplefilter("always")
+import sys
 
 from collections.abc import Iterable
 
+from pyhanami.utils import data_general
 from pyhanami.diags.Simulations import SimulationData
 from pyhanami.diags.scientific_evaluation import general, iso, mjo, tc, wrapper
 
@@ -52,7 +52,7 @@ class ScientificEvaluation:
                     "Input must be a SimulationData object or an iterable of SimulationData objects."
                 )
 
-        # Create placeholders for the analyses outputs
+        # Create placeholders to store analyses outputs as: {dataset_name: evaluation_instance}
         self._general_scores = {}
         self._iso_scores = {}
         self._mjo_scores = {}
@@ -76,49 +76,78 @@ class ScientificEvaluation:
         -------
         data_evaluation : list[SimulationData]
             Validated dataset/s.
-        data_names : list[str]
+        data_names_validated : list[str]
             Name/s of the validated dataset/s.
         """
 
+        # Use all loaded datasets if no names are provided
         if data_names is None:
-            # Use all datasets
             if len(self.datasets) < 1:
-                raise ValueError(
-                    f"At least one dataset is required for the {evaluation_type} evaluation."
-                )
+                raise ValueError(f"At least one dataset is required for the {evaluation_type} evaluation.")
             data_evaluation = self.datasets
-            data_names = [ds.name for ds in data_evaluation]
+            data_names_validated = [ds.name for ds in data_evaluation]
 
-        elif isinstance(data_names, str):
-            # Single dataset by name
-            data_evaluation = [ds for ds in self.datasets if ds.name == data_names]
-            if not data_evaluation:
-                raise ValueError(
-                    f"Dataset with name '{data_names}' not found in the ScientificEvaluation object. "
-                    "Please, add this dataset first with the 'add_datasets' method."
-                )
-            data_names = [data_names]
+        # Look for datasets in the class instance by name
+        elif isinstance(data_names, str) or (
+            isinstance(data_names, list) and all(isinstance(name, str) for name in data_names)
+        ):
+            if isinstance(data_names, str):
+                data_names = [data_names]
 
-        elif isinstance(data_names, list) and all(isinstance(name, str) for name in data_names):
-            # Multiple datasets by name
+            evaluation_data = getattr(self, f"_{evaluation_type}_scores")
             datasets_dict = {ds.name: ds for ds in self.datasets}
-
             data_evaluation = []
+            data_names_validated = []
+
             for name in data_names:
-                if name in datasets_dict:
-                    data_evaluation.append(datasets_dict[name])
-                else:
-                    raise ValueError(
+                if name not in datasets_dict:
+                    data_general.warn_always(
                         f"Dataset with name '{name}' not found in the ScientificEvaluation object. "
-                        f"Available datasets: {list(datasets_dict.keys())}"
+                        f"Skipping this dataset. Available datasets: {list(datasets_dict.keys())}\n"
+                    )
+                    continue
+
+                # Check whether the scores have already been computed for the given dataset and evaluation type
+                if name in evaluation_data:
+                    data_general.warn_always(
+                        f"{evaluation_type} scores for dataset '{name}' have already been computed."
                     )
 
-        else:
-            raise TypeError(
-                "'data_names' must be a string or a list of strings representing dataset names."
-            )
+                    # Check if running interactively
+                    if sys.stdin.isatty():
+                        try:
+                            # Ask user for confirmation
+                            response = input("Do you want to overwrite the existing scores? (y/n):").strip().lower()
+                        except EOFError:
+                            print(f"\n{evaluation_type} scores computation cancelled for dataset '{name}'.\n")
+                            continue
 
-        return data_evaluation, data_names
+                        if response not in ['y', 'yes']:
+                            print(
+                                "Skipping scores computation for this dataset. You can access the existing scores "
+                                f"using the '{evaluation_type}_scores' method.\n"
+                            )
+                            continue
+
+                    # Non-interactive mode: auto-overwrite warning
+                    else:
+                        data_general.warn_always(
+                            "Non-interactive mode detected. Existing scores will be overwritten automatically."
+                        )
+
+                    print(f"Overwriting the existing {evaluation_type} scores for dataset '{name}'.\n")
+
+                data_evaluation.append(datasets_dict[name])
+                data_names_validated.append(name)
+
+            if not data_evaluation:
+                raise ValueError(f"No valid datasets selected for {evaluation_type} analysis.")
+
+        # Issue with the input type
+        else:
+            raise TypeError("'data_names' must be a string or a list of strings representing dataset names.")
+
+        return data_evaluation, data_names_validated
 
 
     def _validate_input_access_methods(self, data_names, evaluation_type):
@@ -134,46 +163,38 @@ class ScientificEvaluation:
 
         Returns
         -------
-        data_names : list[str]
-            Validated list of dataset/s name/s.
+        selected_evaluation_outputs : list[x.XEvaluation]
+            List of evaluation outputs for the validated dataset/s.
         """
 
         # Validate dataset names format
         if data_names is None:
-            # Use all names
+            # Use all names if no names are provided
             data_names = [ds.name for ds in self.datasets]
-
         elif isinstance(data_names, str):
-            # Single name
             data_names = [data_names]
+        elif not isinstance(data_names, list) or not all(isinstance(name, str) for name in data_names):
+            raise TypeError("'data_names' must be a string or a list of dataset name strings.")
 
-        elif (
-            not isinstance(data_names, list)
-            or not all(isinstance(name, str) for name in data_names)
-        ):
-            raise TypeError(
-                "'data_names' must be a string or a list of strings "
-                "representing dataset/s name/s."
-            )
 
         # Check availability of the requested evaluation for the given dataset/s
-        evaluation_classes = {
-            "general": self._general_scores,
-            "iso": self._iso_scores,
-            "mjo": self._mjo_scores,
-            "tc": self._tc_scores,
-        }
-        evaluation_data = evaluation_classes[evaluation_type]
+        evaluation_outputs = getattr(self, f"_{evaluation_type}_scores")
+        selected_evaluation_outputs = []
 
         for name in data_names:
-            if name not in evaluation_data.keys():
-                raise ValueError(
-                    f"{evaluation_type} scores for dataset '{name}' not found. "
-                    f"Please, compute the {evaluation_type} scores for this dataset first "
-                    f"using the 'compute_{evaluation_type}_scores' method."
+            if name not in evaluation_outputs:
+                data_general.warn_always(
+                    f"{evaluation_type} scores for dataset '{name}' not found. Skipping this dataset.\n"
+                    f"Please compute the {evaluation_type} scores for this dataset first using the "
+                    f"'compute_{evaluation_type}_scores' method if you want to access them.\n"
                 )
+            else:
+                selected_evaluation_outputs.append(evaluation_outputs[name])
 
-        return data_names
+        if not selected_evaluation_outputs:
+            raise ValueError(f"No {evaluation_type} scores are available for the provided dataset/s.")
+
+        return selected_evaluation_outputs
 
 
     def _access_scores(self, data_names, evaluation_type):
@@ -189,19 +210,10 @@ class ScientificEvaluation:
             Type of evaluation to access.
         """
 
-        # Map evaluation type to the corresponding method
-        evaluation_classes = {
-            "general": self._general_scores,
-            "iso": self._iso_scores,
-            "mjo": self._mjo_scores,
-            "tc": self._tc_scores,
-        }
-
         # Validate input
-        data_names_validated = self._validate_input_access_methods(data_names, evaluation_type)
+        evaluation_instances= self._validate_input_access_methods(data_names, evaluation_type)
 
         # Create instance of wrapper class with all evaluations to be accessed
-        evaluation_instances = [evaluation_classes[evaluation_type][name] for name in data_names_validated]
         evaluation_handlers = wrapper.ScientificEvaluationWrapper(evaluation_instances, evaluation_type)
 
         return evaluation_handlers
@@ -234,7 +246,7 @@ class ScientificEvaluation:
             if not any(ds.name == dataset.name for ds in self.datasets):
                 self.datasets.append(dataset)
             else:
-                warnings.warn(
+                data_general.warn_always(
                     f"Dataset with name '{dataset.name}' already exists in the ScientificEvaluation object. "
                     "Skipping addition."
                 )
@@ -267,7 +279,6 @@ class ScientificEvaluation:
         evaluation_type = "general"
         data_General, data_names = self._validate_input_compute_methods(data_names, evaluation_type)
 
-        print(data_names, flush=True)
         # Create GeneralEvaluation object and compute scores for each dataset
         for data, name in zip(data_General, data_names):
             print(f"Performing general scalar analysis for dataset '{name}':", flush=True)
@@ -471,98 +482,6 @@ class ScientificEvaluation:
 
         return
 
-        # input_path = data_TC.data_path
-
-        # if obs:
-        #     if obs_path is None or obs_name is None or obs_wind_factor is None:
-        #         raise NotImplementedError('Automatic selection of observations is not implemented yet. '
-        #                                   'Please provide at least one path, one name and the corresponding '
-        #                                   'wind factor if you want to include observations.')
-
-        #     # Convert to lists if single values are provided
-        #     obs_path = [obs_path] if isinstance(obs_path, (str, Path)) else list(obs_path)
-        #     obs_name = [obs_name] if isinstance(obs_name, str) else list(obs_name)
-        #     obs_wind_factor = [obs_wind_factor] if isinstance(obs_wind_factor, (int, float))
-        #                       else list(obs_wind_factor)
-
-        #     # Validate lengths match
-        #     if not (len(obs_path) == len(obs_name) == len(obs_wind_factor)):
-        #         raise ValueError("'obs_path', 'obs_name' and 'obs_wind_factor' must have the same length.")
-
-        # # Plot TC genesis and trajectory density if requested
-        # if full_output:
-        #     # Get simulated tracks and counts
-        #     sim_tracks = tcs_tempestextremes.read_tracks_tempestExtremes(tracks_sim_path)
-        #     sim_counts_gen, sim_counts_traj = tcs_tempestextremes.compute_tc_counts(
-        #       sim_tracks, start_year, end_year,bin_size=bin_size, cutoff_wind=min_wind
-        #     )
-
-        #     # Get IBTrACS tracks and counts
-        #     ib_tracks = tcs_tempestextremes.read_tracks_tempestExtremes(ib_path)
-        #     ib_counts_gen, ib_counts_traj = tcs_tempestextremes.compute_tc_counts(
-        #       ib_tracks, start_year, end_year, bin_size=bin_size, cutoff_wind=min_wind
-        #     )
-
-        # # Prepare observations TCs data if requested
-        # if obs:
-        #     obs_tracks_path = config_params.TC_DATA_PATH
-        #     for name, path, wind in zip(obs_name, obs_path, obs_wind_factor):
-        #         # Check if TCs data is already present for the selected years, minimum wind and observations dataset
-        #         obs_files = list(obs_tracks_path.glob(f"{name}_*.txt"))
-
-        #         found = False
-        #         for obs_file in obs_files:
-        #             parts = obs_file.stem.split('_')
-
-        #             if len(parts) >= 2 and '-' in parts[1]:
-        #                 year_range = parts[1]
-        #                 try:
-        #                     # Check if the file covers the selected period
-        #                     file_start, file_end = map(int, year_range.split('-'))
-        #                     if file_start <= start_year and file_end >= end_year:
-
-        #                         # Check if the file matches the selected min_wind
-        #                         obs_min_wind = float(parts[2])
-        #                         if abs(obs_min_wind - min_wind) < 1e-6:
-        #                             unstructured = parts[3].lower() == 'true'
-        #                             ens_members = int(parts[4])
-        #                             aux_wind_factor = float(parts[5])
-        #                             found = True
-        #                             break
-        #                 except ValueError:
-        #                     continue
-        #         if found:
-        #             configs[name] = [obs_file.name, name.lower(), unstructured, ens_members, years, aux_wind_factor]
-
-        #         # Compute TCs data for observations if not already present
-        #         else:
-        #             # Load observations
-        #             var_names = ["psl", "uas", "vas", "zg300", "zg500"]
-        #             data_sim_selected = data_sim_all[var_names]
-        #             data_obs = ObservationData(path, data_sim_selected, name=name)
-
-        #             ens_members = 1 if 'realization' not in data_obs.data.dims else data_obs.data.dims['realization']
-        #             unstructured = False
-
-        #             # Run TempestExtremes tracking on observational data
-        #             print(
-        #               f'Starting Tropical Cyclones tracking using TempestExtremes for {name} observations...',
-        #               flush=True
-        #             )
-        #             tracks_obs_path = tcs_tempestextremes.run_tempestExtremes(
-        #                                   data_obs, name, obs_tracks_path, min_wind=min_wind
-        #                                 )
-        #             tracks_obs_path = tracks_obs_path.rename(tracks_obs_path.with_name(
-        #                                   f"{name}_{start_year}-{end_year}_{min_wind:.1f}_{unstructured}_"
-        #                                   f"{ens_members}_{wind:.1f}.txt")
-        #                               )
-        #             print(
-        #               f"Tropical Cyclones tracking completed for {name} observations. "
-        #               f"Output files added to '{obs_tracks_path}'.", flush=True
-        #             )
-
-        #             configs[name] = [tracks_obs_path, name, unstructured, ens_members, years, wind]
-
 
     def general_scores(self, data_names=None):
         """
@@ -641,7 +560,7 @@ class ScientificEvaluation:
 
         Returns
         -------
-        iso_handlers : ScientificEvaluationWrapper
+        tc_handlers : ScientificEvaluationWrapper
             Instance of the ScientificEvaluationWrapper class containing the TC evaluation
             output for the given dataset/s and providing access to its corresponding methods.
         """
