@@ -48,9 +48,15 @@ class ScientificEvaluation:
             ):
                 self.datasets = list(datasets)
             else:
-                raise TypeError(
-                    "Input must be a SimulationData object or an iterable of SimulationData objects."
-                )
+                raise TypeError("Input must be a SimulationData object or an iterable of SimulationData objects.")
+
+        # Check for duplicate names
+        names = [ds.name for ds in self.datasets]
+        if len(names) != len(set(names)):
+            raise ValueError(
+                "Duplicate names found in the provided datasets. Each dataset must have a unique name. "
+                "You can change the name of a SimulationData object by modifying its 'name' attribute."
+            )
 
         # Create placeholders to store analyses outputs as: {dataset_name: evaluation_instance}
         self._general_scores = {}
@@ -80,74 +86,174 @@ class ScientificEvaluation:
             Name/s of the validated dataset/s.
         """
 
-        # Use all loaded datasets if no names are provided
+        # Validate input
         if data_names is None:
-            if len(self.datasets) < 1:
+            if len(self.datasets) == 0:
                 raise ValueError(f"At least one dataset is required for the {evaluation_type} evaluation.")
-            data_evaluation = self.datasets
-            data_names_validated = [ds.name for ds in data_evaluation]
 
-        # Look for datasets in the class instance by name
-        elif isinstance(data_names, str) or (
-            isinstance(data_names, list) and all(isinstance(name, str) for name in data_names)
-        ):
-            if isinstance(data_names, str):
-                data_names = [data_names]
+            # Use all loaded datasets if no names are provided
+            data_names = [ds.name for ds in self.datasets]
 
-            evaluation_data = getattr(self, f"_{evaluation_type}_scores")
-            datasets_dict = {ds.name: ds for ds in self.datasets}
-            data_evaluation = []
-            data_names_validated = []
+        elif isinstance(data_names, str):
+            data_names = [data_names]
 
-            for name in data_names:
-                if name not in datasets_dict:
-                    data_general.warn_always(
-                        f"Dataset with name '{name}' not found in the ScientificEvaluation object. "
-                        f"Skipping this dataset. Available datasets: {list(datasets_dict.keys())}\n"
-                    )
-                    continue
-
-                # Check whether the scores have already been computed for the given dataset and evaluation type
-                if name in evaluation_data:
-                    data_general.warn_always(
-                        f"{evaluation_type} scores for dataset '{name}' have already been computed."
-                    )
-
-                    # Check if running interactively
-                    if sys.stdin.isatty():
-                        try:
-                            # Ask user for confirmation
-                            response = input("Do you want to overwrite the existing scores? (y/n):").strip().lower()
-                        except EOFError:
-                            print(f"\n{evaluation_type} scores computation cancelled for dataset '{name}'.\n")
-                            continue
-
-                        if response not in ['y', 'yes']:
-                            print(
-                                "Skipping scores computation for this dataset. You can access the existing scores "
-                                f"using the '{evaluation_type}_scores' method.\n"
-                            )
-                            continue
-
-                    # Non-interactive mode: auto-overwrite warning
-                    else:
-                        data_general.warn_always(
-                            "Non-interactive mode detected. Existing scores will be overwritten automatically."
-                        )
-
-                    print(f"Overwriting the existing {evaluation_type} scores for dataset '{name}'.\n")
-
-                data_evaluation.append(datasets_dict[name])
-                data_names_validated.append(name)
-
-            if not data_evaluation:
-                raise ValueError(f"No valid datasets selected for {evaluation_type} analysis.")
-
-        # Issue with the input type
-        else:
+        elif not (isinstance(data_names, list) and all(isinstance(name, str) for name in data_names)):
             raise TypeError("'data_names' must be a string or a list of strings representing dataset names.")
 
+
+        # Avoid overwriting existing scores
+        evaluation_data = getattr(self, f"_{evaluation_type}_scores")
+        datasets_dict = {ds.name: ds for ds in self.datasets}
+        data_evaluation = []
+        data_names_validated = []
+
+        for name in data_names:
+            if name not in datasets_dict:
+                data_general.warn_always(
+                    f"Dataset with name '{name}' not found in the ScientificEvaluation object. "
+                    f"Skipping this dataset. Available datasets: {list(datasets_dict.keys())}\n"
+                )
+                continue
+
+            # Check whether the scores have already been computed for the given dataset and evaluation type
+            if name in evaluation_data:
+                data_general.warn_always(
+                    f"{evaluation_type} scores for dataset '{name}' have already been computed."
+                )
+
+                # Check if running interactively
+                if sys.stdin.isatty():
+                    try:
+                        # Ask user for confirmation
+                        response = input("Do you want to overwrite the existing scores? (y/n):").strip().lower()
+                    except EOFError:
+                        print(f"\n{evaluation_type} scores computation cancelled for dataset '{name}'.\n")
+                        continue
+
+                    if response not in ['y', 'yes']:
+                        print(
+                            "Skipping scores computation for this dataset. You can access the existing scores "
+                            f"using the '{evaluation_type}_scores' method.\n"
+                        )
+                        continue
+
+                # Non-interactive mode: auto-overwrite warning
+                else:
+                    data_general.warn_always(
+                        "Non-interactive mode detected. Existing scores will be overwritten automatically."
+                    )
+
+                print(f"Overwriting the existing {evaluation_type} scores for dataset '{name}'.\n")
+
+            data_evaluation.append(datasets_dict[name])
+            data_names_validated.append(name)
+
+        if not data_evaluation:
+            raise ValueError(f"No valid datasets selected for {evaluation_type} analysis.")
+
         return data_evaluation, data_names_validated
+
+
+    def _prepare_one_dataset_for_ensemble(self, dataset, ensemble_mode="mean", member=None):
+        """
+        Prepare one simulation ensemble dataset for evaluation according to the selected ensemble
+        handling strategy.
+
+        Parameters
+        ----------
+        dataset : SimulationData
+            Simulation dataset to preprocess.
+        ensemble_mode : str
+            Strategy to handle simulation ensembles (datasets with `realization` coordinate) either
+            taking the ensemble mean over all members ("mean") or selecting one specific member
+            ("member") (default: "mean").
+        member : int
+            Ensemble member to use when `ensemble_mode="member"` is selected.
+
+        Returns
+        -------
+        prepared_dataset : SimulationData
+            Preprocessed dataset.
+        """
+
+        # Check whether the dataset represents and ensemble
+        if "realization" not in dataset.data.coords:
+            if ensemble_mode == "member":
+                data_general.warn_always(
+                    f"Dataset '{dataset.name}' has no 'realization' coordinate, ignoring 'member' selection "
+                    "and using the dataset as it is."
+                )
+            prepared_dataset = dataset
+
+        # Handle ensemble datasets according to the selected strategy
+        else:
+            if ensemble_mode == "mean":
+                data_selected = dataset.data.mean(dim="realization", keep_attrs=True)
+                # name_selected = f"{dataset.name} (ens. mean)"
+
+            elif ensemble_mode == "member":
+                realization_values = dataset.data.coords["realization"].values
+                if member not in realization_values:
+                    raise ValueError(
+                        f"Requested member '{member}' not found in dataset '{dataset.name}'. "
+                        f"Available members: {realization_values.tolist()}."
+                    )
+                data_selected = dataset.data.sel(realization=member, drop=True)
+                # name_selected = f"{dataset.name} (r{member})"
+
+            else:
+                raise ValueError(
+                    f"Invalid 'ensemble_mode' selected: '{ensemble_mode}'. Available modes: ['mean', 'member']."
+                )
+
+            print(
+                f"The ensemble dataset '{dataset.name}' has been preprocessed by applying the selected "
+                f"'{ensemble_mode}' ensemble handling strategy."
+            )
+            prepared_dataset = SimulationData(data_selected, name=dataset.name)
+
+        return prepared_dataset
+
+
+    def _prepare_datasets_for_ensemble(self, datasets, ensemble_mode="mean", member=None):
+        """
+        Prepare simulation ensemble datasets for evaluation according to the selected ensemble
+        handling strategy.
+
+        Parameters
+        ----------
+        datasets : list[SimulationData]
+            Simulation datasets to preprocess.
+        ensemble_mode : str
+            Strategy to handle simulation ensembles (datasets with `realization` coordinate) either
+            taking the ensemble mean over all members ("mean") or selecting one specific member
+            ("member") (default: "mean").
+        member : int
+            Ensemble member to use when `ensemble_mode="member"` is selected.
+
+        Returns
+        -------
+        prepared_datasets : list[SimulationData]
+            Preprocessed datasets.
+        """
+
+        # Validate input
+        valid_modes = ["mean", "member"]
+        if ensemble_mode not in valid_modes:
+            raise ValueError(f"Invalid 'ensemble_mode' selected. Available modes: {valid_modes}.")
+
+        if ensemble_mode == "member" and not isinstance(member, int):
+            raise TypeError(
+                f"When `ensemble_mode='member'` is selected, 'member' must be an integer. Current value: {member}."
+            )
+
+        # Prepare datasets
+        prepared_datasets = [
+            self._prepare_one_dataset_for_ensemble(ds, ensemble_mode=ensemble_mode, member=member)
+            for ds in datasets
+        ]
+
+        return prepared_datasets
 
 
     def _validate_input_access_methods(self, data_names, evaluation_type):
@@ -237,9 +343,7 @@ class ScientificEvaluation:
             or isinstance(datasets, (str, bytes))
             or not all(isinstance(ds, SimulationData) for ds in datasets)
         ):
-            raise TypeError(
-                "Input must be a SimulationData object or an iterable of SimulationData objects."
-            )
+            raise TypeError("Input must be a SimulationData object or an iterable of SimulationData objects.")
 
         # Check for duplicate datasets
         for dataset in datasets:
@@ -255,7 +359,7 @@ class ScientificEvaluation:
 
 
     def compute_general_scores(self, var_names=None, data_names=None, obs_name=None, obs_path=None,
-                               start_year=None, end_year=None):
+                               start_year=None, end_year=None, ensemble_mode="mean", member=None):
                                 #config_params.GEN_OBS_NAME, obs_path=config_params.GEN_OBS_PATH,
         """
         Initialize and compute general model skill evaluation scores for selected dataset/s.
@@ -273,11 +377,18 @@ class ScientificEvaluation:
             Path to the observations database (default: config_params.GEN_OBS_PATH).
         start_year, end_year : int
             Initial and end years to compute the general scores for.
+        ensemble_mode : str
+            Strategy to handle simulation ensembles (datasets with `realization` coordinate) either
+            taking the ensemble mean over all members ("mean") or selecting one specific member
+            ("member") (default: "mean").
+        member : int
+            Ensemble member to use when `ensemble_mode="member"` is selected.
         """
 
         # Validate input
         evaluation_type = "general"
         data_General, data_names = self._validate_input_compute_methods(data_names, evaluation_type)
+        data_General = self._prepare_datasets_for_ensemble(data_General, ensemble_mode=ensemble_mode, member=member)
 
         # Create GeneralEvaluation object and compute scores for each dataset
         for data, name in zip(data_General, data_names):
@@ -297,9 +408,9 @@ class ScientificEvaluation:
         return
 
 
-    def compute_iso_scores(self, data_names=None, start_year_eeof=None, end_year_eeof=None,
-                           start_year_pc=None, end_year_pc=None, obs=False, obs_path=None,
-                           correct_pc=False, iso_config=None):
+    def compute_iso_scores(self, data_names=None, start_year_eeof=None, end_year_eeof=None, start_year_pc=None,
+                           end_year_pc=None, obs=False, obs_path=None, correct_pc=False, iso_config=None,
+                           ensemble_mode="mean", member=None):
         """
         Initialize and compute bimodal ISO indices (following (K. Kikuchi, 2020)) and derive scalar
         scores (following (M. Nakano et al., 2019)) for selected datasets.
@@ -324,11 +435,18 @@ class ScientificEvaluation:
         iso_config : ISOConfig
             Configuration dataclass with parameters necessary for the ISO evaluation. If None, default values
             from the configuration file `pyhanami.config.scientific_evaluation_parameters.yaml` will be used.
+        ensemble_mode : str
+            Strategy to handle simulation ensembles (datasets with `realization` coordinate) either
+            taking the ensemble mean over all members ("mean") or selecting one specific member
+            ("member") (default: "mean").
+        member : int
+            Ensemble member to use when `ensemble_mode="member"` is selected.
         """
 
         # Validate input
         evaluation_type = "iso"
         data_ISO, data_names = self._validate_input_compute_methods(data_names, evaluation_type)
+        data_ISO = self._prepare_datasets_for_ensemble(data_ISO, ensemble_mode=ensemble_mode, member=member)
 
         # Create ISO object and compute scores for each dataset
         for data, name in zip(data_ISO, data_names):
@@ -353,7 +471,7 @@ class ScientificEvaluation:
 
     def compute_mjo_scores(self, data_names=None, obs_path=None, start_year_mjo=None, end_year_mjo=None,
                            start_year_ref=None, end_year_ref=None, threshold_active_days=None,
-                           mjo_config=None, mjo_vars=['ua850', 'ua200', 'rlut']):
+                           mjo_config=None, mjo_vars=None, ensemble_mode="mean", member=None):
         """
         Initialize and compute Real-Time Multivariate MJO (RMM) indices following (M.C. Wheeler &
         H.H. Hendon, 2004) and MJO wavenumber-frequency power spectra following (M.C. Wheeler &
@@ -380,16 +498,21 @@ class ScientificEvaluation:
             from the configuration file `pyhanami.config.scientific_evaluation_parameters.yaml` will be used.
         mjo_vars : list[str]
             Variables to be usd for the MJO analysis (default: ['ua850', 'ua200', 'rlut']).
-
-        Returns
-        -------
-        mjo_analysis : MJOEvaluation
-            MJOEvaluation object containing the computed RMM MJO indices, power spectra and scalar scores.
+        ensemble_mode : str
+            Strategy to handle simulation ensembles (datasets with `realization` coordinate) either
+            taking the ensemble mean over all members ("mean") or selecting one specific member
+            ("member") (default: "mean").
+        member : int
+            Ensemble member to use when `ensemble_mode="member"` is selected.
         """
+
+        if mjo_vars is None:
+            mjo_vars = ['ua850', 'ua200', 'rlut']
 
         # Validate input
         evaluation_type = "mjo"
         data_MJO, data_names = self._validate_input_compute_methods(data_names, evaluation_type)
+        data_MJO = self._prepare_datasets_for_ensemble(data_MJO, ensemble_mode=ensemble_mode, member=member)
 
         # Create MJO object and compute scores for each dataset
         for data, name in zip(data_MJO, data_names):
@@ -413,7 +536,8 @@ class ScientificEvaluation:
 
 
     def compute_tc_scores(self, data_names=None, start_year_tc=None, end_year_tc=None, obs=True,
-                          wind_factor=1.0, min_wind=10, basin=-1, bin_size=2.5, tc_config=None):
+                          wind_factor=1.0, min_wind=10, basin=-1, bin_size=2.5, tc_config=None,
+                          ensemble_mode="mean", member=None):
         """
         Compute Tropical Cyclones (TCs) metrics and derive scalar scores following (C.M. Zarzycki et al., 2021)
         and plot results.
@@ -451,16 +575,18 @@ class ScientificEvaluation:
         tc_config : TCConfig
             Configuration dataclass with parameters necessary for the TC evaluation. If None, default values
             from the configuration file `pyhanami.config.scientific_evaluation_parameters.yaml` will be used.
-
-        Returns
-        -------
-        tc_analysis : TCEvaluation
-            TCEvaluation object containing the computed TCs metrics and scalar scores.
+        ensemble_mode : str
+            Strategy to handle simulation ensembles (datasets with `realization` coordinate) either
+            taking the ensemble mean over all members ("mean") or selecting one specific member
+            ("member") (default: "mean").
+        member : int
+            Ensemble member to use when `ensemble_mode="member"` is selected.
         """
 
         # Validate input
         evaluation_type = "tc"
         data_TC, data_names = self._validate_input_compute_methods(data_names, evaluation_type)
+        data_TC = self._prepare_datasets_for_ensemble(data_TC, ensemble_mode=ensemble_mode, member=member)
 
         # Create TC object and compute scores for each dataset
         for data, name in zip(data_TC, data_names):
