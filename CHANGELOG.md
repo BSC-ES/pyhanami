@@ -10,17 +10,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 ### Added
-- Scientific skill scores: added option to perform and store analyses for multiple simulation datasets in a single instance of the `ScientificEvaluation` class and to compare the scores of these datasets with each other and with observations/reanalyses.
+- Replicability test: 
+    - Added option to select the year range used for the test.
+    - Added check to ensure that previous test results are not overwritten for given datasets and year ranges, asking the user to confirm before overwriting in interactive mode.
+- Scientific skill scores: 
+    - Added option to perform and store analyses for multiple simulation datasets in a single instance of the `ScientificEvaluation` class and to compare the scores of these datasets with each other and with observations/reanalyses.
+    - Added checks to ensure that previous analyses are not overwritten for a given dataset, asking the user to confirm before overwriting in interactive mode.
+    - Added ensemble support to all analyses, allowing the user to compute scores for the ensemble mean or for individual ensemble members.
 - Documentation: added explanations and guidelines for setting up the configuration files.
+- Table plots: added option to disable first reference row and show only the relative scores of the other datasets with respect to the reference dataset.
 
 ### Changed
-- Replicability test: 
-    - Added new threshold for the effect size between the distributions of scores to determine whether the test is passed or failed based on the minimum detectable effect size for a _t_-test.
-    - Added option to select the year range used for the test.
+- Replicability test: modified the criteria used to determine whether a test passes or fails by introducing a new threshold for the effect size between the distributions of scores, based on the minimum detectable effect size for a _t_-test.
 - Scientific skill scores:
     - Refactored the `ScientificEvaluation` class so that evaluation results are stored internally instead of being returned as intances of the phenomenon-specific evaluation classes. A new `ScientificEvaluationWrapper` class provides a unified interface for accessing the methods of the phenomenon-specific classes and their results.
     - Modified computation of mean MJO amplitude and active MJO days per phase: now computed as annual averages (climatologies) instead of totals over the entire analyzed period to be able to compare these scores across different years.
-- Table plots: added option to disable first reference row and show only the relative scores of the other datasets with respect to the reference dataset.
+- Plots: refactored plots module `plot.py` into a general module (`plots_general.py`) containing generic plotting functions, such as spatial and table plots, together with separate phenomenon-specific modules (e.g., `plots_iso.py`). All contained in a `plots` directory.
 
 ### Removed
 

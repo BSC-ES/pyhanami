@@ -222,11 +222,11 @@ It is also possible to add additional simulation datasets to an existing `Scient
 skill_eval_one.add_datasets(sim_2)
 ```
 
-Then, the `ScientificEvaluation` class provides several methods to perform different analyses. All follow the same naming convention: `compute_<phenomenon>_scores(*args, **kwargs)`, where `<phenomenon>` is the climate phenomenon being evaluated. Each method can be called multiple times for different simulation datasets, and the results are stored internally in the same `ScientificEvaluation` instance under the corresponding simulation name.
+Then, the `ScientificEvaluation` class provides several methods to perform different analyses. All follow the same naming convention: `compute_<phenomenon>_scores(*args, **kwargs)`, where `<phenomenon>` is the climate phenomenon being evaluated (e.g., `iso`, `mjo`, `tc`). Each method can be called multiple times for different simulation datasets, and the results are stored internally in the same `ScientificEvaluation` instance under the corresponding simulation name.
 
-Finally, the outcome of each analysis can be accessed later using the corresponding `<phenomenon>_scores('name_sim')` method, which returns an object providing methods to save and visualize the results. These methods accept either a single simulation dataset name or a list of dataset names. When multiple names are passed, most methods operate independently on each selected dataset, generating one separate plot per simulation dataset. However, summary table plots combine the selected datasets into a single table for easier comparison. If no simulation name is specified, all results stored in the `ScientificEvaluation` instance for the corresponding phenomenon are returned.
+Finally, the outcome of each analysis can be accessed later using the `<phenomenon>_scores('name_sim')` methods, which return an object providing methods to save and visualize the results. These methods accept either a single simulation dataset name or a list of dataset names. When multiple names are passed, most methods operate independently on each selected dataset, generating one separate plot per simulation dataset. However, summary table plots combine the selected datasets into a single table for easier comparison. Besides, if one of the provided names has not been evaluated yet for the corresponding phenomenon, a warning is issued and the method continues with the remaining datasets. If no simulation names are specified, all results stored in the `ScientificEvaluation` instance for that phenomenon are returned. 
 
-The next subsections explain how to use these methods and the corresponding visualization outputs for each available phenomenon.
+The next subsections explain how to use these methods and visualize the results for each available phenomenon.
 
 
 
@@ -446,12 +446,12 @@ resolution following the criteria established in [(K.J.E. Walsh et al., 2007)](h
 
 ### Configuration of scientific evaluation parameters
 
-All climate phenomena analyses require several parameters, whose default values are defined in the configuration file `src/pyhanami/config/scientific_evaluation_parameters.yaml`. These parameters can be modified permanently in the configuration file or on a case-by-case basis when calling the corresponding methods. To do so, specific configuration dataclasses are available for each phenomenon:
+All climate phenomena analyses require several parameters, whose default values are defined in the configuration file `src/pyhanami/config/scientific_evaluation_parameters.yaml`. These parameters can be modified permanently in the configuration file or on a case-by-case basis when calling the evaluation methods. To do so, a specific configuration dataclass is available for each phenomenon:
 - Tropical IntraSeasonal Oscillation (ISO): `ISOConfig`
 - Madden-Julian Oscillation (MJO): `MJOConfig`
 - Tropical Cyclones (TCs): `TCConfig`
 
-The following snippet exemplifies how to modify default parameters for the ISO analysis when calling the `compute_iso_scores` method. Parameters for other phenomena can be modified in a similar way by using the corresponding dataclass and method:
+The following snippet exemplifies how to modify default parameters for the ISO analysis when calling the `compute_iso_scores` method. Parameters for other phenomena can be modified in a similar way by using the corresponding dataclass and evaluation method:
 
 ```python
 # Initialize ScientificEvaluation class with a SimulationData object
@@ -473,7 +473,7 @@ skill_eval.compute_iso_scores(
 )
 ```
 
-Note that parameter values can also be modified after creating the `ISOConfig` instance by directly updating the corresponding attributes, as shown below:
+Note that parameter values can also be modified after creating the `ISOConfig` instance by directly updating its attributes, as shown below:
 
 ```python
 # Create an ISO configuration dataclass with default parameters
@@ -484,6 +484,23 @@ iso_config.lag = 20
 ```
 
 
+### Ensemble support 
+
+Scientific skill analyses support simulation ensembles. If a simulation dataset contains a `realization` coordinate, the ensemble mean is computed by default and the analysis is performed on the resulting mean field. Alternatively, a single member can be analysed by passing the arguments `ensemble_mode='member'` and `member=<realization_value>` when calling any `compute_<phenomenon>_scores(...)` method. For example:
+
+```python
+# Initialize ScientificEvaluation class with a SimulationData object
+skill_eval = pyhanami.ScientificEvaluation(sim_1)
+
+# Compute general scalar scores for a specific ensemble member
+skill_eval.compute_general_scores(
+    'name_sim_1',
+    ensemble_mode='member',
+    member='2'
+)
+```
+
+
 ## General considerations
 - The `DataDiagnostics`, `ReplicabilityTest`, and `ScientificEvaluation` classes can all be initialized without providing any `SimulationData` objects; datasets can be added later with the `add_datasets` method.
 - The climate variable name `var_name` must be listed in the configuration file `src/pyhanami/config/variables.yaml`.  
@@ -491,3 +508,4 @@ iso_config.lag = 20
 - `path/to/obs` must be a path to a directory containing observation datasets, with files named following the pattern `data_obs*_{var_name}.nc`, where `var_name` matches the corresponding variable name in `src/pyhanami/config/variables.yaml`. 
 - For all the spatial plots, the central longitude is set to 0º by default, but it can be modified with the argument `clon` (e.g., `clon=180`).
 - For all table plots, the first row displays values for the reference dataset by default, and subsequent rows show the scores relative to the reference. However, this row can be disabled by passing the argument `reference=False` when calling the corresponding method.
+- For scientific skill `compute_<phenomenon>_scores(...)` methods, if a dataset has a `realization` coordinate, the ensemble mean is used by default. To run the analysis on one member only, pass `ensemble_mode='member'` and `member=<realization_value>`.
