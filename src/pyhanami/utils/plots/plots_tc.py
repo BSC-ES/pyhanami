@@ -103,7 +103,7 @@ def plot_linear_cycles(data, data_names, start_year, end_year, output_path=None)
 
         # Prepare plotting parameters
         y_label = f"{name} ({units})"
-        month_title = f"{name} seasonal cycle"
+        month_title = f"{name} seasonal cycle ({year_range})"
         year_title = f"{name} interannual cycle"
 
         # Prepare data for plotting

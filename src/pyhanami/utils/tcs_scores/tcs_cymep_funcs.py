@@ -828,7 +828,7 @@ def track_mean(gridsize, lonstart, clat, clon, cvar, meanornot, minhits):
     npts = clat.size
 
     for nn, zz in enumerate(range(npts)):
-        if ~np.isnan(clon[nn]):
+        if not np.isnan(clon[nn]):
             jl = int((clat[nn] - latS) / dlat)
             il = int((clon[nn] - lonW) / dlon)
             if il > (mlon - 1):
@@ -885,6 +885,10 @@ def track_minmax(gridsize, lonstart, clat, clon, cvar, minmax, minhits):
         Longitude coordinates of the grid centers.
     """
 
+    # Validate input
+    if minmax not in {"min", "max"}:
+        raise ValueError("'minmax' must be either 'min' or 'max'")
+
     # Create grid
     latS = -90.0
     latN = 90.0
@@ -901,23 +905,26 @@ def track_minmax(gridsize, lonstart, clat, clon, cvar, minmax, minhits):
     lon = np.linspace(lonW, lonE - dlon, num=mlon)
 
     countarr = np.empty((nlat, mlon))
+    hitarr = np.empty((nlat, mlon))
 
     # Count data
     countarr[:] = np.nan
+    hitarr[:] = 0
     jl = 0
     il = 0
 
     npts = clat.size
 
-    for nn, zz in enumerate(range(npts)):
-        if ~np.isnan(clon[nn]):
+    for nn in range(npts):
+        if not np.isnan(clon[nn]):
             jl = int((clat[nn] - latS) / dlat)
             il = int((clon[nn] - lonW) / dlon)
             if il > (mlon - 1):
                 print("mlon needs correcting at: " + str(il))
                 il = 0
 
-            if ~np.isnan(cvar[nn]):
+            if not np.isnan(cvar[nn]):
+                hitarr[jl, il] = hitarr[jl, il] + 1
                 if np.isnan(countarr[jl, il]):
                     countarr[jl, il] = cvar[nn]
                 else:
@@ -928,6 +935,9 @@ def track_minmax(gridsize, lonstart, clat, clon, cvar, minmax, minhits):
                     else:
                         # This means we have a valid cvar but a countarr value exists that is more extreme
                         pass
+
+    # set to nan if valid cvar hits is less than the specified number of min hits
+    countarr = np.where(hitarr < minhits, float("NaN"), countarr)
 
     print("count: min=" + str(np.nanmin(countarr)) + "   max=" + str(np.nanmax(countarr)))
 

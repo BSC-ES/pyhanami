@@ -896,9 +896,23 @@ def two_spatial_plots(data_1, data_2, clon=0, title_1="Spatial plot 1", title_2=
 
         cbar.ax.tick_params(labelsize=7)
         cbar.set_label(cb_label, fontsize=8)
-        plt.tight_layout(rect=[0, 0.15, 1, 0.96])
+        # plt.tight_layout(rect=[0, 0.15, 1, 0.96]) # This method can lead to some issues with Cartopy
+        fig.subplots_adjust(
+            left=0,
+            right=1,
+            bottom=0.2,
+            top=0.8,
+            wspace=0.1,
+        )
     else:
-        plt.tight_layout(rect=[0, 0.03, 1, 1])
+        # plt.tight_layout(rect=[0, 0.03, 1, 1]) # This method can lead to some issues with Cartopy
+        fig.subplots_adjust(
+            left=0,
+            right=1,
+            bottom=0.03,
+            top=0.84,
+            wspace=0.1,
+        )
 
     fig.suptitle(suptitle, fontsize=14)
 
@@ -1373,7 +1387,7 @@ def plot_two_tables(data_1, data_2, title="Climate variables", col_labels=["", "
     # Create figure with adjusted height based on number of rows
     n_rows = [len(rows) for rows in row_labels]
     n_cols = [len(cols) for cols in col_labels]
-    height = max(5, sum(n_rows) * 0.7)
+    height = max(4.5, sum(n_rows) * 0.6 + 0.45)
     width = 4
     fig, axs = plt.subplots(2, 1, figsize=(width, height), dpi=200)
     fig.suptitle(title, fontsize=16)
@@ -1474,7 +1488,7 @@ def plot_two_tables(data_1, data_2, title="Climate variables", col_labels=["", "
                 left - x_offset,  # x position
                 bottom - 0.1,  # y position
                 right + 2 * x_offset - left,  # x width
-                0.04,  # y width
+                0.03,  # y width
             ]
         )
 

@@ -72,6 +72,17 @@ def prepare_data_tempestExtremes(data, data_name):
 
     # Add surface geopotential
     if "phis" in data.data_vars:
+        # Check if `phis` is time-invariant (as required by TempestExtremes)
+        if "time" in data["phis"].dims:
+            data_phis = data["phis"]
+            if not data_phis.equals(data_phis.isel(time=0).broadcast_like(data_phis)):
+                raise ValueError(
+                    f"Variable `phis` in the simulated dataset '{data_name}' varies with time, but TempestExtremes "
+                    "requires a time-invariant surface geopotential. Please provide a time-invariant `phis` variable "
+                    "or remove the time dimension to compute the TC scores."
+                )
+            data = data.assign(phis=data["phis"].isel(time=0, drop=True))
+
         data_vars.append(data.rename({"phis": "PHIS"})["PHIS"])
     else:
         topog_varname = config_params.TOPOG_VARNAME
