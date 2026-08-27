@@ -36,9 +36,7 @@ def rmv_annual_cycle(data, spd, f_crit):
 
     Note: fft/ifft preserves the mean because z = fft(x), z[0] is the mean.
           To keep the mean here, we need to keep the 0 frequency.
-
     Note: This function reproduces the results from the NCL version.
-
     Note: Two methods are available, one using fft/ifft and the other rfft/irfft.
           They both produce output that is indistinguishable from NCL's result.
     """
@@ -139,7 +137,8 @@ def resolve_waves_Hayashi(var_fft, n_day_win, spd):
     #    J. Meteor. Soc. Japan, 1971, 49: 125-128.
     # -------------------------------------------------------------
 
-    # in NCL var_fft is dimensioned (2,mlon,nSampWin), but the first dim doesn't matter b/c python supports complex numbers.
+    # in NCL var_fft is dimensioned (2,mlon,nSampWin), but the first dim doesn't matter
+    # b/c python supports complex numbers.
     #
     # Create array PEE(NL+1,NT+1) which contains the (real) power spectrum.
     # all the following assume indexing starting with 0
@@ -361,7 +360,17 @@ def compute_spacetime_power(data, seg_size=96, n_overlap=60, spd=1, lat_bounds=N
 
     if lat_bounds is not None:
         assert isinstance(lat_bounds, tuple)
-        data = data.sel(lat=slice(*lat_bounds))  # CAUTION: is this a mutable argument?
+
+        # Select latitude region (independently of latitude coordinate order)
+        lat_values = sorted(lat_bounds)
+        lat_slice = slice(*lat_values) if data.lat[0] < data.lat[-1] else slice(*lat_values[::-1])
+        data = data.sel(lat=lat_slice)  # CAUTION: is this a mutable argument?
+
+        if data.sizes.get("lat", 0) == 0:
+            raise ValueError(
+                f"No latitude points found in the specified range '{lat_bounds}'. Please check the latitude bounds."
+            )
+
         # logging.info(f"Data reduced by latitude bounds. Size is {data.sizes}")
         slat = lat_bounds[0]
         nlat = lat_bounds[1]
@@ -391,7 +400,6 @@ def compute_spacetime_power(data, seg_size=96, n_overlap=60, spd=1, lat_bounds=N
     # testing: pass -- indistinguisable from file produced by NCL
     # data.name = "filtered"
     # data.to_netcdf("/Users/brianpm/Documents/pout_1_filtered.nc")
-
     # NOTE: we have altered "data" to be detrended & filtered at this point
 
     dimsizes = data.sizes  # dict
@@ -409,9 +417,8 @@ def compute_spacetime_power(data, seg_size=96, n_overlap=60, spd=1, lat_bounds=N
     #     f"[spacetime_power] variance of data before windowing: {np.var(data).item()}"
     # )
 
-    # 2. Windowing with the xarray "rolling" operation, and then limit overlap with `construct` to produce a new dataArray.
-    # WK99 recommend "2-month" overlap
-    # Shape of x_win: (_, lat, lon, segments: spd*seg_size)
+    # 2. Windowing with the xarray "rolling" operation, and then limit overlap with `construct` to produce a
+    # new dataArray. WK99 recommend "2-month" overlap. Shape of x_win: (_, lat, lon, segments: spd*seg_size)
     x_roll = data.rolling(time=seg_size, min_periods=seg_size)  # WK99 use 96-day window
     assert seg_size - n_overlap > 0, (
         "Error, inconsistent specification of 'seg_size' and 'n_overlap' results in "
@@ -430,41 +437,36 @@ def compute_spacetime_power(data, seg_size=96, n_overlap=60, spd=1, lat_bounds=N
         x_win = xr.DataArray(x_win_detr, dims=x_win.dims, coords=x_win.coords)
     else:
         # logging.warning(
-        #     "EXTREME WARNING -- This method to detrend with missing values present does not quite work, probably need to do interpolation instead."
+        #     "EXTREME WARNING -- This method to detrend with missing values present does not quite work, "
+        #     "probably need to do interpolation instead."
         # )
-        # logging.warning(
-        #     "There are missing data in x_win, so have to try to detrend around them."
-        # )
+        # logging.warning("There are missing data in x_win, so have to try to detrend around them.")
         x_win_cp = x_win.values.copy()
         # logging.info(
-        #     f"[spacetime_power] x_win_cp windowed data has shape {x_win_cp.shape} \n \t It is a numpy array, copied from x_win which has dims: {x_win.sizes} \n \t ** about to detrend this in the rightmost dimension."
+        #     f"[spacetime_power] x_win_cp windowed data has shape {x_win_cp.shape} \n \t It is a numpy array, copied"
+        #     " from x_win which has dims: {x_win.sizes} \n \t ** about to detrend this in the rightmost dimension."
         # )
         x_win_cp[np.logical_not(np.isnan(x_win_cp))] = detrend(
             x_win_cp[np.logical_not(np.isnan(x_win_cp))]
         )
         x_win = xr.DataArray(x_win_cp, dims=x_win.dims, coords=x_win.coords)
-    # logging.debug(
-    #     f"[spacetime_power] x_win variance of segments: {np.var(x_win, axis=(1,2,3)).values}"
-    # )
+    # logging.debug(f"[spacetime_power] x_win variance of segments: {np.var(x_win, axis=(1,2,3)).values}")
 
     # 3. Taper in time to make the signal periodic, as required for FFT.
     # taper = np.hanning(seg_size)  # WK seem to use some kind of stretched out hanning window; unclear if it matters
     taper = split_hann_taper(seg_size, 0.1)  # try to replicate NCL's
     x_wintap = x_win * taper  # would do XTAPER = (X - X.mean())*series_taper + X.mean()
     # But since we have removed the mean, taper going to 0 is equivalent to taper going to the mean.
-    # logging.debug(
-    #     f"[spacetime_power] x_wintap variance of segments: {np.var(x_wintap, axis=(1,2,3)).values}"
-    # )
+    # logging.debug(f"[spacetime_power] x_wintap variance of segments: {np.var(x_wintap, axis=(1,2,3)).values}")
 
     # Do the transform using 2D FFT
     # - normalize by dimension sizes
     z = np.fft.fft2(x_wintap, axes=(2, 3)) / (lon_size * seg_size)
 
-    # NOTE: with this normalization, the power spectral density should
-    #       be calculated as np.abs(z)**2 * dlon * dt * lon_size * seg_size
-    #       where dt = 1/spd, so dt*seg_size=[length of segment in time]
-    #       and dlon = lon[1]-lon[0] (= size of longitude dimension in degrees)
-    #       _When only the positive frequencies are used, also multiply by 2._
+    # NOTE: with this normalization, the power spectral density should be calculated as
+    #       np.abs(z)**2 * dlon * dt * lon_size * seg_size where dt = 1/spd, so
+    #       dt*seg_size=[length of segment in time] and dlon = lon[1]-lon[0] (= size of longitude
+    #       dimension in degrees). When only the positive frequencies are used, also multiply by 2.
     # AND: the integral of the power spectral density is then equal to the variance
     #      In this case, gets the variance of x_wintap; for suitably large seg_size,
     #      the tapering shouldn't matter much, so VAR[x_wintap] ≃ VAR[x_win]
@@ -532,8 +534,7 @@ def compute_spacetime_power(data, seg_size=96, n_overlap=60, spd=1, lat_bounds=N
     # z_pee is spectral power already.
     # z_pee is a DataArray w/ coordinate vars for wavenumber & frequency
 
-    # average over all available segments and sum over latitude
-    # OUTPUT DEPENDS ON SYMMETRIES
+    # average over all available segments and sum over latitude, OUTPUT DEPENDS ON SYMMETRIES
     if do_symmetries:
         # multipy by 2 b/c we only used one hemisphere
         z_symmetric = 2.0 * z_pee.isel(lat=z_pee.lat < 0).mean(dim="time")
@@ -601,10 +602,9 @@ def gen_dispersion_curves(n_wave_type=6, n_planetary_wave=50, rlat=0.0, ahe=[50.
 
     for ww in range(1, n_wave_type + 1):
         for ed, he in enumerate(ahe):
-            # This loops through the specified equivalent depths
-            # ed provides index to fill in output array, while
-            # he is the current equivalent depth
-            # T = 1./np.sqrt(beta)*(g*he)**(0.25) This is close to pre-factor of the dispersion relation, but is not used.
+            # This loops through the specified equivalent depths, ed provides index to fill in output array, while
+            # he is the current equivalent depth.
+            # T = 1./np.sqrt(beta)*(g*he)**(0.25) # Close the pre-factor of the dispersion relation, not used
             c = np.sqrt(g * he)  # phase speed
             L = np.sqrt(
                 c / beta
@@ -689,7 +689,7 @@ def gen_dispersion_curves(n_wave_type=6, n_planetary_wave=50, rlat=0.0, ahe=[50.
 
 
 
-# Original functions to compute the power spectra (not adapted from the wavenumber_frequency repository)
+# Custom functions to compute the power spectra (not adapted from the wavenumber_frequency repository)
 
 def variable_smooth_wavefreq(data, freq_dim="frequency", wavenum_dim="wavenumber"):
     """
@@ -864,7 +864,7 @@ def wavenum_freq_analysis_wrapper(args):
 
 
 
-# Original functions to postprocess the power spectra (not adapted from the wavenumber_frequency repository)
+# Custom functions to postprocess the power spectra (not adapted from the wavenumber_frequency repository)
 
 def sum_power_over_area( power, freq_bounds=None, wavenum_bounds=None, freq_dim="frequency",
                          wavenum_dim="wavenumber"):

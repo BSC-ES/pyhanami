@@ -112,8 +112,16 @@ def remove_longer_time_scale_components(data, start_year_ref, end_year_ref, lat_
     # data = data.sel(time=slice(str(start_year_ref), str(end_year_ref)))
     data_filtered = data.sel(time=~((data["time"].dt.month == 2) & (data["time"].dt.day == 29)))
 
-    # Select latitude region
-    data_filtered = data_filtered.sel(lat=slice(*lat_range))
+    # Select latitude region (independently of latitude coordinate order)
+    lat_values = sorted(lat_range)
+    lat_slice = slice(*lat_values) if data_filtered.lat[0] < data_filtered.lat[-1] else slice(*lat_values[::-1])
+    data_filtered = data_filtered.sel(lat=lat_slice)
+
+    if data_filtered.sizes.get("lat", 0) == 0:
+        raise ValueError(
+            f"No latitude points found in the specified range '{lat_range}'. Please check the latitude bounds."
+        )
+
 
     # Filter data
     processed_data = []
@@ -141,9 +149,8 @@ def remove_longer_time_scale_components(data, start_year_ref, end_year_ref, lat_
         weights = statistics.area_weights(anomalies)
         anomalies_lat_avg = anomalies.weighted(weights).mean(dim="lat")
 
-        # Compute standard deviation and normalize
+        # Compute standard deviation and normalize (CHANGED ACCORDING TO VENTRICE ET AL 2013)
         std_dev = np.sqrt(anomalies_lat_avg.var(dim="time")).mean(dim="lon")
-        # std_dev = np.sqrt(anomalies_lat_avg.var(dim='time').mean(dim='lon'))  # CHANGED ACCORDING TO VENTRICE ET AL 2013
 
         std_aux = std_dev.expand_dims("variable")
         std_aux = std_aux.assign_coords(variable=[var_name])
@@ -193,7 +200,7 @@ def remove_longer_time_scale_components(data, start_year_ref, end_year_ref, lat_
     return filtered_data, anom_data, std_data
 
 
-def fit_CEOF_model_xeofs(data, n_modes=2):
+def fit_ceof_model_xeofs(data, n_modes=2):
     """
     Fit model for Combined Empirical Orthogonal Function (COEF) analysis using xeofs.
 
@@ -224,7 +231,7 @@ def fit_CEOF_model_xeofs(data, n_modes=2):
     return eof_model
 
 
-def retrieve_CEOFs_xeofs(ceof_model, vars_order=["ua850", "ua200", "rlut"]):
+def retrieve_ceofs_xeofs(ceof_model, vars_order=["ua850", "ua200", "rlut"]):
     """
     Retrieve elements of Combined Empirical Orthogonal Function (COEF) analysis from
     the provided fitted model and correct them to match the output of eofs.xarray.Eof.
@@ -287,7 +294,7 @@ def retrieve_CEOFs_xeofs(ceof_model, vars_order=["ua850", "ua200", "rlut"]):
     return ceof_xeofs, eigenvalues_xeofs, variance_xeofs, pc_xeofs, reconstructed_xeofs
 
 
-def perform_CEOF_analysis(data=None, ceof_model=None, n_modes=2, vars_order=["ua850", "ua200", "rlut"]):
+def perform_ceof_analysis(data=None, ceof_model=None, n_modes=2, vars_order=["ua850", "ua200", "rlut"]):
     """
     Perform Combined Empirical Orthogonal Function (COEF) analysis to
     identify MJO events.
@@ -324,10 +331,10 @@ def perform_CEOF_analysis(data=None, ceof_model=None, n_modes=2, vars_order=["ua
         if ceof_model is None:
             raise ValueError("When 'data' is not provided, 'ceof_model' must be provided.")
     else:
-        ceof_model = fit_CEOF_model_xeofs(data, n_modes)
+        ceof_model = fit_ceof_model_xeofs(data, n_modes)
 
     # Retrieve output of CEOF analysis
-    ceofs, eigvals, var_frac, pcs, _ = retrieve_CEOFs_xeofs(ceof_model, vars_order)
+    ceofs, eigvals, var_frac, pcs, _ = retrieve_ceofs_xeofs(ceof_model, vars_order)
 
     # Compile CEOF analysis output as a xr.Dataset
     vars_coords = np.array(
@@ -343,7 +350,7 @@ def perform_CEOF_analysis(data=None, ceof_model=None, n_modes=2, vars_order=["ua
     return ceof_analysis_data
 
 
-def correct_CEOFs(ceof_new, ceof_ref, n_modes=2):
+def correct_ceofs(ceof_new, ceof_ref, n_modes=2):
     """
     Correct sign and order of the first 'n_modes' CEOFs (typically following
     (M.C. Wheeler & H.H. Hendon, 2004)).
@@ -417,7 +424,7 @@ def correct_CEOFs(ceof_new, ceof_ref, n_modes=2):
     return ceof_corrected
 
 
-def compute_CEOFs_corr(ceof_1, ceof_2, n_modes=2):
+def compute_ceofs_corr(ceof_1, ceof_2, n_modes=2):
     """
     Compute correlation between the first 'n_modes' CEOFs of two datasets
     for all variables and modes.
@@ -680,8 +687,8 @@ def compute_climatological_phase_counts(pcs, threshold=None):
         mean_active_amplitude_per_phase.append(mean_active_amp)
 
 
-    # Compute average over years of total counts and active counts per phase (group data per year, 
-    # count phase occurrences within each year, convert to table filling missing combinations 
+    # Compute average over years of total counts and active counts per phase (group data per year,
+    # count phase occurrences within each year, convert to table filling missing combinations
     # with 0, sort by phase and compute mean over years)
     phase_pandas = phases.to_pandas()
     yearly_total_counts = (

@@ -123,7 +123,8 @@ class MJOEvaluation:
             mjo_config = config_scores.MJOConfig()
         elif not isinstance(mjo_config, config_scores.MJOConfig):
             raise TypeError(
-                "'mjo_config' must be an instance of the MJOConfig dataclass defined in 'pyhanami.utils.config_scores'."
+                "'mjo_config' must be an instance of the MJOConfig dataclass defined "
+                "in 'pyhanami.utils.config_scores'."
             )
 
         # Select years for MJO analysis
@@ -135,8 +136,8 @@ class MJOEvaluation:
             or config_params.MJO_END_YEAR < self.end_year_mjo
         ):
             raise ValueError(
-                f"Selected years for MJO analysis must be within the available observational period"
-                f" ({config_params.MJO_START_YEAR} and {config_params.MJO_END_YEAR})."
+                f"Selected years for MJO analysis ({self.start_year_mjo}-{self.end_year_mjo}) must be within the"
+                f"available observational period ({config_params.MJO_START_YEAR}-{config_params.MJO_END_YEAR})."
             )
         print(
             f"\tYears selected for MJO scores computation: {self.start_year_mjo}-{self.end_year_mjo}.",
@@ -162,6 +163,7 @@ class MJOEvaluation:
             mjo_config.n_harmonics,
             mjo_config.normalize_std,
         )
+
         print(
             f"\tObservations and simulations data prepared for the CEOF analysis by removing longer-time-scale "
             f"components between {self.start_year_mjo} and {self.end_year_mjo}. "
@@ -170,14 +172,14 @@ class MJOEvaluation:
         )
 
         # Perform CEOF analysis (projecting on observed and simulated EOFs)
-        self.ceof_obs, self.ceof_sim_on_obs, self.ceof_sim_on_sim = self._perform_CEOF_analysis(mjo_config.n_modes)
+        self.ceof_obs, self.ceof_sim_on_obs, self.ceof_sim_on_sim = self._perform_ceof_analysis(mjo_config.n_modes)
         print(
             "\tCEOF analyses completed. See attributes `ceof_obs`, `ceof_sim_on_obs`, and `ceof_sim_on_sim` "
             "for results.", flush=True,
         )
 
         # Compute scalar scores related to the CEOFs
-        self.ceof_scores = self._compute_CEOF_scores()
+        self.ceof_scores = self._compute_ceof_scores()
         print(
             "\tScalar scores related to CEOFs computed. See attribute `ceof_scores` for results.",
             flush=True,
@@ -368,7 +370,7 @@ class MJOEvaluation:
         return filtered_sim, anom_sim, std_sim, filtered_obs, anom_obs, std_obs
 
 
-    def _perform_CEOF_analysis(self, n_modes=2):
+    def _perform_ceof_analysis(self, n_modes=2):
         """
         Perform Combined Empirical Orthogonal Function (CEOF) analyses on observational and
         simulation data. For the latter, projecting the data both on the observed CEOFs and
@@ -402,8 +404,8 @@ class MJOEvaluation:
 
         # Perform observational CEOF analysis (correct sign of the first mode to match the typical
         # MJO pattern from (M.Wheeler et al., (2004))
-        model_mjo_obs = mjo_ceof_funcs.fit_CEOF_model_xeofs(self.data_ceof_obs, n_modes)
-        ceof_obs = mjo_ceof_funcs.perform_CEOF_analysis(None, model_mjo_obs, n_modes)
+        model_mjo_obs = mjo_ceof_funcs.fit_ceof_model_xeofs(self.data_ceof_obs, n_modes)
+        ceof_obs = mjo_ceof_funcs.perform_ceof_analysis(None, model_mjo_obs, n_modes)
         ceof_obs["ceof"].loc[{"mode": 0}] *= -1
         ceof_obs["pc"].loc[{"mode": 0}] *= -1
         ceof_obs.attrs["EOFs source"] = f"Observations '{self.obs_name}'"
@@ -426,8 +428,8 @@ class MJOEvaluation:
         ceof_sim_on_obs["pc"] = pc_sim_on_obs
 
         # Perform and correct CEOF analysis on simulations projecting on themselves
-        ceof_sim_on_sim = mjo_ceof_funcs.perform_CEOF_analysis(self.data_ceof_sim, None, n_modes)
-        ceof_sim_on_sim = mjo_ceof_funcs.correct_CEOFs(ceof_sim_on_sim, ceof_obs)
+        ceof_sim_on_sim = mjo_ceof_funcs.perform_ceof_analysis(self.data_ceof_sim, None, n_modes)
+        ceof_sim_on_sim = mjo_ceof_funcs.correct_ceofs(ceof_sim_on_sim, ceof_obs)
         ceof_sim_on_sim.attrs["EOFs source"] = f"Simulations '{self.sim_name}'"
         ceof_sim_on_sim.attrs["PCs source"] = (
             f"Simulations '{self.sim_name}' projected on Simulations '{self.sim_name}' CEOFs"
@@ -436,7 +438,7 @@ class MJOEvaluation:
         return ceof_obs, ceof_sim_on_obs, ceof_sim_on_sim
 
 
-    def _compute_CEOF_scores(self):
+    def _compute_ceof_scores(self):
         """
         Compute scalar scores related to the CEOF analysis, including the Pearson
         correlation between observed and simulated CEOFs, the bias in the associated
@@ -462,7 +464,7 @@ class MJOEvaluation:
 
         for dataset in datasets:
             # Compute correlation between observed and simulated CEOFs
-            ceof_corr = mjo_ceof_funcs.compute_CEOFs_corr(self.ceof_obs["ceof"], dataset["ceof"])
+            ceof_corr = mjo_ceof_funcs.compute_ceofs_corr(self.ceof_obs["ceof"], dataset["ceof"])
 
             # Retrieve explained variance of the CEOFs
             expl_var = dataset[["var_frac"]].rename({"var_frac": "explained_var"})
@@ -516,8 +518,8 @@ class MJOEvaluation:
 
 
         # # Compute correlation between observed and simulated CEOFs
-        # ceof_obs_corr = mjo_ceof_funcs.compute_CEOFs_corr(self.ceof_obs['ceof'], self.ceof_obs['ceof'])
-        # ceof_sim_corr = mjo_ceof_funcs.compute_CEOFs_corr(self.ceof_obs['ceof'], self.ceof_sim_on_sim['ceof'])
+        # ceof_obs_corr = mjo_ceof_funcs.compute_ceofs_corr(self.ceof_obs['ceof'], self.ceof_obs['ceof'])
+        # ceof_sim_corr = mjo_ceof_funcs.compute_ceofs_corr(self.ceof_obs['ceof'], self.ceof_sim_on_sim['ceof'])
 
         # # Retrieve explained variance of the CEOFs (absolute value and bias)
         # ceof_obs_expl_var = self.ceof_obs['var_frac'].rename('explained_var')

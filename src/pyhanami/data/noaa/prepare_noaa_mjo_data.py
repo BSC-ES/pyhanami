@@ -45,7 +45,7 @@ data_filtered_obs, _, _ = pyhanami.utils.mjo_scores.remove_longer_time_scale_com
 
 # Create and fit CEOF model
 n_modes = 2
-ceof_model = pyhanami.utils.mjo_scores.fit_CEOF_model_xeofs(data_filtered_obs, n_modes)
+ceof_model = pyhanami.utils.mjo_scores.fit_ceof_model_xeofs(data_filtered_obs, n_modes)
 
 # Save fitted model
 ceof_model.save(pyhanami.config.config_params.MJO_MODEL_PATH)
