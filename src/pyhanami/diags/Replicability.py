@@ -55,10 +55,13 @@ class ReplicabilityTest:
         List of seasons to compute scores over.
     regions : dict
         Dictionary mapping region names to latitude bounds.
-    effect_sizes : dict[str, xr.DataArray]
+    effect_sizes : dict[tuple[str, str, int, int], xr.DataArray]
         Dictionary to store effect sizes between the replicability test scores for
         each pair of datasets for all variables, seasons, regions, and metrics.
-    test_results : dict[str, xr.DataArray]
+    p_values : dict[tuple[str, str, int, int], xr.DataArray]
+        Dictionary to store p-values obtained during the replicability test for each pair
+        of datasets for all variables, seasons, regions, metrics, and statistical tests.
+    test_results : dict[tuple[str, str, int, int], xr.DataArray]
         Dictionary to store results of the replicability test for each pair of datasets
         for all variables, seasons, regions, metrics, and statistical tests.
     """
@@ -105,6 +108,7 @@ class ReplicabilityTest:
 
         # Create placeholders for effect sizes and replicability test results
         self.effect_sizes = {}
+        self.p_values = {}
         self.test_results = {}
 
         return
@@ -423,6 +427,8 @@ class ReplicabilityTest:
 
         Returns
         -------
+        p_values : xr.DataArray
+            Raw p-values for all variables, seasons, regions, metrics, and statistical tests.
         test_results : xr.DataArray
             Test results for all variables, seasons, regions, metrics, and statistical tests.
         """
@@ -433,6 +439,17 @@ class ReplicabilityTest:
 
         # Initialize array
         names_metrics = np.append(self.metrics["name"], "Combined")
+        p_values = np.full(
+            (
+                len(self.variables),
+                len(self.seasons),
+                len(self.regions),
+                len(self.metrics) + 1,  # +1 for combined metric
+                len(self.tests)
+            ),
+            np.nan,
+            dtype=float,
+        )
         test_results = np.zeros(
             (
                 len(self.variables),
@@ -468,19 +485,35 @@ class ReplicabilityTest:
                             power=self.power,
                         )
 
-                        if effect_size < min_detectable_effect_size:
+                        if np.abs(effect_size) < min_detectable_effect_size:
                             test_results[var_idx, season_idx, region_idx, metric_idx, :] = True
                             continue
 
                         # Apply statistical tests
                         for test_idx, test_name in enumerate(self.tests):
                             p_value = self.tests[test_name](scores_ref, scores_test)
+                            p_values[var_idx, season_idx, region_idx, metric_idx, test_idx] = p_value
+
                             test_results[var_idx, season_idx, region_idx, metric_idx, test_idx] = (
                                 p_value <= self.alpha
                             )
 
 
-        # Save all test results as a xr.DataArray
+        # Save all p-values and test results as xr.DataArray
+        p_values = xr.DataArray(
+            data=p_values,
+            dims=["variable", "season", "region", "metric", "test"],
+            coords={
+                "variable": list(self.variables.keys()),
+                "season": self.seasons,
+                "region": list(self.regions.keys()),
+                "metric": names_metrics,
+                "test": list(self.tests.keys())
+            },
+            attrs={"datasets": " - ".join(data_names)},
+            name="p_value",
+        )
+
         test_results = xr.DataArray(
             data=test_results,
             dims=["variable", "season", "region", "metric", "test"],
@@ -496,13 +529,14 @@ class ReplicabilityTest:
         )
 
         print("Performed replicability test for all variables.", flush=True)
-        return test_results
+        return p_values, test_results
 
 
     def _create_datasets_key(self, data_name_1, data_name_2, start_year, end_year):
         """ Create key for a pair of datasets together with the year range. """
 
-        return f"{data_name_1} - {data_name_2} ({start_year}-{end_year})"
+        # return f"{data_name_1} - {data_name_2} ({start_year}-{end_year})"
+        return (*sorted((data_name_1, data_name_2)), start_year, end_year)
 
 
     def _find_datasets_pair(self, data, data_names, start_year=None, end_year=None):
@@ -535,27 +569,69 @@ class ReplicabilityTest:
         found_data = None
         if start_year is not None and end_year is not None:
             # Exact match with date range
-            search_keys = [
-                self._create_datasets_key(data_names[0], data_names[1], start_year, end_year),
-                self._create_datasets_key(data_names[1], data_names[0], start_year, end_year)
-            ]
+            key = self._create_datasets_key(*data_names, start_year, end_year)
+            found_data = data.get(key)
 
-            for key in search_keys:
-                if key in data:
-                    found_data = data[key]
-                    break
         else:
+            data_name_1, data_name_2 = sorted(data_names)
+
             # Match any date range
-            for key in data.keys():
-                if (key.startswith(f"{data_names[0]} - {data_names[1]}")
-                    or key.startswith(f"{data_names[1]} - {data_names[0]}")):
-                    found_data = data[key]
+            for key, value in data.items():
+                # if (key.startswith(f"{data_names[0]} - {data_names[1]}")
+                #     or key.startswith(f"{data_names[1]} - {data_names[0]}")):
+                #     found_data = data[key]
+                if key[:2] == (data_name_1, data_name_2):
+                    # Match specified start year
+                    if start_year is not None and key[2] != start_year:
+                        continue
+                    # Match specified end year
+                    if end_year is not None and key[3] != end_year:
+                        continue
 
                     # Warn about selected years
-                    data_general.warn_always(f"Year range not fully specified. Using first matching dataset for {key}.")
+                    data_general.warn_always(
+                        f"Year range not fully specified. Using the first matching dataset: {key}."
+                    )
+
+                    found_data = value
                     break
 
         return found_data
+
+
+    def _get_datasets_pair(self, data, data_names, start_year, end_year, attribute):
+
+        """
+        Look for the given pair of simulation ensembles in the provided data dictionary.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary containing precomputed data for a given dataset pair.
+        data_names : list[str]
+            List of names of two simulation ensembles to compare.
+        start_year : int
+            Start year for filtering data.
+        end_year : int
+            End year for filtering data.
+        attribute : str
+            Name of the attribute to retrieve for the dataset pair.
+
+        Returns
+        -------
+        attribute_ds: xr.DataArray
+            Requested attribute for the given dataset pair.
+        """
+
+        attribute_ds = self._find_datasets_pair(data, data_names, start_year, end_year)
+        if attribute_ds is None:
+            raise ValueError(
+                f"{attribute.capitalize()} between the selected datasets ('{data_names[0]}' and '{data_names[1]}') "
+                f"and year range ({start_year}-{end_year}) not found. Please, run the 'perform_rep_test' "
+                f"method with the selected datasets and years to compute the {attribute}."
+            )
+        
+        return attribute_ds
 
 
     def add_datasets(self, datasets):
@@ -682,13 +758,13 @@ class ReplicabilityTest:
                 if response not in ['y', 'yes']:
                     print("Replicability test cancelled.")
                     return
-                
+
             # Non-interactive mode: auto-recompute warning
             else:
                 data_general.warn_always(
                     "Non-interactive mode detected. Existing results will be overwritten automatically."
                 )
-            
+
             print("Recomputing replicability test...")
 
         # Prepare observational data for the test
@@ -720,8 +796,13 @@ class ReplicabilityTest:
         eff_sizes.attrs["end_year"] = end_year
         self.effect_sizes[datasets_key] = eff_sizes
 
-        # Apply statistical tests to the scores and store the results in the object attribute
-        test_results = self._apply_tests(scores, data_names, datasets_key)
+        # Apply statistical tests to the scores and store the results in the object attributes
+        p_values, test_results = self._apply_tests(scores, data_names, datasets_key)
+
+        p_values.attrs["start_year"] = start_year
+        p_values.attrs["end_year"] = end_year
+        self.p_values[datasets_key] = p_values
+
         test_results.attrs["start_year"] = start_year
         test_results.attrs["end_year"] = end_year
         self.test_results[datasets_key] = test_results
@@ -749,16 +830,46 @@ class ReplicabilityTest:
             Effect sizes for all variables, seasons, regions, and metrics.
         """
 
-        # Find effect sizes for the given datasets in the stored attributes
-        effect_sizes_ds = self._find_datasets_pair(self.effect_sizes, data_names, start_year, end_year)
-        if effect_sizes_ds is None:
-            raise ValueError(
-                f"Effect sizes between the selected datasets ('{data_names[0]}' and '{data_names[1]}') "
-                f"and year range ({start_year}-{end_year}) not found. Please, run the 'perform_rep_test' "
-                f"method with the selected datasets and years to compute the effect sizes."
-            )
+        effect_sizes_ds = self._get_datasets_pair(self.effect_sizes, data_names, start_year, end_year, 'effect sizes')
+        # if effect_sizes_ds is None:
+        #     raise ValueError(
+        #         f"Effect sizes between the selected datasets ('{data_names[0]}' and '{data_names[1]}') "
+        #         f"and year range ({start_year}-{end_year}) not found. Please, run the 'perform_rep_test' "
+        #         f"method with the selected datasets and years to compute the effect sizes."
+        #     )
 
         return effect_sizes_ds
+
+
+    def get_p_values(self, data_names, start_year=None, end_year=None):
+        """
+        Return precomputed p-values for the replicability test for the given
+        simulation ensembles.
+
+        Parameters
+        ----------
+        data_names : list[str]
+            List of names of two simulation ensembles to compare.
+        start_year : int
+            Start year for p-values.
+        end_year : int
+            End year for p-values.
+
+        Returns
+        -------
+        p_values_ds : xr.DataArray
+            Raw p-values for all variables, seasons, regions, metrics, and tests.
+        """
+
+        p_values_ds = self._get_datasets_pair(self.p_values, data_names, start_year, end_year, 'p-values')
+        # if p_values_ds is None:
+        #     raise ValueError(
+        #         f"p-values for the selected datasets ('{data_names[0]}' and '{data_names[1]}') and "
+        #         f"year range ({start_year}-{end_year}) not found. Please, run the 'perform_rep_test' "
+        #         f"method with the selected datasets and years to compute the p-values."
+        #     )
+
+        return p_values_ds
 
 
     def get_test_results(self, data_names, start_year=None, end_year=None):
@@ -770,9 +881,9 @@ class ReplicabilityTest:
         data_names : list[str]
             List of names of two simulation ensembles to compare.
         start_year : int
-            Start year for effect sizes.
+            Start year for test results.
         end_year : int
-            End year for effect sizes.
+            End year for test results.
 
         Returns
         -------
@@ -781,14 +892,13 @@ class ReplicabilityTest:
             regions, metrics, and tests.
         """
 
-        # Find test results for the given datasets in the stored attributes
-        test_results_ds = self._find_datasets_pair(self.test_results, data_names, start_year, end_year)
-        if test_results_ds is None:
-            raise ValueError(
-                f"Replicability test results between the selected datasets ('{data_names[0]}' and '{data_names[1]}') "
-                f"and year range ({start_year}-{end_year}) not found. Please, run the 'perform_rep_test' method "
-                f"with the selected datasets and years to compute the results."
-            )
+        test_results_ds = self._get_datasets_pair(self.test_results, data_names, start_year, end_year, 'test results')
+        # if test_results_ds is None:
+        #     raise ValueError(
+        #         f"Replicability test results between the selected datasets ('{data_names[0]}' and '{data_names[1]}') "
+        #         f"and year range ({start_year}-{end_year}) not found. Please, run the 'perform_rep_test' method "
+        #         f"with the selected datasets and years to compute the results."
+        #     )
 
         return test_results_ds
 
@@ -819,7 +929,7 @@ class ReplicabilityTest:
         output_path.mkdir(parents=True, exist_ok=True)
 
 
-        # Save data
+        # Save data (save p-values too?)
         data_names_file = "-".join([name.replace(" ", "_") for name in data_names])
         year_range_str = f"{eff_sizes.attrs['start_year']}-{eff_sizes.attrs['end_year']}"
 
@@ -869,7 +979,7 @@ class ReplicabilityTest:
 
         test_results_array = np.any(test_results_ds.values, axis=3)
         n_tests = test_results_array.shape[-1]
-        test_results_array_reshaped = test_results_array.reshape(n_vars, n_seasons *n_regions, n_tests)
+        test_results_array_reshaped = test_results_array.reshape(n_vars, n_seasons * n_regions, n_tests)
 
 
         # Generate matrix plot
