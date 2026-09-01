@@ -86,10 +86,7 @@ class DataDiagnostics:
         if (
             not isinstance(data_plot, list)
             or len(data_plot) == 0
-            or not all(
-                isinstance(ds, SimulationData) or isinstance(ds, ObservationData)
-                for ds in data_plot
-            )
+            or not all(isinstance(ds, (SimulationData, ObservationData)) for ds in data_plot)
         ):
             raise TypeError("'data_plot' must be a non-empty list of SimulationData instances.")
 
@@ -156,8 +153,10 @@ class DataDiagnostics:
         if not data_sim_1.time.equals(data_sim_2.time):
             raise ValueError(
                 f"Time coordinates of the two datasets do not match:\n"
-                f"  {data_plot[0].name} has time from {str(data_sim_1.time.min().values)[:19]} to {str(data_sim_1.time.max().values)[:19]}\n"
-                f"  {data_plot[1].name} has time from {str(data_sim_2.time.min().values)[:19]} to {str(data_sim_2.time.max().values)[:19]}"
+                f"  {data_plot[0].name} has time from {str(data_sim_1.time.min().values)[:19]} "
+                f"to {str(data_sim_1.time.max().values)[:19]}\n"
+                f"  {data_plot[1].name} has time from {str(data_sim_2.time.min().values)[:19]} "
+                f"to {str(data_sim_2.time.max().values)[:19]}"
             )
 
 
@@ -171,16 +170,18 @@ class DataDiagnostics:
 
         if data_sim_mean_1.shape != data_sim_mean_2.shape:
             raise ValueError(
-                f"Averaged data shapes of the two datasets do not match ({data_sim_mean_1.shape} vs {data_sim_mean_2.shape})."
+                "Averaged data shapes of the two datasets do not match "
+                f"({data_sim_mean_1.shape} vs {data_sim_mean_2.shape})."
             )
 
         data_diff = (data_sim_mean_1 - data_sim_mean_2).compute()
         if var_name in ["siconc", "sos", "tos"]:
-            data_diff = xr.where((np.isnan(data_diff)) | (data_diff == 0), 10**-6, data_diff)  
+            data_diff = xr.where((np.isnan(data_diff)) | (data_diff == 0), 10**-6, data_diff)
             # NOTE: values which are exactly 0 are painted in white, not with the corresponding colorbar color for 0
 
         print(
-            f"Computed absolute difference for variable '{var_name}' between '{data_plot[0].name}' and '{data_plot[1].name}'.",
+            f"Computed absolute difference for variable '{var_name}' between "
+            f"'{data_plot[0].name}' and '{data_plot[1].name}'.",
             flush=True,
         )
         return data_diff
@@ -231,8 +232,10 @@ class DataDiagnostics:
         if not data_sim_1.time.equals(data_sim_2.time):
             raise ValueError(
                 f"Time coordinates of the two datasets do not match:\n"
-                f"  {data_plot[0].name} has time from {str(data_sim_1.time.min().values)[:19]} to {str(data_sim_1.time.max().values)[:19]}\n"
-                f"  {data_plot[1].name} has time from {str(data_sim_2.time.min().values)[:19]} to {str(data_sim_2.time.max().values)[:19]}"
+                f"  {data_plot[0].name} has time from {str(data_sim_1.time.min().values)[:19]} "
+                f"to {str(data_sim_1.time.max().values)[:19]}\n"
+                f"  {data_plot[1].name} has time from {str(data_sim_2.time.min().values)[:19]} "
+                f"to {str(data_sim_2.time.max().values)[:19]}"
             )
 
 
@@ -241,7 +244,8 @@ class DataDiagnostics:
         data_sim_flat_2 = data_sim_2[var_name].mean("time").stack(ngrid=["lat", "lon"]).compute()
         if data_sim_flat_1.shape != data_sim_flat_2.shape:
             raise ValueError(
-                f"Averaged data shapes of the two datasets do not match ({data_sim_flat_1.shape} vs {data_sim_flat_2.shape})."
+                "Averaged data shapes of the two datasets do not match "
+                f"({data_sim_flat_1.shape} vs {data_sim_flat_2.shape})."
             )
 
         #  Compute effect sizes in parallel
@@ -274,7 +278,8 @@ class DataDiagnostics:
         )
 
         print(
-            f"Computed effect size for variable '{var_name}' between '{data_plot[0].name}' and '{data_plot[1].name}'.",
+            f"Computed effect size for variable '{var_name}' between "
+            f"'{data_plot[0].name}' and '{data_plot[1].name}'.",
             flush=True,
         )
         return data_effect_size
@@ -334,8 +339,10 @@ class DataDiagnostics:
         if not data_sim_1.time.equals(data_sim_2.time):
             raise ValueError(
                 f"Time coordinates of the two datasets do not match:\n"
-                f"  {data_plot[0].name} has time from {str(data_sim_1.time.min().values)[:19]} to {str(data_sim_1.time.max().values)[:19]}\n"
-                f"  {data_plot[1].name} has time from {str(data_sim_2.time.min().values)[:19]} to {str(data_sim_2.time.max().values)[:19]}"
+                f"  {data_plot[0].name} has time from {str(data_sim_1.time.min().values)[:19]} "
+                f"to {str(data_sim_1.time.max().values)[:19]}\n"
+                f"  {data_plot[1].name} has time from {str(data_sim_2.time.min().values)[:19]} "
+                f"to {str(data_sim_2.time.max().values)[:19]}"
             )
 
 
@@ -347,10 +354,11 @@ class DataDiagnostics:
 
         data_sim_flat_1 = data_sim_1[var_name].mean("time").data.compute().reshape((n_realizations,n_points))
         data_sim_flat_2 = data_sim_2[var_name].mean("time").data.compute().reshape((n_realizations,n_points))
-        
+
         if data_sim_flat_1.shape != data_sim_flat_2.shape:
             raise ValueError(
-                f"Averaged data shapes of the two datasets do not match ({data_sim_flat_1.shape} vs {data_sim_flat_2.shape})."
+                "Averaged data shapes of the two datasets do not match "
+                f"({data_sim_flat_1.shape} vs {data_sim_flat_2.shape})."
             )
         d1, d2 = (data_sim_flat_1, data_sim_flat_2)
 
@@ -366,7 +374,8 @@ class DataDiagnostics:
         significant_reshaped = significant.reshape((n_lats, n_lons))
 
         print(
-            f"Computed significant difference for variable '{var_name}' between '{data_plot[0].name}' and '{data_plot[1].name}'.",
+            f"Computed significant difference for variable '{var_name}' between "
+            f"'{data_plot[0].name}' and '{data_plot[1].name}'.",
             flush=True,
         )
         return significant_reshaped
@@ -414,8 +423,10 @@ class DataDiagnostics:
         if not data_sim.time.equals(data_obs.time):
             raise ValueError(
                 f"Time coordinates of the two datasets do not match:\n"
-                f"  {data_plot[0].name} has time from {str(data_sim.time.min().values)[:19]} to {str(data_sim.time.max().values)[:19]}\n"
-                f"  {data_plot[1].name} has time from {str(data_obs.time.min().values)[:19]} to {str(data_obs.time.max().values)[:19]}"
+                f"  {data_plot[0].name} has time from {str(data_sim.time.min().values)[:19]} "
+                f"to {str(data_sim.time.max().values)[:19]}\n"
+                f"  {data_plot[1].name} has time from {str(data_obs.time.min().values)[:19]} "
+                f"to {str(data_obs.time.max().values)[:19]}"
             )
 
 
@@ -426,7 +437,8 @@ class DataDiagnostics:
             data_sim_mean = data_sim_mean.mean(["realization"])
         if data_sim_mean.shape != data_obs_mean.shape:
             raise ValueError(
-                f"Averaged data shapes of the two datasets do not match ({data_sim_mean.shape} vs {data_obs_mean.shape})."
+                "Averaged data shapes of the two datasets do not match "
+                f"({data_sim_mean.shape} vs {data_obs_mean.shape})."
             )
 
         data_bias = (data_sim_mean - data_obs_mean).compute()
@@ -461,14 +473,15 @@ class DataDiagnostics:
                 self.datasets.append(dataset)
             else:
                 data_general.warn_always(
-                    f"\nDataset with name '{dataset.name}' already exists in the DataDiagnostics object. Skipping addition."
+                    f"\nDataset with name '{dataset.name}' already exists in the DataDiagnostics object. "
+                    "Skipping addition."
                 )
 
         return
-    
-    
-    def time_series_plot(self, var_name, data_names=None, output_path=None, obs=False, obs_paths=None, 
-                         obs_names=None, time_freq='annual', start_year=None, end_year=None, 
+
+
+    def time_series_plot(self, var_name, data_names=None, output_path=None, obs=False, obs_paths=None,
+                         obs_names=None, time_freq='annual', start_year=None, end_year=None,
                          plot_ens=False):
         """
         Generate time series plot for the given datasets and variable for the selected period
@@ -534,7 +547,8 @@ class DataDiagnostics:
         if obs:
             if obs_paths is None or obs_names is None:
                 raise NotImplementedError(
-                    "Automatic selection of observations is not implemented yet. Please provide at least one path and one name for the observations database."
+                    "Automatic selection of observations is not implemented yet. "
+                    "Please provide at least one path and one name for the observations database."
                 )
 
             if isinstance(obs_paths, str):
@@ -546,7 +560,7 @@ class DataDiagnostics:
                 raise TypeError("'obs_paths' must be a string if 'obs_names' is a string.")
             if len(obs_paths) != len(obs_names):
                 raise ValueError("'obs_paths' and 'obs_names' must have the same length.")
-            
+
 
         # Validate year range
         for dataset in data_plot:
@@ -557,7 +571,7 @@ class DataDiagnostics:
         # Filter simulation data to the selected year range
         data_plot_filtered = copy.deepcopy(data_plot)
         for i, dataset in enumerate(data_plot):
-             data_plot_filtered[i].data = dataset.data.sel(time=slice(str(start_year), str(end_year)))
+            data_plot_filtered[i].data = dataset.data.sel(time=slice(str(start_year), str(end_year)))
 
         # Load observations for the selected year range if requested
         if obs:
@@ -607,8 +621,8 @@ class DataDiagnostics:
         return
 
 
-    def abs_diff_plot(self, var_name, data_names=None, output_path=None, start_year=None, end_year=None, 
-                      clon=0):
+    def abs_diff_plot(self, var_name, data_names=None, output_path=None, start_year=None, end_year=None,
+                      clon=0, cbar_limit=None):
         """
         Generate absolute difference plot for the given datasets and variable.
 
@@ -627,6 +641,9 @@ class DataDiagnostics:
             End year to plot.
         clon : int
             Central longitude for the spatial map (default: 0).
+        cbar_limit : float, optional
+            Limit for the colorbar in the spatial plot. If None, it is taken as the
+            maximum absolute value in the plot.
         """
 
         # Validate inputs
@@ -645,8 +662,10 @@ class DataDiagnostics:
             existing_names = [ds.name for ds in self.datasets]
             missing_names = [name for name in data_names if name not in existing_names]
             if missing_names:
-                raise ValueError(f"The following dataset names were not found in the DataDiagnostics object: {missing_names}.")
-            
+                raise ValueError(
+                    f"The following dataset names were not found in the DataDiagnostics object: {missing_names}."
+                )
+
             data_plot = [next(ds for ds in self.datasets if ds.name == name) for name in data_names]
         else:
             raise TypeError(
@@ -667,18 +686,23 @@ class DataDiagnostics:
             )
         data_plot_filtered = copy.deepcopy(data_plot)
         for i, dataset in enumerate(data_plot):
-             data_plot_filtered[i].data = dataset.data.sel(time=slice(str(start_year), str(end_year)))
+            data_plot_filtered[i].data = dataset.data.sel(time=slice(str(start_year), str(end_year)))
 
         # Compute and plot absolute difference
         abs_diff = self._compute_abs_diff(var_name, data_plot_filtered)
-        limit = np.max(np.abs(abs_diff.values))
-        levels = np.linspace(-limit, limit, 13)
+        if cbar_limit is None:
+            cbar_limit = np.max(np.abs(abs_diff.values))
+        levels = np.linspace(-cbar_limit, cbar_limit, 13)
         year_range = f"{start_year}-{end_year}"
+        title_plot = (
+            f"Difference in {self.variables[var_name]['long_name']} "
+            f"for {year_range} ({data_names[0]} - {data_names[1]})"
+        )
 
         abs_diff_plot, _ = plots_general.plot_spatial(
             abs_diff,
             clon=clon,
-            title=f"Difference in {self.variables[var_name]['long_name']} for {year_range} ({data_names[0]} - {data_names[1]})",
+            title=title_plot,
             cb_label=f"difference in {var_name} ({self.variables[var_name]['units']})",
             cmap=cmocean.cm.thermal,
             levels=levels,
@@ -769,7 +793,7 @@ class DataDiagnostics:
             )
         data_plot_filtered = copy.deepcopy(data_plot)
         for i, dataset in enumerate(data_plot):
-             data_plot_filtered[i].data = dataset.data.sel(time=slice(str(start_year), str(end_year)))
+            data_plot_filtered[i].data = dataset.data.sel(time=slice(str(start_year), str(end_year)))
 
 
         # Compute and plot effect size with significant differences
@@ -777,11 +801,15 @@ class DataDiagnostics:
         significant = self._compute_significant_diff(var_name, data_plot_filtered, alpha, stat)
         levels = [-2,-1.2,-0.8,-0.5,-0.2,-0.01,0.01,0.2,0.5,0.8,1.2,2.0]    # Use Cohen's limits for effect size
         year_range = f"{start_year}-{end_year}"
+        title_plot = (
+            f"Effect size ($d$) for {self.variables[var_name]['long_name']} "
+            f"for {year_range} ({data_names[0]} - {data_names[1]})"
+        )
 
         eff_size_plot, _ = plots_general.plot_spatial(
             eff_size,
             clon=clon,
-            title=f"Effect size ($d$) for {self.variables[var_name]['long_name']} for {year_range} ({data_names[0]} - {data_names[1]})",
+            title=title_plot,
             cb_label=f"$d$ for {var_name} (-)",
             cmap=cmocean.cm.diff,
             levels=levels,
@@ -800,8 +828,8 @@ class DataDiagnostics:
         return
 
 
-    def bias_plot(self, var_name, data_name=None, output_path=None, obs_path=None, obs_name=None, 
-                  start_year=None, end_year=None, clon=0):
+    def bias_plot(self, var_name, data_name=None, output_path=None, obs_path=None, obs_name=None,
+                  start_year=None, end_year=None, clon=0, cbar_limit=None):
         """
         Generate bias plot for the given dataset and variable comparing with observations.
 
@@ -824,6 +852,9 @@ class DataDiagnostics:
             End year to plot.
         clon : int
             Central longitude for the spatial map (default: 0).
+        cbar_limit : float, optional
+            Limit for the colorbar in the spatial plot. If None, it is taken as the
+            maximum absolute value in the plot.
         """
 
         # Validate inputs
@@ -860,9 +891,10 @@ class DataDiagnostics:
             )
         elif not isinstance(obs_path, str) or not isinstance(obs_name, str):
             raise TypeError(
-                "'obs_path' and 'obs_name' must be strings representing the observations database path and name, respectively."
+                "'obs_path' and 'obs_name' must be strings representing the observations "
+                "database path and name, respectively."
             )
-            
+
 
         # Validate year range
         for dataset in data_plot:
@@ -881,16 +913,20 @@ class DataDiagnostics:
 
         # Compute and plot bias
         bias = self._compute_bias(var_name, data_plot_filtered)
-        limit = np.max(np.abs(bias.values))
-        levels = np.linspace(-limit, limit, 13)
+        if cbar_limit is None:
+            cbar_limit = np.max(np.abs(bias.values))
+        levels = np.linspace(-cbar_limit, cbar_limit, 13)
         colors = ("RedGreen", ["tab:red", "white", "tab:green"])
         cmap = LinearSegmentedColormap.from_list(*colors)
         year_range = f"{start_year}-{end_year}"
+        title_plot = (
+            f"Bias in {self.variables[var_name]['long_name']} for {year_range} ({data_names[0]} - {data_names[1]})"
+        )
 
         bias_plot, _ = plots_general.plot_spatial(
             bias,
             clon=clon,
-            title=f"Bias in {self.variables[var_name]['long_name']} for {year_range} ({data_names[0]} - {data_names[1]})",
+            title=title_plot,
             cb_label=f"bias in {var_name} ({self.variables[var_name]['units']})",
             cmap=cmap,
             levels=levels,
@@ -906,97 +942,3 @@ class DataDiagnostics:
         )
 
         return
-
-    
-    # Unused, this method has been divided into two separate methods above (kept for reference)
-    # def spatial_plots(self, var_name, data_names=None, output_path=None, clon=0, alpha=0.05, stat=ttest_ind):
-    #     """
-    #     Generate absolute difference and effect size plots for the given datasets and variable.
-
-    #     Parameters
-    #     ----------
-    #     var_name : str
-    #         Climate variable name.
-    #     data_names : list[str], optional
-    #         List of names of two simulation ensembles to compare. If None, the first two datasets
-    #         in the diagnostics object are used.
-    #     output_path : str, optional
-    #         Path to save the spatial plots.
-    #     clon : int
-    #         Central longitude for the spatial maps.
-    #     alpha : float
-    #         Significance level for the statistical test (default: 0.05).
-    #     stat : Callable
-    #         Statistical test function to use for significance testing (default: ttest_ind).
-    #     """
-
-    #     # Validate inputs
-    #     if data_names is None:
-    #         if len(self.datasets) < 2:
-    #             raise ValueError("At least two datasets are required for spatial plots. Please add more datasets.")
-    #         data_plot = [self.datasets[0], self.datasets[1]]
-    #         data_names = [ds.name for ds in data_plot]
-    #     elif isinstance(data_names, list) and len(data_names) == 2 \
-    #         and all(isinstance(name, str) for name in data_names):
-    #         existing_names = [ds.name for ds in self.datasets]
-    #         missing_names = [name for name in data_names if name not in existing_names]
-    #         if missing_names:
-    #             raise ValueError(f"The following dataset names were not found in the DataDiagnostics object: {missing_names}.")
-
-    #         data_plot = [next(ds for ds in self.datasets if ds.name == name) for name in data_names]
-    #     else:
-    #         raise TypeError("'data_names' must be a list of two strings representing dataset names.")
-
-    #     for dataset in data_plot:
-    #         if var_name not in dataset.data.data_vars:
-    #             raise ValueError(f"Variable '{var_name}' not found in the simulated dataset {dataset.name}. "
-    #                              f"Available variables: {list(dataset.data.data_vars.keys())}")
-    #         if 'realization' not in dataset.data.coords:
-    #             raise ValueError(f"Dataset '{dataset.name}' must contain a 'realization' coordinate for ensemble computations.")
-    #     if not isinstance(alpha, (int, float)) or not (0 <= alpha <= 1):
-    #         raise TypeError(f"The significance level 'alpha' must be a numeric value between 0 and 1.")
-    #     if not callable(stat):
-    #         raise TypeError(f"'stat' must be callable.")
-
-    #     # Prepare output path if given
-    #     if output_path is not None:
-    #         output_path = Path(output_path)
-    #         if output_path.suffix != '':
-    #             raise ValueError("Output path must be a directory, not a file path, as two output files will be created.")
-
-    #         output_path.mkdir(parents=True, exist_ok=True)
-    #         data_names_str = "_".join([name.replace(' ', '-') for name in data_names])
-    #         abs_diff_path = output_path / f"abs_diff_{var_name}_{data_names_str}.png"
-    #         eff_size_path = output_path / f"eff_size_{var_name}_{data_names_str}.png"
-
-    #     # Compute and plot absolute difference
-    #     abs_diff = self._compute_abs_diff(var_name, data_plot)
-    #     limit = np.max(np.abs(abs_diff.values))
-    #     levels = np.linspace(-limit, limit, 13)
-
-    #     abs_diff_plot, _ = plot.plot_spatial(abs_diff, title=f"Difference in {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
-    #                                       cb_label=f"difference in {var_name} ({self.variables[var_name]['units']})", cmap=cmocean.cm.thermal, levels=levels)
-
-    #     if output_path is None:
-    #         plt.show()
-    #         print("Absolute difference plot created and displayed.\n", flush=True)
-    #     else:
-    #         abs_diff_plot.savefig(abs_diff_path, bbox_inches='tight', dpi=150)
-    #         print(f"Absolute difference plot created and saved to '{abs_diff_path}'.\n", flush=True)
-
-    #     # Compute and plot effect size with significant differences
-    #     eff_size = self._compute_eff_size_ens(var_name, data_plot)
-    #     significant = self._compute_significant_diff(var_name, data_plot, alpha, stat)
-    #     levels = [-2,-1.2,-0.8,-0.5,-0.2,-0.01,0.01,0.2,0.5,0.8,1.2,2.0]    # Use Cohen's limits for effect size
-
-    #     eff_size_plot, _ = plots_general.plot_spatial(eff_size, clon=clon, title=f"Cohen's effect size ($d$) for {self.variables[var_name]['long_name']} ({data_plot[0].name} - {data_plot[1].name})",
-    #                                       cb_label=f"$d$ for {var_name} (-)", cmap=cmocean.cm.diff, levels=levels, significant=significant)
-
-    #     if output_path is None:
-    #         plt.show()
-    #         print("Effect size plot created and displayed.", flush=True)
-    #     else:
-    #         eff_size_plot.savefig(eff_size_path, bbox_inches='tight', dpi=150)
-    #         print(f"Effect size plot created and saved to '{eff_size_path}'.\n", flush=True)
-
-    #     return

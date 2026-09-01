@@ -362,7 +362,8 @@ def plot_spatial( data, clon=0, title="Spatial plot", cb_label="", cmap=cmocean.
             "The central longitude 'clon' must be a numeric value between 0º and 360º."
         )
 
-    # Correct 0 and NaN values (values which are exactly 0 are painted in white, not with the corresponding colorbar color for 0)
+    # Correct 0 and NaN values (values which are exactly 0 are painted in white,
+    # not with the corresponding colorbar color for 0)
     var_name = data.name
     if var_name in {"siconc", "sos", "tos"}:
         data = xr.where((np.isnan(data)) | (data == 0), 10**-10, data)
@@ -381,10 +382,14 @@ def plot_spatial( data, clon=0, title="Spatial plot", cb_label="", cmap=cmocean.
     )
 
     if var_name != "siconc":
+        # Scale height to the latitude range covered by the data
+        lat_range = float(data.lat.max()) - float(data.lat.min())
+        fig_height = 4 + 7 * (lat_range / 180)
+
         # Create figure
         fig, ax = plt.subplots(
             1,
-            figsize=(20, 10),
+            figsize=(20, fig_height),
             dpi=150,
             subplot_kw={"projection": ccrs.Robinson(central_longitude=clon), "aspect": "auto"},
             gridspec_kw={"wspace": 0.01, "hspace": 0.02},
@@ -437,6 +442,7 @@ def plot_spatial( data, clon=0, title="Spatial plot", cb_label="", cmap=cmocean.
 
         # Add colorbar if cb_label is given
         if cb_label:
+            fig.subplots_adjust(bottom=(0.1+(1.5/fig_height)))
             _ = add_colorbar(
                 fig=fig,
                 mappable=cb,
@@ -676,37 +682,6 @@ def two_spatial_plots(data_1, data_2, clon=0, title_1="Spatial plot 1", title_2=
             "The central longitude 'clon' must be a numeric value between 0º and 360º."
         )
 
-    # Tried reusing spatial_plot function but not working
-    # # Create separate spatial plots
-    # fig_1, ax_1 = spatial_plot(data_1, clon=clon, title=title_1, cb_label=False, cmap=cmap, levels=levels, significant=significant_1,
-    #                            vmin=vmin, vmax=vmax, show_contours=show_contours, contour_fontsize=contour_fontsize, gridlines=gridlines, **plot_kwargs)
-    # fig_2, ax_2 = spatial_plot(data_2, clon=clon, title=title_2, cb_label=False, cmap=cmap, levels=levels, significant=significant_2,
-    #                            vmin=vmin, vmax=vmax, show_contours=show_contours, contour_fontsize=contour_fontsize, gridlines=gridlines, **plot_kwargs)
-
-    # # Combine both plots into a single figure
-    # old_figs = [fig_1, fig_2]
-    # old_axs = [ax_1, ax_2]
-    # for fig, ax in zip(old_figs, old_axs):
-    #     fig.delaxes(ax)
-    #     plt.close(fig)
-
-    # new_fig = plt.figure(figsize=(12, 5))
-    # axs = new_fig.axes
-    # for i, ax in enumerate(old_axs):
-    #     ax.set_figure(new_fig)
-    #     new_fig.add_axes(ax)
-    #     ax.change_geometry(1, 2, i+1)
-
-    # new_fig.suptitle(suptitle, fontsize=14)
-
-    # # Add common colorbar if cb_label is given
-    # if cb_label:
-    #     mappable = old_axs[0].collections[0]
-    #     cbar = new_fig.colorbar(mappable, ax=axs, orientation='horizontal', pad=0.17)
-    #     cbar.ax.tick_params(labelsize=8)
-    #     cbar.set_label(cb_label, fontsize=9)
-
-
     # Calculate common vmin and vmax if not provided
     if vmin is None or vmax is None:
         combined_min = min(float(data_1.min()), float(data_2.min()))
@@ -727,7 +702,8 @@ def two_spatial_plots(data_1, data_2, clon=0, title_1="Spatial plot 1", title_2=
     )  # , gridspec_kw = {'wspace':0.01, 'hspace':0.02})
 
     # Add first plot
-    # Correct 0 and NaN values (values which are exactly 0 are painted in white, not with the corresponding colorbar color for 0)
+    # Correct 0 and NaN values (values which are exactly 0 are painted in white,
+    # not with the corresponding colorbar color for 0)
     var_name = data_1.name
     if var_name in {"siconc", "sos", "tos"}:
         data_1 = xr.where((np.isnan(data_1)) | (data_1 == 0), 10**-10, data_1)
@@ -805,7 +781,8 @@ def two_spatial_plots(data_1, data_2, clon=0, title_1="Spatial plot 1", title_2=
 
 
     # Add second plot
-    # Correct 0 and NaN values (values which are exactly 0 are painted in white, not with the corresponding colorbar color for 0)
+    # Correct 0 and NaN values (values which are exactly 0 are painted in white,
+    # not with the corresponding colorbar color for 0)
     var_name = data_2.name
     if var_name in {"siconc", "sos", "tos"}:
         data_2 = xr.where((np.isnan(data_2)) | (data_2 == 0), 10**-10, data_2)

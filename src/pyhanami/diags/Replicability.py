@@ -535,7 +535,6 @@ class ReplicabilityTest:
     def _create_datasets_key(self, data_name_1, data_name_2, start_year, end_year):
         """ Create key for a pair of datasets together with the year range. """
 
-        # return f"{data_name_1} - {data_name_2} ({start_year}-{end_year})"
         return (*sorted((data_name_1, data_name_2)), start_year, end_year)
 
 
@@ -577,9 +576,6 @@ class ReplicabilityTest:
 
             # Match any date range
             for key, value in data.items():
-                # if (key.startswith(f"{data_names[0]} - {data_names[1]}")
-                #     or key.startswith(f"{data_names[1]} - {data_names[0]}")):
-                #     found_data = data[key]
                 if key[:2] == (data_name_1, data_name_2):
                     # Match specified start year
                     if start_year is not None and key[2] != start_year:
@@ -630,7 +626,7 @@ class ReplicabilityTest:
                 f"and year range ({start_year}-{end_year}) not found. Please, run the 'perform_rep_test' "
                 f"method with the selected datasets and years to compute the {attribute}."
             )
-        
+
         return attribute_ds
 
 
@@ -831,13 +827,6 @@ class ReplicabilityTest:
         """
 
         effect_sizes_ds = self._get_datasets_pair(self.effect_sizes, data_names, start_year, end_year, 'effect sizes')
-        # if effect_sizes_ds is None:
-        #     raise ValueError(
-        #         f"Effect sizes between the selected datasets ('{data_names[0]}' and '{data_names[1]}') "
-        #         f"and year range ({start_year}-{end_year}) not found. Please, run the 'perform_rep_test' "
-        #         f"method with the selected datasets and years to compute the effect sizes."
-        #     )
-
         return effect_sizes_ds
 
 
@@ -862,13 +851,6 @@ class ReplicabilityTest:
         """
 
         p_values_ds = self._get_datasets_pair(self.p_values, data_names, start_year, end_year, 'p-values')
-        # if p_values_ds is None:
-        #     raise ValueError(
-        #         f"p-values for the selected datasets ('{data_names[0]}' and '{data_names[1]}') and "
-        #         f"year range ({start_year}-{end_year}) not found. Please, run the 'perform_rep_test' "
-        #         f"method with the selected datasets and years to compute the p-values."
-        #     )
-
         return p_values_ds
 
 
@@ -893,13 +875,6 @@ class ReplicabilityTest:
         """
 
         test_results_ds = self._get_datasets_pair(self.test_results, data_names, start_year, end_year, 'test results')
-        # if test_results_ds is None:
-        #     raise ValueError(
-        #         f"Replicability test results between the selected datasets ('{data_names[0]}' and '{data_names[1]}') "
-        #         f"and year range ({start_year}-{end_year}) not found. Please, run the 'perform_rep_test' method "
-        #         f"with the selected datasets and years to compute the results."
-        #     )
-
         return test_results_ds
 
 
