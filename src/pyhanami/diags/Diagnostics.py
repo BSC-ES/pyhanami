@@ -704,7 +704,7 @@ class DataDiagnostics:
             clon=clon,
             title=title_plot,
             cb_label=f"difference in {var_name} ({self.variables[var_name]['units']})",
-            cmap=cmocean.cm.thermal,
+            cmap=cmocean.cm.thermal_r,
             levels=levels,
         )
 
@@ -916,7 +916,7 @@ class DataDiagnostics:
         if cbar_limit is None:
             cbar_limit = np.max(np.abs(bias.values))
         levels = np.linspace(-cbar_limit, cbar_limit, 13)
-        colors = ("RedGreen", ["tab:red", "white", "tab:green"])
+        colors = ("OrangeBlue", ["#E66101", "white", "#0072B2"])
         cmap = LinearSegmentedColormap.from_list(*colors)
         year_range = f"{start_year}-{end_year}"
         title_plot = (

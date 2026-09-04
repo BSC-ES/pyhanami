@@ -598,7 +598,7 @@ class ISOEvaluation:
             title=f"BSISO convective pattern '{name}' (JJASO {year_range})",
             cb_label=f"scaled EEOF ({VARIABLES[var_name]['units']})",
             cmap=LinearSegmentedColormap.from_list(
-                "GreenOrange", ["tab:green", "white", "tab:orange"]
+                "OrangePurple", ["#E66101", "white", "#7B3294"]
             ),
         )
 
@@ -616,7 +616,7 @@ class ISOEvaluation:
             clon=clon,
             title=f"MJO convective pattern '{name}' (DJFMA {year_range})",
             cb_label=f"scaled EEOF ({VARIABLES[var_name]['units']})",
-            cmap=LinearSegmentedColormap.from_list("BlueRed", ["tab:blue", "white", "tab:red"]),
+            cmap=LinearSegmentedColormap.from_list("RedBlue", ["#B2182B", "white", "#0072B2"]),
         )
 
         plots_general.save_or_show_plot(

@@ -236,7 +236,7 @@ def plot_spatial(data, data_name, year_range, bin_size, output_path=None, clon=0
             clon=clon,
             title=bias_title,
             cb_label=f"bias in {metric_name}",
-            cmap=LinearSegmentedColormap.from_list("RedGreen", ["tab:red", "white", "tab:green"],),
+            cmap=LinearSegmentedColormap.from_list("RedBlue", ["#B2182B", "white", "#0072B2"],),
             levels=levels,
         )
 

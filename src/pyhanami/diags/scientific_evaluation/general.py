@@ -403,7 +403,7 @@ class GeneralEvaluation:
         return
 
 
-    def scores_table(self, var_names=None, output_path=None, reference=True):
+    def scores_table(self, var_names=None, output_path=None, reference=True, score_type="relative"):
         """
         Generate and save/display table plot with general scalar scores for the given variable(s).
 
@@ -415,6 +415,8 @@ class GeneralEvaluation:
             Path to save the table plot. If None, the table is displayed but not saved.
         reference : bool
             Whether to display reference values in the first row (not colored) (default: True).
+        score_type : str
+            Whether to plot the relative or absolute scores (default: "relative").
         """
 
         # Validate input
@@ -443,6 +445,7 @@ class GeneralEvaluation:
             ensemble=self.ensemble,
             output_path=output_path,
             reference=reference,
+            score_type=score_type,
         )
 
         return

@@ -67,7 +67,7 @@ def evaluation_symmetric_colorbar_limits(data, start_row=1):
 
 
 def general_evaluation_scores_table(data, data_names, year_range, var_names=None, ensemble=False,
-                                    output_path=None, reference=True):
+                                    output_path=None, reference=True, score_type="relative"):
     """
     Generate and save/display table plot with general scalar scores for the given dataset(s) 
     and variable(s).
@@ -88,6 +88,8 @@ def general_evaluation_scores_table(data, data_names, year_range, var_names=None
         Path to save the table plot. If None, the table is displayed but not saved.
     reference : bool
         Whether to display reference values in the first row (not colored) (default: True).
+    score_type : str
+        Whether to plot the relative or absolute scores (default: "relative").
     """
 
     # Prepare plotting parameters
@@ -95,43 +97,65 @@ def general_evaluation_scores_table(data, data_names, year_range, var_names=None
     if reference:
         data_ref = np.array([1, 1, 1])
 
-    cbar_ticks = ["Worst performance (0)", " ", "Best performance (1)"]
-    colors = ("RedGreen", ["tab:red", "white", "tab:green"])
-
+    # colors = ("RedGreen", ["tab:red", "white", "tab:green"]) # Changed to colorblind friendly colors
+    # Alternatives: Orange: "#E69F00", "#D55E00", Blue: "#56B4E9", "#2166AC"
+    colors = ("OrangeBlue", ["#E66101", "white", "#0072B2"])
 
     # Plot each variable separately
     for var_name in var_names:
         var_name_title = VARIABLES[var_name]["long_name"]
-        if ensemble:
-            # cols = [
-            #   ' ',
-            #   r'$\overline{\text{BIAS}}$',
-            #   r'$\overline{\text{eBIAS}}$',
-            #   r'$\overline{\text{RMSE}}$',
-            #   r'$\overline{\text{eRMSE}}$',
-            #   r'$\overline{r}_{xy}$'
-            # ]
-            cols = [
-                " ",
-                r"$\overline{\text{eBIAS}}$",
-                r"$\overline{\text{eRMSE}}$",
-                r"$\overline{r}_{xy}$",
-            ]
-            title = f"Scalar scores for {var_name_title} (ensemble mean) ({year_range})"
-        else:
-            # cols = [' ', 'BIAS', 'eBIAS', 'RMSE', 'eRMSE', r'$r_{xy}$']
-            cols = [" ", "eBIAS", "eRMSE", r"$r_{xy}$"]
-            title = f"Scalar scores for {var_name_title} ({year_range})"
-        limits = np.repeat([[0, 1]], len(cols) - 1, axis=0)
+        if score_type == "absolute":
+            raise NotImplementedError("Absolute score plotting is not implemented yet.")
+            # cbar_ticks = ["Worst performance", " ", "Best performance"]
 
-        # Prepare plot data
-        data_sim = [
-            dataset[["bias_rel", "rmse_rel", "pcorr"]]
-            .sel(variable=var_name)
-            .to_array()
-            .values
-            for dataset in data
-        ]
+            # if ensemble:
+            #     cols = [
+            #         " ",
+            #         r"$\overline{\text{BIAS}}$",
+            #         r"$\overline{\text{RMSE}}$",
+            #         r"$\overline{r}_{xy}$",
+            #     ]
+            #     title = f"Absolute scalar scores for {var_name_title} (ensemble mean) ({year_range})"
+            # else:
+            #     cols = [" ", "BIAS", "RMSE"]
+            #     title = f"Absolute scalar scores for {var_name_title} ({year_range})"
+            # limits = np.repeat([[0, 1]], len(cols) - 1, axis=0)
+
+            # # Prepare plot data
+            # data_sim = [
+            #     dataset[["bias_abs", "rmse_abs", "pcorr"]]
+            #     .sel(variable=var_name)
+            #     .to_array()
+            #     .values
+            #     for dataset in data
+            # ]
+        elif score_type == "relative":
+            cbar_ticks = ["Worst performance (0)", " ", "Best performance (1)"]
+
+            if ensemble:
+                cols = [
+                    " ",
+                    r"$\overline{\text{eBIAS}}$",
+                    r"$\overline{\text{eRMSE}}$",
+                    r"$\overline{r}_{xy}$",
+                ]
+                title = f"Relative scalar scores for {var_name_title} (ensemble mean) ({year_range})"
+            else:
+                cols = [" ", "eBIAS", "eRMSE", r"$r_{xy}$"]
+                title = f"Relative scalar scores for {var_name_title} ({year_range})"
+            limits = np.repeat([[0, 1]], len(cols) - 1, axis=0)
+
+            # Prepare plot data
+            data_sim = [
+                dataset[["bias_rel", "rmse_rel", "pcorr"]]
+                .sel(variable=var_name)
+                .to_array()
+                .values
+                for dataset in data
+            ]
+
+        else:
+            raise ValueError(f"Invalid score_type '{score_type}'. Must be 'absolute' or 'relative'.")
 
         # Ensure that all arrays have the same shape
         data_plot = np.stack([data_ref, *data_sim]) if reference else np.stack(data_sim)
@@ -194,7 +218,9 @@ def iso_evaluation_scores_table(data, data_names, year_range, correct_pc=False, 
         r"$\text{TSS}$",
     ]  # Same number of characters needed to get same column width
     cbar_ticks = ["Worst performance", " ", "Best performance"]
-    colors = ("RedGreen", ["tab:red", "white", "tab:green"])
+    # colors = ("RedGreen", ["tab:red", "white", "tab:green"]) # Changed to colorblind friendly colors
+    # Alternatives: Orange: "#E69F00", "#D55E00", Blue: "#56B4E9", "#2166AC"
+    colors = ("OrangeBlue", ["#E66101", "white", "#0072B2"])
 
     plot_title = f"ISO scalar scores ({year_range})"
     if correct_pc:
@@ -422,11 +448,15 @@ def mjo_evaluation_scores_table(data, data_names, year_range, method_name, data_
 
     if method_name == "ceof_corr_table":
         cbar_ticks = ["Negative correlation (-1)", "No correlation (0)", "Positive correlation (1)"]
-        cbar_colors = ("RedGreen", ["tab:red", "white", "tab:green"])
+        # cbar_colors = ("RedGreen", ["tab:red", "white", "tab:green"]) # Changed to colorblind friendly colors
+        # Alternatives: Orange: "#E69F00", "#D55E00", Blue: "#56B4E9", "#2166AC"
+        cbar_colors = ("OrangeBlue", ["#E66101", "white", "#0072B2"])
         cbar_limits = np.repeat([[-1, 1]], len(col_names) - 1, axis=0)
     else:
         cbar_ticks = ["Negative bias", "No bias", "Positive bias"]
-        cbar_colors = ("RedGreen", ["tab:red", "white", "tab:green"])  # ("BlueRed", ['tab:blue', 'white', 'tab:red'])
+        # cbar_colors = ("RedGreen", ["tab:red", "white", "tab:green"]) # Changed to colorblind friendly colors
+        # Alternatives: Orange: "#E69F00", "#D55E00", Blue: "#56B4E9", "#2166AC"
+        cbar_colors = ("OrangeBlue", ["#E66101", "white", "#0072B2"])
         cbar_limits = evaluation_symmetric_colorbar_limits(data_plot, start_row=1 if reference else 0)
 
     decimals = 0 if method_name == "active_days_bias_table" else 2
@@ -498,7 +528,9 @@ def mjo_evaluation_scores_two_tables(data_1, data_2, data_names, year_range, out
     plot_name = "Bias in climatological MJO activity per phase table plot"
 
     cbar_ticks = ["Negative bias", "No bias", "Positive bias"]
-    cbar_colors = ("RedGreen", ["tab:red", "white", "tab:green"])  # ("BlueRed", ['tab:blue', 'white', 'tab:red'])
+    # cbar_colors = ("RedGreen", ["tab:red", "white", "tab:green"]) # Changed to colorblind friendly colors
+    # Alternatives: Orange: "#E69F00", "#D55E00", Blue: "#56B4E9", "#2166AC"
+    cbar_colors = ("OrangeBlue", ["#E66101", "white", "#0072B2"])
 
     limits_1 = evaluation_symmetric_colorbar_limits(data_plot_1, start_row=1 if reference else 0)
     limits_2 = evaluation_symmetric_colorbar_limits(data_plot_2, start_row=1 if reference else 0)
@@ -621,8 +653,9 @@ def tc_evaluation_bias_scores_table(data, data_names, year_range, bias_type, bin
 
     # Prepare colorbar parameters
     cbar_ticks_bias = ["Negative bias", "No bias", "Positive bias"]
-    colors_bias = ("RedGreen", ["tab:red", "white", "tab:green"],)
-    # Alternative: ("BlueRed", ['tab:blue', 'white', 'tab:red'])
+    # colors_bias = ("RedGreen", ["tab:red", "white", "tab:green"],)# Changed to colorblind friendly colors
+    # Alternatives: Orange: "#E69F00", "#D55E00", Blue: "#56B4E9", "#2166AC"
+    colors_bias = ("OrangeBlue", ["#E66101", "white", "#0072B2"])
 
     limits_bias = evaluation_symmetric_colorbar_limits(data_plot, start_row=1 if reference else 0)
 
@@ -705,8 +738,9 @@ def tc_evaluation_correlation_scores_table(data, data_names, year_range, correla
 
     # Prepare colorbar parameters
     cbar_ticks_corr = ['Negative correlation (-1)', 'No correlation (0)', 'Positive correlation (1)']
-    colors_corr = ("RedGreen", ['tab:red', 'white', 'tab:green'])
-    # Alternative: ("OrangeGreen", ['tab:orange', 'white', 'tab:green'])
+    # colors_corr = ("RedGreen", ['tab:red', 'white', 'tab:green']) # Changed to colorblind friendly colors
+    # Alternatives: Orange: "#E69F00", "#D55E00", Blue: "#56B4E9", "#2166AC"
+    colors_corr = ("OrangeBlue", ["#E66101", "white", "#0072B2"])
     limits_corr = np.repeat([[-1, 1]], len(cols_corr) - 1, axis=0)
 
 

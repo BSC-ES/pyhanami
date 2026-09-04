@@ -191,8 +191,8 @@ def plot_pcs(pcs, title="Bimodal ISO indices", normalized=True):
     # Create plot
     fig, axs = plt.subplots(3, 1, figsize=(12, 8), sharex=True, dpi=150)
     plot_colors = [
-        ["tab:blue", "tab:red", "tab:brown", "tab:pink"],
-        ["tab:orange", "tab:green", " tab:purple", "tab:gray"],
+        ["#0072B2", "#B2182B", "tab:brown", "tab:pink"],
+        ["#E66101", "#7B3294", "tab:green", "tab:gray"],
     ]
     labels = ["MJO", "BSISO"]
 
@@ -300,7 +300,7 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
         ax.bar(
             x,
             freq_ISO_sim["freq_MJO"],
-            color="tab:blue",
+            color="#0072B2",
             label=f"MJO {sim_label}",
             align="center",
             zorder=2,
@@ -308,20 +308,20 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
         ax.bar(
             x,
             -freq_ISO_sim["freq_BSISO"],
-            color="tab:orange",
+            color="#E66101",
             label=f"BSISO {sim_label}",
             align="center",
             zorder=2,
         )
 
         # MJO legend (upper right)
-        mjo_handles = [plt.Rectangle((0, 0), 1, 1, color="tab:blue", label=f"MJO {sim_label}")]
+        mjo_handles = [plt.Rectangle((0, 0), 1, 1, color="#0072B2", label=f"MJO {sim_label}")]
         legend_mjo = ax.legend(handles=mjo_handles, loc="upper right", fontsize=8)
         ax.add_artist(legend_mjo)
 
         # BSISO legend (lower right)
         bsiso_handles = [
-            plt.Rectangle((0, 0), 1, 1, color="tab:orange", label=f"BSISO {sim_label}")
+            plt.Rectangle((0, 0), 1, 1, color="#E66101", label=f"BSISO {sim_label}")
         ]
         legend_bsiso = ax.legend(handles=bsiso_handles, loc="lower right", fontsize=8)
         ax.add_artist(legend_bsiso)
@@ -330,7 +330,7 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
         ax.bar(
             x,
             freq_ISO_sim["freq_MJO"],
-            color="tab:blue",
+            color="#0072B2",
             label=f"MJO {sim_label}",
             width=-bar_width,
             align="edge",
@@ -340,7 +340,7 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
             x,
             freq_ISO_obs["freq_MJO"],
             color="white",
-            edgecolor="tab:blue",
+            edgecolor="#0072B2",
             hatch="////",
             linewidth=0.8,
             label=f"MJO {obs_label}",
@@ -353,7 +353,7 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
         ax.bar(
             x,
             -freq_ISO_sim["freq_BSISO"],
-            color="tab:orange",
+            color="#E66101",
             label=f"BSISO {sim_label}",
             width=-bar_width,
             align="edge",
@@ -363,7 +363,7 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
             x,
             -freq_ISO_obs["freq_BSISO"],
             color="white",
-            edgecolor="tab:orange",
+            edgecolor="#E66101",
             hatch="////",
             linewidth=0.5,
             label=f"BSISO {obs_label}",
@@ -374,13 +374,13 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
 
         # MJO legend (upper right)
         mjo_handles = [
-            plt.Rectangle((0, 0), 1, 1, color="tab:blue", label=f"MJO {sim_label}"),
+            plt.Rectangle((0, 0), 1, 1, color="#0072B2", label=f"MJO {sim_label}"),
             plt.Rectangle(
                 (0, 0),
                 1,
                 1,
                 facecolor="white",
-                edgecolor="tab:blue",
+                edgecolor="#0072B2",
                 hatch="////",
                 label=f"MJO {obs_label}",
             ),
@@ -390,13 +390,13 @@ def plot_freq_ISO(freq_ISO_sim, freq_ISO_obs=None, alpha=None, corr=None, sigma=
 
         # BSISO legend (lower right)
         bsiso_handles = [
-            plt.Rectangle((0, 0), 1, 1, color="tab:orange", label=f"BSISO {sim_label}"),
+            plt.Rectangle((0, 0), 1, 1, color="#E66101", label=f"BSISO {sim_label}"),
             plt.Rectangle(
                 (0, 0),
                 1,
                 1,
                 facecolor="white",
-                edgecolor="tab:orange",
+                edgecolor="#E66101",
                 hatch="////",
                 label=f"BSISO {obs_label}",
             ),

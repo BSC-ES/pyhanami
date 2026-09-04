@@ -11,7 +11,7 @@ from pyhanami.utils.mjo_scores import mjo_spectrum_funcs
 
 
 def plot_ceofs(ceofs, title="Combined EOFs",
-               vars_colors={"ua850": "#1f77b4", "ua200": "#ff7f0e", "rlut": "#2ca02c"},
+               vars_colors={"ua850": "#0072B2", "ua200": "#E66101", "rlut": "#2ca02c"},
                labels_linestyles={"Dataset 1": "-", "Dataset 2": "--", "Dataset 3": ":"}):
     """
     Generate plot of the first two Combined Empirical Orthogonal Functions (CEOFs)
@@ -23,11 +23,13 @@ def plot_ceofs(ceofs, title="Combined EOFs",
     ceofs : list[xr.DataArray]
         List of CEOFs for each variable.
     title : str
-        Title of the plot.
+        Title of the plot (default: "Combined EOFs").
     vars_colors : dict
-        Dictionary mapping variable names to colors.
+        Dictionary mapping variable names to colors (default:
+        {"ua850": "#0072B2", "ua200": "#E66101", "rlut": "#2ca02c"}).
     labels_linestyles : dict
-        Dictionary mapping dataset names to line styles.
+        Dictionary mapping dataset names to line styles (default:
+        {"Dataset 1": "-", "Dataset 2": "--", "Dataset 3": ":"}).
 
     Returns
     -------

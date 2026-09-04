@@ -1126,7 +1126,7 @@ def plot_matrix(eff_sizes, test_results, test=4, title="Effect sizes replicabili
 
 
 def plot_table(data, title="Climate variables", col_labels="", row_labels="", cbar_ticks=["Low", "", "High"],
-               cbar_colors=("RedGreen", ["tab:red", "white", "tab:green"]), limits=None, reference=True,
+               cbar_colors=("OrangeBlue", ["#E69F00", "white", "#0072B2"]), limits=None, reference=True,
                decimals=1):
     """
     Generate a table plot with climate data.
@@ -1192,6 +1192,9 @@ def plot_table(data, title="Climate variables", col_labels="", row_labels="", cb
     ax.set_title(title, fontsize=16, pad=20)
 
     formatted_data = np.array([[f"{val:.{decimals}f}" for val in row] for row in data])
+    if reference:
+        row_labels[0] = "Reference (" + row_labels[0] + ")"
+
     cell_text = np.column_stack((np.reshape(row_labels, (-1, 1)), formatted_data))
     table = plt.table(cellText=cell_text, colLabels=col_labels, loc="center", cellLoc="center")
     table.auto_set_font_size(False)
