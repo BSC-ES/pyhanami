@@ -92,30 +92,31 @@ General scalar scores are computed for a given variable by comparing the simulat
 - **Spatially averaged absolute and relative bias**: computed as
 
     $$
-    \text{BIAS} = \sum_{i=1}^N \widetilde{\omega}_i\cdot |\text{bias}_i|, \quad \text{eBIAS} = \sum_{i=1}^N \widetilde{\omega}_i\cdot e^{-|\text{bias}_{i}|/\sigma^y_i},
+    \text{BIAS} = \sum_{i=1}^N \widetilde{\omega}_i\cdot |\text{bias}_i|, \quad \text{eBIAS} = \sum_{i=1}^N \widetilde{\omega}_i\cdot e^{-|\text{bias}_{i}|/\text{crms}^y_i},
     $$
 
     respectively, where
 
     $$
-    \text{bias}_{i} = \bar{x}_{i} - \bar{y}_i
+    \text{bias}_{i} = \bar{x}_{i} - \bar{y}_i, \quad \text{crms}^y_i = \sqrt{\frac{1}{T-1}\sum_{t=1}^T (y_{ti}-\bar{y}_i)^2}.
     $$ 
     
-    is the bias between the simulated ($\bar{x}_{i}$) and observed ($\bar{y}_i$) climatological means, $\sigma^y_i$ is the standard deviation over time of the observed variable and $\widetilde{\omega}_i$ is the normalized area weight, all at grid point $i$.
+    Being $\text{bias}_{i}$ the bias between the simulated ($\bar{x}_{i}$) and observed ($\bar{y}_i$) climatological means, $\text{crms}^y_i$ the centralized root mean square over time (with $T$ the number of time steps) of the observed variable, and $\widetilde{\omega}_i$ the normalized area weight, all at grid point $i$.
 
 - **Spatially averaged absolute and relative Root Mean Square Error (RMSE)**: computed as
 
     $$
-    \text{RMSE} = \sum_{i=1}^N \widetilde{\omega}_i\cdot \text{crmse}_i, \quad \text{eRMSE} = \sum_{i=1}^N \widetilde{\omega}_i\cdot e^{-\text{crmse}_i/\sigma^y_i},
+    \text{RMSE} = \sum_{i=1}^N \widetilde{\omega}_i\cdot \text{crmse}_i, \quad \text{eRMSE} = \sum_{i=1}^N \widetilde{\omega}_i\cdot e^{-\text{crmse}_i/\text{crms}^y_i},
     $$
 
     respectively, where 
 
     $$
-    \text{crmse}_{i} = \sqrt{\frac{1}{T}\sum_{t=1}^T [(x_{it}-\bar{x}_{i})-(y_{ti}-\bar{y}_i)]^2}
+    \text{crmse}_{i} = \sqrt{\frac{1}{T-1}\sum_{t=1}^T [(x_{it}-\bar{x}_{i})-(y_{ti}-\bar{y}_i)]^2}
     $$
 
-    is the centralized RMSE at grid point $i$, and $T$ is the number of time steps.
+    is the centralized RMSE at grid point $i$ for $T$ time steps, and $\text{crms}^y_i$ and $\widetilde{\omega}_i$ are defined as for the eBIAS score.
+    
 - **Spatial Pearson correlation coefficient**: computed as
 
     $$

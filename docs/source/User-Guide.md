@@ -508,4 +508,3 @@ skill_eval.compute_general_scores(
 - `path/to/obs` must be a path to a directory containing observation datasets, with files named following the pattern `data_obs*_{var_name}.nc`, where `var_name` matches the corresponding variable name in `src/pyhanami/config/variables.yaml`. 
 - For all the spatial plots, the central longitude is set to 0º by default, but it can be modified with the argument `clon` (e.g., `clon=180`).
 - For all table plots, the first row displays values for the reference dataset by default, and subsequent rows show the scores relative to the reference. However, this row can be disabled by passing the argument `reference=False` when calling the corresponding method.
-- For scientific skill `compute_<phenomenon>_scores(...)` methods, if a dataset has a `realization` coordinate, the ensemble mean is used by default. To run the analysis on one member only, pass `ensemble_mode='member'` and `member=<realization_value>`.

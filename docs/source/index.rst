@@ -15,4 +15,5 @@ Welcome to Pyhanami's documentation!
    Methodology.md
    Configuration.md 
    User-Guide.md
+   Known-Errors.md
    API-Reference.rst
