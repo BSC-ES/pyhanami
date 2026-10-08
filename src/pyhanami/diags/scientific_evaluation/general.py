@@ -169,10 +169,16 @@ class GeneralEvaluation:
         data_sim_mean, data_obs, var_name = args
 
         # Compute absolute bias
-        bias_abs_one_var = statistics.abs_weighted_bias(data_sim_mean, data_obs, var_name)
+        absolute_bias_one_var = statistics.absolute_bias(data_sim_mean, data_obs, var_name)
 
-        # Compute relative bias
-        bias_rel_one_var = statistics.ilamb_weighted_bias(data_sim_mean, data_obs, var_name)
+        # Compute weighted biases
+        bias_abs_one_var = statistics.abs_weighted_bias(data_sim_mean, var_name, abs_bias=absolute_bias_one_var)
+        bias_rel_one_var = statistics.ilamb_weighted_bias(
+            data_sim_mean,
+            data_obs,
+            var_name,
+            abs_bias=absolute_bias_one_var
+        )
 
         # Take ensemble mean when more than one member is present
         if self.ensemble:
