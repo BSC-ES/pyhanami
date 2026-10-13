@@ -27,7 +27,12 @@ Future releases will include:
 
 
 ## Installation
-The package and its dependencies can be installed using the conda environment provided in this repository (`environment.yaml`):
+The package and its dependencies can be installed using the conda environment provided in this repository (`environment.yaml`).
+
+This environment includes computationally intensive scientific packages, such as `xeofs` and `xesmf`, whose dependencies may take a long time to resolve using conda's `classic` solver. We strongly recommend using the `libmamba` solver for faster and more reliable dependency resolution.
+
+Package installation with conda:
+
 ```bash
 # Clone the repository to your current directory
 git clone https://github.com/BSC-ES/pyhanami.git
@@ -35,11 +40,19 @@ git clone https://github.com/BSC-ES/pyhanami.git
 # Enter the repository folder
 cd pyhanami
 
-# Create the conda environment 
+# Option 1: Create the environment using the libmamba solver (recommended)
+conda env create -f environment.yaml --solver=libmamba
+
+# Option 2: Use the default solver if libmamba is unavailable
 conda env create -f environment.yaml
 
 # Activate the newly created environment
 conda activate pyhanami-env_v0.2.0
+```
+
+Note that it is possible to configure `libmamba` as the default solver for all future conda commands by running:
+```
+conda config --set solver libmamba
 ```
 
 <!--
