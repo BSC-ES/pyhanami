@@ -75,8 +75,8 @@ IBTRACS_PATH = TC_DATA_PATH / "IBTrACS.since1980.v04r01.nc"
 IBTRACS_DATASET = 'wmo'
 
 TOPOG_URL = "https://www.gebco.net/data-products-gridded-bathymetry-data/gebco2024-grid"
-TOPOG_PATH = TC_DATA_PATH / "topog_GEBCO.nc"
-TOPOG_VARNAME = 'elevation'
+TOPOG_PATH = TC_DATA_PATH / "topog.nc" #"topog_GEBCO.nc"
+TOPOG_VARNAME = "topog" #'elevation'
 G = 9.80665
 
 CYMEP_CONFIGS_PATH = TC_DATA_PATH / "cymep_configs.csv"

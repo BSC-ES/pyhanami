@@ -27,7 +27,7 @@ classifiers=[
     "Topic :: Scientific/Engineering :: Atmospheric Science"
 ]
 
-requires-python = ">=3.7"
+requires-python = ">=3.11"
 dependencies = [
     "beautifulsoup4",
     "cartopy",
@@ -44,7 +44,7 @@ dependencies = [
     "statsmodels",
     "tqdm",
     "xarray>=2023.1.0,<2025.3.0",
-    "xeofs",
+    "xeofs>=3.0.4",
     "xesmf>=0.7.0,<0.9.0",
 ]
 # When adding a new dependency, remember to also update: environment.yaml, 

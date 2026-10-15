@@ -1,10 +1,10 @@
-# Create the environment (`libmamba` is recommended for faster dependency solving):
+# Create the environment (libmamba is recommended for faster dependency solving):
 # conda env create -f environment.yaml --solver=libmamba
 #
 # If libmamba is unavailable, use the default solver:
 # conda env create -f environment.yaml
 #
-# To use libmamba by default in future conda commands (one-time setup):
+# To use libmamba by default in future conda commands (one-time setup), run:
 # conda config --set solver libmamba
 #
 # Note that this environment includes heavy compiled scientific packages, such as
