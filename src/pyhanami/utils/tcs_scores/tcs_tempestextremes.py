@@ -116,7 +116,7 @@ def check_tempestExtremes_installed():
 
 
 def detect_nodes(input_file, output_file="detected_nodes.txt", psl_delta=200.0, psl_dist=5.5,
-                 z_delta=-6.0, z_dist=6.5, z_offset=1.0, merge_dist=6.0):
+                 z_delta=-6.0, z_dist=6.5, z_offset=1.0, merge_dist=6.0, regional=True):
     """
     Wrapper for DetectNodes function from TempestExtremes to identify nodal features related to
     tropical cyclones.
@@ -139,28 +139,24 @@ def detect_nodes(input_file, output_file="detected_nodes.txt", psl_delta=200.0, 
         Maximum separation between psl minimum and zg maximum, in degrees (default: 1.0).
     merge_dist : float
         Minimum allowable distance between two candidates, in degrees (default: 6.0).
+    regional : bool
+        Whether the latitude-longitude grid is not periodic in the longitudinal direction (default: True).
     """
 
     cmd = [
         "DetectNodes",
-        "--verbosity",
-        "0",
-        # "--timestride", "1",  # Deprecated, it only examines discrete times at the given stride, replaced by --timefilter
-        "--timefilter",
-        "6hr",
-        "--closedcontourcmd",
-        f"PSL,{psl_delta},{psl_dist},0;_DIFF(Z300,Z500),{z_delta},{z_dist},{z_offset}",
-        "--mergedist",
-        f"{merge_dist}",
-        "--searchbymin",
-        "PSL",
-        "--outputcmd",
-        "PSL,min,0;_VECMAG(UBOT,VBOT),max,2;PHIS,max,0",
-        "--in_data",
-        f"{input_file}",
-        "--out",
-        f"{output_file}",
+        "--verbosity", "0",
+        # "--timestride", "1",  # Deprecated, it only examines discrete times at the given stride
+        "--timefilter", "6hr",  # Replaces --timestride
+        "--closedcontourcmd", f"PSL,{psl_delta},{psl_dist},0;_DIFF(Z300,Z500),{z_delta},{z_dist},{z_offset}",
+        "--mergedist", f"{merge_dist}",
+        "--searchbymin", "PSL",
+        "--outputcmd", "PSL,min,0;_VECMAG(UBOT,VBOT),max,2;PHIS,max,0",
+        "--in_data", f"{input_file}",
+        "--out", f"{output_file}",
     ]
+    if regional:
+        cmd.append("--regional")
 
     subprocess.run(cmd, check=True)
     print(f"Nodes detection completed. DetectNodes output saved to '{output_file}'", flush=True)
@@ -168,7 +164,7 @@ def detect_nodes(input_file, output_file="detected_nodes.txt", psl_delta=200.0, 
 
 def stitch_nodes(input_file, output_file="cyclones_trajectories.txt", traj_range=8.0,
                  traj_min_length=10, traj_max_gap=3, min_wind=10.0, min_len=10,
-                 max_lat=50.0, format_str="i,j,lon,lat,slp,wind,phis"):
+                 max_lat=50.0, format_str="lon,lat,slp,wind,phis"):
     """
     Wrapper for StitchNodes function from TempestExtremes to identify actual TC tracks
     from the detected nodes.
@@ -195,12 +191,12 @@ def stitch_nodes(input_file, output_file="cyclones_trajectories.txt", traj_range
     format_str : str
         Format of columns to be added in the output_file, note the following are
         automatically added as final columns in the output: year (yyyy), month (mm), day (dd),
-        hour (hh) (default: "i,j,lon,lat,slp,wind,phis").
+        hour (hh) (default: "lon,lat,slp,wind,phis").
     """
 
     cmd = [
         "StitchNodes",
-        "--format", f"{format_str}",
+        "--in_fmt", f"{format_str}",
         "--range", f"{traj_range}",
         "--mintime", f"{traj_min_length}",
         "--maxgap", f"{traj_max_gap}",
@@ -242,8 +238,9 @@ def histogram_nodes(input_file, output_file="cyclones_trajectories.nc", ilon_col
 
 
 def track_tcs(data_name, input_path, output_path, hist=False, psl_delta=200.0, psl_dist=5.5,
-              z_delta=-6.0, z_dist=6.5, z_offset=1.0, merge_dist=6.0, traj_range=8.0,
-              traj_min_length=10, traj_max_gap=3, min_wind=10.0, min_len=10, max_lat=50.0):
+              z_delta=-6.0, z_dist=6.5, z_offset=1.0, merge_dist=6.0, regional=True,
+              traj_range=8.0, traj_min_length=10, traj_max_gap=3, min_wind=10.0, min_len=10,
+              max_lat=50.0):
     """
     Identify tracks of Tropical Cyclones (TCs) in the input data using TempestExtremes.
 
@@ -269,6 +266,8 @@ def track_tcs(data_name, input_path, output_path, hist=False, psl_delta=200.0, p
         Maximum separation between psl minimum and zg maximum, in degrees (default: 1.0).
     merge_dist : float
         Minimum allowable distance between two candidates, in degrees (default: 6.0).
+    regional : bool
+        Whether the latitude-longitude grid is not periodic in the longitudinal direction (default: True).
     traj_range : float
         Maximum travel distance for a cyclone in 6h, in degrees (default: 8.0).
     traj_min_length : int
@@ -312,6 +311,7 @@ def track_tcs(data_name, input_path, output_path, hist=False, psl_delta=200.0, p
         z_dist=z_dist,
         z_offset=z_offset,
         merge_dist=merge_dist,
+        regional=regional
     )
 
     # Run StitchNodes from TempestExtremes
@@ -343,8 +343,8 @@ def track_tcs(data_name, input_path, output_path, hist=False, psl_delta=200.0, p
 
 def run_tempestExtremes(data, data_name, output_path, tracks_hist=False, psl_delta=200.0,
                         psl_dist=5.5, z_delta=-6.0, z_dist=6.5, z_offset=1.0, merge_dist=6.0,
-                        traj_range=8.0, traj_min_length=10, traj_max_gap=3, min_wind=10.0,
-                        min_len=10, max_lat=50.0):
+                        regional=True, traj_range=8.0, traj_min_length=10, traj_max_gap=3,
+                        min_wind=10.0, min_len=10, max_lat=50.0):
     """
     Main function to run TempestExtremes for identifying Tropical Cyclones (TCs) tracks.
 
@@ -370,6 +370,8 @@ def run_tempestExtremes(data, data_name, output_path, tracks_hist=False, psl_del
         Maximum separation between psl minimum and zg maximum, in degrees (default: 1.0).
     merge_dist : float
         Minimum allowable distance between two candidates, in degrees (default: 6.0).
+    regional : bool
+        Whether the latitude-longitude grid is not periodic in the longitudinal direction (default: True).
     traj_range : float
         Maximum travel distance for a cyclone in 6h, in degrees (default: 8.0).
     traj_min_length : int
@@ -409,6 +411,7 @@ def run_tempestExtremes(data, data_name, output_path, tracks_hist=False, psl_del
         z_dist=z_dist,
         z_offset=z_offset,
         merge_dist=merge_dist,
+        regional=regional,
         traj_range=traj_range,
         traj_min_length=traj_min_length,
         traj_max_gap=traj_max_gap,
@@ -556,7 +559,7 @@ def compute_tc_counts(tracks, start_year, end_year, bin_size=2.5, cutoff_wind=10
                 lon = point["lon"]
                 traj_pts.append([lat, lon])
 
-                if not genesis_found and point["wind"] > cutoff_wind:
+                if not genesis_found and point["wind"] >= cutoff_wind:
                     genesis_pts.append([lat, lon])
                     genesis_found = True
 
@@ -571,26 +574,34 @@ def compute_tc_counts(tracks, start_year, end_year, bin_size=2.5, cutoff_wind=10
     return counts_gen, counts_traj
 
 
-def filter_tracks_by_wind(tracks_path, filtered_tracks_path, cutoff_wind=10.0):
+def prepare_tracks(tracks_path, filtered_tracks_path):
+    """Check and prepare track files."""
+
+    if not Path(tracks_path).exists():
+        raise FileNotFoundError(f"Tracks file '{tracks_path}' does not exist.")
+
+    filtered_tracks_path = Path(filtered_tracks_path)
+    filtered_tracks_path.parent.mkdir(parents=True, exist_ok=True)
+
+    return
+
+
+def filter_tracks(tracks_path, filtered_tracks_path, keep_track):
     """
-    Filter TC trajectories from TempestExtremes output file, keeping only those with
-    at least one point exceeding the specified 10 m wind speed.
+    Read TC trajectories and write those satisfying the keep_track condition.
 
     Parameters
     ----------
-    tracks_file : str
+    tracks_path : str
         Path to the TempestExtremes output .txt file.
     filtered_tracks_path : str
         Path to save the filtered tracks .txt file.
-    cutoff_wind : float
-        Minimum 10 m wind speed in m/s to consider a TC track (default: 10.0).
+    keep_track : callable
+        Function that takes a list of trajectory points and returns True if the trajectory should be kept.
     """
 
     # Prepare files
-    if not Path(tracks_path).exists():
-        raise FileNotFoundError(f"Tracks file '{tracks_path}' does not exist.")
-    filtered_tracks_path = Path(filtered_tracks_path)
-    filtered_tracks_path.parent.mkdir(parents=True, exist_ok=True)
+    prepare_tracks(tracks_path, filtered_tracks_path)
 
     # Read and filter tracks
     filtered_tracks = []
@@ -599,28 +610,85 @@ def filter_tracks_by_wind(tracks_path, filtered_tracks_path, cutoff_wind=10.0):
             line = f.readline()
             if not line:
                 break
-            if line.startswith("start"):
-                parts = line.strip().split()
-                num_points = int(parts[1])
-                track_lines = [line]
-                wind_exceeds_cutoff = False
+            if not line.startswith("start"):
+                continue
 
-                # Read and store all points
-                for _ in range(num_points):
-                    point_line = f.readline()
-                    track_lines.append(point_line)
-                    fields = point_line.strip().split()
-                    wind = float(fields[5])
-                    if wind >= cutoff_wind:
-                        wind_exceeds_cutoff = True
+            parts = line.strip().split()
+            num_points = int(parts[1])
+            track_lines = [line]
+            points = []
 
-                # Write track if it contains at least one point above wind threshold
-                if wind_exceeds_cutoff:
-                    filtered_tracks.extend(track_lines)
+            # Read and store all points
+            for _ in range(num_points):
+                point_line = f.readline()
+                track_lines.append(point_line)
+                point = point_line.strip().split()
+                points.append(point)
+
+            # Write track if it satisfies the conditions
+            if keep_track(points):
+                filtered_tracks.extend(track_lines)
 
     # Write filtered tracks to output file
     with open(filtered_tracks_path, "w") as f:
-        for line in filtered_tracks:
-            f.write(line)
+        f.writelines(filtered_tracks)
 
+    return
+
+
+def filter_tracks_spatially(tracks_path, filtered_tracks_path, lat_range=(-90, 90), lon_range=(0, 360)):
+    """
+    Filter TC trajectories from TempestExtremes output file, keeping only those with
+    all points within the specified spatial range.
+
+    Parameters
+    ----------
+    tracks_path : str
+        Path to the TempestExtremes output .txt file.
+    filtered_tracks_path : str
+        Path to save the filtered tracks .txt file.
+    lat_range : tuple(float)
+        Latitude range (min_lat, max_lat) to consider a TC trajectory (default: (-90, 90)).
+    lon_range : tuple(float)
+        Longitude range (min_lon, max_lon) to consider a TC trajectory (default: (0, 360)).
+    """
+
+    # Validate input
+    if len(lat_range) != 2 or not -90 <= lat_range[0] <= lat_range[1] <= 90:
+        raise ValueError("Invalid latitude range.")
+
+    if len(lon_range) != 2 or lon_range[0] > lon_range[1]:
+        raise ValueError("Invalid longitude range.")
+
+    # Check that all points are within the specified region
+    def keep_track(points):
+        in_spatial_range = all(
+            lat_range[0] <= float(point[3]) <= lat_range[1]
+            and lon_range[0] <= float(point[2]) <= lon_range[1]
+            for point in points
+        )
+        return in_spatial_range
+
+    filter_tracks(tracks_path, filtered_tracks_path, keep_track)
+    return
+
+
+def filter_tracks_by_wind (tracks_path, filtered_tracks_path, cutoff_wind=10.0):
+    """
+    Filter TC trajectories from TempestExtremes output file, keeping only those with
+    at least one point exceeding the specified 10 m wind speed.
+
+    Parameters
+    ----------
+    tracks_path : str
+        Path to the TempestExtremes output .txt file.
+    filtered_tracks_path : str
+        Path to save the filtered tracks .txt file.
+    cutoff_wind : float
+        Minimum 10 m wind speed in m/s to consider a TC track (default: 10.0).
+    """
+    def keep_track(points):
+        return any(float(point[5]) >= cutoff_wind for point in points)
+
+    filter_tracks(tracks_path, filtered_tracks_path, keep_track)
     return

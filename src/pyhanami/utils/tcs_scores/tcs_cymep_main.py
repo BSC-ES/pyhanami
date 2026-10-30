@@ -1457,7 +1457,7 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1,
             nas = np.logical_or(np.isnan(tmpx), np.isnan(tmpy))
             rsdict[repStr][ii], tmp = sps.spearmanr(tmpx[~nas], tmpy[~nas])
 
-    # Pearson correlation
+    # Pearson correlation (unused in pyhanami)
     rpdict = {}
     for jj in pmdict:
         # Swap per month strings with corr prefix and init dict key
@@ -1468,7 +1468,13 @@ def run_cymep_pyhanami(styr, enyr, output_path, gridsize=2.5, basin=-1,
             tmpx = pmdict[jj][0, :]
             tmpy = pmdict[jj][ii, :]
             nas = np.logical_or(np.isnan(tmpx), np.isnan(tmpy))
-            rpdict[repStr][ii], tmp = sps.pearsonr(tmpx[~nas], tmpy[~nas])
+
+            nvalid = np.count_nonzero(~nas)
+            if nvalid < 2:
+                print(f"Skipping {jj}, file index {ii}: {nvalid} paired values")
+                rpdict[repStr][ii] = np.nan
+            else:
+                rpdict[repStr][ii], tmp = sps.pearsonr(tmpx[~nas], tmpy[~nas])
 
     # Generate Taylor dict (not used for now)
     taydict = {}

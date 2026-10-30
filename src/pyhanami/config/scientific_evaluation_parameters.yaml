@@ -143,6 +143,10 @@ tc:
     type: float
     units: "degrees"
     description: Minimum allowable distance between two candidates
+  regional:
+    value: true
+    type: bool
+    description: Whether the latitude-longitude grid is not periodic in the longitudinal direction.
 
   # StitchNodes parameters
   traj_range:

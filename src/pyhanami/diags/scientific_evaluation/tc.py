@@ -1,6 +1,7 @@
 import os
 import re
 import shutil
+import numpy as np
 import xarray as xr
 
 from pathlib import Path
@@ -132,13 +133,16 @@ class TCEvaluation:
         )
         data_sim_tcs = data_sim.data.sel(time=slice(str(self.start_year_tc), str(self.end_year_tc)))
 
+
         # Prepare output folder for temporary files
         self.tracks_path = config_params.TC_DATA_PATH / "temp_tracks"
         self.tracks_path.mkdir(parents=True, exist_ok=True)
 
 
-        # # Prepare IBTrACS data, and observational data if requested
-        self._prepare_IBTrACS_data()
+        # Prepare IBTrACS data, and observational data if requested
+        lat_range, lon_range = self._limits_spatial_filtering(data_sim_tcs, tc_config=tc_config)
+
+        self._prepare_IBTrACS_data(lat_range=lat_range, lon_range=lon_range)
         print(
             f"\tIBTrACS TCs data preprocessed and saved to '{self.config_cymep['IBTrACS'][0]}'.",
             flush=True,
@@ -146,7 +150,7 @@ class TCEvaluation:
 
         if self.obs:
             self.obs_names = ["JRA55"]
-            self._prepare_obs_data()
+            self._prepare_obs_data(lat_range=lat_range, lon_range=lon_range)
             print(
                 f"\tObservational TCs data preprocessed and saved to '{self.tracks_path}'.",
                 flush=True,
@@ -179,9 +183,76 @@ class TCEvaluation:
         return
 
 
-    def _prepare_IBTrACS_data(self):
+    def _is_global(self, lon_sorted, tol=1e-3):
+        """
+        Estimate whether the dataset covers the global longitudinal range.
+
+        Parameters
+        ----------
+        lon_sorted : np.ndarray
+            1D array of sorted longitudes in degrees.
+        tol : float
+            Tolerance for determining if the longitudinal coverage is global (default: 1e-3).
+
+        Returns
+        -------
+        is_global: bool
+            Whether the dataset covers the global longitudinal range.
+        """
+
+        # Compute gap between consecutive longitudes (including the gap across the 0/360 boundary)
+        lon_sorted = lon_sorted[np.r_[True, np.diff(lon_sorted) > tol]] # Remove duplicate meridians
+        gaps = np.diff(np.r_[lon_sorted, lon_sorted[0] + 360.0])
+
+        # Check for global coverage (all gaps should be approximately equal)
+        is_global = np.all(np.abs(gaps - np.median(gaps)) <= tol)
+        return is_global
+
+
+    def _limits_spatial_filtering(self, data_sim, tc_config):
+        """
+        Compute the limits for spatial filtering of the TC trajectories based on the
+        simulation data and TC configuration.
+
+        Parameters
+        ----------
+        data_sim : xarray.DataArray
+            Simulation data containing latitude and longitude information.
+        tc_config : object
+            TC configuration object containing maximum latitude information.
+
+        Returns
+        -------
+        lat_range : tuple(float)
+            Latitude range for spatial filtering (min_lat, max_lat).
+        lon_range : tuple(float)
+            Longitude range for spatial filtering (min_lon, max_lon).
+        """
+
+        # Prepare latitude limits
+        lat_sorted = np.sort(data_sim["lat"].values)
+        lat_min = max(lat_sorted[0], -tc_config.max_lat)
+        lat_max = min(lat_sorted[-1], tc_config.max_lat)
+        lat_range = (lat_min, lat_max)
+
+        # Prepare longitude limits
+        lon_sorted = np.sort(data_sim["lon"].values % 360)
+        is_global = self._is_global(lon_sorted)
+        lon_range = (0, 360) if is_global else (lon_sorted[0], lon_sorted[-1])
+
+        return lat_range, lon_range
+
+
+    def _prepare_IBTrACS_data(self, lat_range, lon_range):
         """
         Prepare IBTrACS TCs data to use as a reference for the TCs metrics computation.
+
+        Parameters
+        ----------
+        lat_range : tuple(float)
+            Latitude range for spatial filtering (min_lat, max_lat).
+        lon_range : tuple(float)
+            Longitude range for spatial filtering (min_lon, max_lon).
         """
 
         # Retrieve IBTrACS data metadata
@@ -192,6 +263,14 @@ class TCEvaluation:
             min_wind=self.min_wind,
         )
 
+        # Apply spatial filtering
+        tcs_tempestextremes.filter_tracks_spatially(
+            ib_path,
+            ib_path,
+            lat_range=lat_range,
+            lon_range=lon_range
+        )
+
         # Add IBTrACS parameters to CyMeP configuration file
         year_range = ib_end_year - config_params.IBTRACS_START_YEAR + 1
         ib_config = [str(ib_path), "IBTrACS", False, 1, year_range, 1.0]
@@ -200,16 +279,23 @@ class TCEvaluation:
         return
 
 
-    def _prepare_obs_data(self):
+    def _prepare_obs_data(self, lat_range, lon_range):
         """
         Prepare observational TCs data for the TCs metrics computation.
+
+        Parameters
+        ----------
+        lat_range : tuple(float)
+            Latitude range for spatial filtering (min_lat, max_lat).
+        lon_range : tuple(float)
+            Longitude range for spatial filtering (min_lon, max_lon).
         """
 
         data_path = config_params.TC_DATA_PATH
         for name in self.obs_names:
             # Look for observational data
             obs_files = list(data_path.glob(f"{name.lower()}_*.txt"))
-            if obs_files is None:
+            if not obs_files:
                 raise FileNotFoundError(f"No observational TCs data found for '{name}' in '{data_path}'.")
             obs_path = obs_files[0]
 
@@ -226,13 +312,21 @@ class TCEvaluation:
                 )
                 break
 
+            # Apply spatial filtering
+            tcs_tempestextremes.filter_tracks_spatially(
+                obs_path,
+                obs_path,
+                lat_range=lat_range,
+                lon_range=lon_range
+            )
+
             # Apply wind threshold
             if self.min_wind > 10.0:
                 new_obs_path = (
                     self.tracks_path
                     / f"{name.lower()}_{obs_start_year}_{obs_end_year}_{self.min_wind:.1f}_False_1_1.0.txt"
                 )
-                obs_path = tcs_tempestextremes.filter_tracks_by_wind(
+                tcs_tempestextremes.filter_tracks_by_wind(
                     obs_path,
                     new_obs_path,
                     cutoff_wind=self.min_wind
@@ -275,6 +369,7 @@ class TCEvaluation:
             z_dist=tc_config.z_dist,
             z_offset=tc_config.z_offset,
             merge_dist=tc_config.merge_dist,
+            regional=tc_config.regional,
             traj_range=tc_config.traj_range,
             traj_min_length=tc_config.traj_min_length,
             traj_max_gap=tc_config.traj_max_gap,
